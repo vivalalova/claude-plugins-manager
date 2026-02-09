@@ -17,10 +17,9 @@ Plugin, and MCP Server systems.
 ## Install
 
 ```bash
-npm run install:ext
+npm run install:ext    # Build and install into VSCode
+npm run uninstall:ext  # Uninstall from VSCode
 ```
-
-This runs `pnpm install`, builds, packages VSIX, and installs into VSCode.
 
 ## Usage
 

@@ -62,6 +62,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
     "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links --allow-missing-repository",
     "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-0.1.0.vsix --force",
+    "uninstall:ext": "code --uninstall-extension lova.claude-plugins-manager",
     "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
