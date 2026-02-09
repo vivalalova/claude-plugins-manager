@@ -1,0 +1,15 @@
+.vscode/**
+.claude/**
+src/**
+docs/**
+node_modules/**
+tsconfig.json
+tsconfig.webview.json
+esbuild.extension.mjs
+esbuild.webview.mjs
+vitest.config.ts
+.gitignore
+pnpm-lock.yaml
+CLAUDE.md
+*.map
+resources/banner.*

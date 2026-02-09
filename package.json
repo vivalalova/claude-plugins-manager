@@ -1,0 +1,82 @@
+{
+  "name": "claude-plugins-manager",
+  "displayName": "Claude Plugins Manager",
+  "description": "Manage Claude Code Marketplace, Plugin, and MCP Server",
+  "version": "0.1.0",
+  "publisher": "lova",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claude-plugins-manager",
+          "title": "Claude Plugins Manager",
+          "icon": "resources/claude-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "claude-plugins-manager": [
+        {
+          "type": "webview",
+          "id": "claude-plugins-manager.sidebarView",
+          "name": "Claude Plugins Manager"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claude-plugins-manager.openMarketplace",
+        "title": "Open Marketplace Manager",
+        "category": "Claude Code"
+      },
+      {
+        "command": "claude-plugins-manager.openPlugin",
+        "title": "Open Plugin Manager",
+        "category": "Claude Code"
+      },
+      {
+        "command": "claude-plugins-manager.openMcp",
+        "title": "Open MCP Server Manager",
+        "category": "Claude Code"
+      }
+    ]
+  },
+  "scripts": {
+    "build:extension": "node esbuild.extension.mjs",
+    "build:webview": "node esbuild.webview.mjs",
+    "build": "npm run build:extension && npm run build:webview",
+    "watch:extension": "node esbuild.extension.mjs --watch",
+    "watch:webview": "node esbuild.webview.mjs --watch",
+    "watch": "concurrently \"npm:watch:extension\" \"npm:watch:webview\"",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
+    "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links --allow-missing-repository",
+    "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-0.1.0.vsix --force",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "concurrently": "^9.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
