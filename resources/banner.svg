@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="50%" stop-color="#16213e"/>
+      <stop offset="100%" stop-color="#0f3460"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e07a5f"/>
+      <stop offset="100%" stop-color="#f2a365"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e07a5f" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#e07a5f" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="200" rx="12" fill="url(#bg)"/>
+
+  <!-- Subtle top glow -->
+  <rect width="800" height="100" rx="12" fill="url(#glow)"/>
+
+  <!-- Grid dots pattern -->
+  <g opacity="0.06" fill="#fff">
+    <circle cx="40" cy="40" r="1"/><circle cx="80" cy="40" r="1"/><circle cx="120" cy="40" r="1"/><circle cx="160" cy="40" r="1"/><circle cx="200" cy="40" r="1"/>
+    <circle cx="240" cy="40" r="1"/><circle cx="280" cy="40" r="1"/><circle cx="320" cy="40" r="1"/><circle cx="360" cy="40" r="1"/><circle cx="400" cy="40" r="1"/>
+    <circle cx="440" cy="40" r="1"/><circle cx="480" cy="40" r="1"/><circle cx="520" cy="40" r="1"/><circle cx="560" cy="40" r="1"/><circle cx="600" cy="40" r="1"/>
+    <circle cx="640" cy="40" r="1"/><circle cx="680" cy="40" r="1"/><circle cx="720" cy="40" r="1"/><circle cx="760" cy="40" r="1"/>
+    <circle cx="40" cy="80" r="1"/><circle cx="80" cy="80" r="1"/><circle cx="120" cy="80" r="1"/><circle cx="160" cy="80" r="1"/><circle cx="200" cy="80" r="1"/>
+    <circle cx="240" cy="80" r="1"/><circle cx="280" cy="80" r="1"/><circle cx="320" cy="80" r="1"/><circle cx="360" cy="80" r="1"/><circle cx="400" cy="80" r="1"/>
+    <circle cx="440" cy="80" r="1"/><circle cx="480" cy="80" r="1"/><circle cx="520" cy="80" r="1"/><circle cx="560" cy="80" r="1"/><circle cx="600" cy="80" r="1"/>
+    <circle cx="640" cy="80" r="1"/><circle cx="680" cy="80" r="1"/><circle cx="720" cy="80" r="1"/><circle cx="760" cy="80" r="1"/>
+    <circle cx="40" cy="120" r="1"/><circle cx="80" cy="120" r="1"/><circle cx="120" cy="120" r="1"/><circle cx="160" cy="120" r="1"/><circle cx="200" cy="120" r="1"/>
+    <circle cx="240" cy="120" r="1"/><circle cx="280" cy="120" r="1"/><circle cx="320" cy="120" r="1"/><circle cx="360" cy="120" r="1"/><circle cx="400" cy="120" r="1"/>
+    <circle cx="440" cy="120" r="1"/><circle cx="480" cy="120" r="1"/><circle cx="520" cy="120" r="1"/><circle cx="560" cy="120" r="1"/><circle cx="600" cy="120" r="1"/>
+    <circle cx="640" cy="120" r="1"/><circle cx="680" cy="120" r="1"/><circle cx="720" cy="120" r="1"/><circle cx="760" cy="120" r="1"/>
+    <circle cx="40" cy="160" r="1"/><circle cx="80" cy="160" r="1"/><circle cx="120" cy="160" r="1"/><circle cx="160" cy="160" r="1"/><circle cx="200" cy="160" r="1"/>
+    <circle cx="240" cy="160" r="1"/><circle cx="280" cy="160" r="1"/><circle cx="320" cy="160" r="1"/><circle cx="360" cy="160" r="1"/><circle cx="400" cy="160" r="1"/>
+    <circle cx="440" cy="160" r="1"/><circle cx="480" cy="160" r="1"/><circle cx="520" cy="160" r="1"/><circle cx="560" cy="160" r="1"/><circle cx="600" cy="160" r="1"/>
+    <circle cx="640" cy="160" r="1"/><circle cx="680" cy="160" r="1"/><circle cx="720" cy="160" r="1"/><circle cx="760" cy="160" r="1"/>
+  </g>
+
+  <!-- Logo: Claude starburst -->
+  <g transform="translate(100, 100)" fill="url(#accent)">
+    <circle cx="0" cy="0" r="8"/>
+    <ellipse cx="0" cy="-22" rx="5.5" ry="11"/>
+    <ellipse cx="0" cy="-22" rx="5.5" ry="11" transform="rotate(60, 0, 0)"/>
+    <ellipse cx="0" cy="-22" rx="5.5" ry="11" transform="rotate(120, 0, 0)"/>
+    <ellipse cx="0" cy="-22" rx="5.5" ry="11" transform="rotate(180, 0, 0)"/>
+    <ellipse cx="0" cy="-22" rx="5.5" ry="11" transform="rotate(240, 0, 0)"/>
+    <ellipse cx="0" cy="-22" rx="5.5" ry="11" transform="rotate(300, 0, 0)"/>
+  </g>
+
+  <!-- Title -->
+  <text x="175" y="88" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="36" font-weight="700" fill="#ffffff" letter-spacing="-0.5">
+    Claude Plugins
+  </text>
+  <text x="175" y="125" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="36" font-weight="300" fill="#e07a5f" letter-spacing="-0.5">
+    Manager
+  </text>
+
+  <!-- Tagline -->
+  <text x="175" y="158" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" fill="#8899aa" letter-spacing="0.5">
+    Marketplace / Plugins / MCP Servers &#x2014; all in one place
+  </text>
+</svg>
