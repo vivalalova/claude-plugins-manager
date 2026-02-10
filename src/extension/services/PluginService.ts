@@ -36,6 +36,9 @@ export class PluginService {
       available.map((a) => [a.pluginId, a.description]),
     );
 
+    // 取得當前 workspace path（如果有的話）
+    const currentWorkspacePath = this.getCurrentWorkspacePath();
+
     // 收集所有 entries 和對應的 metadata
     const entries: Array<{
       pluginId: string;
@@ -46,6 +49,16 @@ export class PluginService {
 
     for (const [pluginId, pluginEntries] of Object.entries(data.plugins)) {
       for (const entry of pluginEntries) {
+        // 過濾：只保留 user scope 或當前 workspace 的 project/local entries
+        if (entry.scope !== 'user' && currentWorkspacePath !== null) {
+          if (entry.projectPath !== currentWorkspacePath) {
+            continue;
+          }
+        } else if (entry.scope !== 'user' && currentWorkspacePath === null) {
+          // 沒有開啟 workspace 時，跳過所有 project/local entries
+          continue;
+        }
+
         const scopeEnabled = enabledByScope[entry.scope] ?? {};
         entries.push({
           pluginId,
@@ -230,5 +243,14 @@ export class PluginService {
   private getProjectPath(scope: PluginScope): string {
     if (scope === 'user') return '';
     return getWorkspacePath();
+  }
+
+  /** 取得當前 workspace 路徑，沒有則回傳 null */
+  private getCurrentWorkspacePath(): string | null {
+    try {
+      return getWorkspacePath();
+    } catch {
+      return null;
+    }
   }
 }

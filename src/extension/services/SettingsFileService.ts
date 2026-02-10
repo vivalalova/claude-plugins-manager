@@ -124,23 +124,23 @@ export class SettingsFileService {
 
   /**
    * 掃描所有 marketplace 的 marketplace.json，回傳 available plugins。
-   * 從 known_marketplaces.json 取得 marketplace 清單。
+   * 從 known_marketplaces.json 取得 marketplace 清單和實際路徑。
    */
   async scanAvailablePlugins(): Promise<AvailablePlugin[]> {
     const result: AvailablePlugin[] = [];
 
-    let marketplaceNames: string[];
+    let knownMarketplaces: Record<string, { installLocation?: string }>;
     try {
-      const known = await this.readJson<Record<string, unknown>>(
+      knownMarketplaces = await this.readJson<Record<string, { installLocation?: string }>>(
         KNOWN_MARKETPLACES_PATH,
       );
-      marketplaceNames = Object.keys(known);
     } catch {
       return result;
     }
 
-    for (const mpName of marketplaceNames) {
-      const mpDir = join(MARKETPLACES_DIR, mpName);
+    for (const [mpName, mpEntry] of Object.entries(knownMarketplaces)) {
+      // 使用 installLocation，fallback 為預設路徑
+      const mpDir = mpEntry.installLocation ?? join(MARKETPLACES_DIR, mpName);
       const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
       try {
         const manifest = await this.readJson<MarketplaceManifest>(manifestPath);

@@ -64,6 +64,11 @@ describe('PluginService', () => {
     });
 
     it('合併 installed entry + 各 scope enabled 狀態', async () => {
+      // Mock workspace 為 /my/project，讓 project entry 通過過濾
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' }, name: 'my-project', index: 0 },
+      ] as any;
+
       settings.readInstalledPlugins.mockResolvedValue({
         version: 2,
         plugins: {
@@ -108,6 +113,66 @@ describe('PluginService', () => {
         scope: 'project',
         enabled: false,
       });
+    });
+
+    it('只回傳當前 workspace 的 project/local entries', async () => {
+      // Mock workspace 為 /current/project
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/current/project' }, name: 'current', index: 0 },
+      ] as any;
+
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'plugin-a@mp': [
+            {
+              scope: 'user',
+              installPath: '/cache/plugin-a',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+            },
+            {
+              scope: 'project',
+              installPath: '/cache/plugin-a',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+              projectPath: '/current/project',
+            },
+            {
+              scope: 'project',
+              installPath: '/cache/plugin-a',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+              projectPath: '/other/project',
+            },
+            {
+              scope: 'local',
+              installPath: '/cache/plugin-a',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+              projectPath: '/current/project',
+            },
+          ],
+        },
+      } satisfies InstalledPluginsFile);
+
+      settings.readEnabledPlugins
+        .mockResolvedValueOnce({}) // user
+        .mockResolvedValueOnce({}) // project
+        .mockResolvedValueOnce({}); // local
+
+      mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
+
+      const result = await svc.listInstalled();
+
+      // 應該只回傳 user + 當前專案的 project + 當前專案的 local，過濾掉其他專案的
+      expect(result).toHaveLength(3);
+      expect(result.map(r => r.scope)).toEqual(['user', 'project', 'local']);
+      expect(result.every(r => r.projectPath === '/current/project' || r.scope === 'user')).toBe(true);
     });
 
     it('讀取 .mcp.json 並附加到結果', async () => {
