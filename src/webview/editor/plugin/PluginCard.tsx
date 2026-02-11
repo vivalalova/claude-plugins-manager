@@ -80,17 +80,20 @@ export function PluginCard({
       )}
 
       <div className="scope-chips-row">
+        {hasContents
+          ? <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
+          : <span className="card-expand-arrow-spacer" />}
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
         <div className="scope-chips" onClick={(e) => e.stopPropagation()}>
         <ScopeToggle
-          label="user"
+          label="User"
           scope="user"
           enabled={plugin.userInstall?.enabled ?? false}
           onToggle={(on) => onToggle('user', on)}
         />
         {hasWorkspace && (
           <ScopeToggle
-            label="project"
+            label="Project"
             scope="project"
             enabled={plugin.projectInstalls[0]?.enabled ?? false}
             onToggle={(on) => onToggle('project', on)}
@@ -98,16 +101,13 @@ export function PluginCard({
         )}
         {hasWorkspace && (
           <ScopeToggle
-            label="local"
+            label="Local"
             scope="local"
             enabled={plugin.localInstall?.enabled ?? false}
             onToggle={(on) => onToggle('local', on)}
           />
         )}
         </div>
-        {hasContents && (
-          <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
-        )}
       </div>
 
       {hasContents && (

@@ -423,9 +423,9 @@ body {
 /* Scope toggles — 橫排 checkbox + badge */
 .scope-chips {
   display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 6px 0 2px;
 }
 
 .scope-chip-toggle {
@@ -463,19 +463,40 @@ body {
 .scope-chips-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
+}
+
+.card-expand-arrow-spacer {
+  width: 22px;
+  flex-shrink: 0;
 }
 
 .card-expand-arrow {
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 6px solid var(--vscode-descriptionForeground);
-  opacity: 0.5;
-  transition: transform 0.15s ease;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
   transform: rotate(-90deg);
   flex-shrink: 0;
+}
+
+.card-expand-arrow::after {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-bottom: 1.5px solid var(--vscode-foreground);
+  border-right: 1.5px solid var(--vscode-foreground);
+  transform: rotate(45deg);
+}
+
+.card--expandable:hover .card-expand-arrow {
+  opacity: 1;
+  background-color: var(--vscode-toolbar-hoverBackground);
 }
 
 .card-expand-arrow--open {
