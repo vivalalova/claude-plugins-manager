@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -30,7 +30,12 @@ export function PluginPage(): React.ReactElement {
   // 預設收合，使用者手動展開的 marketplace 加入此 set
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [marketplaceSources, setMarketplaceSources] = useState<Record<string, string>>({});
-
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translateLang, setTranslateLang] = useState(
+    () => localStorage.getItem('plugin.translateLang') ?? '',
+  );
+  const [pendingTexts, setPendingTexts] = useState<Set<string>>(new Set());
+  const translateVersionRef = useRef(0);
   useEffect(() => {
     sendRequest<WorkspaceFolder[]>({ type: 'workspace.getFolders' })
       .then(setWorkspaceFolders)
@@ -55,6 +60,60 @@ export function PluginPage(): React.ReactElement {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  /** 語言變更或 plugins 載入後自動翻譯（分批送出，逐批更新 UI） */
+  const doTranslate = useCallback(async (lang: string, items: MergedPlugin[]) => {
+    const version = ++translateVersionRef.current;
+
+    if (!lang) {
+      setTranslations({});
+      setPendingTexts(new Set());
+      return;
+    }
+
+    const texts = [...new Set(
+      items.map((p) => p.description).filter((d): d is string => !!d),
+    )];
+    if (texts.length === 0) return;
+
+    // 分批：每 5 筆一組，對應後端 450 字元批次
+    const CHUNK_SIZE = 5;
+    const chunks: string[][] = [];
+    for (let i = 0; i < texts.length; i += CHUNK_SIZE) {
+      chunks.push(texts.slice(i, i + CHUNK_SIZE));
+    }
+
+    setTranslations({});
+    setPendingTexts(new Set(texts));
+
+    await Promise.all(chunks.map(async (chunk) => {
+      try {
+        const result = await sendRequest<Record<string, string>>(
+          { type: 'plugin.translate', texts: chunk, targetLang: lang },
+        );
+        if (translateVersionRef.current !== version) return;
+        setTranslations((prev) => ({ ...prev, ...result }));
+      } catch {
+        // 翻譯失敗不影響主流程
+      } finally {
+        if (translateVersionRef.current !== version) return;
+        setPendingTexts((prev) => {
+          const next = new Set(prev);
+          for (const t of chunk) next.delete(t);
+          return next;
+        });
+      }
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (plugins.length > 0) doTranslate(translateLang, plugins);
+  }, [translateLang, plugins, doTranslate]);
+
+  const handleLangChange = (lang: string): void => {
+    setTranslateLang(lang);
+    localStorage.setItem('plugin.translateLang', lang);
+  };
 
   /** 過濾 + 按 marketplace 分組 */
   const grouped = useMemo(() => {
@@ -160,6 +219,21 @@ export function PluginPage(): React.ReactElement {
           />
           <span>Enabled</span>
         </label>
+        <select
+          className="input translate-select"
+          value={translateLang}
+          onChange={(e) => handleLangChange(e.target.value)}
+          disabled={pendingTexts.size > 0}
+        >
+          <option value="">English</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="zh-CN">简体中文</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+        </select>
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
@@ -203,6 +277,8 @@ export function PluginPage(): React.ReactElement {
                         key={plugin.id}
                         plugin={plugin}
                         workspaceName={workspaceFolders[0]?.name}
+                        translations={translations}
+                        translating={!!translateLang && pendingTexts.has(plugin.description ?? '')}
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
                         onUpdate={() => handleUpdate(plugin.id)}
                       />

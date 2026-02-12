@@ -5,6 +5,7 @@ import { MarketplaceService } from './services/MarketplaceService';
 import { PluginService } from './services/PluginService';
 import { SettingsFileService } from './services/SettingsFileService';
 import { McpService } from './services/McpService';
+import { TranslationService } from './services/TranslationService';
 import { MessageRouter } from './messaging/MessageRouter';
 import { SidebarViewProvider } from './providers/SidebarViewProvider';
 import { EditorPanelManager } from './providers/EditorPanelManager';
@@ -16,7 +17,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const settingsFileService = new SettingsFileService();
   const pluginService = new PluginService(cli, settingsFileService);
   const mcpService = new McpService(cli);
-  const router = new MessageRouter(marketplaceService, pluginService, mcpService);
+  const translationService = new TranslationService();
+  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService);
   const editorManager = new EditorPanelManager(context.extensionUri, router, mcpService);
 
   const sidebarProvider = new SidebarViewProvider(

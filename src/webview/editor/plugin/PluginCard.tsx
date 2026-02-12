@@ -10,6 +10,10 @@ import { formatDate } from '../../utils/formatDate';
 interface PluginCardProps {
   plugin: MergedPlugin;
   workspaceName?: string;
+  /** original → translated description map */
+  translations?: Record<string, string>;
+  /** 該筆 description 正在翻譯中 */
+  translating?: boolean;
   onToggle: (scope: PluginScope, enable: boolean) => void;
   onUpdate: () => void;
 }
@@ -22,6 +26,8 @@ interface PluginCardProps {
 export function PluginCard({
   plugin,
   workspaceName,
+  translations,
+  translating,
   onToggle,
   onUpdate,
 }: PluginCardProps): React.ReactElement {
@@ -72,11 +78,14 @@ export function PluginCard({
               Update
             </button>
           )}
+          {translating && <span className="translate-spinner" />}
         </div>
       </div>
 
       {plugin.description && (
-        <div className="card-description">{plugin.description}</div>
+        <div className="card-description">
+          {translations?.[plugin.description] ?? plugin.description}
+        </div>
       )}
 
       <div className="scope-chips-row">

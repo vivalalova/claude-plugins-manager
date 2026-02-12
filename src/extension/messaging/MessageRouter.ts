@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { MarketplaceService } from '../services/MarketplaceService';
 import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
+import type { TranslationService } from '../services/TranslationService';
 import type { RequestMessage, ResponseMessage } from './protocol';
 
 type PostFn = (msg: ResponseMessage) => void;
@@ -15,6 +16,7 @@ export class MessageRouter {
     private readonly marketplace: MarketplaceService,
     private readonly plugin: PluginService,
     private readonly mcp: McpService,
+    private readonly translation: TranslationService,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -71,6 +73,8 @@ export class MessageRouter {
         return this.plugin.disableAll();
       case 'plugin.update':
         return this.plugin.update(message.plugin, message.scope);
+      case 'plugin.translate':
+        return this.translation.translate(message.texts, message.targetLang);
 
       // MCP（即時從設定檔讀取，polling 背景更新狀態）
       case 'mcp.list':

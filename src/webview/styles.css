@@ -170,6 +170,24 @@ body {
   user-select: none;
 }
 
+.translate-select {
+  width: auto;
+  min-width: 100px;
+  max-width: 140px;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.translate-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--vscode-descriptionForeground);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
 .plugin-section {
   margin-bottom: 10px;
 }
