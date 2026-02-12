@@ -265,9 +265,14 @@ body {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* section toggle 下方的 card-list：上方無 border，只有下圓角 */
+.section-body .card-list {
   border-radius: 0 0 6px 6px;
   border-top: none;
-  overflow: hidden;
 }
 
 .card {
