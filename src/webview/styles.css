@@ -397,12 +397,12 @@ body {
 /* Marketplace source badges */
 .scope-badge--git {
   background: rgba(245, 108, 66, 0.12);
-  color: #f56c42;
+  color: var(--vscode-charts-red, #f56c42);
 }
 
 .scope-badge--github {
   background: rgba(130, 80, 223, 0.12);
-  color: #8250df;
+  color: var(--vscode-charts-purple, #8250df);
 }
 
 .scope-badge--directory {
@@ -586,11 +586,11 @@ body {
   flex-shrink: 0;
 }
 
-.status-connected { background: #4caf50; box-shadow: 0 0 4px rgba(76, 175, 80, 0.4); }
-.status-failed { background: #f44336; box-shadow: 0 0 4px rgba(244, 67, 54, 0.4); }
-.status-needs-auth { background: #ff9800; box-shadow: 0 0 4px rgba(255, 152, 0, 0.4); }
-.status-pending { background: #9e9e9e; animation: pulse 1.5s infinite; }
-.status-unknown { background: #9e9e9e; }
+.status-connected { background: var(--vscode-testing-iconPassed, #4caf50); }
+.status-failed { background: var(--vscode-testing-iconFailed, #f44336); }
+.status-needs-auth { background: var(--vscode-charts-orange, #ff9800); }
+.status-pending { background: var(--vscode-descriptionForeground, #9e9e9e); animation: pulse 1.5s infinite; }
+.status-unknown { background: var(--vscode-descriptionForeground, #9e9e9e); }
 
 /* ----------------------------------------------------------------
  * Buttons
@@ -637,7 +637,7 @@ body {
 
 .btn-danger {
   background: rgba(244, 67, 54, 0.12);
-  color: #f44336;
+  color: var(--vscode-errorForeground, #f44336);
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -872,4 +872,66 @@ body {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+/* ----------------------------------------------------------------
+ * Light Theme — depth + muted colors
+ * ---------------------------------------------------------------- */
+
+/* Cards: 微陰影創造層次 */
+body.vscode-light .card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+body.vscode-light .card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Section toggle */
+body.vscode-light .section-toggle {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Scope badges: 降低飽和度，加深底色可辨度 */
+body.vscode-light .scope-badge--user {
+  background: rgba(4, 81, 165, 0.1);
+  color: #0451a5;
+}
+
+body.vscode-light .scope-badge--project {
+  background: rgba(56, 138, 52, 0.1);
+  color: #2e7d32;
+}
+
+body.vscode-light .scope-badge--local {
+  background: rgba(191, 120, 3, 0.1);
+  color: #a56600;
+}
+
+body.vscode-light .scope-badge--git {
+  background: rgba(180, 50, 30, 0.08);
+  color: #b42e1e;
+}
+
+body.vscode-light .scope-badge--github {
+  background: rgba(110, 64, 201, 0.08);
+  color: #6e40c9;
+}
+
+/* Danger button: outline 風格，不搶視覺 */
+body.vscode-light .btn-danger {
+  background: transparent;
+  color: var(--vscode-errorForeground, #c62828);
+  border: 1px solid color-mix(in srgb, var(--vscode-errorForeground, #c62828) 30%, transparent);
+}
+
+body.vscode-light .btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vscode-errorForeground, #c62828) 8%, transparent);
+  border-color: color-mix(in srgb, var(--vscode-errorForeground, #c62828) 50%, transparent);
+}
+
+/* Enabled badge */
+body.vscode-light .badge-enabled {
+  background: rgba(56, 138, 52, 0.08);
+  color: #2e7d32;
 }
