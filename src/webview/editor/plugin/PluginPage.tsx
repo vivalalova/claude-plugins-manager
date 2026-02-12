@@ -3,12 +3,15 @@ import { sendRequest } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginCard } from './PluginCard';
-import type {
-  InstalledPlugin,
-  AvailablePlugin,
-  MergedPlugin,
-  PluginListResponse,
-  PluginScope,
+import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
+import type { TranslateResult } from '../../../extension/services/TranslationService';
+import {
+  TRANSLATE_LANGS,
+  type InstalledPlugin,
+  type AvailablePlugin,
+  type MergedPlugin,
+  type PluginListResponse,
+  type PluginScope,
 } from '../../../shared/types';
 
 interface WorkspaceFolder {
@@ -34,7 +37,15 @@ export function PluginPage(): React.ReactElement {
   const [translateLang, setTranslateLang] = useState(
     () => localStorage.getItem('plugin.translateLang') ?? '',
   );
-  const [pendingTexts, setPendingTexts] = useState<Set<string>>(new Set());
+  const [translateEmail, setTranslateEmail] = useState(
+    () => localStorage.getItem('plugin.translateEmail') ?? '',
+  );
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [draftLang, setDraftLang] = useState('');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [queuedTexts, setQueuedTexts] = useState<Set<string>>(new Set());
+  const [activeTexts, setActiveTexts] = useState<Set<string>>(new Set());
+  const [translateWarning, setTranslateWarning] = useState<string | null>(null);
   const translateVersionRef = useRef(0);
   useEffect(() => {
     sendRequest<WorkspaceFolder[]>({ type: 'workspace.getFolders' })
@@ -61,22 +72,22 @@ export function PluginPage(): React.ReactElement {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  /** 語言變更或 plugins 載入後自動翻譯（分批送出，逐批更新 UI） */
-  const doTranslate = useCallback(async (lang: string, items: MergedPlugin[]) => {
+  /** 語言變更或 plugins 載入後自動翻譯（分批送出，最多 3 併發，逐批更新 UI） */
+  const doTranslate = useCallback(async (lang: string, email: string, items: MergedPlugin[]) => {
     const version = ++translateVersionRef.current;
 
-    if (!lang) {
+    if (!lang || !email) {
       setTranslations({});
-      setPendingTexts(new Set());
+      setQueuedTexts(new Set());
+      setActiveTexts(new Set());
+      setTranslateWarning(null);
       return;
     }
 
-    const texts = [...new Set(
-      items.map((p) => p.description).filter((d): d is string => !!d),
-    )];
+    // 收集所有可翻譯文字（plugin desc + content desc）
+    const texts = [...new Set(collectPluginTexts(items))];
     if (texts.length === 0) return;
 
-    // 分批：每 5 筆一組，對應後端 450 字元批次
     const CHUNK_SIZE = 5;
     const chunks: string[][] = [];
     for (let i = 0; i < texts.length; i += CHUNK_SIZE) {
@@ -84,35 +95,68 @@ export function PluginPage(): React.ReactElement {
     }
 
     setTranslations({});
-    setPendingTexts(new Set(texts));
+    setTranslateWarning(null);
+    setQueuedTexts(new Set(texts));
+    setActiveTexts(new Set());
 
-    await Promise.all(chunks.map(async (chunk) => {
+    let quotaExceeded = false;
+
+    const tasks = chunks.map((chunk) => async () => {
+      if (translateVersionRef.current !== version || quotaExceeded) return;
+
+      // queued → active
+      setQueuedTexts((prev) => {
+        const next = new Set(prev);
+        for (const t of chunk) next.delete(t);
+        return next;
+      });
+      setActiveTexts((prev) => {
+        const next = new Set(prev);
+        for (const t of chunk) next.add(t);
+        return next;
+      });
+
       try {
-        const result = await sendRequest<Record<string, string>>(
-          { type: 'plugin.translate', texts: chunk, targetLang: lang },
+        const { translations: result, warning } = await sendRequest<TranslateResult>(
+          { type: 'plugin.translate', texts: chunk, targetLang: lang, email },
         );
         if (translateVersionRef.current !== version) return;
         setTranslations((prev) => ({ ...prev, ...result }));
+        if (warning) {
+          quotaExceeded = true;
+          setTranslateWarning(warning);
+          setQueuedTexts(new Set());
+          setActiveTexts(new Set());
+        }
       } catch {
         // 翻譯失敗不影響主流程
       } finally {
-        if (translateVersionRef.current !== version) return;
-        setPendingTexts((prev) => {
-          const next = new Set(prev);
-          for (const t of chunk) next.delete(t);
-          return next;
-        });
+        if (!quotaExceeded) {
+          setActiveTexts((prev) => {
+            const next = new Set(prev);
+            for (const t of chunk) next.delete(t);
+            return next;
+          });
+        }
       }
-    }));
+    });
+
+    await runConcurrent(tasks, 3);
   }, []);
 
   useEffect(() => {
-    if (plugins.length > 0) doTranslate(translateLang, plugins);
-  }, [translateLang, plugins, doTranslate]);
+    if (plugins.length > 0 && translateLang && translateEmail) {
+      doTranslate(translateLang, translateEmail, plugins);
+    }
+  }, [translateLang, translateEmail, plugins, doTranslate]);
 
-  const handleLangChange = (lang: string): void => {
-    setTranslateLang(lang);
-    localStorage.setItem('plugin.translateLang', lang);
+  /** Dialog confirm：儲存設定並觸發翻譯 */
+  const handleDialogConfirm = (): void => {
+    localStorage.setItem('plugin.translateEmail', draftEmail);
+    localStorage.setItem('plugin.translateLang', draftLang);
+    setTranslateEmail(draftEmail);
+    setTranslateLang(draftLang);
+    setDialogOpen(false);
   };
 
   /** 過濾 + 按 marketplace 分組 */
@@ -219,24 +263,19 @@ export function PluginPage(): React.ReactElement {
           />
           <span>Enabled</span>
         </label>
-        <select
-          className="input translate-select"
-          value={translateLang}
-          onChange={(e) => handleLangChange(e.target.value)}
-          disabled={pendingTexts.size > 0}
+        <button
+          className="btn btn-secondary translate-btn"
+          onClick={() => { setDraftEmail(translateEmail); setDraftLang(translateLang); setDialogOpen(true); }}
+          disabled={queuedTexts.size > 0 || activeTexts.size > 0}
         >
-          <option value="">English</option>
-          <option value="zh-TW">繁體中文</option>
-          <option value="zh-CN">简体中文</option>
-          <option value="ja">日本語</option>
-          <option value="ko">한국어</option>
-          <option value="fr">Français</option>
-          <option value="de">Deutsch</option>
-          <option value="es">Español</option>
-        </select>
+          {translateLang ? TRANSLATE_LANGS[translateLang] ?? translateLang : 'Translate'}
+        </button>
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {translateWarning && (
+        <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
+      )}
 
       {loading ? (
         <LoadingSpinner message="Loading plugins..." />
@@ -278,7 +317,7 @@ export function PluginPage(): React.ReactElement {
                         plugin={plugin}
                         workspaceName={workspaceFolders[0]?.name}
                         translations={translations}
-                        translating={!!translateLang && pendingTexts.has(plugin.description ?? '')}
+                        translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
                         onUpdate={() => handleUpdate(plugin.id)}
                       />
@@ -289,6 +328,52 @@ export function PluginPage(): React.ReactElement {
             </div>
           );
         })
+      )}
+
+      {dialogOpen && (
+        <div
+          className="confirm-overlay"
+          onClick={() => setDialogOpen(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setDialogOpen(false); }}
+        >
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-dialog-title">Translate</div>
+            <div className="form-row">
+              <label className="form-label">Email (MyMemory API)</label>
+              <input
+                className="input"
+                type="email"
+                value={draftEmail}
+                onChange={(e) => setDraftEmail(e.target.value)}
+                placeholder="your@email.com"
+              />
+              <span className="form-hint">
+                Email is sent to MyMemory API to increase daily quota.
+              </span>
+            </div>
+            <div className="form-row">
+              <label className="form-label">Language</label>
+              <select
+                className="input"
+                value={draftLang}
+                onChange={(e) => setDraftLang(e.target.value)}
+              >
+                <option value="">English</option>
+                {Object.entries(TRANSLATE_LANGS).map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="confirm-dialog-actions" style={{ marginTop: 16 }}>
+              <button className="btn btn-secondary" onClick={() => setDialogOpen(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleDialogConfirm}
+                disabled={!draftEmail || !draftLang}
+              >OK</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

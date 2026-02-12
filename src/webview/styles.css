@@ -170,11 +170,8 @@ body {
   user-select: none;
 }
 
-.translate-select {
-  width: auto;
-  min-width: 100px;
-  max-width: 140px;
-  margin-bottom: 0;
+.translate-btn {
+  white-space: nowrap;
   font-size: 13px;
 }
 
@@ -186,6 +183,32 @@ body {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
+}
+
+.translate-queued {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.translate-queued::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground);
+  box-shadow: -5px 0 0 var(--vscode-descriptionForeground), 5px 0 0 var(--vscode-descriptionForeground);
+  animation: translate-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes translate-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
 }
 
 .plugin-section {
@@ -714,6 +737,7 @@ body {
 
 .form-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin-bottom: 10px;
@@ -724,6 +748,12 @@ body {
   font-weight: 500;
   min-width: 90px;
   color: var(--vscode-foreground);
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  flex-basis: 100%;
 }
 
 .form-inline {

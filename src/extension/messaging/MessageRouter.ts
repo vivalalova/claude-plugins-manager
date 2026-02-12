@@ -74,7 +74,7 @@ export class MessageRouter {
       case 'plugin.update':
         return this.plugin.update(message.plugin, message.scope);
       case 'plugin.translate':
-        return this.translation.translate(message.texts, message.targetLang);
+        return this.translation.translate(message.texts, message.targetLang, message.email);
 
       // MCP（即時從設定檔讀取，polling 背景更新狀態）
       case 'mcp.list':

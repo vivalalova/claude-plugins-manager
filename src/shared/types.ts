@@ -146,6 +146,17 @@ export interface McpAddParams {
   headers?: string[];
 }
 
+/** 翻譯目標語言 allowlist（前後端共用） */
+export const TRANSLATE_LANGS: Record<string, string> = {
+  'zh-TW': '繁體中文',
+  'zh-CN': '简体中文',
+  ja: '日本語',
+  ko: '한국어',
+  fr: 'Français',
+  de: 'Deutsch',
+  es: 'Español',
+};
+
 /**
  * Webview 用的合併 plugin 結構。
  * 一個 plugin 一張卡片，每個 scope 各自有安裝狀態和 enabled 狀態。

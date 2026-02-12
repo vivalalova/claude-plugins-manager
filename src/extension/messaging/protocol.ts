@@ -25,7 +25,7 @@ export type RequestMessage =
   | { type: 'mcp.remove'; requestId: string; name: string; scope?: McpScope }
   | { type: 'mcp.getDetail'; requestId: string; name: string }
   | { type: 'mcp.resetProjectChoices'; requestId: string }
-  | { type: 'plugin.translate'; requestId: string; texts: string[]; targetLang: string }
+  | { type: 'plugin.translate'; requestId: string; texts: string[]; targetLang: string; email?: string }
   | { type: 'workspace.getFolders'; requestId: string }
   | { type: 'sidebar.openCategory'; category: string };
 

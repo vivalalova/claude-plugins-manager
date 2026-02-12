@@ -12,8 +12,8 @@ interface PluginCardProps {
   workspaceName?: string;
   /** original → translated description map */
   translations?: Record<string, string>;
-  /** 該筆 description 正在翻譯中 */
-  translating?: boolean;
+  /** 翻譯狀態：translating = 進行中，queued = 排隊中 */
+  translateStatus?: 'translating' | 'queued';
   onToggle: (scope: PluginScope, enable: boolean) => void;
   onUpdate: () => void;
 }
@@ -27,7 +27,7 @@ export function PluginCard({
   plugin,
   workspaceName,
   translations,
-  translating,
+  translateStatus,
   onToggle,
   onUpdate,
 }: PluginCardProps): React.ReactElement {
@@ -78,7 +78,8 @@ export function PluginCard({
               Update
             </button>
           )}
-          {translating && <span className="translate-spinner" />}
+          {translateStatus === 'translating' && <span className="translate-spinner" />}
+          {translateStatus === 'queued' && <span className="translate-queued" />}
         </div>
       </div>
 
@@ -122,7 +123,7 @@ export function PluginCard({
       {hasContents && (
         <div className={`plugin-contents${expanded ? '' : ' plugin-contents--collapsed'}`}>
           <div className="section-body-inner">
-            <PluginContentsView contents={plugin.contents!} />
+            <PluginContentsView contents={plugin.contents!} translations={translations} />
           </div>
         </div>
       )}
@@ -141,17 +142,23 @@ function pluginHasContents(c?: PluginContents): boolean {
 }
 
 /** 展開後的 contents 列表 */
-function PluginContentsView({ contents }: { contents: PluginContents }): React.ReactElement {
+function PluginContentsView({
+  contents,
+  translations,
+}: {
+  contents: PluginContents;
+  translations?: Record<string, string>;
+}): React.ReactElement {
   return (
     <div className="plugin-contents-grid">
       {contents.commands.length > 0 && (
-        <ContentSection label="Commands" items={contents.commands} />
+        <ContentSection label="Commands" items={contents.commands} translations={translations} />
       )}
       {contents.skills.length > 0 && (
-        <ContentSection label="Skills" items={contents.skills} />
+        <ContentSection label="Skills" items={contents.skills} translations={translations} />
       )}
       {contents.agents.length > 0 && (
-        <ContentSection label="Agents" items={contents.agents} />
+        <ContentSection label="Agents" items={contents.agents} translations={translations} />
       )}
       {contents.mcpServers.length > 0 && (
         <div className="content-section">
@@ -179,9 +186,11 @@ function PluginContentsView({ contents }: { contents: PluginContents }): React.R
 function ContentSection({
   label,
   items,
+  translations,
 }: {
   label: string;
   items: PluginContentItem[];
+  translations?: Record<string, string>;
 }): React.ReactElement {
   return (
     <div className="content-section">
@@ -190,7 +199,9 @@ function ContentSection({
         <div key={item.name} className="content-item">
           <span className="content-item-name">{item.name}</span>
           {item.description && (
-            <span className="content-item-desc">{item.description}</span>
+            <span className="content-item-desc">
+              {translations?.[item.description] ?? item.description}
+            </span>
           )}
         </div>
       ))}
