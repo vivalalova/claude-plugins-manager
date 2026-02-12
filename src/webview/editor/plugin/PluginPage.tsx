@@ -172,8 +172,8 @@ export function PluginPage(): React.ReactElement {
         </div>
       ) : (
         [...grouped.entries()].map(([marketplace, items]) => {
-          // Enabled filter 啟用時強制展開所有 section，方便一覽結果
-          const isCollapsed = !filterEnabled && !expanded.has(marketplace);
+          // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
+          const isCollapsed = !filterEnabled && !search && !expanded.has(marketplace);
           const installedCount = items.filter((p) =>
             p.userInstall || p.projectInstalls.length > 0 || p.localInstall,
           ).length;
