@@ -3,6 +3,16 @@ import { workspace } from 'vscode';
 import { McpService } from '../McpService';
 import type { CliService } from '../CliService';
 
+/* ── fs/promises mock（buildScopeMap 內部使用） ── */
+const mockReadFile = vi.hoisted(() => vi.fn());
+vi.mock('fs/promises', () => ({
+  readFile: mockReadFile,
+}));
+
+vi.mock('os', () => ({
+  homedir: () => '/mock-home',
+}));
+
 function createMockCli(): { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService {
   return {
     exec: vi.fn().mockResolvedValue(''),
@@ -19,6 +29,8 @@ describe('McpService', () => {
     cli = createMockCli();
     svc = new McpService(cli);
     workspace.workspaceFolders = undefined;
+    // buildScopeMap 讀取 ~/.claude.json，預設不存在
+    mockReadFile.mockRejectedValue(new Error('ENOENT'));
   });
 
   afterEach(() => {
@@ -53,6 +65,45 @@ describe('McpService', () => {
       cli.exec.mockResolvedValue('Checking MCP server health...\n\n');
       const result = await svc.list();
       expect(result).toEqual([]);
+    });
+
+    it('從 .claude.json 偵測 scope', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' }, name: 'my-project', index: 0 },
+      ] as any;
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { 'global-server': { command: 'npx global' } },
+            projects: {
+              '/my/project': {
+                mcpServers: { 'local-server': { command: 'npx local' } },
+              },
+            },
+          });
+        }
+        if (path.includes('.mcp.json')) {
+          return JSON.stringify({
+            mcpServers: { 'project-server': { command: 'npx project' } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      cli.exec.mockResolvedValue([
+        'global-server: npx global - ✓ Connected',
+        'local-server: npx local - ✓ Connected',
+        'project-server: npx project - ✓ Connected',
+      ].join('\n'));
+
+      const result = await svc.list();
+
+      expect(result).toEqual([
+        { name: 'global-server', fullName: 'global-server', command: 'npx global', status: 'connected', scope: 'user' },
+        { name: 'local-server', fullName: 'local-server', command: 'npx local', status: 'connected', scope: 'local' },
+        { name: 'project-server', fullName: 'project-server', command: 'npx project', status: 'connected', scope: 'project' },
+      ]);
     });
 
     it('處理 ANSI escape codes', async () => {

@@ -23,12 +23,20 @@ export class McpService {
   constructor(private readonly cli: CliService) {}
 
   /**
-   * 列出 MCP server 並解析連線狀態。
+   * 列出 MCP server 並解析連線狀態 + scope。
    * `claude mcp list` 無 --json，需解析文字輸出。
+   * scope 從設定檔反查：.claude.json + .mcp.json。
    */
   async list(): Promise<McpServer[]> {
-    const output = await this.cli.exec(['mcp', 'list']);
-    return this.parseMcpList(output);
+    const [output, scopeMap] = await Promise.all([
+      this.cli.exec(['mcp', 'list']),
+      this.buildScopeMap(),
+    ]);
+    const servers = this.parseMcpList(output);
+    for (const server of servers) {
+      server.scope = scopeMap.get(server.name) ?? scopeMap.get(server.fullName);
+    }
+    return servers;
   }
 
   /** 新增 MCP server */
@@ -179,6 +187,58 @@ export class McpService {
     };
 
     return JSON.stringify(detail, null, 2);
+  }
+
+  /**
+   * 從設定檔建構 MCP server name → scope 的對應表。
+   * - user scope: ~/.claude.json → mcpServers
+   * - local scope: ~/.claude.json → projects[workspacePath].mcpServers
+   * - project scope: {workspace}/.mcp.json → mcpServers
+   */
+  private async buildScopeMap(): Promise<Map<string, McpScope>> {
+    const map = new Map<string, McpScope>();
+
+    let workspacePath: string | undefined;
+    try { workspacePath = getWorkspacePath(); } catch { /* no workspace */ }
+
+    // ~/.claude.json: user scope + local scope
+    try {
+      const raw = await readFile(join(homedir(), '.claude.json'), 'utf-8');
+      const claudeJson = JSON.parse(raw) as {
+        mcpServers?: Record<string, unknown>;
+        projects?: Record<string, { mcpServers?: Record<string, unknown> }>;
+      };
+
+      // user scope
+      for (const name of Object.keys(claudeJson.mcpServers ?? {})) {
+        map.set(name, 'user');
+      }
+
+      // local scope（預設 scope）：先查當前 workspace，再查 "/" fallback
+      const projectPaths = workspacePath ? [workspacePath, '/'] : ['/'];
+      for (const pp of projectPaths) {
+        const projectData = claudeJson.projects?.[pp];
+        for (const name of Object.keys(projectData?.mcpServers ?? {})) {
+          if (!map.has(name)) {
+            map.set(name, 'local');
+          }
+        }
+      }
+    } catch { /* .claude.json 不存在或格式錯誤 */ }
+
+    // .mcp.json: project scope
+    if (workspacePath) {
+      try {
+        const raw = await readFile(join(workspacePath, '.mcp.json'), 'utf-8');
+        const mcpJson = JSON.parse(raw) as Record<string, unknown>;
+        const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, unknown>;
+        for (const name of Object.keys(servers)) {
+          map.set(name, 'project');
+        }
+      } catch { /* no .mcp.json */ }
+    }
+
+    return map;
   }
 
   /** project scope 操作需 workspace folder 作為 cwd */
