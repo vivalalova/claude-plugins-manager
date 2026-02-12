@@ -5,6 +5,7 @@ import type { McpServer } from '../../../shared/types';
 
 interface McpServerCardProps {
   server: McpServer;
+  onEdit: () => void;
   onRemove: () => void;
   onViewDetail: () => void;
 }
@@ -12,6 +13,7 @@ interface McpServerCardProps {
 /** MCP Server 卡片，顯示名稱、命令、scope、連線狀態 */
 export function McpServerCard({
   server,
+  onEdit,
   onRemove,
   onViewDetail,
 }: McpServerCardProps): React.ReactElement {
@@ -35,6 +37,9 @@ export function McpServerCard({
       <div className="card-actions">
         <button className="btn btn-secondary" onClick={onViewDetail}>
           Details
+        </button>
+        <button className="btn btn-secondary" onClick={onEdit}>
+          Edit
         </button>
         <button className="btn btn-danger" onClick={onRemove}>
           Remove

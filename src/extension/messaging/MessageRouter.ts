@@ -72,9 +72,9 @@ export class MessageRouter {
       case 'plugin.update':
         return this.plugin.update(message.plugin, message.scope);
 
-      // MCP
+      // MCP（即時從設定檔讀取，polling 背景更新狀態）
       case 'mcp.list':
-        return this.mcp.list();
+        return this.mcp.listFromFiles();
       case 'mcp.add':
         return this.mcp.add(message.params);
       case 'mcp.remove':

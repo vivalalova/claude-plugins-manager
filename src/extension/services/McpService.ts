@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { MCP_POLL_INTERVAL_MS } from '../constants';
-import type { McpAddParams, McpServer, McpScope, McpStatus } from '../types';
+import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../types';
 import type { CliService } from './CliService';
 import { getWorkspacePath } from '../utils/workspace';
 
@@ -23,19 +23,53 @@ export class McpService {
   constructor(private readonly cli: CliService) {}
 
   /**
-   * 列出 MCP server 並解析連線狀態 + scope。
+   * 快速列出 MCP server（從設定檔 + 已安裝 plugin，不做 health check）。
+   * status 一律為 'pending'，由 polling 非同步更新真實狀態。
+   */
+  async listFromFiles(): Promise<McpServer[]> {
+    const metaMap = await this.buildServerMetadata();
+    const servers: McpServer[] = [];
+    for (const [fullName, meta] of metaMap) {
+      const nameParts = fullName.split(':');
+      const name = nameParts[nameParts.length - 1];
+      const command = meta.config
+        ? [meta.config.command, ...(meta.config.args ?? [])].join(' ')
+        : name;
+      servers.push({
+        name,
+        fullName,
+        command,
+        status: 'pending',
+        scope: meta.scope,
+        config: meta.config,
+      });
+    }
+    if (this.statusCache.length === 0) {
+      this.statusCache = servers;
+    }
+    return servers;
+  }
+
+  /**
+   * 列出 MCP server 並解析連線狀態 + scope + 結構化設定。
    * `claude mcp list` 無 --json，需解析文字輸出。
-   * scope 從設定檔反查：.claude.json + .mcp.json。
+   * scope 與 config 從設定檔反查：.claude.json + .mcp.json。
    */
   async list(): Promise<McpServer[]> {
-    const [output, scopeMap] = await Promise.all([
-      this.cli.exec(['mcp', 'list']),
-      this.buildScopeMap(),
+    const cwd = this.getWorkspaceCwd();
+    const [output, metaMap] = await Promise.all([
+      this.cli.exec(['mcp', 'list'], { cwd }),
+      this.buildServerMetadata(),
     ]);
     const servers = this.parseMcpList(output);
     for (const server of servers) {
-      server.scope = scopeMap.get(server.name) ?? scopeMap.get(server.fullName);
+      const meta = metaMap.get(server.name) ?? metaMap.get(server.fullName);
+      if (meta) {
+        server.scope = meta.scope;
+        server.config = meta.config;
+      }
     }
+    this.statusCache = servers;
     return servers;
   }
 
@@ -76,15 +110,44 @@ export class McpService {
     if (scope) {
       args.push('--scope', scope);
     }
-    await this.cli.exec(args);
+    const cwd = this.getWorkspaceCwd();
+    await this.cli.exec(args, { cwd });
   }
 
-  /** 查看 MCP server 詳情（plugin 來源從檔案系統讀取） */
+  /**
+   * 查看 MCP server 詳情。
+   * 從設定檔 + 快取組裝（即時），plugin 來源從檔案系統讀取。
+   * 不呼叫 CLI（`claude mcp get` 要 2-3 秒做 health check）。
+   */
   async getDetail(name: string): Promise<string> {
     if (name.startsWith('plugin:')) {
       return this.getPluginMcpDetail(name);
     }
-    return this.cli.exec(['mcp', 'get', name]);
+
+    const shortName = name.includes(':') ? name.split(':').pop()! : name;
+
+    // 從設定檔讀取結構化 config + scope
+    const metaMap = await this.buildServerMetadata();
+    const meta = metaMap.get(name) ?? metaMap.get(shortName);
+
+    // 從快取讀取即時狀態
+    const cached = this.statusCache.find((s) => s.fullName === name || s.name === name);
+
+    const detail: Record<string, unknown> = { name: shortName };
+    if (cached) detail.status = cached.status;
+    if (meta) {
+      detail.scope = meta.scope;
+      if (meta.config) {
+        detail.command = meta.config.command;
+        if (meta.config.args?.length) detail.args = meta.config.args;
+        if (meta.config.env && Object.keys(meta.config.env).length > 0) detail.env = meta.config.env;
+      }
+    }
+    if (!meta?.config && cached) {
+      detail.command = cached.command;
+    }
+
+    return JSON.stringify(detail, null, 2);
   }
 
   /** 重置 project MCP 選擇 */
@@ -129,10 +192,9 @@ export class McpService {
     }
 
     try {
+      const prev = JSON.stringify(this.statusCache);
       const servers = await this.list();
-      const changed = JSON.stringify(servers) !== JSON.stringify(this.statusCache);
-      this.statusCache = servers;
-      if (changed) {
+      if (JSON.stringify(servers) !== prev) {
         this.onStatusChange.fire(servers);
       }
       this.consecutiveErrors = 0; // 成功後重置錯誤計數
@@ -190,37 +252,36 @@ export class McpService {
   }
 
   /**
-   * 從設定檔建構 MCP server name → scope 的對應表。
+   * 從設定檔建構 MCP server name → { scope, config } 對應表。
    * - user scope: ~/.claude.json → mcpServers
    * - local scope: ~/.claude.json → projects[workspacePath].mcpServers
    * - project scope: {workspace}/.mcp.json → mcpServers
    */
-  private async buildScopeMap(): Promise<Map<string, McpScope>> {
-    const map = new Map<string, McpScope>();
+  private async buildServerMetadata(): Promise<Map<string, { scope: McpScope; config?: McpServerConfig }>> {
+    const map = new Map<string, { scope: McpScope; config?: McpServerConfig }>();
 
-    let workspacePath: string | undefined;
-    try { workspacePath = getWorkspacePath(); } catch { /* no workspace */ }
+    const workspacePath = this.getWorkspaceCwd();
 
     // ~/.claude.json: user scope + local scope
     try {
       const raw = await readFile(join(homedir(), '.claude.json'), 'utf-8');
       const claudeJson = JSON.parse(raw) as {
-        mcpServers?: Record<string, unknown>;
-        projects?: Record<string, { mcpServers?: Record<string, unknown> }>;
+        mcpServers?: Record<string, McpServerConfig>;
+        projects?: Record<string, { mcpServers?: Record<string, McpServerConfig> }>;
       };
 
       // user scope
-      for (const name of Object.keys(claudeJson.mcpServers ?? {})) {
-        map.set(name, 'user');
+      for (const [name, config] of Object.entries(claudeJson.mcpServers ?? {})) {
+        map.set(name, { scope: 'user', config });
       }
 
       // local scope（預設 scope）：先查當前 workspace，再查 "/" fallback
       const projectPaths = workspacePath ? [workspacePath, '/'] : ['/'];
       for (const pp of projectPaths) {
         const projectData = claudeJson.projects?.[pp];
-        for (const name of Object.keys(projectData?.mcpServers ?? {})) {
+        for (const [name, config] of Object.entries(projectData?.mcpServers ?? {})) {
           if (!map.has(name)) {
-            map.set(name, 'local');
+            map.set(name, { scope: 'local', config });
           }
         }
       }
@@ -231,14 +292,52 @@ export class McpService {
       try {
         const raw = await readFile(join(workspacePath, '.mcp.json'), 'utf-8');
         const mcpJson = JSON.parse(raw) as Record<string, unknown>;
-        const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, unknown>;
-        for (const name of Object.keys(servers)) {
-          map.set(name, 'project');
+        const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
+        for (const [name, config] of Object.entries(servers)) {
+          map.set(name, { scope: 'project', config });
         }
       } catch { /* no .mcp.json */ }
     }
 
+    // Plugin-provided MCP servers: installed_plugins.json → each plugin's .mcp.json
+    try {
+      const installedRaw = await readFile(
+        join(homedir(), '.claude', 'plugins', 'installed_plugins.json'),
+        'utf-8',
+      );
+      const installed = JSON.parse(installedRaw) as {
+        plugins: Record<string, Array<{ scope: string; installPath: string }>>;
+      };
+
+      await Promise.all(
+        Object.entries(installed.plugins).map(async ([pluginKey, entries]) => {
+          const entry = entries[0];
+          if (!entry) return;
+          const pluginBaseName = pluginKey.split('@')[0];
+
+          try {
+            const mcpRaw = await readFile(join(entry.installPath, '.mcp.json'), 'utf-8');
+            const mcpJson = JSON.parse(mcpRaw) as Record<string, unknown>;
+            const pluginServers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
+            for (const [serverName, config] of Object.entries(pluginServers)) {
+              if (typeof config === 'object' && config && 'command' in config) {
+                map.set(`plugin:${pluginBaseName}:${serverName}`, {
+                  scope: entry.scope as McpScope,
+                  config,
+                });
+              }
+            }
+          } catch { /* plugin has no .mcp.json */ }
+        }),
+      );
+    } catch { /* installed_plugins.json not found */ }
+
     return map;
+  }
+
+  /** 取得 workspace cwd（MCP CLI 需要 cwd 來定位 project/local scope） */
+  private getWorkspaceCwd(): string | undefined {
+    try { return getWorkspacePath(); } catch { return undefined; }
   }
 
   /** project scope 操作需 workspace folder 作為 cwd */

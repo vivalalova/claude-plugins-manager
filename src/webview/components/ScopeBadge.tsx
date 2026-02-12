@@ -8,7 +8,7 @@ interface ScopeBadgeProps {
 
 /** Scope 標籤（user / project / local） */
 export function ScopeBadge({ scope, projectPath }: ScopeBadgeProps): React.ReactElement {
-  const className = `badge badge-scope-${scope}`;
+  const className = `scope-badge scope-badge--${scope}`;
   const label = projectPath
     ? `project: ${shortenPath(projectPath)}`
     : scope;

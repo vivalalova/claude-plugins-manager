@@ -208,7 +208,7 @@ function ScopeToggle({
         checked={enabled}
         onChange={() => onToggle(!enabled)}
       />
-      <span className={`scope-badge scope-badge--${scope}${enabled ? '' : ' scope-badge--dim'}`}>
+      <span className={`scope-badge scope-badge--${scope}`}>
         {label}
       </span>
     </label>

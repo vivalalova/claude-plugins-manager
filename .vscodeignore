@@ -11,5 +11,6 @@ vitest.config.ts
 .gitignore
 pnpm-lock.yaml
 CLAUDE.md
+.mcp.json
 *.map
 resources/banner.*

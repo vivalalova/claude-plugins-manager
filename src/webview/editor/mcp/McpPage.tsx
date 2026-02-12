@@ -5,7 +5,18 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { McpServerCard } from './McpServerCard';
 import { AddMcpDialog } from './AddMcpDialog';
+import type { EditServerInfo } from './AddMcpDialog';
 import type { McpServer } from '../../../shared/types';
+
+/** 從 McpServer 建構編輯 dialog 預填資訊（優先用結構化 config） */
+export function buildEditServerInfo(server: McpServer): EditServerInfo {
+  return {
+    name: server.name,
+    commandOrUrl: server.config?.command ?? server.command,
+    args: server.config?.args,
+    scope: server.scope,
+  };
+}
 
 /**
  * MCP Server 管理頁面。
@@ -16,6 +27,7 @@ export function McpPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingServer, setEditingServer] = useState<EditServerInfo | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [detailText, setDetailText] = useState<string | null>(null);
 
@@ -75,8 +87,12 @@ export function McpPage(): React.ReactElement {
     }
   };
 
+  const handleEdit = (server: McpServer): void =>
+    setEditingServer(buildEditServerInfo(server));
+
   const handleAdded = async (): Promise<void> => {
     setShowAddDialog(false);
+    setEditingServer(null);
     await fetchList();
   };
 
@@ -109,6 +125,7 @@ export function McpPage(): React.ReactElement {
             <McpServerCard
               key={server.fullName}
               server={server}
+              onEdit={() => handleEdit(server)}
               onRemove={() => setConfirmRemove(server.name)}
               onViewDetail={() => handleViewDetail(server.fullName)}
             />
@@ -131,6 +148,14 @@ export function McpPage(): React.ReactElement {
         <AddMcpDialog
           onAdded={handleAdded}
           onCancel={() => setShowAddDialog(false)}
+        />
+      )}
+
+      {editingServer && (
+        <AddMcpDialog
+          editServer={editingServer}
+          onAdded={handleAdded}
+          onCancel={() => setEditingServer(null)}
         />
       )}
 

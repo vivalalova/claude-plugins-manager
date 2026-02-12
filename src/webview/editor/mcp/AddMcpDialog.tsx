@@ -5,9 +5,19 @@ import { parseMcpJson } from './parseMcpJson';
 
 type InputMode = 'form' | 'json';
 
+/** 編輯模式傳入的 server 資訊 */
+export interface EditServerInfo {
+  name: string;
+  commandOrUrl: string;
+  args?: string[];
+  scope?: McpScope;
+}
+
 interface AddMcpDialogProps {
   onAdded: () => void;
   onCancel: () => void;
+  /** 編輯模式：預填現有 server 資訊，submit 時先 remove 再 add */
+  editServer?: EditServerInfo;
 }
 
 /**
@@ -17,12 +27,14 @@ interface AddMcpDialogProps {
 export function AddMcpDialog({
   onAdded,
   onCancel,
+  editServer,
 }: AddMcpDialogProps): React.ReactElement {
+  const isEdit = !!editServer;
   const [mode, setMode] = useState<InputMode>('form');
 
-  // Form mode state
-  const [name, setName] = useState('');
-  const [commandOrUrl, setCommandOrUrl] = useState('');
+  // Form mode state（編輯模式預填）
+  const [name, setName] = useState(editServer?.name ?? '');
+  const [commandOrUrl, setCommandOrUrl] = useState(editServer?.commandOrUrl ?? '');
   const [transport, setTransport] = useState('stdio');
   const [envText, setEnvText] = useState('');
   const [headersText, setHeadersText] = useState('');
@@ -31,7 +43,7 @@ export function AddMcpDialog({
   const [jsonText, setJsonText] = useState('');
 
   // Shared state
-  const [scope, setScope] = useState('project');
+  const [scope, setScope] = useState<McpScope>(editServer?.scope ?? 'project');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +69,7 @@ export function AddMcpDialog({
     return {
       name: name.trim(),
       commandOrUrl: commandOrUrl.trim(),
+      args: editServer?.args,
       transport: transport as McpAddParams['transport'],
       scope: scope as McpScope,
       env: Object.keys(env).length > 0 ? env : undefined,
@@ -85,6 +98,14 @@ export function AddMcpDialog({
 
     setAdding(true);
     try {
+      // 編輯模式：先移除舊 server
+      if (isEdit && editServer) {
+        await sendRequest({
+          type: 'mcp.remove',
+          name: editServer.name,
+          scope: editServer.scope,
+        });
+      }
       await sendRequest({ type: 'mcp.add', params });
       onAdded();
     } catch (e) {
@@ -104,22 +125,26 @@ export function AddMcpDialog({
         style={{ maxWidth: 500 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="confirm-dialog-title">Add MCP Server</div>
-
-        <div className="tabs">
-          <button
-            className={`tab${mode === 'form' ? ' tab-active' : ''}`}
-            onClick={() => { setMode('form'); setError(null); }}
-          >
-            Form
-          </button>
-          <button
-            className={`tab${mode === 'json' ? ' tab-active' : ''}`}
-            onClick={() => { setMode('json'); setError(null); }}
-          >
-            JSON
-          </button>
+        <div className="confirm-dialog-title">
+          {isEdit ? 'Edit MCP Server' : 'Add MCP Server'}
         </div>
+
+        {!isEdit && (
+          <div className="tabs">
+            <button
+              className={`tab${mode === 'form' ? ' tab-active' : ''}`}
+              onClick={() => { setMode('form'); setError(null); }}
+            >
+              Form
+            </button>
+            <button
+              className={`tab${mode === 'json' ? ' tab-active' : ''}`}
+              onClick={() => { setMode('json'); setError(null); }}
+            >
+              JSON
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="error-banner" style={{ marginBottom: 12 }}>
@@ -161,7 +186,7 @@ export function AddMcpDialog({
 
             <div className="form-row">
               <label className="form-label">Scope</label>
-              <select className="select" value={scope} onChange={(e) => setScope(e.target.value)}>
+              <select className="select" value={scope} onChange={(e) => setScope(e.target.value as McpScope)}>
                 <option value="project">project (shared)</option>
                 <option value="local">local (private)</option>
                 <option value="user">user (global)</option>
@@ -210,7 +235,7 @@ export function AddMcpDialog({
 
             <div className="form-row">
               <label className="form-label">Scope</label>
-              <select className="select" value={scope} onChange={(e) => setScope(e.target.value)}>
+              <select className="select" value={scope} onChange={(e) => setScope(e.target.value as McpScope)}>
                 <option value="project">project (shared)</option>
                 <option value="local">local (private)</option>
                 <option value="user">user (global)</option>
@@ -228,7 +253,9 @@ export function AddMcpDialog({
             onClick={handleSubmit}
             disabled={!canSubmit}
           >
-            {adding ? 'Adding...' : 'Add Server'}
+            {adding
+              ? (isEdit ? 'Updating...' : 'Adding...')
+              : (isEdit ? 'Update Server' : 'Add Server')}
           </button>
         </div>
       </div>

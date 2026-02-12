@@ -4,7 +4,7 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（54 tests）
+npm test                   # vitest run（101 tests）
 npm run build              # esbuild 雙配置（extension + webview）
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
@@ -22,22 +22,22 @@ npm run watch              # concurrently watch extension + webview
 
 ### Services
 
-| Service | 資料來源 | 職責 |
-| --- | --- | --- |
-| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔、掃描 marketplace/plugin 內容 |
-| PluginService | SettingsFileService + CLI（update only） | per-scope install/enable/disable、listAvailable |
-| MarketplaceService | `known_marketplaces.json` + CLI（add/remove/update） | marketplace CRUD、toggleAutoUpdate |
-| McpService | CLI | MCP server 管理 |
+| Service             | 資料來源                                                                  | 職責                                            |
+| ------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔、掃描 marketplace/plugin 內容        |
+| PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable |
+| MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate              |
+| McpService          | CLI                                                                       | MCP server 管理                                 |
 
 ### 設定檔結構
 
-| 檔案 | 用途 |
-| --- | --- |
-| `~/.claude/settings.json` | user scope enabledPlugins |
-| `.claude/settings.json` | project scope enabledPlugins（進 git） |
-| `.claude/settings.local.json` | local scope enabledPlugins（gitignored） |
-| `~/.claude/plugins/installed_plugins.json` | 安裝登錄（所有 scope） |
-| `~/.claude/plugins/known_marketplaces.json` | marketplace 來源 |
+| 檔案                                        | 用途                                     |
+| ------------------------------------------- | ---------------------------------------- |
+| `~/.claude/settings.json`                   | user scope enabledPlugins                |
+| `.claude/settings.json`                     | project scope enabledPlugins（進 git）   |
+| `.claude/settings.local.json`               | local scope enabledPlugins（gitignored） |
+| `~/.claude/plugins/installed_plugins.json`  | 安裝登錄（所有 scope）                   |
+| `~/.claude/plugins/known_marketplaces.json` | marketplace 來源                         |
 
 ## 已知陷阱
 
@@ -50,16 +50,17 @@ npm run watch              # concurrently watch extension + webview
 
 ## 測試
 
-- 框架：vitest
-- 位置：`src/extension/services/__tests__/`
+- 框架：vitest + `@testing-library/react`（jsdom）
+- 位置：`src/extension/services/__tests__/`、`src/webview/editor/**/__tests__/`
 - Mock 慣例：`vi.hoisted()` + `vi.mock()` factory（不用 `require`）
 - PluginService 測試 mock `SettingsFileService`（非 CLI）
 - `promisify(execFile)` 的 mock 用 callback 形式：`cb(null, { stdout })`
+- Component test 需加 `/** @vitest-environment jsdom */` 並 mock `../../vscode`
 
 ## Skills 強制使用
 
-| 時機 | Skill |
-| --- | --- |
-| 程式碼變更後 | review |
-| Git 操作 | git |
+| 時機         | Skill         |
+| ------------ | ------------- |
+| 程式碼變更後 | review        |
+| Git 操作     | git           |
 | 前端頁面檢查 | agent-browser |

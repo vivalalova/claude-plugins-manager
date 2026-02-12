@@ -29,6 +29,7 @@ function createMockServices(): {
     },
     mcp: {
       list: vi.fn().mockResolvedValue([]),
+      listFromFiles: vi.fn().mockResolvedValue([]),
       add: vi.fn().mockResolvedValue(undefined),
       remove: vi.fn().mockResolvedValue(undefined),
       getDetail: vi.fn().mockResolvedValue('detail'),
@@ -101,6 +102,18 @@ describe('MessageRouter', () => {
   });
 
   describe('mcp 路由', () => {
+    it('mcp.list → 呼叫 listFromFiles（即時）', async () => {
+      const mockServers = [{ name: 'test', status: 'pending' }];
+      services.mcp.listFromFiles.mockResolvedValue(mockServers);
+      await router.handle(
+        { type: 'mcp.list', requestId: 'r-list' } as RequestMessage,
+        post,
+      );
+      expect(services.mcp.listFromFiles).toHaveBeenCalled();
+      expect(services.mcp.list).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'response', data: mockServers });
+    });
+
     it('mcp.add → 帶 params', async () => {
       const params = { name: 'test', commandOrUrl: 'npx test', scope: 'local' as const };
       await router.handle(

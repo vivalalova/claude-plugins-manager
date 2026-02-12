@@ -127,9 +127,12 @@ export interface McpServerConfig {
 export interface McpServer {
   name: string;
   fullName: string;
+  /** 顯示用的完整指令字串（如 "npx -y foo"） */
   command: string;
   status: McpStatus;
   scope?: McpScope;
+  /** 結構化設定（從設定檔讀取的 command/args/env） */
+  config?: McpServerConfig;
 }
 
 /** MCP add 操作參數 */

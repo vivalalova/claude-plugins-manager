@@ -3,7 +3,7 @@ import { workspace } from 'vscode';
 import { McpService } from '../McpService';
 import type { CliService } from '../CliService';
 
-/* ── fs/promises mock（buildScopeMap 內部使用） ── */
+/* ── fs/promises mock（buildServerMetadata 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
@@ -29,13 +29,142 @@ describe('McpService', () => {
     cli = createMockCli();
     svc = new McpService(cli);
     workspace.workspaceFolders = undefined;
-    // buildScopeMap 讀取 ~/.claude.json，預設不存在
+    // buildServerMetadata 讀取 ~/.claude.json，預設不存在
     mockReadFile.mockRejectedValue(new Error('ENOENT'));
   });
 
   afterEach(() => {
     svc.stopPolling();
     vi.useRealTimers();
+  });
+
+  describe('listFromFiles() — 即時從設定檔讀取', () => {
+    it('從設定檔組裝 server 列表，不呼叫 CLI', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { 'global-server': { command: 'npx', args: ['-y', 'global'] } },
+            projects: {
+              '/my/project': {
+                mcpServers: { 'local-server': { command: 'node', args: ['server.js'] } },
+              },
+            },
+          });
+        }
+        if (path.includes('.mcp.json')) {
+          return JSON.stringify({
+            mcpServers: { 'project-server': { command: 'npx', args: ['-y', 'project'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const result = await svc.listFromFiles();
+
+      // 不應呼叫 CLI
+      expect(cli.exec).not.toHaveBeenCalled();
+      // 全部 status 為 pending
+      expect(result).toEqual([
+        {
+          name: 'global-server', fullName: 'global-server',
+          command: 'npx -y global', status: 'pending',
+          scope: 'user', config: { command: 'npx', args: ['-y', 'global'] },
+        },
+        {
+          name: 'local-server', fullName: 'local-server',
+          command: 'node server.js', status: 'pending',
+          scope: 'local', config: { command: 'node', args: ['server.js'] },
+        },
+        {
+          name: 'project-server', fullName: 'project-server',
+          command: 'npx -y project', status: 'pending',
+          scope: 'project', config: { command: 'npx', args: ['-y', 'project'] },
+        },
+      ]);
+    });
+
+    it('包含 plugin-provided MCP servers（如 context7）', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { 'user-server': { command: 'npx', args: ['-y', 'user-mcp'] } },
+          });
+        }
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'context7@official': [{
+                scope: 'user',
+                installPath: '/mock-home/.claude/plugins/cache/context7',
+              }],
+            },
+          });
+        }
+        if (path.includes('plugins/cache/context7') && path.endsWith('.mcp.json')) {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['-y', '@upstash/context7-mcp'] },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const result = await svc.listFromFiles();
+
+      expect(cli.exec).not.toHaveBeenCalled();
+      expect(result).toEqual([
+        {
+          name: 'user-server', fullName: 'user-server',
+          command: 'npx -y user-mcp', status: 'pending',
+          scope: 'user', config: { command: 'npx', args: ['-y', 'user-mcp'] },
+        },
+        {
+          name: 'context7', fullName: 'plugin:context7:context7',
+          command: 'npx -y @upstash/context7-mcp', status: 'pending',
+          scope: 'user', config: { command: 'npx', args: ['-y', '@upstash/context7-mcp'] },
+        },
+      ]);
+    });
+
+    it('效能保證：絕不呼叫 CLI，多 plugin 場景亦同', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({ mcpServers: {} });
+        }
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'pluginA@market': [{ scope: 'user', installPath: '/a' }],
+              'pluginB@market': [{ scope: 'user', installPath: '/b' }],
+              'pluginC@market': [{ scope: 'user', installPath: '/c' }],
+            },
+          });
+        }
+        if (path === '/a/.mcp.json') {
+          return JSON.stringify({ 'srv-a': { command: 'npx', args: ['a'] } });
+        }
+        if (path === '/b/.mcp.json') {
+          return JSON.stringify({ 'srv-b': { command: 'npx', args: ['b'] } });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const result = await svc.listFromFiles();
+
+      // 核心斷言：CLI 零呼叫（避免 2.5 秒 health check 延遲）
+      expect(cli.exec).not.toHaveBeenCalled();
+      // pluginC 無 .mcp.json → 不列出
+      expect(result).toHaveLength(2);
+      expect(result.map((s) => s.fullName)).toEqual([
+        'plugin:pluginA:srv-a',
+        'plugin:pluginB:srv-b',
+      ]);
+    });
   });
 
   describe('list() — parseMcpList', () => {
@@ -67,7 +196,7 @@ describe('McpService', () => {
       expect(result).toEqual([]);
     });
 
-    it('從 .claude.json 偵測 scope', async () => {
+    it('從設定檔偵測 scope 和 config', async () => {
       workspace.workspaceFolders = [
         { uri: { fsPath: '/my/project' }, name: 'my-project', index: 0 },
       ] as any;
@@ -75,35 +204,71 @@ describe('McpService', () => {
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) {
           return JSON.stringify({
-            mcpServers: { 'global-server': { command: 'npx global' } },
+            mcpServers: { 'global-server': { command: 'npx', args: ['-y', 'global'] } },
             projects: {
               '/my/project': {
-                mcpServers: { 'local-server': { command: 'npx local' } },
+                mcpServers: { 'local-server': { command: 'npx', args: ['-y', 'local'] } },
               },
             },
           });
         }
         if (path.includes('.mcp.json')) {
           return JSON.stringify({
-            mcpServers: { 'project-server': { command: 'npx project' } },
+            mcpServers: { 'project-server': { command: 'npx', args: ['-y', 'project'] } },
           });
         }
         throw new Error('ENOENT');
       });
 
       cli.exec.mockResolvedValue([
-        'global-server: npx global - ✓ Connected',
-        'local-server: npx local - ✓ Connected',
-        'project-server: npx project - ✓ Connected',
+        'global-server: npx -y global - ✓ Connected',
+        'local-server: npx -y local - ✓ Connected',
+        'project-server: npx -y project - ✓ Connected',
       ].join('\n'));
 
       const result = await svc.list();
 
       expect(result).toEqual([
-        { name: 'global-server', fullName: 'global-server', command: 'npx global', status: 'connected', scope: 'user' },
-        { name: 'local-server', fullName: 'local-server', command: 'npx local', status: 'connected', scope: 'local' },
-        { name: 'project-server', fullName: 'project-server', command: 'npx project', status: 'connected', scope: 'project' },
+        {
+          name: 'global-server', fullName: 'global-server',
+          command: 'npx -y global', status: 'connected',
+          scope: 'user', config: { command: 'npx', args: ['-y', 'global'] },
+        },
+        {
+          name: 'local-server', fullName: 'local-server',
+          command: 'npx -y local', status: 'connected',
+          scope: 'local', config: { command: 'npx', args: ['-y', 'local'] },
+        },
+        {
+          name: 'project-server', fullName: 'project-server',
+          command: 'npx -y project', status: 'connected',
+          scope: 'project', config: { command: 'npx', args: ['-y', 'project'] },
+        },
       ]);
+    });
+
+    it('list() 有 workspace 時帶 cwd', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+      cli.exec.mockResolvedValue('');
+
+      await svc.list();
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'list'],
+        expect.objectContaining({ cwd: '/my/project' }),
+      );
+    });
+
+    it('list() 無 workspace 時 cwd 為 undefined', async () => {
+      cli.exec.mockResolvedValue('');
+      await svc.list();
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'list'],
+        expect.objectContaining({ cwd: undefined }),
+      );
     });
 
     it('處理 ANSI escape codes', async () => {
@@ -158,26 +323,107 @@ describe('McpService', () => {
     it('帶 args 參數產生 -- 分隔', async () => {
       await svc.add({
         name: 'my-mcp',
-        commandOrUrl: 'npx my-mcp',
-        args: ['--port', '3000'],
+        commandOrUrl: 'npx',
+        args: ['-y', 'my-mcp', '--port', '3000'],
       });
 
       expect(cli.exec).toHaveBeenCalledWith(
-        ['mcp', 'add', 'my-mcp', 'npx my-mcp', '--', '--port', '3000'],
+        ['mcp', 'add', 'my-mcp', 'npx', '--', '-y', 'my-mcp', '--port', '3000'],
         expect.anything(),
       );
     });
   });
 
   describe('remove()', () => {
-    it('不帶 scope', async () => {
+    it('不帶 scope，無 workspace', async () => {
       await svc.remove('my-server');
-      expect(cli.exec).toHaveBeenCalledWith(['mcp', 'remove', 'my-server']);
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'remove', 'my-server'],
+        expect.objectContaining({ cwd: undefined }),
+      );
     });
 
     it('帶 scope', async () => {
       await svc.remove('my-server', 'user');
-      expect(cli.exec).toHaveBeenCalledWith(['mcp', 'remove', 'my-server', '--scope', 'user']);
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'remove', 'my-server', '--scope', 'user'],
+        expect.objectContaining({ cwd: undefined }),
+      );
+    });
+
+    it('有 workspace 時帶 cwd', async () => {
+      workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }];
+      await svc.remove('my-server', 'project');
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'remove', 'my-server', '--scope', 'project'],
+        expect.objectContaining({ cwd: '/my/project' }),
+      );
+    });
+  });
+
+  describe('getDetail()', () => {
+    it('非 plugin server：從設定檔讀取，不呼叫 CLI', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            projects: {
+              '/my/project': {
+                mcpServers: {
+                  XcodeBuildMCP: { command: 'npx', args: ['-y', 'xcodebuildmcp@latest', 'mcp'] },
+                },
+              },
+            },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      // 先 list 填充快取
+      cli.exec.mockResolvedValue('XcodeBuildMCP: npx -y xcodebuildmcp@latest mcp - ✓ Connected');
+      await svc.list();
+      cli.exec.mockClear();
+
+      const detail = await svc.getDetail('XcodeBuildMCP');
+      const parsed = JSON.parse(detail);
+
+      // 不應呼叫 CLI
+      expect(cli.exec).not.toHaveBeenCalled();
+      // 應包含結構化資料
+      expect(parsed.name).toBe('XcodeBuildMCP');
+      expect(parsed.command).toBe('npx');
+      expect(parsed.args).toEqual(['-y', 'xcodebuildmcp@latest', 'mcp']);
+      expect(parsed.scope).toBe('local');
+      expect(parsed.status).toBe('connected');
+    });
+
+    it('無快取也能從設定檔讀取', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.mcp.json')) {
+          return JSON.stringify({
+            mcpServers: {
+              'my-server': { command: 'node', args: ['server.js'], env: { PORT: '3000' } },
+            },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const detail = await svc.getDetail('my-server');
+      const parsed = JSON.parse(detail);
+
+      expect(cli.exec).not.toHaveBeenCalled();
+      expect(parsed.command).toBe('node');
+      expect(parsed.args).toEqual(['server.js']);
+      expect(parsed.env).toEqual({ PORT: '3000' });
+      expect(parsed.scope).toBe('project');
     });
   });
 
