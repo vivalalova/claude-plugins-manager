@@ -26,10 +26,14 @@ export class CliService {
     const command = `claude ${args.join(' ')}`;
 
     try {
+      const env = { ...process.env };
+      delete env.CLAUDECODE;
+
       const { stdout } = await execFileAsync(this.claudePath, args, {
         timeout,
         cwd: options?.cwd,
         maxBuffer: 10 * 1024 * 1024,
+        env,
       });
       return stdout.trim();
     } catch (error: unknown) {

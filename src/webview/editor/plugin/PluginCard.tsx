@@ -15,7 +15,7 @@ interface PluginCardProps {
   /** 翻譯狀態：translating = 進行中，queued = 排隊中 */
   translateStatus?: 'translating' | 'queued';
   onToggle: (scope: PluginScope, enable: boolean) => void;
-  onUpdate: () => void;
+  onUpdate: (scopes: PluginScope[]) => void;
 }
 
 /**
@@ -74,7 +74,13 @@ export function PluginCard({
             <span className="card-updated">Updated: {formatDate(lastUpdated)}</span>
           )}
           {isInstalled && (
-            <button className="btn btn-secondary btn-sm" onClick={onUpdate}>
+            <button className="btn btn-secondary btn-sm" onClick={() => {
+              const scopes: PluginScope[] = [];
+              if (plugin.userInstall) scopes.push('user');
+              if (plugin.projectInstalls.length > 0) scopes.push('project');
+              if (plugin.localInstall) scopes.push('local');
+              onUpdate(scopes);
+            }}>
               Update
             </button>
           )}

@@ -222,10 +222,12 @@ export function PluginPage(): React.ReactElement {
     }
   };
 
-  const handleUpdate = async (pluginId: string): Promise<void> => {
+  const handleUpdate = async (pluginId: string, scopes: PluginScope[]): Promise<void> => {
     setError(null);
     try {
-      await sendRequest({ type: 'plugin.update', plugin: pluginId });
+      for (const scope of scopes) {
+        await sendRequest({ type: 'plugin.update', plugin: pluginId, scope });
+      }
       await fetchAll(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -319,7 +321,7 @@ export function PluginPage(): React.ReactElement {
                         translations={translations}
                         translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
-                        onUpdate={() => handleUpdate(plugin.id)}
+                        onUpdate={(scopes) => handleUpdate(plugin.id, scopes)}
                       />
                     ))}
                   </div>
