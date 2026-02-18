@@ -4,18 +4,12 @@ import { PluginService } from '../PluginService';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
 import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
-import type { InstalledPluginsFile, AvailablePlugin } from '../../../shared/types';
+import type { InstalledPluginsFile } from '../../../shared/types';
 
-/* ── fs/promises mock（readMcpServers + findCachePath 內部使用） ── */
+/* ── fs/promises mock（readMcpServers 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
-const mockReaddir = vi.hoisted(() => vi.fn());
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
-  readdir: mockReaddir,
-}));
-
-vi.mock('os', () => ({
-  homedir: () => '/mock-home',
 }));
 
 /* ── helpers ── */
@@ -209,7 +203,7 @@ describe('PluginService', () => {
       settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
       settings.readEnabledPlugins.mockResolvedValue({});
 
-      const available: AvailablePlugin[] = [
+      const available = [
         {
           pluginId: 'new-plugin@mp',
           name: 'new-plugin',
@@ -231,27 +225,22 @@ describe('PluginService', () => {
 
   /* ═══════ install ═══════ */
   describe('install()', () => {
-    const available: AvailablePlugin[] = [
-      {
-        pluginId: 'my-plugin@mp',
-        name: 'my-plugin',
-        description: '',
-        marketplaceName: 'mp',
-        version: '1.0.0',
-      },
-    ];
+    it('全新安裝（無既有 entry）→ 用 CLI 安裝', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
 
-    it('plugin 不在 available → throw', async () => {
-      settings.scanAvailablePlugins.mockResolvedValue([]);
-      await expect(svc.install('nonexistent@mp', 'user')).rejects.toThrow(
-        'not found in any marketplace',
+      await svc.install('my-plugin@mp', 'user');
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
       );
+      // CLI 自行處理 installed_plugins.json + enable，不需要額外呼叫
+      expect(settings.addInstallEntry).not.toHaveBeenCalled();
+      expect(settings.setPluginEnabled).not.toHaveBeenCalled();
     });
 
-    it('已有其他 scope 安裝 → 複用 installPath，不需 marketplace scan', async () => {
+    it('已有其他 scope 安裝 → 複用 installPath，不呼叫 CLI', async () => {
       workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }];
-      // marketplace scan 回傳空陣列（模擬 marketplace 目錄不存在的情況）
-      settings.scanAvailablePlugins.mockResolvedValue([]);
       settings.readInstalledPlugins.mockResolvedValue({
         version: 2,
         plugins: {
@@ -269,8 +258,7 @@ describe('PluginService', () => {
 
       await svc.install('my-plugin@mp', 'project');
 
-      // 不需要 marketplace scan
-      expect(settings.scanAvailablePlugins).not.toHaveBeenCalled();
+      expect(cli.exec).not.toHaveBeenCalled();
       expect(settings.addInstallEntry).toHaveBeenCalledWith(
         'my-plugin@mp',
         expect.objectContaining({
@@ -286,53 +274,13 @@ describe('PluginService', () => {
       );
     });
 
-    it('新安裝 → 從 cache 找 installPath', async () => {
-      settings.scanAvailablePlugins.mockResolvedValue(available);
+    it('CLI 安裝失敗 → 拋出錯誤', async () => {
       settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
-      mockReaddir.mockResolvedValue(['1.0.0']);
+      cli.exec.mockRejectedValue(new Error('CLI install failed'));
 
-      await svc.install('my-plugin@mp', 'user');
-
-      expect(settings.addInstallEntry).toHaveBeenCalledWith(
-        'my-plugin@mp',
-        expect.objectContaining({
-          scope: 'user',
-          installPath: '/mock-home/.claude/plugins/cache/mp/my-plugin/1.0.0',
-        }),
+      await expect(svc.install('my-plugin@mp', 'user')).rejects.toThrow(
+        'CLI install failed',
       );
-      expect(settings.setPluginEnabled).toHaveBeenCalledWith(
-        'my-plugin@mp',
-        'user',
-        true,
-      );
-    });
-
-    it('cache 目錄不存在 → 用 CLI 安裝', async () => {
-      settings.scanAvailablePlugins.mockResolvedValue(available);
-      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
-      mockReaddir.mockRejectedValue(new Error('ENOENT'));
-
-      await svc.install('my-plugin@mp', 'user');
-
-      expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
-        { timeout: CLI_LONG_TIMEOUT_MS },
-      );
-      expect(settings.addInstallEntry).not.toHaveBeenCalled();
-    });
-
-    it('cache 目錄空 → 用 CLI 安裝', async () => {
-      settings.scanAvailablePlugins.mockResolvedValue(available);
-      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
-      mockReaddir.mockResolvedValue([]);
-
-      await svc.install('my-plugin@mp', 'user');
-
-      expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
-        { timeout: CLI_LONG_TIMEOUT_MS },
-      );
-      expect(settings.addInstallEntry).not.toHaveBeenCalled();
     });
   });
 

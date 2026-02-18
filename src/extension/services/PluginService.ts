@@ -1,7 +1,5 @@
-import * as vscode from 'vscode';
-import { readFile, readdir } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type {
   InstalledPlugin,
@@ -112,29 +110,13 @@ export class PluginService {
       installPath = existing[0].installPath;
       version = existing[0].version;
     } else {
-      // 尚未安裝：從 marketplace scan 找 plugin 資訊
-      const available = await this.settings.scanAvailablePlugins();
-      const found = available.find((a) => a.pluginId === plugin);
-
-      if (!found) {
-        throw new Error(`Plugin "${plugin}" not found in any marketplace.`);
-      }
-
-      // 找 cache 目錄中最新版本，若不存在則用 CLI 安裝
-      try {
-        installPath = await this.findCachePath(
-          found.name,
-          found.marketplaceName,
-        );
-        version = found.version ?? 'unknown';
-      } catch {
-        // Cache 不存在 → 用 CLI 安裝（CLI 會下載 cache + 寫 installed_plugins.json + enable）
-        await this.cli.exec(
-          ['plugin', 'install', plugin, '--scope', scope],
-          { timeout: CLI_LONG_TIMEOUT_MS },
-        );
-        return;
-      }
+      // 尚未安裝：用 CLI 安裝（下載 cache + 寫 installed_plugins.json + enable）
+      const cwd = scope !== 'user' ? this.getProjectPath(scope) : undefined;
+      await this.cli.exec(
+        ['plugin', 'install', plugin, '--scope', scope],
+        { timeout: CLI_LONG_TIMEOUT_MS, cwd },
+      );
+      return;
     }
 
     const entry: PluginInstallEntry = {
@@ -219,37 +201,6 @@ export class PluginService {
     } catch {
       return undefined;
     }
-  }
-
-  /** 找 cache 中最新的版本目錄 */
-  private async findCachePath(
-    pluginName: string,
-    marketplaceName: string,
-  ): Promise<string> {
-    const cacheDir = join(
-      homedir(),
-      '.claude',
-      'plugins',
-      'cache',
-      marketplaceName,
-      pluginName,
-    );
-
-    let versions: string[];
-    try {
-      versions = await readdir(cacheDir);
-    } catch {
-      throw new Error(
-        `Plugin cache not found: ${pluginName}@${marketplaceName}. ` +
-        'Try updating the marketplace first.',
-      );
-    }
-
-    if (versions.length === 0) {
-      throw new Error(`No cached version for ${pluginName}@${marketplaceName}`);
-    }
-    // 取最後一個（通常是最新的）
-    return join(cacheDir, versions[versions.length - 1]);
   }
 
   /** 取得 project/local scope 的 projectPath */
