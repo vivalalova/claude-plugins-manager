@@ -303,14 +303,32 @@ describe('PluginService', () => {
       );
     });
 
-    it('cache 目錄空 → throw', async () => {
+    it('cache 目錄不存在 → 用 CLI 安裝', async () => {
+      settings.scanAvailablePlugins.mockResolvedValue(available);
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      mockReaddir.mockRejectedValue(new Error('ENOENT'));
+
+      await svc.install('my-plugin@mp', 'user');
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+      expect(settings.addInstallEntry).not.toHaveBeenCalled();
+    });
+
+    it('cache 目錄空 → 用 CLI 安裝', async () => {
       settings.scanAvailablePlugins.mockResolvedValue(available);
       settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
       mockReaddir.mockResolvedValue([]);
 
-      await expect(svc.install('my-plugin@mp', 'user')).rejects.toThrow(
-        'No cached version',
+      await svc.install('my-plugin@mp', 'user');
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
       );
+      expect(settings.addInstallEntry).not.toHaveBeenCalled();
     });
   });
 

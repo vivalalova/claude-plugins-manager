@@ -118,10 +118,19 @@ export class PluginService {
       installPath = existing[0].installPath;
     } else {
       // 新安裝：找 cache 目錄中最新版本
-      installPath = await this.findCachePath(
-        found.name,
-        found.marketplaceName,
-      );
+      try {
+        installPath = await this.findCachePath(
+          found.name,
+          found.marketplaceName,
+        );
+      } catch {
+        // Cache 不存在 → 用 CLI 安裝（CLI 會下載 cache + 寫 installed_plugins.json + enable）
+        await this.cli.exec(
+          ['plugin', 'install', plugin, '--scope', scope],
+          { timeout: CLI_LONG_TIMEOUT_MS },
+        );
+        return;
+      }
     }
 
     const entry: PluginInstallEntry = {
