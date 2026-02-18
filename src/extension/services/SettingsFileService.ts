@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { readFile, writeFile, readdir, stat } from 'fs/promises';
-import { join, resolve } from 'path';
+import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises';
+import { dirname, join, resolve } from 'path';
 import { homedir } from 'os';
 import type {
   EnabledPluginsMap,
@@ -66,6 +66,12 @@ export class SettingsFileService {
     }
 
     settings.enabledPlugins = plugins;
+
+    // project/local scope 可能尚未建立 .claude/ 目錄
+    if (scope !== 'user') {
+      await mkdir(dirname(path), { recursive: true });
+    }
+
     await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
   }
 
