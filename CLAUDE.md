@@ -4,7 +4,7 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（101 tests）
+npm test                   # vitest run（144 tests）
 npm run build              # esbuild 雙配置（extension + webview）
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
@@ -22,12 +22,14 @@ npm run watch              # concurrently watch extension + webview
 
 ### Services
 
-| Service             | 資料來源                                                                  | 職責                                            |
-| ------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
-| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔、掃描 marketplace/plugin 內容        |
-| PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable |
-| MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate              |
-| McpService          | CLI                                                                       | MCP server 管理                                 |
+| Service             | 資料來源                                                                  | 職責                                                     |
+| ------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| CliService          | `child_process.execFile`                                                  | Claude CLI 封裝；自動搜尋完整路徑；env 清理 `CLAUDECODE` |
+| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔、掃描 marketplace/plugin 內容                 |
+| PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable          |
+| MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate                       |
+| McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢                                |
+| TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯                              |
 
 ### 設定檔結構
 

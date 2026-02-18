@@ -11,7 +11,8 @@ Plugin, and MCP Server systems.
   toggle auto-update, export/import config
 - **Plugin**: Search and filter, collapsible marketplace sections,
   per-scope enable/disable, expandable cards showing contents
-  (commands, skills, agents, MCP servers, hooks) with descriptions
+  (commands, skills, agents, MCP servers, hooks) with descriptions,
+  GitHub link per plugin, description translation
 - **MCP Server**: View connection status, add/remove servers with scope support
 
 ## Install
@@ -32,7 +33,7 @@ npm run uninstall:ext  # Uninstall from VSCode
 ```bash
 npm run watch     # Watch mode (extension + webview)
 npm run typecheck # Type check (dual tsconfig)
-npm test          # Run tests (vitest, 54 tests)
+npm test          # Run tests (vitest, 144 tests)
 npm run build     # Production build
 ```
 
@@ -41,7 +42,7 @@ npm run build     # Production build
 ```text
 src/
   extension/              # Extension Host (Node.js)
-    services/             # Settings, Plugin, Marketplace, Mcp, Cli
+    services/             # Settings, Plugin, Marketplace, Mcp, Cli, Translation
     messaging/            # MessageRouter + protocol types
     providers/            # SidebarViewProvider, EditorPanelManager
   webview/                # React 19 UI (browser)
