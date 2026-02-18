@@ -1,5 +1,8 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import { CLI_TIMEOUT_MS } from '../constants';
 import { CliError } from '../types';
 
@@ -18,7 +21,18 @@ export interface CliExecOptions {
  * 透過 child_process.execFile 呼叫 claude，避免 shell injection。
  */
 export class CliService {
-  private claudePath = 'claude';
+  /** claude CLI 完整路徑（VSCode extension host 的 PATH 不含 ~/.local/bin） */
+  private readonly claudePath: string;
+
+  constructor() {
+    const candidates = [
+      join(homedir(), '.local', 'bin', 'claude'),
+      '/usr/local/bin/claude',
+      '/opt/homebrew/bin/claude',
+      'claude',
+    ];
+    this.claudePath = candidates.find((p) => p === 'claude' || existsSync(p)) ?? 'claude';
+  }
 
   /** 執行 claude CLI 並回傳 stdout */
   async exec(args: string[], options?: CliExecOptions): Promise<string> {

@@ -11,6 +11,10 @@ vi.mock('child_process', () => ({
   execFile: mockExecFile,
 }));
 
+vi.mock('fs', () => ({
+  existsSync: () => false,
+}));
+
 type Callback = (...args: unknown[]) => void;
 
 /** helper：讓 mock execFile 呼叫 callback 成功 */
