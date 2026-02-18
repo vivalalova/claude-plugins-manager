@@ -6,10 +6,13 @@ import type {
   PluginScope,
 } from '../../../shared/types';
 import { formatDate } from '../../utils/formatDate';
+import { sendRequest } from '../../vscode';
 
 interface PluginCardProps {
   plugin: MergedPlugin;
   workspaceName?: string;
+  /** marketplace 的 source URL（git repo URL 或 GitHub shorthand） */
+  marketplaceUrl?: string;
   /** original → translated description map */
   translations?: Record<string, string>;
   /** 翻譯狀態：translating = 進行中，queued = 排隊中 */
@@ -26,12 +29,14 @@ interface PluginCardProps {
 export function PluginCard({
   plugin,
   workspaceName,
+  marketplaceUrl,
   translations,
   translateStatus,
   onToggle,
   onUpdate,
 }: PluginCardProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
+  const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir);
 
   const isInstalled = !!(
     plugin.userInstall
@@ -82,6 +87,13 @@ export function PluginCard({
               onUpdate(scopes);
             }}>
               Update
+            </button>
+          )}
+          {pluginUrl && (
+            <button className="btn btn-secondary btn-sm" onClick={() => {
+              sendRequest({ type: 'openExternal', url: pluginUrl });
+            }}>
+              GitHub
             </button>
           )}
           {translateStatus === 'translating' && <span className="translate-spinner" />}
@@ -213,6 +225,34 @@ function ContentSection({
       ))}
     </div>
   );
+}
+
+/**
+ * 組合 marketplace URL 和 plugin sourceDir 為可瀏覽的 GitHub URL。
+ * 回傳 null 表示無法產生有效的 GitHub URL（如 directory 類型的 marketplace）。
+ */
+function buildPluginGithubUrl(
+  marketplaceUrl: string | undefined,
+  sourceDir: string | undefined,
+): string | null {
+  if (!marketplaceUrl) return null;
+
+  let baseUrl: string;
+  if (marketplaceUrl.startsWith('https://')) {
+    baseUrl = marketplaceUrl.replace(/\.git$/, '');
+  } else if (marketplaceUrl.includes('/')) {
+    // GitHub shorthand: "owner/repo"
+    baseUrl = `https://github.com/${marketplaceUrl}`;
+  } else {
+    return null;
+  }
+
+  if (sourceDir && sourceDir !== '.' && sourceDir !== './') {
+    const cleanPath = sourceDir.replace(/^\.\//, '');
+    return `${baseUrl}/tree/main/${cleanPath}`;
+  }
+
+  return baseUrl;
 }
 
 /** Scope checkbox：勾 = enabled，沒勾 = disabled 或未安裝 */

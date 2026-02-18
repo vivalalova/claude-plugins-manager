@@ -313,6 +313,7 @@ export function PluginPage(): React.ReactElement {
                         key={plugin.id}
                         plugin={plugin}
                         workspaceName={workspaceFolders[0]?.name}
+                        marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
                         translations={translations}
                         translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
@@ -421,6 +422,7 @@ function mergePlugins(
     if (existing) {
       if (avail.description) existing.description = avail.description;
       if (avail.contents) existing.contents = avail.contents;
+      if (avail.sourceDir) existing.sourceDir = avail.sourceDir;
       if (!existing.version && avail.version) {
         existing.version = avail.version;
       }
@@ -432,6 +434,7 @@ function mergePlugins(
         description: avail.description,
         version: avail.version,
         contents: avail.contents,
+        sourceDir: avail.sourceDir,
         userInstall: null,
         projectInstalls: [],
         localInstall: null,

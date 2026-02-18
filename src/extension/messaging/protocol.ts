@@ -27,6 +27,7 @@ export type RequestMessage =
   | { type: 'mcp.resetProjectChoices'; requestId: string }
   | { type: 'plugin.translate'; requestId: string; texts: string[]; targetLang: string; email?: string }
   | { type: 'workspace.getFolders'; requestId: string }
+  | { type: 'openExternal'; requestId: string; url: string }
   | { type: 'sidebar.openCategory'; category: string };
 
 // ---------------------------------------------------------------------------

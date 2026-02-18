@@ -96,6 +96,11 @@ export class MessageRouter {
           path: f.uri.fsPath,
         }));
 
+      // Utility
+      case 'openExternal':
+        await vscode.env.openExternal(vscode.Uri.parse(message.url));
+        return;
+
       default:
         throw new Error(`Unknown message type: ${(message as { type: string }).type}`);
     }
