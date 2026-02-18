@@ -154,6 +154,7 @@ export class SettingsFileService {
             marketplaceName: mpName,
             version: p.version,
             contents,
+            sourceDir: typeof p.source === 'string' ? p.source : undefined,
           });
         }
       } catch {

@@ -100,6 +100,8 @@ export interface AvailablePlugin {
   marketplaceName: string;
   version?: string;
   contents?: PluginContents;
+  /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
+  sourceDir?: string;
 }
 
 /** Plugin listAvailable 的回傳結構 */
@@ -168,6 +170,8 @@ export interface MergedPlugin {
   description?: string;
   version?: string;
   contents?: PluginContents;
+  /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
+  sourceDir?: string;
   /** user scope 安裝（null = 未安裝） */
   userInstall: InstalledPlugin | null;
   /** project scope 安裝（可能多個 project） */
