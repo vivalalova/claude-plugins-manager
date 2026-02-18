@@ -33,6 +33,7 @@ export class MessageRouter {
       post({ type: 'response', requestId, data });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[MessageRouter] ${message.type} failed:`, msg);
       post({ type: 'error', requestId, error: msg });
     }
   }

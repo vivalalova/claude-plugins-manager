@@ -199,22 +199,17 @@ export function PluginPage(): React.ReactElement {
     setError(null);
     try {
       if (enable) {
-        try {
-          await sendRequest({ type: 'plugin.install', plugin: pluginId, scope });
-        } catch {
-          // 已安裝 → 靜默
-        }
+        await sendRequest(
+          { type: 'plugin.install', plugin: pluginId, scope },
+          120_000,
+        );
         try {
           await sendRequest({ type: 'plugin.enable', plugin: pluginId, scope });
         } catch {
           // install 已自動 enable → 靜默
         }
       } else {
-        try {
-          await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope });
-        } catch {
-          // 已 disabled → 靜默
-        }
+        await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope });
       }
       await fetchAll(false);
     } catch (e) {
