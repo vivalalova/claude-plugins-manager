@@ -248,9 +248,10 @@ describe('PluginService', () => {
       );
     });
 
-    it('已有其他 scope 安裝 → 複用 installPath', async () => {
+    it('已有其他 scope 安裝 → 複用 installPath，不需 marketplace scan', async () => {
       workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }];
-      settings.scanAvailablePlugins.mockResolvedValue(available);
+      // marketplace scan 回傳空陣列（模擬 marketplace 目錄不存在的情況）
+      settings.scanAvailablePlugins.mockResolvedValue([]);
       settings.readInstalledPlugins.mockResolvedValue({
         version: 2,
         plugins: {
@@ -268,11 +269,14 @@ describe('PluginService', () => {
 
       await svc.install('my-plugin@mp', 'project');
 
+      // 不需要 marketplace scan
+      expect(settings.scanAvailablePlugins).not.toHaveBeenCalled();
       expect(settings.addInstallEntry).toHaveBeenCalledWith(
         'my-plugin@mp',
         expect.objectContaining({
           scope: 'project',
           installPath: '/existing/path',
+          version: '1.0.0',
         }),
       );
       expect(settings.setPluginEnabled).toHaveBeenCalledWith(

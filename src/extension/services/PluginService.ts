@@ -101,28 +101,32 @@ export class PluginService {
 
   /** 安裝 plugin（寫入 installed_plugins.json + enable） */
   async install(plugin: string, scope: PluginScope): Promise<void> {
-    const available = await this.settings.scanAvailablePlugins();
-    const found = available.find((a) => a.pluginId === plugin);
-
-    if (!found) {
-      throw new Error(`Plugin "${plugin}" not found in any marketplace.`);
-    }
-
-    // 找到 cache 中的 installPath
+    // 優先檢查是否已有其他 scope 安裝（可複用 installPath，不需 marketplace scan）
     const data = await this.settings.readInstalledPlugins();
     const existing = data.plugins[plugin];
     let installPath: string;
+    let version: string;
 
     if (existing?.length) {
       // 已有其他 scope 安裝，複用同一個 cache path
       installPath = existing[0].installPath;
+      version = existing[0].version;
     } else {
-      // 新安裝：找 cache 目錄中最新版本
+      // 尚未安裝：從 marketplace scan 找 plugin 資訊
+      const available = await this.settings.scanAvailablePlugins();
+      const found = available.find((a) => a.pluginId === plugin);
+
+      if (!found) {
+        throw new Error(`Plugin "${plugin}" not found in any marketplace.`);
+      }
+
+      // 找 cache 目錄中最新版本，若不存在則用 CLI 安裝
       try {
         installPath = await this.findCachePath(
           found.name,
           found.marketplaceName,
         );
+        version = found.version ?? 'unknown';
       } catch {
         // Cache 不存在 → 用 CLI 安裝（CLI 會下載 cache + 寫 installed_plugins.json + enable）
         await this.cli.exec(
@@ -136,7 +140,7 @@ export class PluginService {
     const entry: PluginInstallEntry = {
       scope,
       installPath,
-      version: found.version ?? 'unknown',
+      version,
       installedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
       ...(scope !== 'user' ? { projectPath: this.getProjectPath(scope) } : {}),
