@@ -147,6 +147,18 @@ describe('MessageRouter', () => {
     });
   });
 
+  describe('utility 路由', () => {
+    it('openExternal → 呼叫 vscode.env.openExternal 並回傳 response', async () => {
+      const vscode = await import('vscode');
+      await router.handle(
+        { type: 'openExternal', requestId: 'r-ext', url: 'https://github.com/example/repo' } as RequestMessage,
+        post,
+      );
+      expect(vscode.env.openExternal).toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'r-ext' });
+    });
+  });
+
   describe('特殊訊息', () => {
     it('sidebar.openCategory → 不回傳 response', async () => {
       await router.handle(

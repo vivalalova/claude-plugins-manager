@@ -29,7 +29,15 @@ export class Uri {
   static joinPath(base: { fsPath: string }, ...segments: string[]): { fsPath: string } {
     return { fsPath: [base.fsPath, ...segments].join('/') };
   }
+
+  static parse(value: string): { toString: () => string } {
+    return { toString: () => value };
+  }
 }
+
+export const env = {
+  openExternal: vi.fn().mockResolvedValue(true),
+};
 
 export const workspace = {
   workspaceFolders: undefined as Array<{ uri: { fsPath: string } }> | undefined,

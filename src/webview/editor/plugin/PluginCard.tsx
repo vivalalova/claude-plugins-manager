@@ -231,7 +231,7 @@ function ContentSection({
  * 組合 marketplace URL 和 plugin sourceDir 為可瀏覽的 GitHub URL。
  * 回傳 null 表示無法產生有效的 GitHub URL（如 directory 類型的 marketplace）。
  */
-function buildPluginGithubUrl(
+export function buildPluginGithubUrl(
   marketplaceUrl: string | undefined,
   sourceDir: string | undefined,
 ): string | null {
@@ -240,7 +240,7 @@ function buildPluginGithubUrl(
   let baseUrl: string;
   if (marketplaceUrl.startsWith('https://')) {
     baseUrl = marketplaceUrl.replace(/\.git$/, '');
-  } else if (marketplaceUrl.includes('/')) {
+  } else if (!marketplaceUrl.startsWith('/') && marketplaceUrl.includes('/')) {
     // GitHub shorthand: "owner/repo"
     baseUrl = `https://github.com/${marketplaceUrl}`;
   } else {

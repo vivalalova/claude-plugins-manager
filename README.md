@@ -33,7 +33,7 @@ npm run uninstall:ext  # Uninstall from VSCode
 ```bash
 npm run watch     # Watch mode (extension + webview)
 npm run typecheck # Type check (dual tsconfig)
-npm test          # Run tests (vitest, 144 tests)
+npm test          # Run tests (vitest, 159 tests)
 npm run build     # Production build
 ```
 
