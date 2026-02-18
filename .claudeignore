@@ -1,0 +1,15 @@
+# Build/Dependencies
+node_modules/
+dist/
+
+# Binary/Lock files
+*.vsix
+package-lock.json
+pnpm-lock.yaml
+
+# Source maps
+*.map
+
+# OS/IDE
+.DS_Store
+.vscode/
