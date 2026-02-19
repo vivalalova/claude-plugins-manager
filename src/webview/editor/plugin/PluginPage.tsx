@@ -7,6 +7,8 @@ import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './tra
 import {
   matchesContentType,
   matchesSearch,
+  isPluginInstalled,
+  getInstalledScopes,
   CONTENT_TYPE_FILTERS,
   CONTENT_TYPE_LABELS,
   PLUGIN_SEARCH_KEY,
@@ -47,6 +49,10 @@ export function PluginPage(): React.ReactElement {
     scope: PluginScope;
     enable: boolean;
   } | null>(null);
+  /** Update All 進度（null = 未執行） */
+  const [updateAllProgress, setUpdateAllProgress] = useState<{ current: number; total: number } | null>(null);
+  /** Update All 完成後的失敗摘要 */
+  const [updateAllErrors, setUpdateAllErrors] = useState<{ pluginId: string; scope: PluginScope; message: string }[]>([]);
   const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
   const [filterEnabled, setFilterEnabled] = useState(
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
@@ -288,15 +294,56 @@ export function PluginPage(): React.ReactElement {
     }
   };
 
+  /** 批次更新所有已安裝 plugin */
+  const handleUpdateAll = async (): Promise<void> => {
+    if (updateAllProgress) return; // guard concurrent invocation
+    const installed = plugins.filter(isPluginInstalled);
+    if (installed.length === 0) return;
+
+    setUpdateAllErrors([]);
+    setUpdateAllProgress({ current: 0, total: installed.length });
+    const errors: { pluginId: string; scope: PluginScope; message: string }[] = [];
+
+    for (let i = 0; i < installed.length; i++) {
+      setUpdateAllProgress({ current: i + 1, total: installed.length });
+      const p = installed[i];
+      for (const scope of getInstalledScopes(p)) {
+        try {
+          await sendRequest({ type: 'plugin.update', plugin: p.id, scope });
+        } catch (e) {
+          errors.push({ pluginId: p.id, scope, message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    }
+
+    setUpdateAllProgress(null);
+    if (errors.length > 0) setUpdateAllErrors(errors);
+    try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
+  };
+
+  const isUpdatingAll = updateAllProgress !== null;
+  const hasInstalledPlugins = plugins.some(isPluginInstalled);
+
   return (
     <div className="page-container">
       <div className="page-header">
         <div className="page-title">Plugins Manager</div>
         <div className="page-actions">
+          {hasInstalledPlugins && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleUpdateAll}
+              disabled={loading || isUpdatingAll}
+            >
+              {isUpdatingAll
+                ? `Updating ${updateAllProgress?.current ?? 0}/${updateAllProgress?.total ?? 0}...`
+                : 'Update All'}
+            </button>
+          )}
           <button
             className="btn btn-secondary"
             onClick={() => fetchAll()}
-            disabled={loading}
+            disabled={loading || isUpdatingAll}
           >
             Refresh
           </button>
@@ -360,6 +407,12 @@ export function PluginPage(): React.ReactElement {
           }
         />
       )}
+      {updateAllErrors.length > 0 && (
+        <ErrorBanner
+          message={`Update All: ${updateAllErrors.length} failed — ${updateAllErrors.map((e) => `${e.pluginId} (${e.scope})`).join(', ')}`}
+          onDismiss={() => setUpdateAllErrors([])}
+        />
+      )}
       {translateWarning && (
         <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
       )}
@@ -376,9 +429,7 @@ export function PluginPage(): React.ReactElement {
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
           const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
-          const installedCount = items.filter((p) =>
-            p.userInstall || p.projectInstalls.length > 0 || p.localInstall,
-          ).length;
+          const installedCount = items.filter(isPluginInstalled).length;
           return (
             <div key={marketplace} className="plugin-section">
               <button

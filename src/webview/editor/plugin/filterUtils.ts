@@ -1,4 +1,18 @@
-import type { MergedPlugin } from '../../../shared/types';
+import type { MergedPlugin, PluginScope } from '../../../shared/types';
+
+/** Plugin 是否已安裝（任一 scope） */
+export function isPluginInstalled(p: MergedPlugin): boolean {
+  return !!(p.userInstall || p.projectInstalls.length > 0 || p.localInstall);
+}
+
+/** 取得 plugin 已安裝的 scope 列表 */
+export function getInstalledScopes(p: MergedPlugin): PluginScope[] {
+  const scopes: PluginScope[] = [];
+  if (p.userInstall) scopes.push('user');
+  if (p.projectInstalls.length > 0) scopes.push('project');
+  if (p.localInstall) scopes.push('local');
+  return scopes;
+}
 
 /** 所有可用的 content type filter chips */
 export const CONTENT_TYPE_FILTERS = ['commands', 'skills', 'agents', 'mcp'] as const;

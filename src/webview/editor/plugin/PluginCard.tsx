@@ -5,6 +5,7 @@ import type {
   PluginContentItem,
   PluginScope,
 } from '../../../shared/types';
+import { isPluginInstalled, getInstalledScopes } from './filterUtils';
 import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
 
@@ -41,11 +42,7 @@ export function PluginCard({
   const [expanded, setExpanded] = useState(false);
   const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir);
 
-  const isInstalled = !!(
-    plugin.userInstall
-    || plugin.projectInstalls.length > 0
-    || plugin.localInstall
-  );
+  const isInstalled = isPluginInstalled(plugin);
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
 
@@ -85,13 +82,7 @@ export function PluginCard({
             <button
               className="btn btn-secondary btn-sm"
               disabled={!!loadingScopes?.size}
-              onClick={() => {
-                const scopes: PluginScope[] = [];
-                if (plugin.userInstall) scopes.push('user');
-                if (plugin.projectInstalls.length > 0) scopes.push('project');
-                if (plugin.localInstall) scopes.push('local');
-                onUpdate(scopes);
-              }}
+              onClick={() => onUpdate(getInstalledScopes(plugin))}
             >
               Update
             </button>
