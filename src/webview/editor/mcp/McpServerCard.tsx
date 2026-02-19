@@ -51,12 +51,16 @@ export function McpServerCard({
         <button className="btn btn-secondary" onClick={onViewDetail}>
           Details
         </button>
-        <button className="btn btn-secondary" onClick={onEdit}>
-          Edit
-        </button>
-        <button className="btn btn-danger" onClick={onRemove}>
-          Remove
-        </button>
+        {server.scope && (
+          <button className="btn btn-secondary" onClick={onEdit}>
+            Edit
+          </button>
+        )}
+        {server.scope && (
+          <button className="btn btn-danger" onClick={onRemove}>
+            Remove
+          </button>
+        )}
       </div>
     </div>
   );
