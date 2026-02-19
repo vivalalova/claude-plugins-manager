@@ -35,3 +35,32 @@ export function matchesContentType(
   }
   return false;
 }
+
+/** localStorage keys for plugin filter persistence */
+export const PLUGIN_SEARCH_KEY = 'plugin.search';
+export const PLUGIN_FILTER_ENABLED_KEY = 'plugin.filter.enabled';
+export const CONTENT_TYPE_STORAGE_KEY = 'plugin.filter.contentTypes';
+
+/**
+ * localStorage → Set<ContentTypeFilter>。
+ * 格式不相容時清除舊資料並回傳空 Set。
+ */
+export function readContentTypeFilters(): Set<ContentTypeFilter> {
+  try {
+    const raw = localStorage.getItem(CONTENT_TYPE_STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr: unknown = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set();
+    const valid = new Set<string>(CONTENT_TYPE_FILTERS);
+    return new Set(arr.filter((v): v is ContentTypeFilter => valid.has(v as string)));
+  } catch (e) {
+    console.warn('[filterUtils] corrupt contentTypeFilters in localStorage, clearing', e);
+    localStorage.removeItem(CONTENT_TYPE_STORAGE_KEY);
+    return new Set();
+  }
+}
+
+/** Set<ContentTypeFilter> → localStorage JSON string */
+export function writeContentTypeFilters(filters: ReadonlySet<ContentTypeFilter>): void {
+  localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, JSON.stringify([...filters]));
+}

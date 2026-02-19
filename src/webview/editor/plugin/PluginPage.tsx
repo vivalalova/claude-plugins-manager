@@ -4,7 +4,16 @@ import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginCard } from './PluginCard';
 import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
-import { matchesContentType, CONTENT_TYPE_FILTERS, CONTENT_TYPE_LABELS, type ContentTypeFilter } from './filterUtils';
+import {
+  matchesContentType,
+  CONTENT_TYPE_FILTERS,
+  CONTENT_TYPE_LABELS,
+  PLUGIN_SEARCH_KEY,
+  PLUGIN_FILTER_ENABLED_KEY,
+  readContentTypeFilters,
+  writeContentTypeFilters,
+  type ContentTypeFilter,
+} from './filterUtils';
 import type { TranslateResult } from '../../../extension/services/TranslationService';
 import {
   TRANSLATE_LANGS,
@@ -28,9 +37,11 @@ export function PluginPage(): React.ReactElement {
   const [plugins, setPlugins] = useState<MergedPlugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [filterEnabled, setFilterEnabled] = useState(false);
-  const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(new Set());
+  const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
+  const [filterEnabled, setFilterEnabled] = useState(
+    () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
+  );
+  const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(readContentTypeFilters);
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([]);
   // 預設收合，使用者手動展開的 marketplace 加入此 set
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -83,6 +94,11 @@ export function PluginPage(): React.ReactElement {
     });
     return unsubscribe;
   }, [fetchAll]);
+
+  // Filter 狀態持久化 → localStorage
+  useEffect(() => { localStorage.setItem(PLUGIN_SEARCH_KEY, search); }, [search]);
+  useEffect(() => { localStorage.setItem(PLUGIN_FILTER_ENABLED_KEY, String(filterEnabled)); }, [filterEnabled]);
+  useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
 
   /** 語言變更或 plugins 載入後自動翻譯（分批送出，最多 3 併發，逐批更新 UI） */
   const doTranslate = useCallback(async (lang: string, email: string, items: MergedPlugin[]) => {

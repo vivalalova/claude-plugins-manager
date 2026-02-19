@@ -1,5 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { matchesContentType, type ContentTypeFilter } from '../filterUtils';
+/** @vitest-environment jsdom */
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  matchesContentType,
+  readContentTypeFilters,
+  writeContentTypeFilters,
+  CONTENT_TYPE_STORAGE_KEY,
+  type ContentTypeFilter,
+} from '../filterUtils';
 import type { MergedPlugin, PluginContents } from '../../../../shared/types';
 
 /** 建立測試用 MergedPlugin（只需 contents 欄位） */
@@ -80,5 +87,53 @@ describe('matchesContentType', () => {
       const plugin = makeMerged({});
       expect(matchesContentType(plugin, new Set(['commands', 'skills', 'agents', 'mcp']))).toBe(false);
     });
+  });
+});
+
+describe('readContentTypeFilters / writeContentTypeFilters', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('localStorage 無資料 → 空 Set', () => {
+    expect(readContentTypeFilters()).toEqual(new Set());
+  });
+
+  it('write 後 read round-trip 保持一致', () => {
+    const filters: Set<ContentTypeFilter> = new Set(['skills', 'mcp']);
+    writeContentTypeFilters(filters);
+    expect(readContentTypeFilters()).toEqual(filters);
+  });
+
+  it('單一 filter round-trip', () => {
+    writeContentTypeFilters(new Set(['commands']));
+    expect(readContentTypeFilters()).toEqual(new Set(['commands']));
+  });
+
+  it('空 Set → 寫入空陣列 → read 回空 Set', () => {
+    writeContentTypeFilters(new Set());
+    expect(readContentTypeFilters()).toEqual(new Set());
+  });
+
+  it('localStorage 含無效值 → 過濾掉，只保留合法 filter', () => {
+    localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, '["skills","invalid","mcp"]');
+    expect(readContentTypeFilters()).toEqual(new Set(['skills', 'mcp']));
+  });
+
+  it('localStorage 含非 JSON → 清除並回空 Set', () => {
+    localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, 'not-json');
+    expect(readContentTypeFilters()).toEqual(new Set());
+    expect(localStorage.getItem(CONTENT_TYPE_STORAGE_KEY)).toBeNull();
+  });
+
+  it('localStorage 含非陣列 JSON → 回空 Set', () => {
+    localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, '{"a":1}');
+    expect(readContentTypeFilters()).toEqual(new Set());
+  });
+
+  it('所有 4 種 filter round-trip', () => {
+    const all: Set<ContentTypeFilter> = new Set(['commands', 'skills', 'agents', 'mcp']);
+    writeContentTypeFilters(all);
+    expect(readContentTypeFilters()).toEqual(all);
   });
 });
