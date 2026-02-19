@@ -18,7 +18,14 @@ export class EventEmitter<T> {
     }
   }
 
-  dispose = vi.fn();
+  dispose = vi.fn(() => { this.listeners = []; });
+}
+
+export class RelativePattern {
+  constructor(
+    public readonly base: unknown,
+    public readonly pattern: string,
+  ) {}
 }
 
 export class Uri {
@@ -39,8 +46,34 @@ export const env = {
   openExternal: vi.fn().mockResolvedValue(true),
 };
 
+/** Mock FileSystemWatcher：呼叫回傳的 handler 可觸發 onChange/onCreate/onDelete */
+export function createMockFileSystemWatcher() {
+  const changeHandlers: Array<() => void> = [];
+  const createHandlers: Array<() => void> = [];
+  const deleteHandlers: Array<() => void> = [];
+  return {
+    watcher: {
+      onDidChange: (handler: () => void) => { changeHandlers.push(handler); },
+      onDidCreate: (handler: () => void) => { createHandlers.push(handler); },
+      onDidDelete: (handler: () => void) => { deleteHandlers.push(handler); },
+      dispose: vi.fn(),
+    },
+    fireChange: () => changeHandlers.forEach((h) => h()),
+    fireCreate: () => createHandlers.forEach((h) => h()),
+    fireDelete: () => deleteHandlers.forEach((h) => h()),
+  };
+}
+
+/** 追蹤所有 createFileSystemWatcher 呼叫的 mock watchers */
+export const mockFileWatchers: Array<ReturnType<typeof createMockFileSystemWatcher>> = [];
+
 export const workspace = {
-  workspaceFolders: undefined as Array<{ uri: { fsPath: string } }> | undefined,
+  workspaceFolders: undefined as Array<{ uri: { fsPath: string }; name?: string }> | undefined,
+  createFileSystemWatcher: vi.fn().mockImplementation(() => {
+    const mock = createMockFileSystemWatcher();
+    mockFileWatchers.push(mock);
+    return mock.watcher;
+  }),
 };
 
 export const window = {
