@@ -53,6 +53,10 @@ export function PluginPage(): React.ReactElement {
   const [updateAllProgress, setUpdateAllProgress] = useState<{ current: number; total: number } | null>(null);
   /** Update All 完成後的失敗摘要 */
   const [updateAllErrors, setUpdateAllErrors] = useState<{ pluginId: string; scope: PluginScope; message: string }[]>([]);
+  /** Marketplace 層級 bulk toggle 進度（key = marketplace name） */
+  const [bulkProgress, setBulkProgress] = useState<Map<string, { action: 'enable' | 'disable'; current: number; total: number }>>(new Map());
+  /** Bulk toggle 完成後的失敗摘要 */
+  const [bulkErrors, setBulkErrors] = useState<{ marketplace: string; pluginId: string; message: string }[]>([]);
   const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
   const [filterEnabled, setFilterEnabled] = useState(
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
@@ -321,6 +325,70 @@ export function PluginPage(): React.ReactElement {
     try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
   };
 
+  /** Marketplace 層級 bulk enable/disable（user scope） */
+  const handleBulkToggle = async (marketplace: string, items: MergedPlugin[]): Promise<void> => {
+    if (bulkProgress.has(marketplace)) return;
+    const allUserEnabled = items.every((p) => p.userInstall?.enabled);
+    const enable = !allUserEnabled;
+    const scope: PluginScope = 'user';
+    const toProcess = enable
+      ? items.filter((p) => !p.userInstall?.enabled)
+      : items.filter((p) => p.userInstall?.enabled);
+
+    if (toProcess.length === 0) return;
+
+    setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
+    setBulkProgress((prev) => {
+      const next = new Map(prev);
+      next.set(marketplace, { action: enable ? 'enable' : 'disable', current: 0, total: toProcess.length });
+      return next;
+    });
+    for (const p of toProcess) setPluginLoading(p.id, scope, true);
+
+    const errors: { marketplace: string; pluginId: string; message: string }[] = [];
+
+    try {
+      for (let i = 0; i < toProcess.length; i++) {
+        setBulkProgress((prev) => {
+          const next = new Map(prev);
+          next.set(marketplace, { action: enable ? 'enable' : 'disable', current: i + 1, total: toProcess.length });
+          return next;
+        });
+
+        const plugin = toProcess[i];
+        try {
+          if (enable) {
+            if (plugin.userInstall) {
+              // 已安裝但 disabled → 只需 enable
+              await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
+            } else {
+              // 未安裝 → install（自動 enable）
+              await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
+              try {
+                await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
+              } catch { /* install auto-enables */ }
+            }
+          } else {
+            await sendRequest({ type: 'plugin.disable', plugin: plugin.id, scope });
+          }
+        } catch (e) {
+          errors.push({ marketplace, pluginId: plugin.id, message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    } finally {
+      for (const p of toProcess) setPluginLoading(p.id, scope, false);
+
+      setBulkProgress((prev) => {
+        const next = new Map(prev);
+        next.delete(marketplace);
+        return next;
+      });
+    }
+
+    if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
+    try { await fetchAll(false); } catch { /* non-blocking */ }
+  };
+
   const isUpdatingAll = updateAllProgress !== null;
   const hasInstalledPlugins = plugins.some(isPluginInstalled);
 
@@ -413,6 +481,12 @@ export function PluginPage(): React.ReactElement {
           onDismiss={() => setUpdateAllErrors([])}
         />
       )}
+      {bulkErrors.length > 0 && (
+        <ErrorBanner
+          message={`Bulk toggle: ${bulkErrors.length} failed — ${bulkErrors.map((e) => e.pluginId).join(', ')}`}
+          onDismiss={() => setBulkErrors([])}
+        />
+      )}
       {translateWarning && (
         <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
       )}
@@ -430,24 +504,37 @@ export function PluginPage(): React.ReactElement {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
           const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
           const installedCount = items.filter(isPluginInstalled).length;
+          const mpBulk = bulkProgress.get(marketplace);
+          const allUserEnabled = items.every((p) => p.userInstall?.enabled);
           return (
             <div key={marketplace} className="plugin-section">
-              <button
-                className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
-                onClick={() => setExpanded((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(marketplace)) next.delete(marketplace);
-                  else next.add(marketplace);
-                  return next;
-                })}
-              >
-                <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
-                <span className="section-toggle-label">{marketplace}</span>
-                <span className="section-count">{installedCount} / {items.length}</span>
-                {marketplaceSources[marketplace] && (
-                  <span className="section-source">{marketplaceSources[marketplace]}</span>
-                )}
-              </button>
+              <div className="section-header">
+                <button
+                  className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
+                  onClick={() => setExpanded((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(marketplace)) next.delete(marketplace);
+                    else next.add(marketplace);
+                    return next;
+                  })}
+                >
+                  <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
+                  <span className="section-toggle-label">{marketplace}</span>
+                  <span className="section-count">{installedCount} / {items.length}</span>
+                  {marketplaceSources[marketplace] && (
+                    <span className="section-source">{marketplaceSources[marketplace]}</span>
+                  )}
+                </button>
+                <button
+                  className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
+                  disabled={!!mpBulk || isUpdatingAll}
+                  onClick={() => handleBulkToggle(marketplace, items)}
+                >
+                  {mpBulk
+                    ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
+                    : allUserEnabled ? 'Disable All' : 'Enable All'}
+                </button>
+              </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
                 <div className="section-body-inner">
                   <div className="card-list">
