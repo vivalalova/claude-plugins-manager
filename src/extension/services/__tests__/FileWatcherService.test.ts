@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { workspace, mockFileWatchers } from 'vscode';
+import { workspace, mockFileWatchers, mockWorkspaceFoldersChangeEmitter } from 'vscode';
 import { FileWatcherService, FILE_WATCHER_DEBOUNCE_MS } from '../FileWatcherService';
 
 vi.mock('os', () => ({
@@ -168,6 +168,52 @@ describe('FileWatcherService', () => {
       mockFileWatchers[0].fireDelete();
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
       expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('workspace folder 變更', () => {
+    it('workspace folder 新增後重建 workspace watchers', async () => {
+      svc = new FileWatcherService();
+      const initialCount = mockFileWatchers.length; // 5 (3 home + 2 workspace)
+      expect(initialCount).toBe(5);
+
+      // 模擬新增第二個 workspace folder
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+        { uri: { fsPath: '/my/second-project' } },
+      ] as any;
+
+      mockWorkspaceFoldersChangeEmitter.fire();
+
+      // 舊的 2 個 workspace watcher 被 dispose
+      // 新建 4 個 workspace watcher（2 folders × 2 files）
+      // 總共 = 5 (initial) + 4 (new workspace) = 9
+      const totalWatchers = mockFileWatchers.length;
+      expect(totalWatchers).toBe(9);
+
+      // 新的 workspace watcher 能觸發事件
+      const handler = vi.fn();
+      svc.onPluginFilesChanged(handler);
+      // 最後一個 watcher = 第二個 project 的 settings.local.json
+      mockFileWatchers[totalWatchers - 1].fireChange();
+      await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('舊 workspace watcher 被 dispose', () => {
+      svc = new FileWatcherService();
+      // watcher 3, 4 是 workspace watchers
+      const oldWorkspaceWatchers = [mockFileWatchers[3], mockFileWatchers[4]];
+
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/other/project' } },
+      ] as any;
+
+      mockWorkspaceFoldersChangeEmitter.fire();
+
+      for (const mock of oldWorkspaceWatchers) {
+        expect(mock.watcher.dispose).toHaveBeenCalled();
+      }
     });
   });
 

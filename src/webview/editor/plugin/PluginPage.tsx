@@ -9,7 +9,11 @@ import {
   matchesContentType,
   matchesSearch,
   isPluginInstalled,
+  isPluginEnabled,
+  isEnabledInScope,
+  isInstalledInScope,
   getInstalledScopes,
+  getEnabledScopes,
   CONTENT_TYPE_FILTERS,
   CONTENT_TYPE_LABELS,
   PLUGIN_SEARCH_KEY,
@@ -58,6 +62,8 @@ export function PluginPage(): React.ReactElement {
   const [bulkProgress, setBulkProgress] = useState<Map<string, { action: 'enable' | 'disable'; current: number; total: number }>>(new Map());
   /** Bulk toggle 完成後的失敗摘要 */
   const [bulkErrors, setBulkErrors] = useState<{ marketplace: string; pluginId: string; message: string }[]>([]);
+  /** Bulk enable 的目標 scope（per-marketplace） */
+  const [bulkEnableScope, setBulkEnableScope] = useState<Map<string, PluginScope>>(new Map());
   const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
   const [filterEnabled, setFilterEnabled] = useState(
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
@@ -219,11 +225,7 @@ export function PluginPage(): React.ReactElement {
       : plugins;
 
     if (filterEnabled) {
-      filtered = filtered.filter((p) =>
-        p.userInstall?.enabled
-        || p.projectInstalls.some((i) => i.enabled)
-        || p.localInstall?.enabled,
-      );
+      filtered = filtered.filter(isPluginEnabled);
     }
 
     // Content type filter（OR 邏輯）：未載入 contents 的 plugin 保守顯示
@@ -330,51 +332,37 @@ export function PluginPage(): React.ReactElement {
     try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
   };
 
-  /** Marketplace 層級 bulk enable/disable（user scope） */
-  const handleBulkToggle = async (marketplace: string, items: MergedPlugin[]): Promise<void> => {
+  /** Marketplace 層級 bulk enable（指定 scope） */
+  const handleBulkEnable = async (marketplace: string, items: MergedPlugin[], scope: PluginScope): Promise<void> => {
     if (bulkProgress.has(marketplace)) return;
-    const allUserEnabled = items.every((p) => p.userInstall?.enabled);
-    const enable = !allUserEnabled;
-    const scope: PluginScope = 'user';
-    const toProcess = enable
-      ? items.filter((p) => !p.userInstall?.enabled)
-      : items.filter((p) => p.userInstall?.enabled);
-
+    const toProcess = items.filter((p) => !isEnabledInScope(p, scope));
     if (toProcess.length === 0) return;
 
     setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
     setBulkProgress((prev) => {
       const next = new Map(prev);
-      next.set(marketplace, { action: enable ? 'enable' : 'disable', current: 0, total: toProcess.length });
+      next.set(marketplace, { action: 'enable', current: 0, total: toProcess.length });
       return next;
     });
     for (const p of toProcess) setPluginLoading(p.id, scope, true);
 
     const errors: { marketplace: string; pluginId: string; message: string }[] = [];
-
     try {
       for (let i = 0; i < toProcess.length; i++) {
         setBulkProgress((prev) => {
           const next = new Map(prev);
-          next.set(marketplace, { action: enable ? 'enable' : 'disable', current: i + 1, total: toProcess.length });
+          next.set(marketplace, { action: 'enable', current: i + 1, total: toProcess.length });
           return next;
         });
-
         const plugin = toProcess[i];
         try {
-          if (enable) {
-            if (plugin.userInstall) {
-              // 已安裝但 disabled → 只需 enable
-              await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
-            } else {
-              // 未安裝 → install（自動 enable）
-              await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
-              try {
-                await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
-              } catch { /* install auto-enables */ }
-            }
+          if (isInstalledInScope(plugin, scope)) {
+            await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
           } else {
-            await sendRequest({ type: 'plugin.disable', plugin: plugin.id, scope });
+            await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
+            try {
+              await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
+            } catch { /* install auto-enables */ }
           }
         } catch (e) {
           errors.push({ marketplace, pluginId: plugin.id, message: e instanceof Error ? e.message : String(e) });
@@ -382,14 +370,57 @@ export function PluginPage(): React.ReactElement {
       }
     } finally {
       for (const p of toProcess) setPluginLoading(p.id, scope, false);
-
       setBulkProgress((prev) => {
         const next = new Map(prev);
         next.delete(marketplace);
         return next;
       });
     }
+    if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
+    try { await fetchAll(false); } catch { /* non-blocking */ }
+  };
 
+  /** Marketplace 層級 bulk disable（全部 scope） */
+  const handleBulkDisable = async (marketplace: string, items: MergedPlugin[]): Promise<void> => {
+    if (bulkProgress.has(marketplace)) return;
+    const ops: { plugin: MergedPlugin; scope: PluginScope }[] = [];
+    for (const p of items) {
+      for (const scope of getEnabledScopes(p)) {
+        ops.push({ plugin: p, scope });
+      }
+    }
+    if (ops.length === 0) return;
+
+    setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
+    setBulkProgress((prev) => {
+      const next = new Map(prev);
+      next.set(marketplace, { action: 'disable', current: 0, total: ops.length });
+      return next;
+    });
+    for (const op of ops) setPluginLoading(op.plugin.id, op.scope, true);
+
+    const errors: { marketplace: string; pluginId: string; message: string }[] = [];
+    try {
+      for (let i = 0; i < ops.length; i++) {
+        setBulkProgress((prev) => {
+          const next = new Map(prev);
+          next.set(marketplace, { action: 'disable', current: i + 1, total: ops.length });
+          return next;
+        });
+        try {
+          await sendRequest({ type: 'plugin.disable', plugin: ops[i].plugin.id, scope: ops[i].scope });
+        } catch (e) {
+          errors.push({ marketplace, pluginId: ops[i].plugin.id, message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    } finally {
+      for (const op of ops) setPluginLoading(op.plugin.id, op.scope, false);
+      setBulkProgress((prev) => {
+        const next = new Map(prev);
+        next.delete(marketplace);
+        return next;
+      });
+    }
     if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
     try { await fetchAll(false); } catch { /* non-blocking */ }
   };
@@ -509,9 +540,11 @@ export function PluginPage(): React.ReactElement {
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
           const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
-          const installedCount = items.filter(isPluginInstalled).length;
+          const enabledCount = items.filter(isPluginEnabled).length;
           const mpBulk = bulkProgress.get(marketplace);
-          const allUserEnabled = items.every((p) => p.userInstall?.enabled);
+          const mpScope = bulkEnableScope.get(marketplace) ?? 'user';
+          const allEnabledInScope = items.every((p) => isEnabledInScope(p, mpScope));
+          const hasWorkspace = workspaceFolders.length > 0;
           return (
             <div key={marketplace} className="plugin-section">
               <div className="section-header">
@@ -526,20 +559,40 @@ export function PluginPage(): React.ReactElement {
                 >
                   <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
                   <span className="section-toggle-label">{marketplace}</span>
-                  <span className="section-count">{installedCount} / {items.length}</span>
+                  <span className="section-count">{enabledCount} / {items.length}</span>
                   {marketplaceSources[marketplace] && (
                     <span className="section-source">{marketplaceSources[marketplace]}</span>
                   )}
                 </button>
-                <button
-                  className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
-                  disabled={!!mpBulk || isUpdatingAll}
-                  onClick={() => handleBulkToggle(marketplace, items)}
-                >
-                  {mpBulk
-                    ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
-                    : allUserEnabled ? 'Disable All' : 'Enable All'}
-                </button>
+                <div className="section-bulk-actions">
+                  {!mpBulk && !allEnabledInScope && (
+                    <select
+                      className="section-bulk-scope"
+                      value={mpScope}
+                      onChange={(e) => setBulkEnableScope((prev) => {
+                        const next = new Map(prev);
+                        next.set(marketplace, e.target.value as PluginScope);
+                        return next;
+                      })}
+                      disabled={isUpdatingAll}
+                    >
+                      <option value="user">User</option>
+                      {hasWorkspace && <option value="project">Project</option>}
+                      {hasWorkspace && <option value="local">Local</option>}
+                    </select>
+                  )}
+                  <button
+                    className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
+                    disabled={!!mpBulk || isUpdatingAll}
+                    onClick={() => allEnabledInScope
+                      ? handleBulkDisable(marketplace, items)
+                      : handleBulkEnable(marketplace, items, mpScope)}
+                  >
+                    {mpBulk
+                      ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
+                      : allEnabledInScope ? 'Disable All' : 'Enable All'}
+                  </button>
+                </div>
               </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
                 <div className="section-body-inner">

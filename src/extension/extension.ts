@@ -49,7 +49,7 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     { dispose: () => editorManager.dispose() },
-    { dispose: () => mcpService.stopPolling() },
+    { dispose: () => mcpService.dispose() },
     fileWatcherService,
   );
 }

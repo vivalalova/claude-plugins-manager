@@ -5,6 +5,15 @@ export function isPluginInstalled(p: MergedPlugin): boolean {
   return !!(p.userInstall || p.projectInstalls.length > 0 || p.localInstall);
 }
 
+/** Plugin 是否在任一 scope 啟用（checkbox 已勾） */
+export function isPluginEnabled(p: MergedPlugin): boolean {
+  return !!(
+    p.userInstall?.enabled
+    || p.projectInstalls.some((i) => i.enabled)
+    || p.localInstall?.enabled
+  );
+}
+
 /** 取得 plugin 已安裝的 scope 列表 */
 export function getInstalledScopes(p: MergedPlugin): PluginScope[] {
   const scopes: PluginScope[] = [];
@@ -12,6 +21,33 @@ export function getInstalledScopes(p: MergedPlugin): PluginScope[] {
   if (p.projectInstalls.length > 0) scopes.push('project');
   if (p.localInstall) scopes.push('local');
   return scopes;
+}
+
+/** 取得 plugin 已啟用的 scope 列表 */
+export function getEnabledScopes(p: MergedPlugin): PluginScope[] {
+  const scopes: PluginScope[] = [];
+  if (p.userInstall?.enabled) scopes.push('user');
+  if (p.projectInstalls.some((i) => i.enabled)) scopes.push('project');
+  if (p.localInstall?.enabled) scopes.push('local');
+  return scopes;
+}
+
+/** Plugin 是否在指定 scope 啟用 */
+export function isEnabledInScope(p: MergedPlugin, scope: PluginScope): boolean {
+  switch (scope) {
+    case 'user': return !!p.userInstall?.enabled;
+    case 'project': return p.projectInstalls.some((i) => i.enabled);
+    case 'local': return !!p.localInstall?.enabled;
+  }
+}
+
+/** Plugin 是否在指定 scope 已安裝 */
+export function isInstalledInScope(p: MergedPlugin, scope: PluginScope): boolean {
+  switch (scope) {
+    case 'user': return !!p.userInstall;
+    case 'project': return p.projectInstalls.length > 0;
+    case 'local': return !!p.localInstall;
+  }
 }
 
 /** 所有可用的 content type filter chips */

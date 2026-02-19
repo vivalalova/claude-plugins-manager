@@ -17,7 +17,9 @@ enum FileChangeCategory {
  */
 export class FileWatcherService implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
+  private readonly workspaceWatchers: vscode.Disposable[] = [];
   private readonly debounceTimers = new Map<FileChangeCategory, ReturnType<typeof setTimeout>>();
+  private disposed = false;
 
   /** Plugin 相關檔案變更（settings.json、installed_plugins.json） */
   private readonly _onPluginFilesChanged = new vscode.EventEmitter<void>();
@@ -29,6 +31,9 @@ export class FileWatcherService implements vscode.Disposable {
 
   constructor() {
     this.setupWatchers();
+    this.disposables.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => this.rebuildWorkspaceWatchers()),
+    );
   }
 
   /** 建立所有 file watchers */
@@ -75,12 +80,21 @@ export class FileWatcherService implements vscode.Disposable {
 
     for (const folder of folders) {
       const pattern = new vscode.RelativePattern(folder, relativePath);
-      this.createWatcher(pattern, category);
+      this.createWatcher(pattern, category, true);
     }
   }
 
+  /** workspace folder 變更時重建 workspace watchers */
+  private rebuildWorkspaceWatchers(): void {
+    if (this.disposed) return;
+    for (const d of this.workspaceWatchers) d.dispose();
+    this.workspaceWatchers.length = 0;
+    this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Plugin);
+    this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Plugin);
+  }
+
   /** 建立 watcher 並綁定 change/create/delete 事件 */
-  private createWatcher(pattern: vscode.RelativePattern, category: FileChangeCategory): void {
+  private createWatcher(pattern: vscode.RelativePattern, category: FileChangeCategory, isWorkspace = false): void {
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
     const handler = () => this.debouncedEmit(category);
 
@@ -88,7 +102,11 @@ export class FileWatcherService implements vscode.Disposable {
     watcher.onDidCreate(handler);
     watcher.onDidDelete(handler);
 
-    this.disposables.push(watcher);
+    if (isWorkspace) {
+      this.workspaceWatchers.push(watcher);
+    } else {
+      this.disposables.push(watcher);
+    }
   }
 
   /** Debounce 後觸發對應分類的事件 */
@@ -110,8 +128,11 @@ export class FileWatcherService implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.disposed = true;
     for (const timer of this.debounceTimers.values()) clearTimeout(timer);
     this.debounceTimers.clear();
+    for (const d of this.workspaceWatchers) d.dispose();
+    this.workspaceWatchers.length = 0;
     this._onPluginFilesChanged.dispose();
     this._onMarketplaceFilesChanged.dispose();
     for (const d of this.disposables) d.dispose();

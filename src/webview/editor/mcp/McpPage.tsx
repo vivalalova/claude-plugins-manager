@@ -147,8 +147,8 @@ export function McpPage(): React.ReactElement {
       <div className="page-header">
         <div className="page-title">MCP Servers Manager</div>
         <div className="page-actions">
-          <button className="btn btn-secondary" onClick={fetchList} disabled={loading}>
-            Refresh
+          <button className="btn btn-secondary" onClick={handleRefreshStatus} disabled={loading || retrying}>
+            {retrying ? 'Refreshing...' : 'Refresh'}
           </button>
           <button className="btn btn-secondary" onClick={handleResetProjectChoices}>
             Reset Project Choices

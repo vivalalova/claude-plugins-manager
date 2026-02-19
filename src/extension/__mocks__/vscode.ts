@@ -67,6 +67,9 @@ export function createMockFileSystemWatcher() {
 /** 追蹤所有 createFileSystemWatcher 呼叫的 mock watchers */
 export const mockFileWatchers: Array<ReturnType<typeof createMockFileSystemWatcher>> = [];
 
+/** workspace folder 變更事件（測試用） */
+export const mockWorkspaceFoldersChangeEmitter = new EventEmitter<void>();
+
 export const workspace = {
   workspaceFolders: undefined as Array<{ uri: { fsPath: string }; name?: string }> | undefined,
   createFileSystemWatcher: vi.fn().mockImplementation(() => {
@@ -74,6 +77,7 @@ export const workspace = {
     mockFileWatchers.push(mock);
     return mock.watcher;
   }),
+  onDidChangeWorkspaceFolders: mockWorkspaceFoldersChangeEmitter.event,
 };
 
 export const window = {
