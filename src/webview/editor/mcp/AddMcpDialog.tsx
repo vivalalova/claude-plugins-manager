@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import type { McpAddParams, McpScope } from '../../../shared/types';
 import { sendRequest } from '../../vscode';
+import { ErrorBanner } from '../../components/ErrorBanner';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { parseMcpJson } from './parseMcpJson';
 
 type InputMode = 'form' | 'json';
@@ -46,6 +48,17 @@ export function AddMcpDialog({
   const [scope, setScope] = useState<McpScope>(editServer?.scope ?? 'project');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const titleId = useId();
+  const nameId = useId();
+  const commandId = useId();
+  const transportId = useId();
+  const scopeId = useId();
+  const envId = useId();
+  const headersId = useId();
+  const configId = useId();
+  const jsonScopeId = useId();
+  const trapRef = useFocusTrap(onCancel);
 
   /** Form mode → 組裝 params */
   const buildFormParams = (): McpAddParams => {
@@ -121,11 +134,15 @@ export function AddMcpDialog({
   return (
     <div className="confirm-overlay" onClick={onCancel}>
       <div
+        ref={trapRef}
         className="confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         style={{ maxWidth: 500 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="confirm-dialog-title">
+        <div className="confirm-dialog-title" id={titleId}>
           {isEdit ? 'Edit MCP Server' : 'Add MCP Server'}
         </div>
 
@@ -147,17 +164,17 @@ export function AddMcpDialog({
         )}
 
         {error && (
-          <div className="error-banner" style={{ marginBottom: 12 }}>
-            <span>{error}</span>
-            <button className="btn-dismiss" onClick={() => setError(null)}>×</button>
+          <div style={{ marginBottom: 12 }}>
+            <ErrorBanner message={error} onDismiss={() => setError(null)} />
           </div>
         )}
 
         {mode === 'form' ? (
           <>
             <div className="form-row">
-              <label className="form-label">Name</label>
+              <label className="form-label" htmlFor={nameId}>Name</label>
               <input
+                id={nameId}
                 className="input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -166,8 +183,9 @@ export function AddMcpDialog({
             </div>
 
             <div className="form-row">
-              <label className="form-label">Command / URL</label>
+              <label className="form-label" htmlFor={commandId}>Command / URL</label>
               <input
+                id={commandId}
                 className="input"
                 value={commandOrUrl}
                 onChange={(e) => setCommandOrUrl(e.target.value)}
@@ -176,8 +194,8 @@ export function AddMcpDialog({
             </div>
 
             <div className="form-row">
-              <label className="form-label">Transport</label>
-              <select className="select" value={transport} onChange={(e) => setTransport(e.target.value)}>
+              <label className="form-label" htmlFor={transportId}>Transport</label>
+              <select id={transportId} className="select" value={transport} onChange={(e) => setTransport(e.target.value)}>
                 <option value="stdio">stdio</option>
                 <option value="http">http</option>
                 <option value="sse">sse</option>
@@ -185,8 +203,8 @@ export function AddMcpDialog({
             </div>
 
             <div className="form-row">
-              <label className="form-label">Scope</label>
-              <select className="select" value={scope} onChange={(e) => setScope(e.target.value as McpScope)}>
+              <label className="form-label" htmlFor={scopeId}>Scope</label>
+              <select id={scopeId} className="select" value={scope} onChange={(e) => setScope(e.target.value as McpScope)}>
                 <option value="project">project (shared)</option>
                 <option value="local">local (private)</option>
                 <option value="user">user (global)</option>
@@ -194,8 +212,9 @@ export function AddMcpDialog({
             </div>
 
             <div className="form-row" style={{ alignItems: 'flex-start' }}>
-              <label className="form-label">Env vars</label>
+              <label className="form-label" htmlFor={envId}>Env vars</label>
               <textarea
+                id={envId}
                 className="input"
                 rows={3}
                 value={envText}
@@ -207,8 +226,9 @@ export function AddMcpDialog({
 
             {(transport === 'http' || transport === 'sse') && (
               <div className="form-row" style={{ alignItems: 'flex-start' }}>
-                <label className="form-label">Headers</label>
+                <label className="form-label" htmlFor={headersId}>Headers</label>
                 <textarea
+                  id={headersId}
                   className="input"
                   rows={2}
                   value={headersText}
@@ -222,8 +242,9 @@ export function AddMcpDialog({
         ) : (
           <>
             <div className="form-row" style={{ alignItems: 'flex-start' }}>
-              <label className="form-label">Config</label>
+              <label className="form-label" htmlFor={configId}>Config</label>
               <textarea
+                id={configId}
                 className="input"
                 rows={8}
                 value={jsonText}
@@ -234,8 +255,8 @@ export function AddMcpDialog({
             </div>
 
             <div className="form-row">
-              <label className="form-label">Scope</label>
-              <select className="select" value={scope} onChange={(e) => setScope(e.target.value as McpScope)}>
+              <label className="form-label" htmlFor={jsonScopeId}>Scope</label>
+              <select id={jsonScopeId} className="select" value={scope} onChange={(e) => setScope(e.target.value as McpScope)}>
                 <option value="project">project (shared)</option>
                 <option value="local">local (private)</option>
                 <option value="user">user (global)</option>

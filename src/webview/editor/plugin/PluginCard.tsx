@@ -5,6 +5,7 @@ import type {
   PluginContentItem,
   PluginScope,
 } from '../../../shared/types';
+import { isPluginInstalled, getInstalledScopes } from './filterUtils';
 import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
 
@@ -17,6 +18,8 @@ interface PluginCardProps {
   translations?: Record<string, string>;
   /** 翻譯狀態：translating = 進行中，queued = 排隊中 */
   translateStatus?: 'translating' | 'queued';
+  /** 正在安裝/停用中的 scope set */
+  loadingScopes?: ReadonlySet<PluginScope>;
   onToggle: (scope: PluginScope, enable: boolean) => void;
   onUpdate: (scopes: PluginScope[]) => void;
 }
@@ -32,17 +35,14 @@ export function PluginCard({
   marketplaceUrl,
   translations,
   translateStatus,
+  loadingScopes,
   onToggle,
   onUpdate,
 }: PluginCardProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir);
 
-  const isInstalled = !!(
-    plugin.userInstall
-    || plugin.projectInstalls.length > 0
-    || plugin.localInstall
-  );
+  const isInstalled = isPluginInstalled(plugin);
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
 
@@ -79,13 +79,11 @@ export function PluginCard({
             <span className="card-updated">Updated: {formatDate(lastUpdated)}</span>
           )}
           {isInstalled && (
-            <button className="btn btn-secondary btn-sm" onClick={() => {
-              const scopes: PluginScope[] = [];
-              if (plugin.userInstall) scopes.push('user');
-              if (plugin.projectInstalls.length > 0) scopes.push('project');
-              if (plugin.localInstall) scopes.push('local');
-              onUpdate(scopes);
-            }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={!!loadingScopes?.size}
+              onClick={() => onUpdate(getInstalledScopes(plugin))}
+            >
               Update
             </button>
           )}
@@ -117,6 +115,8 @@ export function PluginCard({
           label="User"
           scope="user"
           enabled={plugin.userInstall?.enabled ?? false}
+          loading={loadingScopes?.has('user') ?? false}
+          disabled={!!loadingScopes?.size}
           onToggle={(on) => onToggle('user', on)}
         />
         {hasWorkspace && (
@@ -124,6 +124,8 @@ export function PluginCard({
             label="Project"
             scope="project"
             enabled={plugin.projectInstalls[0]?.enabled ?? false}
+            loading={loadingScopes?.has('project') ?? false}
+            disabled={!!loadingScopes?.size}
             onToggle={(on) => onToggle('project', on)}
           />
         )}
@@ -132,6 +134,8 @@ export function PluginCard({
             label="Local"
             scope="local"
             enabled={plugin.localInstall?.enabled ?? false}
+            loading={loadingScopes?.has('local') ?? false}
+            disabled={!!loadingScopes?.size}
             onToggle={(on) => onToggle('local', on)}
           />
         )}
@@ -255,25 +259,34 @@ export function buildPluginGithubUrl(
   return baseUrl;
 }
 
-/** Scope checkbox：勾 = enabled，沒勾 = disabled 或未安裝 */
+/** Scope checkbox：勾 = enabled，沒勾 = disabled 或未安裝。loading 時顯示 spinner 取代 checkbox。 */
 function ScopeToggle({
   label,
   scope,
   enabled,
+  loading,
+  disabled,
   onToggle,
 }: {
   label: string;
   scope: string;
   enabled: boolean;
+  loading?: boolean;
+  disabled?: boolean;
   onToggle: (enable: boolean) => void;
 }): React.ReactElement {
   return (
-    <label className="scope-chip-toggle">
-      <input
-        type="checkbox"
-        checked={enabled}
-        onChange={() => onToggle(!enabled)}
-      />
+    <label className={`scope-chip-toggle${disabled ? ' scope-chip-toggle--disabled' : ''}`}>
+      {loading
+        ? <span className="scope-spinner" />
+        : (
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={disabled}
+            onChange={() => onToggle(!enabled)}
+          />
+        )}
       <span className={`scope-badge scope-badge--${scope}`}>
         {label}
       </span>

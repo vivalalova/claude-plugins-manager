@@ -88,6 +88,11 @@ export class MessageRouter {
         return this.mcp.getDetail(message.name);
       case 'mcp.resetProjectChoices':
         return this.mcp.resetProjectChoices();
+      case 'mcp.refreshStatus':
+        return this.mcp.refreshStatus();
+      case 'mcp.restartPolling':
+        this.mcp.restartPolling();
+        return;
 
       // Workspace
       case 'workspace.getFolders':

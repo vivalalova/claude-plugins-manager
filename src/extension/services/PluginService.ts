@@ -176,7 +176,8 @@ export class PluginService {
     if (scope) {
       args.push('--scope', scope);
     }
-    await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS });
+    const cwd = scope && scope !== 'user' ? this.getProjectPath(scope) : undefined;
+    await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
   }
 
   /** 讀取三個 scope 的 enabledPlugins */

@@ -1,9 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sendRequest } from '../../vscode';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { PluginCard } from './PluginCard';
 import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
+import {
+  matchesContentType,
+  matchesSearch,
+  isPluginInstalled,
+  isPluginEnabled,
+  isEnabledInScope,
+  isInstalledInScope,
+  getInstalledScopes,
+  getEnabledScopes,
+  CONTENT_TYPE_FILTERS,
+  CONTENT_TYPE_LABELS,
+  PLUGIN_SEARCH_KEY,
+  PLUGIN_FILTER_ENABLED_KEY,
+  readContentTypeFilters,
+  writeContentTypeFilters,
+  type ContentTypeFilter,
+} from './filterUtils';
 import type { TranslateResult } from '../../../extension/services/TranslationService';
 import {
   TRANSLATE_LANGS,
@@ -27,8 +45,31 @@ export function PluginPage(): React.ReactElement {
   const [plugins, setPlugins] = useState<MergedPlugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [filterEnabled, setFilterEnabled] = useState(false);
+  /** per-plugin per-scope 安裝中狀態 */
+  const [loadingPlugins, setLoadingPlugins] = useState<Map<string, Set<PluginScope>>>(new Map());
+  /** 安裝失敗可重試的錯誤 */
+  const [installError, setInstallError] = useState<{
+    message: string;
+    pluginId: string;
+    scope: PluginScope;
+    enable: boolean;
+  } | null>(null);
+  /** Update All 進度（null = 未執行） */
+  const [updateAllProgress, setUpdateAllProgress] = useState<{ current: number; total: number } | null>(null);
+  /** Update All 完成後的失敗摘要 */
+  const [updateAllErrors, setUpdateAllErrors] = useState<{ pluginId: string; scope: PluginScope; message: string }[]>([]);
+  /** Marketplace 層級 bulk toggle 進度（key = marketplace name） */
+  const [bulkProgress, setBulkProgress] = useState<Map<string, { action: 'enable' | 'disable'; current: number; total: number }>>(new Map());
+  /** Bulk toggle 完成後的失敗摘要 */
+  const [bulkErrors, setBulkErrors] = useState<{ marketplace: string; pluginId: string; message: string }[]>([]);
+  /** Bulk enable scope dialog 狀態 */
+  const [pendingBulkEnable, setPendingBulkEnable] = useState<{ marketplace: string; items: MergedPlugin[] } | null>(null);
+  const [bulkDialogScope, setBulkDialogScope] = useState<PluginScope>('user');
+  const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
+  const [filterEnabled, setFilterEnabled] = useState(
+    () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
+  );
+  const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(readContentTypeFilters);
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([]);
   // 預設收合，使用者手動展開的 marketplace 加入此 set
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -43,6 +84,10 @@ export function PluginPage(): React.ReactElement {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftLang, setDraftLang] = useState('');
   const [draftEmail, setDraftEmail] = useState('');
+  const translateTitleId = useId();
+  const translateEmailId = useId();
+  const translateLangId = useId();
+  const translateTrapRef = useFocusTrap(() => setDialogOpen(false), dialogOpen);
   const [queuedTexts, setQueuedTexts] = useState<Set<string>>(new Set());
   const [activeTexts, setActiveTexts] = useState<Set<string>>(new Set());
   const [translateWarning, setTranslateWarning] = useState<string | null>(null);
@@ -71,6 +116,21 @@ export function PluginPage(): React.ReactElement {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // 訂閱檔案變更推送，自動靜默刷新
+  useEffect(() => {
+    const unsubscribe = onPushMessage((msg) => {
+      if (msg.type === 'plugin.refresh') {
+        fetchAll(false);
+      }
+    });
+    return unsubscribe;
+  }, [fetchAll]);
+
+  // Filter 狀態持久化 → localStorage
+  useEffect(() => { localStorage.setItem(PLUGIN_SEARCH_KEY, search); }, [search]);
+  useEffect(() => { localStorage.setItem(PLUGIN_FILTER_ENABLED_KEY, String(filterEnabled)); }, [filterEnabled]);
+  useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
 
   /** 語言變更或 plugins 載入後自動翻譯（分批送出，最多 3 併發，逐批更新 UI） */
   const doTranslate = useCallback(async (lang: string, email: string, items: MergedPlugin[]) => {
@@ -161,20 +221,17 @@ export function PluginPage(): React.ReactElement {
 
   /** 過濾 + 按 marketplace 分組 */
   const grouped = useMemo(() => {
-    const q = search.toLowerCase();
-    let filtered = q
-      ? plugins.filter((p) =>
-        p.name.toLowerCase().includes(q)
-        || (p.description?.toLowerCase().includes(q) ?? false),
-      )
+    let filtered = search
+      ? plugins.filter((p) => matchesSearch(p, search))
       : plugins;
 
     if (filterEnabled) {
-      filtered = filtered.filter((p) =>
-        p.userInstall?.enabled
-        || p.projectInstalls.some((i) => i.enabled)
-        || p.localInstall?.enabled,
-      );
+      filtered = filtered.filter(isPluginEnabled);
+    }
+
+    // Content type filter（OR 邏輯）：未載入 contents 的 plugin 保守顯示
+    if (contentTypeFilters.size > 0) {
+      filtered = filtered.filter((p) => matchesContentType(p, contentTypeFilters));
     }
 
     const groups = new Map<string, MergedPlugin[]>();
@@ -188,7 +245,18 @@ export function PluginPage(): React.ReactElement {
       }
     }
     return groups;
-  }, [plugins, search, filterEnabled]);
+  }, [plugins, search, filterEnabled, contentTypeFilters]);
+
+  /** 設定 per-plugin per-scope loading */
+  const setPluginLoading = (pluginId: string, scope: PluginScope, on: boolean): void => {
+    setLoadingPlugins((prev) => {
+      const next = new Map(prev);
+      const scopes = new Set(prev.get(pluginId));
+      if (on) scopes.add(scope); else scopes.delete(scope);
+      if (scopes.size === 0) next.delete(pluginId); else next.set(pluginId, scopes);
+      return next;
+    });
+  };
 
   /** Toggle = 勾 → install + enable，取消勾 → disable */
   const handleToggle = async (
@@ -196,7 +264,9 @@ export function PluginPage(): React.ReactElement {
     scope: PluginScope,
     enable: boolean,
   ): Promise<void> => {
-    setError(null);
+    if (loadingPlugins.get(pluginId)?.has(scope)) return;
+    setInstallError(null);
+    setPluginLoading(pluginId, scope, true);
     try {
       if (enable) {
         await sendRequest(
@@ -213,7 +283,14 @@ export function PluginPage(): React.ReactElement {
       }
       await fetchAll(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setInstallError({
+        message: e instanceof Error ? e.message : String(e),
+        pluginId,
+        scope,
+        enable,
+      });
+    } finally {
+      setPluginLoading(pluginId, scope, false);
     }
   };
 
@@ -229,15 +306,149 @@ export function PluginPage(): React.ReactElement {
     }
   };
 
+  /** 批次更新所有已安裝 plugin */
+  const handleUpdateAll = async (): Promise<void> => {
+    if (updateAllProgress) return; // guard concurrent invocation
+    const installed = plugins.filter(isPluginInstalled);
+    if (installed.length === 0) return;
+
+    setUpdateAllErrors([]);
+    setUpdateAllProgress({ current: 0, total: installed.length });
+    const errors: { pluginId: string; scope: PluginScope; message: string }[] = [];
+
+    for (let i = 0; i < installed.length; i++) {
+      setUpdateAllProgress({ current: i + 1, total: installed.length });
+      const p = installed[i];
+      for (const scope of getInstalledScopes(p)) {
+        try {
+          await sendRequest({ type: 'plugin.update', plugin: p.id, scope });
+        } catch (e) {
+          errors.push({ pluginId: p.id, scope, message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    }
+
+    setUpdateAllProgress(null);
+    if (errors.length > 0) setUpdateAllErrors(errors);
+    try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
+  };
+
+  /** Marketplace 層級 bulk enable（指定 scope） */
+  const handleBulkEnable = async (marketplace: string, items: MergedPlugin[], scope: PluginScope): Promise<void> => {
+    if (bulkProgress.has(marketplace)) return;
+    const toProcess = items.filter((p) => !isEnabledInScope(p, scope));
+    if (toProcess.length === 0) return;
+
+    setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
+    setBulkProgress((prev) => {
+      const next = new Map(prev);
+      next.set(marketplace, { action: 'enable', current: 0, total: toProcess.length });
+      return next;
+    });
+    for (const p of toProcess) setPluginLoading(p.id, scope, true);
+
+    const errors: { marketplace: string; pluginId: string; message: string }[] = [];
+    try {
+      for (let i = 0; i < toProcess.length; i++) {
+        setBulkProgress((prev) => {
+          const next = new Map(prev);
+          next.set(marketplace, { action: 'enable', current: i + 1, total: toProcess.length });
+          return next;
+        });
+        const plugin = toProcess[i];
+        try {
+          if (isInstalledInScope(plugin, scope)) {
+            await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
+          } else {
+            await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
+            try {
+              await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
+            } catch { /* install auto-enables */ }
+          }
+        } catch (e) {
+          errors.push({ marketplace, pluginId: plugin.id, message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    } finally {
+      for (const p of toProcess) setPluginLoading(p.id, scope, false);
+      setBulkProgress((prev) => {
+        const next = new Map(prev);
+        next.delete(marketplace);
+        return next;
+      });
+    }
+    if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
+    try { await fetchAll(false); } catch { /* non-blocking */ }
+  };
+
+  /** Marketplace 層級 bulk disable（全部 scope） */
+  const handleBulkDisable = async (marketplace: string, items: MergedPlugin[]): Promise<void> => {
+    if (bulkProgress.has(marketplace)) return;
+    const ops: { plugin: MergedPlugin; scope: PluginScope }[] = [];
+    for (const p of items) {
+      for (const scope of getEnabledScopes(p)) {
+        ops.push({ plugin: p, scope });
+      }
+    }
+    if (ops.length === 0) return;
+
+    setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
+    setBulkProgress((prev) => {
+      const next = new Map(prev);
+      next.set(marketplace, { action: 'disable', current: 0, total: ops.length });
+      return next;
+    });
+    for (const op of ops) setPluginLoading(op.plugin.id, op.scope, true);
+
+    const errors: { marketplace: string; pluginId: string; message: string }[] = [];
+    try {
+      for (let i = 0; i < ops.length; i++) {
+        setBulkProgress((prev) => {
+          const next = new Map(prev);
+          next.set(marketplace, { action: 'disable', current: i + 1, total: ops.length });
+          return next;
+        });
+        try {
+          await sendRequest({ type: 'plugin.disable', plugin: ops[i].plugin.id, scope: ops[i].scope });
+        } catch (e) {
+          errors.push({ marketplace, pluginId: ops[i].plugin.id, message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    } finally {
+      for (const op of ops) setPluginLoading(op.plugin.id, op.scope, false);
+      setBulkProgress((prev) => {
+        const next = new Map(prev);
+        next.delete(marketplace);
+        return next;
+      });
+    }
+    if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
+    try { await fetchAll(false); } catch { /* non-blocking */ }
+  };
+
+  const isUpdatingAll = updateAllProgress !== null;
+  const hasInstalledPlugins = plugins.some(isPluginInstalled);
+
   return (
     <div className="page-container">
       <div className="page-header">
         <div className="page-title">Plugins Manager</div>
         <div className="page-actions">
+          {hasInstalledPlugins && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleUpdateAll}
+              disabled={loading || isUpdatingAll}
+            >
+              {isUpdatingAll
+                ? `Updating ${updateAllProgress?.current ?? 0}/${updateAllProgress?.total ?? 0}...`
+                : 'Update All'}
+            </button>
+          )}
           <button
             className="btn btn-secondary"
             onClick={() => fetchAll()}
-            disabled={loading}
+            disabled={loading || isUpdatingAll}
           >
             Refresh
           </button>
@@ -249,6 +460,7 @@ export function PluginPage(): React.ReactElement {
           className="input search-bar"
           type="text"
           placeholder="Search plugins..."
+          aria-label="Search plugins"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -269,7 +481,50 @@ export function PluginPage(): React.ReactElement {
         </button>
       </div>
 
+      <div className="filter-chips">
+        {CONTENT_TYPE_FILTERS.map((type) => (
+          <button
+            key={type}
+            className={`filter-chip${contentTypeFilters.has(type) ? ' filter-chip--active' : ''}`}
+            onClick={() => setContentTypeFilters((prev) => {
+              const next = new Set(prev);
+              if (next.has(type)) next.delete(type);
+              else next.add(type);
+              return next;
+            })}
+          >
+            {CONTENT_TYPE_LABELS[type]}
+          </button>
+        ))}
+      </div>
+
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {installError && (
+        <ErrorBanner
+          message={installError.message}
+          onDismiss={() => setInstallError(null)}
+          action={
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleToggle(installError.pluginId, installError.scope, installError.enable)}
+            >
+              Retry
+            </button>
+          }
+        />
+      )}
+      {updateAllErrors.length > 0 && (
+        <ErrorBanner
+          message={`Update All: ${updateAllErrors.length} failed — ${updateAllErrors.map((e) => `${e.pluginId} (${e.scope})`).join(', ')}`}
+          onDismiss={() => setUpdateAllErrors([])}
+        />
+      )}
+      {bulkErrors.length > 0 && (
+        <ErrorBanner
+          message={`Bulk toggle: ${bulkErrors.length} failed — ${bulkErrors.map((e) => e.pluginId).join(', ')}`}
+          onDismiss={() => setBulkErrors([])}
+        />
+      )}
       {translateWarning && (
         <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
       )}
@@ -278,33 +533,48 @@ export function PluginPage(): React.ReactElement {
         <LoadingSpinner message="Loading plugins..." />
       ) : grouped.size === 0 ? (
         <div className="empty-state">
-          {search ? 'No plugins match your search.' : 'No plugins found. Add a marketplace first.'}
+          {search || filterEnabled || contentTypeFilters.size > 0
+            ? 'No plugins match the current filters.'
+            : 'No plugins found. Add a marketplace first.'}
         </div>
       ) : (
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
-          const isCollapsed = !filterEnabled && !search && !expanded.has(marketplace);
-          const installedCount = items.filter((p) =>
-            p.userInstall || p.projectInstalls.length > 0 || p.localInstall,
-          ).length;
+          const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
+          const enabledCount = items.filter(isPluginEnabled).length;
+          const mpBulk = bulkProgress.get(marketplace);
+          const allEnabled = items.every(isPluginEnabled);
           return (
             <div key={marketplace} className="plugin-section">
-              <button
-                className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
-                onClick={() => setExpanded((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(marketplace)) next.delete(marketplace);
-                  else next.add(marketplace);
-                  return next;
-                })}
-              >
-                <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
-                <span className="section-toggle-label">{marketplace}</span>
-                <span className="section-count">{installedCount} / {items.length}</span>
-                {marketplaceSources[marketplace] && (
-                  <span className="section-source">{marketplaceSources[marketplace]}</span>
-                )}
-              </button>
+              <div className="section-header">
+                <button
+                  className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
+                  onClick={() => setExpanded((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(marketplace)) next.delete(marketplace);
+                    else next.add(marketplace);
+                    return next;
+                  })}
+                >
+                  <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
+                  <span className="section-toggle-label">{marketplace}</span>
+                  <span className="section-count">{enabledCount} / {items.length}</span>
+                  {marketplaceSources[marketplace] && (
+                    <span className="section-source">{marketplaceSources[marketplace]}</span>
+                  )}
+                </button>
+                <button
+                  className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
+                  disabled={!!mpBulk || isUpdatingAll}
+                  onClick={() => allEnabled
+                    ? handleBulkDisable(marketplace, items)
+                    : setPendingBulkEnable({ marketplace, items })}
+                >
+                  {mpBulk
+                    ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
+                    : allEnabled ? 'Disable All' : 'Enable All'}
+                </button>
+              </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
                 <div className="section-body-inner">
                   <div className="card-list">
@@ -316,6 +586,7 @@ export function PluginPage(): React.ReactElement {
                         marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
                         translations={translations}
                         translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
+                        loadingScopes={loadingPlugins.get(plugin.id)}
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
                         onUpdate={(scopes) => handleUpdate(plugin.id, scopes)}
                       />
@@ -328,17 +599,66 @@ export function PluginPage(): React.ReactElement {
         })
       )}
 
+      {pendingBulkEnable && (
+        <div className="confirm-overlay" onClick={() => setPendingBulkEnable(null)}>
+          <div
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="confirm-dialog-title">Enable All — {pendingBulkEnable.marketplace}</div>
+            <div className="confirm-dialog-message">
+              Select scope for enabling {pendingBulkEnable.items.length} plugins:
+            </div>
+            <div className="scope-checkboxes" style={{ marginBottom: 16 }}>
+              {(['user', 'project', 'local'] as const)
+                .filter((s) => s === 'user' || workspaceFolders.length > 0)
+                .map((s) => (
+                  <button
+                    key={s}
+                    className={`filter-chip${bulkDialogScope === s ? ' filter-chip--active' : ''}`}
+                    onClick={() => setBulkDialogScope(s)}
+                  >
+                    {s === 'user' ? 'User' : s === 'project' ? 'Project' : 'Local'}
+                  </button>
+                ))}
+            </div>
+            <div className="confirm-dialog-actions">
+              <button className="btn btn-secondary" onClick={() => setPendingBulkEnable(null)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const { marketplace, items } = pendingBulkEnable;
+                  setPendingBulkEnable(null);
+                  handleBulkEnable(marketplace, items, bulkDialogScope);
+                }}
+              >
+                Enable All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {dialogOpen && (
         <div
           className="confirm-overlay"
           onClick={() => setDialogOpen(false)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setDialogOpen(false); }}
         >
-          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="confirm-dialog-title">Translate</div>
+          <div
+            ref={translateTrapRef}
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={translateTitleId}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="confirm-dialog-title" id={translateTitleId}>Translate</div>
             <div className="form-row">
-              <label className="form-label">Email (MyMemory API)</label>
+              <label className="form-label" htmlFor={translateEmailId}>Email (MyMemory API)</label>
               <input
+                id={translateEmailId}
                 className="input"
                 type="email"
                 value={draftEmail}
@@ -350,8 +670,9 @@ export function PluginPage(): React.ReactElement {
               </span>
             </div>
             <div className="form-row">
-              <label className="form-label">Language</label>
+              <label className="form-label" htmlFor={translateLangId}>Language</label>
               <select
+                id={translateLangId}
                 className="input"
                 value={draftLang}
                 onChange={(e) => setDraftLang(e.target.value)}

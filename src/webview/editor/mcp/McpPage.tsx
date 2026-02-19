@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { McpServerCard } from './McpServerCard';
 import { AddMcpDialog } from './AddMcpDialog';
 import type { EditServerInfo } from './AddMcpDialog';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import type { McpServer } from '../../../shared/types';
 
 /** 從 McpServer 建構編輯 dialog 預填資訊（優先用結構化 config） */
@@ -30,6 +31,10 @@ export function McpPage(): React.ReactElement {
   const [editingServer, setEditingServer] = useState<EditServerInfo | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [detailText, setDetailText] = useState<string | null>(null);
+  const [pollUnavailable, setPollUnavailable] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const detailTitleId = useId();
+  const detailTrapRef = useFocusTrap(() => setDetailText(null), !!detailText);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -51,10 +56,26 @@ export function McpPage(): React.ReactElement {
     const unsubscribe = onPushMessage((msg) => {
       if (msg.type === 'mcp.statusUpdate' && Array.isArray(msg.servers)) {
         setServers(msg.servers as McpServer[]);
+        setPollUnavailable(false);
+      }
+      if (msg.type === 'mcp.pollUnavailable') {
+        setPollUnavailable(true);
       }
     });
     return unsubscribe;
   }, []);
+
+  /** 狀態摘要計數 */
+  const statusCounts = useMemo(() => {
+    const counts = { connected: 0, failed: 0, pending: 0, other: 0 };
+    for (const s of servers) {
+      if (s.status === 'connected') counts.connected++;
+      else if (s.status === 'failed') counts.failed++;
+      else if (s.status === 'pending') counts.pending++;
+      else counts.other++;
+    }
+    return counts;
+  }, [servers]);
 
   const handleRemove = async (name: string): Promise<void> => {
     setConfirmRemove(null);
@@ -87,6 +108,31 @@ export function McpPage(): React.ReactElement {
     }
   };
 
+  /** 單次完整刷新（CLI health check） */
+  const handleRefreshStatus = async (): Promise<void> => {
+    setRetrying(true);
+    setError(null);
+    try {
+      const data = await sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000);
+      setServers(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  /** 重啟 polling（poll unavailable 後） */
+  const handleRestartPolling = async (): Promise<void> => {
+    setPollUnavailable(false);
+    try {
+      await sendRequest({ type: 'mcp.restartPolling' });
+    } catch (e) {
+      setPollUnavailable(true);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const handleEdit = (server: McpServer): void =>
     setEditingServer(buildEditServerInfo(server));
 
@@ -101,8 +147,8 @@ export function McpPage(): React.ReactElement {
       <div className="page-header">
         <div className="page-title">MCP Servers Manager</div>
         <div className="page-actions">
-          <button className="btn btn-secondary" onClick={fetchList} disabled={loading}>
-            Refresh
+          <button className="btn btn-secondary" onClick={handleRefreshStatus} disabled={loading || retrying}>
+            {retrying ? 'Refreshing...' : 'Refresh'}
           </button>
           <button className="btn btn-secondary" onClick={handleResetProjectChoices}>
             Reset Project Choices
@@ -114,6 +160,40 @@ export function McpPage(): React.ReactElement {
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+
+      {pollUnavailable && (
+        <div className="warning-banner" role="status">
+          <span>Status polling unavailable</span>
+          <button className="btn btn-secondary btn-sm" onClick={handleRestartPolling}>
+            Retry Polling
+          </button>
+        </div>
+      )}
+
+      {!loading && servers.length > 0 && (
+        <div className="mcp-status-summary">
+          {statusCounts.connected > 0 && (
+            <span className="mcp-status-item mcp-status-item--connected">
+              Connected: {statusCounts.connected}
+            </span>
+          )}
+          {statusCounts.failed > 0 && (
+            <span className="mcp-status-item mcp-status-item--failed">
+              Failed: {statusCounts.failed}
+            </span>
+          )}
+          {statusCounts.pending > 0 && (
+            <span className="mcp-status-item mcp-status-item--pending">
+              Pending: {statusCounts.pending}
+            </span>
+          )}
+          {statusCounts.other > 0 && (
+            <span className="mcp-status-item mcp-status-item--other">
+              Other: {statusCounts.other}
+            </span>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <LoadingSpinner message="Loading MCP servers..." />
@@ -128,6 +208,8 @@ export function McpPage(): React.ReactElement {
               onEdit={() => handleEdit(server)}
               onRemove={() => setConfirmRemove(server.name)}
               onViewDetail={() => handleViewDetail(server.fullName)}
+              onRetry={handleRefreshStatus}
+              retrying={retrying}
             />
           ))}
         </div>
@@ -162,11 +244,15 @@ export function McpPage(): React.ReactElement {
       {detailText && (
         <div className="confirm-overlay" onClick={() => setDetailText(null)}>
           <div
+            ref={detailTrapRef}
             className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={detailTitleId}
             style={{ maxWidth: 600, maxHeight: '80vh', overflow: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="confirm-dialog-title">Server Detail</div>
+            <div className="confirm-dialog-title" id={detailTitleId}>Server Detail</div>
             <pre style={{
               fontSize: 12,
               whiteSpace: 'pre-wrap',

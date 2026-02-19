@@ -1,0 +1,362 @@
+/**
+ * @vitest-environment jsdom
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
+
+/* ── Mock vscode bridge ── */
+const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
+  mockSendRequest: vi.fn(),
+  mockOnPushMessage: vi.fn(() => () => {}),
+}));
+vi.mock('../../../vscode', () => ({
+  sendRequest: (...args: unknown[]) => mockSendRequest(...args),
+  onPushMessage: mockOnPushMessage,
+}));
+
+import { PluginPage } from '../PluginPage';
+import type {
+  InstalledPlugin,
+  AvailablePlugin,
+  PluginListResponse,
+} from '../../../../shared/types';
+
+function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlugin {
+  return {
+    id: `${name}@${mp}`,
+    version: '1.0.0',
+    scope: 'user',
+    enabled,
+    installPath: `/plugins/${name}`,
+    installedAt: '2026-01-01',
+    lastUpdated: '2026-01-01',
+  };
+}
+
+function makeAvailable(name: string, mp: string, desc = ''): AvailablePlugin {
+  return { pluginId: `${name}@${mp}`, name, description: desc, marketplaceName: mp };
+}
+
+function makeResponse(
+  installed: InstalledPlugin[],
+  available: AvailablePlugin[],
+  marketplaceSources: Record<string, string> = {},
+): PluginListResponse {
+  return { installed, available, marketplaceSources };
+}
+
+describe('PluginPage — 核心流程', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  describe('載入狀態', () => {
+    it('載入中顯示 Loading spinner', async () => {
+      // plugin.listAvailable 永不 resolve → 保持 loading 狀態
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        // 不回傳 plugin.listAvailable → loading 持續
+        return new Promise(() => {});
+      });
+
+      render(<PluginPage />);
+
+      expect(screen.getByText('Loading plugins...')).toBeTruthy();
+    });
+
+    it('載入完成顯示 plugin 卡片，按 marketplace 分 section', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('alpha', 'mp1', 'Alpha plugin'),
+              makeAvailable('beta', 'mp1', 'Beta plugin'),
+              makeAvailable('gamma', 'mp2', 'Gamma plugin'),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // mp1 與 mp2 的 section header 皆存在
+      expect(screen.getByText('mp1')).toBeTruthy();
+      expect(screen.getByText('mp2')).toBeTruthy();
+
+      // plugin 名稱要在 DOM 中
+      expect(screen.getByText('alpha')).toBeTruthy();
+      expect(screen.getByText('beta')).toBeTruthy();
+      expect(screen.getByText('gamma')).toBeTruthy();
+    });
+
+    it('載入失敗顯示 ErrorBanner', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') throw new Error('network timeout');
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('network timeout')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Section 展開/收合', () => {
+    it('預設 sections 收合，section-body 有 collapsed class', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // section-body 預設有 section-body--collapsed class
+      const sectionBody = document.querySelector('.section-body');
+      expect(sectionBody?.classList.contains('section-body--collapsed')).toBe(true);
+    });
+
+    it('點擊 section header → 展開，移除 collapsed class', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 點擊 section toggle 按鈕展開
+      fireEvent.click(screen.getByText('mp1'));
+
+      const sectionBody = document.querySelector('.section-body');
+      expect(sectionBody?.classList.contains('section-body--collapsed')).toBe(false);
+    });
+  });
+
+  describe('搜尋過濾', () => {
+    it('輸入關鍵字 → 只顯示匹配的 plugin', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('hello-world', 'mp1', 'greeting plugin'),
+              makeAvailable('farewell', 'mp1', 'goodbye plugin'),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      fireEvent.change(searchInput, { target: { value: 'hello' } });
+
+      // hello-world 顯示，farewell 不顯示
+      await waitFor(() => {
+        expect(screen.getByText('hello-world')).toBeTruthy();
+        expect(screen.queryByText('farewell')).toBeNull();
+      });
+    });
+
+    it('搜尋有結果時 section 自動展開（無 collapsed class）', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('foo-plugin', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      fireEvent.change(searchInput, { target: { value: 'foo' } });
+
+      await waitFor(() => {
+        const sectionBody = document.querySelector('.section-body');
+        expect(sectionBody?.classList.contains('section-body--collapsed')).toBe(false);
+      });
+    });
+
+    it('無符合結果顯示 "No plugins match the current filters."', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      fireEvent.change(searchInput, { target: { value: 'zzznomatch' } });
+
+      await waitFor(() => {
+        expect(screen.getByText('No plugins match the current filters.')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Enabled filter', () => {
+    it('勾選 Enabled filter 後只顯示已啟用的 plugin', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [
+              makeInstalled('enabled-plugin', 'mp1', true),
+              makeInstalled('disabled-plugin', 'mp1', false),
+            ],
+            [
+              makeAvailable('enabled-plugin', 'mp1'),
+              makeAvailable('disabled-plugin', 'mp1'),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 勾選 Enabled filter（label 文字是 "Enabled"）
+      const enabledLabel = screen.getByText('Enabled');
+      const checkbox = enabledLabel.closest('label')!.querySelector('input[type="checkbox"]')!;
+      fireEvent.click(checkbox);
+
+      await waitFor(() => {
+        expect(screen.getByText('enabled-plugin')).toBeTruthy();
+        expect(screen.queryByText('disabled-plugin')).toBeNull();
+      });
+    });
+
+    it('Enabled filter 啟用時 section 自動展開', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [makeInstalled('my-plugin', 'mp1', true)],
+            [makeAvailable('my-plugin', 'mp1')],
+          );
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // section 預設收合
+      expect(document.querySelector('.section-body--collapsed')).toBeTruthy();
+
+      // 勾選 Enabled filter（label 文字是 "Enabled"）
+      const enabledLabel = screen.getByText('Enabled');
+      const checkbox = enabledLabel.closest('label')!.querySelector('input[type="checkbox"]')!;
+      fireEvent.click(checkbox);
+
+      await waitFor(() => {
+        // filter 啟用後 section 自動展開
+        expect(document.querySelector('.section-body--collapsed')).toBeNull();
+      });
+    });
+  });
+
+  describe('plugin.refresh 推送', () => {
+    it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
+      let pushCallback: ((msg: { type: string }) => void) | null = null;
+
+      mockOnPushMessage.mockImplementation((cb: (msg: { type: string }) => void) => {
+        pushCallback = cb;
+        return () => {};
+      });
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('initial-plugin', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 更新 mock 回傳新資料
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [
+            makeAvailable('initial-plugin', 'mp1'),
+            makeAvailable('new-plugin', 'mp1'),
+          ]);
+        }
+        return undefined;
+      });
+
+      // 觸發 push
+      await act(async () => {
+        pushCallback?.({ type: 'plugin.refresh' });
+      });
+
+      // 刷新後 loading spinner 不出現（靜默刷新）
+      expect(screen.queryByText('Loading plugins...')).toBeNull();
+
+      // 新 plugin 出現在畫面上
+      await waitFor(() => {
+        expect(screen.getByText('new-plugin')).toBeTruthy();
+      });
+    });
+  });
+});
