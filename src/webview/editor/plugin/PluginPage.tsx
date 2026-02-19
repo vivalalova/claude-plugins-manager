@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { PluginCard } from './PluginCard';
 import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
 import {
@@ -76,6 +77,10 @@ export function PluginPage(): React.ReactElement {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftLang, setDraftLang] = useState('');
   const [draftEmail, setDraftEmail] = useState('');
+  const translateTitleId = useId();
+  const translateEmailId = useId();
+  const translateLangId = useId();
+  const translateTrapRef = useFocusTrap(() => setDialogOpen(false), dialogOpen);
   const [queuedTexts, setQueuedTexts] = useState<Set<string>>(new Set());
   const [activeTexts, setActiveTexts] = useState<Set<string>>(new Set());
   const [translateWarning, setTranslateWarning] = useState<string | null>(null);
@@ -423,6 +428,7 @@ export function PluginPage(): React.ReactElement {
           className="input search-bar"
           type="text"
           placeholder="Search plugins..."
+          aria-label="Search plugins"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -563,13 +569,20 @@ export function PluginPage(): React.ReactElement {
         <div
           className="confirm-overlay"
           onClick={() => setDialogOpen(false)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setDialogOpen(false); }}
         >
-          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="confirm-dialog-title">Translate</div>
+          <div
+            ref={translateTrapRef}
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={translateTitleId}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="confirm-dialog-title" id={translateTitleId}>Translate</div>
             <div className="form-row">
-              <label className="form-label">Email (MyMemory API)</label>
+              <label className="form-label" htmlFor={translateEmailId}>Email (MyMemory API)</label>
               <input
+                id={translateEmailId}
                 className="input"
                 type="email"
                 value={draftEmail}
@@ -581,8 +594,9 @@ export function PluginPage(): React.ReactElement {
               </span>
             </div>
             <div className="form-row">
-              <label className="form-label">Language</label>
+              <label className="form-label" htmlFor={translateLangId}>Language</label>
               <select
+                id={translateLangId}
                 className="input"
                 value={draftLang}
                 onChange={(e) => setDraftLang(e.target.value)}

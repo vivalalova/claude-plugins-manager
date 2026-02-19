@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { McpServerCard } from './McpServerCard';
 import { AddMcpDialog } from './AddMcpDialog';
 import type { EditServerInfo } from './AddMcpDialog';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import type { McpServer } from '../../../shared/types';
 
 /** 從 McpServer 建構編輯 dialog 預填資訊（優先用結構化 config） */
@@ -32,6 +33,8 @@ export function McpPage(): React.ReactElement {
   const [detailText, setDetailText] = useState<string | null>(null);
   const [pollUnavailable, setPollUnavailable] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const detailTitleId = useId();
+  const detailTrapRef = useFocusTrap(() => setDetailText(null), !!detailText);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -159,7 +162,7 @@ export function McpPage(): React.ReactElement {
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {pollUnavailable && (
-        <div className="warning-banner">
+        <div className="warning-banner" role="status">
           <span>Status polling unavailable</span>
           <button className="btn btn-secondary btn-sm" onClick={handleRestartPolling}>
             Retry Polling
@@ -241,11 +244,15 @@ export function McpPage(): React.ReactElement {
       {detailText && (
         <div className="confirm-overlay" onClick={() => setDetailText(null)}>
           <div
+            ref={detailTrapRef}
             className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={detailTitleId}
             style={{ maxWidth: 600, maxHeight: '80vh', overflow: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="confirm-dialog-title">Server Detail</div>
+            <div className="confirm-dialog-title" id={detailTitleId}>Server Detail</div>
             <pre style={{
               fontSize: 12,
               whiteSpace: 'pre-wrap',

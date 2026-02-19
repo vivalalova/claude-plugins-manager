@@ -10,11 +10,11 @@ interface ErrorBannerProps {
 /** 錯誤提示橫幅 */
 export function ErrorBanner({ message, onDismiss, action }: ErrorBannerProps): React.ReactElement {
   return (
-    <div className="error-banner">
+    <div className="error-banner" role="alert">
       <span>{message}</span>
       {action}
       {onDismiss && (
-        <button className="btn-dismiss" onClick={onDismiss} title="Dismiss">
+        <button className="btn-dismiss" onClick={onDismiss} aria-label="Dismiss">
           ×
         </button>
       )}

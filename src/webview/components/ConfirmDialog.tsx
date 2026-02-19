@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ConfirmDialogProps {
   title: string;
@@ -20,10 +21,20 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps): React.ReactElement {
+  const titleId = useId();
+  const trapRef = useFocusTrap(onCancel);
+
   return (
     <div className="confirm-overlay" onClick={onCancel}>
-      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-dialog-title">{title}</div>
+      <div
+        ref={trapRef}
+        className="confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="confirm-dialog-title" id={titleId}>{title}</div>
         <div className="confirm-dialog-message">{message}</div>
         <div className="confirm-dialog-actions">
           <button className="btn btn-secondary" onClick={onCancel}>
