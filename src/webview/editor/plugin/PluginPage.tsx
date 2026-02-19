@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sendRequest } from '../../vscode';
+import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginCard } from './PluginCard';
@@ -71,6 +71,16 @@ export function PluginPage(): React.ReactElement {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // 訂閱檔案變更推送，自動靜默刷新
+  useEffect(() => {
+    const unsubscribe = onPushMessage((msg) => {
+      if (msg.type === 'plugin.refresh') {
+        fetchAll(false);
+      }
+    });
+    return unsubscribe;
+  }, [fetchAll]);
 
   /** 語言變更或 plugins 載入後自動翻譯（分批送出，最多 3 併發，逐批更新 UI） */
   const doTranslate = useCallback(async (lang: string, email: string, items: MergedPlugin[]) => {

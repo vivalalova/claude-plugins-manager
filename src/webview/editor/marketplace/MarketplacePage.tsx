@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { sendRequest } from '../../vscode';
+import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -19,8 +19,8 @@ export function MarketplacePage(): React.ReactElement {
   const [updating, setUpdating] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
-  const fetchList = useCallback(async () => {
-    setLoading(true);
+  const fetchList = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     setError(null);
     try {
       const data = await sendRequest<Marketplace[]>({ type: 'marketplace.list' });
@@ -28,11 +28,21 @@ export function MarketplacePage(): React.ReactElement {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+
+  // 訂閱檔案變更推送，自動靜默刷新
+  useEffect(() => {
+    const unsubscribe = onPushMessage((msg) => {
+      if (msg.type === 'marketplace.refresh') {
+        fetchList(false);
+      }
+    });
+    return unsubscribe;
+  }, [fetchList]);
 
   const handleAdd = async (): Promise<void> => {
     const source = addSource.trim();
