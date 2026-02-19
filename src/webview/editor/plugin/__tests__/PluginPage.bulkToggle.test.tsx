@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, act, within } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
 const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
@@ -48,6 +48,20 @@ function makeResponse(
   available: AvailablePlugin[],
 ): PluginListResponse {
   return { installed, available, marketplaceSources: {} };
+}
+
+/** 點擊 section "Enable All" → 等待 dialog → 確認 */
+async function clickEnableAllWithDialog(): Promise<void> {
+  // 點擊 section header 的 "Enable All" 按鈕（開啟 dialog）
+  const sectionBtn = screen.getAllByText('Enable All').find(
+    (el) => el.classList.contains('section-bulk-btn'),
+  )!;
+  await act(async () => { fireEvent.click(sectionBtn); });
+
+  // dialog 出現後，點擊 dialog 內的 "Enable All" 確認按鈕
+  const dialog = await screen.findByRole('dialog');
+  const confirmBtn = within(dialog).getByText('Enable All');
+  await act(async () => { fireEvent.click(confirmBtn); });
 }
 
 /** 從 mock.calls 中篩選指定 type 的呼叫 */
@@ -124,7 +138,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
     });
   });
 
-  it('點擊 "Enable All" → 串行 install 未啟用的 plugin', async () => {
+  it('點擊 "Enable All" → scope dialog → 串行 install 未啟用的 plugin', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'workspace.getFolders') return [];
       if (req.type === 'plugin.listAvailable') {
@@ -141,9 +155,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText('Enable All'));
-    });
+    await clickEnableAllWithDialog();
 
     // beta（未安裝）應被 install；alpha（已啟用）應被跳過
     const installCalls = filterCalls('plugin.install');
@@ -155,7 +167,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
     });
   });
 
-  it('已安裝但 disabled 的 plugin → 只呼叫 enable（不重新 install）', async () => {
+  it('已安裝但 disabled 的 plugin → dialog 確認 → 只呼叫 enable（不重新 install）', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'workspace.getFolders') return [];
       if (req.type === 'plugin.listAvailable') {
@@ -172,9 +184,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText('Enable All'));
-    });
+    await clickEnableAllWithDialog();
 
     // 已安裝但 disabled → enable only, no install
     const installCalls = filterCalls('plugin.install');
@@ -235,9 +245,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText('Enable All'));
-    });
+    await clickEnableAllWithDialog();
 
     // beta 仍然被 install（不中斷）
     const installCalls = filterCalls('plugin.install');
