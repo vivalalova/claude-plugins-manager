@@ -524,6 +524,21 @@ body {
   height: 13px;
 }
 
+.scope-chip-toggle--disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.scope-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--vscode-descriptionForeground);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
 
 .btn-sm {
   padding: 2px 10px;

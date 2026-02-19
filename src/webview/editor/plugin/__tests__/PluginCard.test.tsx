@@ -155,6 +155,68 @@ describe('PluginCard', () => {
     expect(screen.queryByText('GitHub')).toBeNull();
   });
 
+  it('loadingScopes 包含 user → User checkbox 替換為 spinner', () => {
+    const plugin = createPlugin();
+    const { container } = render(
+      <PluginCard
+        plugin={plugin}
+        loadingScopes={new Set<PluginScope>(['user'])}
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    // User scope 應有 spinner，無 checkbox
+    const userLabel = container.querySelector('.scope-chip-toggle');
+    expect(userLabel?.querySelector('.scope-spinner')).toBeTruthy();
+    expect(userLabel?.querySelector('input[type="checkbox"]')).toBeNull();
+  });
+
+  it('loadingScopes 有值時 → 所有 scope checkbox disabled', () => {
+    const plugin = createPlugin({
+      userInstall: {
+        id: 'test-plugin@test-mp',
+        version: '1.0.0',
+        scope: 'user' as PluginScope,
+        enabled: true,
+        installPath: '/path',
+        installedAt: '2026-01-01T00:00:00Z',
+        lastUpdated: '2026-01-01T00:00:00Z',
+      },
+    });
+    render(
+      <PluginCard
+        plugin={plugin}
+        workspaceName="my-project"
+        loadingScopes={new Set<PluginScope>(['project'])}
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    // User 和 Local checkboxes 應 disabled（project 是 spinner）
+    const checkboxes = screen.getAllByRole('checkbox');
+    for (const cb of checkboxes) {
+      expect((cb as HTMLInputElement).disabled).toBe(true);
+    }
+  });
+
+  it('loadingScopes 為空/undefined → checkbox 正常互動', () => {
+    const plugin = createPlugin();
+    render(
+      <PluginCard
+        plugin={plugin}
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    expect((checkbox as HTMLInputElement).disabled).toBe(false);
+    fireEvent.click(checkbox);
+    expect(onToggle).toHaveBeenCalledWith('user', true);
+  });
+
   it('已安裝 plugin → 同時顯示 Update 和 GitHub 按鈕', () => {
     const plugin = createPlugin({
       sourceDir: './plugins/my-plugin',

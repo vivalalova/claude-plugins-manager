@@ -38,6 +38,15 @@ export function PluginPage(): React.ReactElement {
   const [plugins, setPlugins] = useState<MergedPlugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** per-plugin per-scope 安裝中狀態 */
+  const [loadingPlugins, setLoadingPlugins] = useState<Map<string, Set<PluginScope>>>(new Map());
+  /** 安裝失敗可重試的錯誤 */
+  const [installError, setInstallError] = useState<{
+    message: string;
+    pluginId: string;
+    scope: PluginScope;
+    enable: boolean;
+  } | null>(null);
   const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
   const [filterEnabled, setFilterEnabled] = useState(
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
@@ -220,13 +229,26 @@ export function PluginPage(): React.ReactElement {
     return groups;
   }, [plugins, search, filterEnabled, contentTypeFilters]);
 
+  /** 設定 per-plugin per-scope loading */
+  const setPluginLoading = (pluginId: string, scope: PluginScope, on: boolean): void => {
+    setLoadingPlugins((prev) => {
+      const next = new Map(prev);
+      const scopes = new Set(prev.get(pluginId));
+      if (on) scopes.add(scope); else scopes.delete(scope);
+      if (scopes.size === 0) next.delete(pluginId); else next.set(pluginId, scopes);
+      return next;
+    });
+  };
+
   /** Toggle = 勾 → install + enable，取消勾 → disable */
   const handleToggle = async (
     pluginId: string,
     scope: PluginScope,
     enable: boolean,
   ): Promise<void> => {
-    setError(null);
+    if (loadingPlugins.get(pluginId)?.has(scope)) return;
+    setInstallError(null);
+    setPluginLoading(pluginId, scope, true);
     try {
       if (enable) {
         await sendRequest(
@@ -243,7 +265,14 @@ export function PluginPage(): React.ReactElement {
       }
       await fetchAll(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setInstallError({
+        message: e instanceof Error ? e.message : String(e),
+        pluginId,
+        scope,
+        enable,
+      });
+    } finally {
+      setPluginLoading(pluginId, scope, false);
     }
   };
 
@@ -317,6 +346,20 @@ export function PluginPage(): React.ReactElement {
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {installError && (
+        <ErrorBanner
+          message={installError.message}
+          onDismiss={() => setInstallError(null)}
+          action={
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleToggle(installError.pluginId, installError.scope, installError.enable)}
+            >
+              Retry
+            </button>
+          }
+        />
+      )}
       {translateWarning && (
         <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
       )}
@@ -365,6 +408,7 @@ export function PluginPage(): React.ReactElement {
                         marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
                         translations={translations}
                         translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
+                        loadingScopes={loadingPlugins.get(plugin.id)}
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
                         onUpdate={(scopes) => handleUpdate(plugin.id, scopes)}
                       />
