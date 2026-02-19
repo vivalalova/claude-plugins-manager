@@ -8,6 +8,8 @@ interface McpServerCardProps {
   onEdit: () => void;
   onRemove: () => void;
   onViewDetail: () => void;
+  onRetry: () => void;
+  retrying?: boolean;
 }
 
 /** MCP Server 卡片，顯示名稱、命令、scope、連線狀態 */
@@ -16,9 +18,12 @@ export function McpServerCard({
   onEdit,
   onRemove,
   onViewDetail,
+  onRetry,
+  retrying,
 }: McpServerCardProps): React.ReactElement {
+  const isFailed = server.status === 'failed';
   return (
-    <div className="card">
+    <div className={`card${isFailed ? ' card--failed' : ''}`}>
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="card-name">{server.name}</span>
@@ -26,6 +31,9 @@ export function McpServerCard({
         </div>
         <StatusBadge status={server.status} />
       </div>
+      {isFailed && (
+        <div className="card-error">Connection failed</div>
+      )}
       <div className="card-meta">
         <div style={{ fontFamily: 'var(--vscode-editor-font-family)', fontSize: 12 }}>
           {server.command}
@@ -35,6 +43,11 @@ export function McpServerCard({
         )}
       </div>
       <div className="card-actions">
+        {isFailed && (
+          <button className="btn btn-primary" onClick={onRetry} disabled={retrying}>
+            {retrying ? 'Retrying...' : 'Retry'}
+          </button>
+        )}
         <button className="btn btn-secondary" onClick={onViewDetail}>
           Details
         </button>

@@ -28,6 +28,11 @@ export class EditorPanelManager {
           this.panel.webview.postMessage({ type: 'mcp.statusUpdate', servers });
         }
       }),
+      this.mcpService.onPollUnavailable.event(() => {
+        if (this.panel?.visible && this.currentCategory === 'mcp') {
+          this.panel.webview.postMessage({ type: 'mcp.pollUnavailable' });
+        }
+      }),
       this.fileWatcherService.onPluginFilesChanged(() => {
         if (this.panel?.visible && this.currentCategory === 'plugin') {
           this.panel.webview.postMessage({ type: 'plugin.refresh' });

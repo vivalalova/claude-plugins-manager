@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -30,6 +30,8 @@ export function McpPage(): React.ReactElement {
   const [editingServer, setEditingServer] = useState<EditServerInfo | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [detailText, setDetailText] = useState<string | null>(null);
+  const [pollUnavailable, setPollUnavailable] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -51,10 +53,26 @@ export function McpPage(): React.ReactElement {
     const unsubscribe = onPushMessage((msg) => {
       if (msg.type === 'mcp.statusUpdate' && Array.isArray(msg.servers)) {
         setServers(msg.servers as McpServer[]);
+        setPollUnavailable(false);
+      }
+      if (msg.type === 'mcp.pollUnavailable') {
+        setPollUnavailable(true);
       }
     });
     return unsubscribe;
   }, []);
+
+  /** 狀態摘要計數 */
+  const statusCounts = useMemo(() => {
+    const counts = { connected: 0, failed: 0, pending: 0, other: 0 };
+    for (const s of servers) {
+      if (s.status === 'connected') counts.connected++;
+      else if (s.status === 'failed') counts.failed++;
+      else if (s.status === 'pending') counts.pending++;
+      else counts.other++;
+    }
+    return counts;
+  }, [servers]);
 
   const handleRemove = async (name: string): Promise<void> => {
     setConfirmRemove(null);
@@ -87,6 +105,31 @@ export function McpPage(): React.ReactElement {
     }
   };
 
+  /** 單次完整刷新（CLI health check） */
+  const handleRefreshStatus = async (): Promise<void> => {
+    setRetrying(true);
+    setError(null);
+    try {
+      const data = await sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000);
+      setServers(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  /** 重啟 polling（poll unavailable 後） */
+  const handleRestartPolling = async (): Promise<void> => {
+    setPollUnavailable(false);
+    try {
+      await sendRequest({ type: 'mcp.restartPolling' });
+    } catch (e) {
+      setPollUnavailable(true);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const handleEdit = (server: McpServer): void =>
     setEditingServer(buildEditServerInfo(server));
 
@@ -115,6 +158,40 @@ export function McpPage(): React.ReactElement {
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
+      {pollUnavailable && (
+        <div className="warning-banner">
+          <span>Status polling unavailable</span>
+          <button className="btn btn-secondary btn-sm" onClick={handleRestartPolling}>
+            Retry Polling
+          </button>
+        </div>
+      )}
+
+      {!loading && servers.length > 0 && (
+        <div className="mcp-status-summary">
+          {statusCounts.connected > 0 && (
+            <span className="mcp-status-item mcp-status-item--connected">
+              Connected: {statusCounts.connected}
+            </span>
+          )}
+          {statusCounts.failed > 0 && (
+            <span className="mcp-status-item mcp-status-item--failed">
+              Failed: {statusCounts.failed}
+            </span>
+          )}
+          {statusCounts.pending > 0 && (
+            <span className="mcp-status-item mcp-status-item--pending">
+              Pending: {statusCounts.pending}
+            </span>
+          )}
+          {statusCounts.other > 0 && (
+            <span className="mcp-status-item mcp-status-item--other">
+              Other: {statusCounts.other}
+            </span>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <LoadingSpinner message="Loading MCP servers..." />
       ) : servers.length === 0 ? (
@@ -128,6 +205,8 @@ export function McpPage(): React.ReactElement {
               onEdit={() => handleEdit(server)}
               onRemove={() => setConfirmRemove(server.name)}
               onViewDetail={() => handleViewDetail(server.fullName)}
+              onRetry={handleRefreshStatus}
+              retrying={retrying}
             />
           ))}
         </div>

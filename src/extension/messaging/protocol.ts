@@ -25,6 +25,8 @@ export type RequestMessage =
   | { type: 'mcp.remove'; requestId: string; name: string; scope?: McpScope }
   | { type: 'mcp.getDetail'; requestId: string; name: string }
   | { type: 'mcp.resetProjectChoices'; requestId: string }
+  | { type: 'mcp.refreshStatus'; requestId: string }
+  | { type: 'mcp.restartPolling'; requestId: string }
   | { type: 'plugin.translate'; requestId: string; texts: string[]; targetLang: string; email?: string }
   | { type: 'workspace.getFolders'; requestId: string }
   | { type: 'openExternal'; requestId: string; url: string }
@@ -38,5 +40,6 @@ export type ResponseMessage =
   | { type: 'response'; requestId: string; data: unknown }
   | { type: 'error'; requestId: string; error: string }
   | { type: 'mcp.statusUpdate'; servers: McpServer[] }
+  | { type: 'mcp.pollUnavailable' }
   | { type: 'plugin.refresh' }
   | { type: 'marketplace.refresh' };

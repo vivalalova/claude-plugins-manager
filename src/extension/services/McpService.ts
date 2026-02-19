@@ -20,6 +20,9 @@ export class McpService {
   /** 狀態變更事件，EditorPanelManager 訂閱後推送給 webview */
   readonly onStatusChange = new vscode.EventEmitter<McpServer[]>();
 
+  /** 連續 polling 失敗達上限，通知 UI 顯示 warning */
+  readonly onPollUnavailable = new vscode.EventEmitter<void>();
+
   constructor(private readonly cli: CliService) {}
 
   /**
@@ -174,7 +177,28 @@ export class McpService {
       clearInterval(this.pollTimer);
       this.pollTimer = undefined;
     }
+  }
+
+  /** 重啟 polling（重置錯誤計數 + 啟動 timer） */
+  restartPolling(): void {
+    this.stopPolling();
+    this.consecutiveErrors = 0;
+    this.startPolling();
+  }
+
+  /** 手動觸發一次完整狀態刷新（CLI health check），回傳最新 servers */
+  async refreshStatus(): Promise<McpServer[]> {
+    const servers = await this.list();
+    this.consecutiveErrors = 0;
+    this.onStatusChange.fire(servers);
+    return servers;
+  }
+
+  /** 釋放事件資源（extension deactivate 時呼叫） */
+  dispose(): void {
+    this.stopPolling();
     this.onStatusChange.dispose();
+    this.onPollUnavailable.dispose();
   }
 
   /** 取得最近一次快取的狀態 */
@@ -184,23 +208,21 @@ export class McpService {
 
   /** 單次輪詢，比對快取，有變更時觸發事件 */
   private async pollOnce(): Promise<void> {
-    // 如果連續錯誤次數過多，跳過本次輪詢
-    if (this.consecutiveErrors >= this.MAX_ERRORS_BEFORE_BACKOFF) {
-      this.consecutiveErrors = 0; // 重置計數，下次會重試
-      console.warn('[McpService] Too many consecutive errors, skipping this poll cycle');
-      return;
-    }
-
     try {
       const prev = JSON.stringify(this.statusCache);
       const servers = await this.list();
       if (JSON.stringify(servers) !== prev) {
         this.onStatusChange.fire(servers);
       }
-      this.consecutiveErrors = 0; // 成功後重置錯誤計數
+      this.consecutiveErrors = 0;
     } catch (err) {
       this.consecutiveErrors++;
       console.error(`[McpService] pollOnce failed (${this.consecutiveErrors}/${this.MAX_ERRORS_BEFORE_BACKOFF}):`, err);
+      if (this.consecutiveErrors >= this.MAX_ERRORS_BEFORE_BACKOFF) {
+        this.stopPolling();
+        this.onPollUnavailable.fire();
+        console.warn('[McpService] Polling stopped after consecutive failures');
+      }
     }
   }
 

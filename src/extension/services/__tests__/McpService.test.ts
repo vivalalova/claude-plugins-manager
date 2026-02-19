@@ -476,5 +476,89 @@ describe('McpService', () => {
         { name: 'my-server', fullName: 'my-server', command: 'node server.js', status: 'connected' },
       ]);
     });
+
+    it('連續 3 次失敗 → 停止 polling + 觸發 onPollUnavailable', async () => {
+      const unavailableListener = vi.fn();
+      svc.onPollUnavailable.event(unavailableListener);
+
+      cli.exec.mockRejectedValue(new Error('CLI crash'));
+      svc.startPolling();
+
+      // 首次 pollOnce（立即執行）→ 失敗 #1
+      await vi.advanceTimersByTimeAsync(0);
+      expect(unavailableListener).not.toHaveBeenCalled();
+
+      // 第 2 次 poll
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(unavailableListener).not.toHaveBeenCalled();
+
+      // 第 3 次 poll → 達到上限，觸發 onPollUnavailable + 停止 timer
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(unavailableListener).toHaveBeenCalledTimes(1);
+
+      // timer 已停止，不再觸發 poll
+      cli.exec.mockClear();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(cli.exec).not.toHaveBeenCalled();
+    });
+
+    it('中途成功 → 重置錯誤計數', async () => {
+      const unavailableListener = vi.fn();
+      svc.onPollUnavailable.event(unavailableListener);
+
+      // 連續 2 次失敗
+      cli.exec.mockRejectedValue(new Error('fail'));
+      svc.startPolling();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(15_000);
+
+      // 第 3 次成功 → 計數歸零
+      cli.exec.mockResolvedValue('my-server: node server.js - ✓ Connected');
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(unavailableListener).not.toHaveBeenCalled();
+
+      // 再連續 2 次失敗 → 仍不會觸發
+      cli.exec.mockRejectedValue(new Error('fail'));
+      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(unavailableListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('restartPolling()', () => {
+    it('重置錯誤計數並重啟 timer', async () => {
+      const unavailableListener = vi.fn();
+      svc.onPollUnavailable.event(unavailableListener);
+
+      // 讓 polling 因錯誤停止
+      cli.exec.mockRejectedValue(new Error('fail'));
+      svc.startPolling();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(unavailableListener).toHaveBeenCalledTimes(1);
+
+      // restartPolling → 重啟
+      cli.exec.mockResolvedValue('my-server: node server.js - ✓ Connected');
+      svc.restartPolling();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // 應成功觸發 onStatusChange
+      expect(svc.getCachedStatus()).toHaveLength(1);
+    });
+  });
+
+  describe('refreshStatus()', () => {
+    it('手動刷新觸發 onStatusChange', async () => {
+      const listener = vi.fn();
+      svc.onStatusChange.event(listener);
+
+      cli.exec.mockResolvedValue('srv: npx test - ✓ Connected');
+      const result = await svc.refreshStatus();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe('connected');
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
   });
 });
