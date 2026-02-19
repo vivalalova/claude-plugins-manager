@@ -62,8 +62,9 @@ export function PluginPage(): React.ReactElement {
   const [bulkProgress, setBulkProgress] = useState<Map<string, { action: 'enable' | 'disable'; current: number; total: number }>>(new Map());
   /** Bulk toggle 完成後的失敗摘要 */
   const [bulkErrors, setBulkErrors] = useState<{ marketplace: string; pluginId: string; message: string }[]>([]);
-  /** Bulk enable 的目標 scope（per-marketplace） */
-  const [bulkEnableScope, setBulkEnableScope] = useState<Map<string, PluginScope>>(new Map());
+  /** Bulk enable scope dialog 狀態 */
+  const [pendingBulkEnable, setPendingBulkEnable] = useState<{ marketplace: string; items: MergedPlugin[] } | null>(null);
+  const [bulkDialogScope, setBulkDialogScope] = useState<PluginScope>('user');
   const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
   const [filterEnabled, setFilterEnabled] = useState(
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
@@ -542,9 +543,7 @@ export function PluginPage(): React.ReactElement {
           const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
           const enabledCount = items.filter(isPluginEnabled).length;
           const mpBulk = bulkProgress.get(marketplace);
-          const mpScope = bulkEnableScope.get(marketplace) ?? 'user';
-          const allEnabledInScope = items.every((p) => isEnabledInScope(p, mpScope));
-          const hasWorkspace = workspaceFolders.length > 0;
+          const allEnabled = items.every(isPluginEnabled);
           return (
             <div key={marketplace} className="plugin-section">
               <div className="section-header">
@@ -564,35 +563,17 @@ export function PluginPage(): React.ReactElement {
                     <span className="section-source">{marketplaceSources[marketplace]}</span>
                   )}
                 </button>
-                <div className="section-bulk-actions">
-                  {!mpBulk && !allEnabledInScope && (
-                    <select
-                      className="section-bulk-scope"
-                      value={mpScope}
-                      onChange={(e) => setBulkEnableScope((prev) => {
-                        const next = new Map(prev);
-                        next.set(marketplace, e.target.value as PluginScope);
-                        return next;
-                      })}
-                      disabled={isUpdatingAll}
-                    >
-                      <option value="user">User</option>
-                      {hasWorkspace && <option value="project">Project</option>}
-                      {hasWorkspace && <option value="local">Local</option>}
-                    </select>
-                  )}
-                  <button
-                    className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
-                    disabled={!!mpBulk || isUpdatingAll}
-                    onClick={() => allEnabledInScope
-                      ? handleBulkDisable(marketplace, items)
-                      : handleBulkEnable(marketplace, items, mpScope)}
-                  >
-                    {mpBulk
-                      ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
-                      : allEnabledInScope ? 'Disable All' : 'Enable All'}
-                  </button>
-                </div>
+                <button
+                  className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
+                  disabled={!!mpBulk || isUpdatingAll}
+                  onClick={() => allEnabled
+                    ? handleBulkDisable(marketplace, items)
+                    : setPendingBulkEnable({ marketplace, items })}
+                >
+                  {mpBulk
+                    ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
+                    : allEnabled ? 'Disable All' : 'Enable All'}
+                </button>
               </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
                 <div className="section-body-inner">
@@ -616,6 +597,48 @@ export function PluginPage(): React.ReactElement {
             </div>
           );
         })
+      )}
+
+      {pendingBulkEnable && (
+        <div className="confirm-overlay" onClick={() => setPendingBulkEnable(null)}>
+          <div
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="confirm-dialog-title">Enable All — {pendingBulkEnable.marketplace}</div>
+            <div className="confirm-dialog-message">
+              Select scope for enabling {pendingBulkEnable.items.length} plugins:
+            </div>
+            <div className="scope-checkboxes" style={{ marginBottom: 16 }}>
+              {(['user', 'project', 'local'] as const)
+                .filter((s) => s === 'user' || workspaceFolders.length > 0)
+                .map((s) => (
+                  <button
+                    key={s}
+                    className={`filter-chip${bulkDialogScope === s ? ' filter-chip--active' : ''}`}
+                    onClick={() => setBulkDialogScope(s)}
+                  >
+                    {s === 'user' ? 'User' : s === 'project' ? 'Project' : 'Local'}
+                  </button>
+                ))}
+            </div>
+            <div className="confirm-dialog-actions">
+              <button className="btn btn-secondary" onClick={() => setPendingBulkEnable(null)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const { marketplace, items } = pendingBulkEnable;
+                  setPendingBulkEnable(null);
+                  handleBulkEnable(marketplace, items, bulkDialogScope);
+                }}
+              >
+                Enable All
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {dialogOpen && (

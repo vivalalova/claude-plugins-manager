@@ -265,28 +265,6 @@ body {
   border-bottom-right-radius: 0;
 }
 
-.section-bulk-actions {
-  display: flex;
-  align-items: stretch;
-}
-
-.section-bulk-scope {
-  padding: 0 8px;
-  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
-  border-left: none;
-  border-radius: 0;
-  background: var(--vscode-dropdown-background);
-  color: var(--vscode-dropdown-foreground);
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.section-bulk-scope:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .section-bulk-btn {
   display: flex;
   align-items: center;
