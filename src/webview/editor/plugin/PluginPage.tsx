@@ -4,6 +4,7 @@ import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginCard } from './PluginCard';
 import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
+import { matchesContentType, CONTENT_TYPE_FILTERS, CONTENT_TYPE_LABELS, type ContentTypeFilter } from './filterUtils';
 import type { TranslateResult } from '../../../extension/services/TranslationService';
 import {
   TRANSLATE_LANGS,
@@ -29,6 +30,7 @@ export function PluginPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterEnabled, setFilterEnabled] = useState(false);
+  const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(new Set());
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([]);
   // 預設收合，使用者手動展開的 marketplace 加入此 set
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -187,6 +189,11 @@ export function PluginPage(): React.ReactElement {
       );
     }
 
+    // Content type filter（OR 邏輯）：未載入 contents 的 plugin 保守顯示
+    if (contentTypeFilters.size > 0) {
+      filtered = filtered.filter((p) => matchesContentType(p, contentTypeFilters));
+    }
+
     const groups = new Map<string, MergedPlugin[]>();
     for (const p of filtered) {
       const key = p.marketplaceName ?? 'other';
@@ -198,7 +205,7 @@ export function PluginPage(): React.ReactElement {
       }
     }
     return groups;
-  }, [plugins, search, filterEnabled]);
+  }, [plugins, search, filterEnabled, contentTypeFilters]);
 
   /** Toggle = 勾 → install + enable，取消勾 → disable */
   const handleToggle = async (
@@ -279,6 +286,23 @@ export function PluginPage(): React.ReactElement {
         </button>
       </div>
 
+      <div className="filter-chips">
+        {CONTENT_TYPE_FILTERS.map((type) => (
+          <button
+            key={type}
+            className={`filter-chip${contentTypeFilters.has(type) ? ' filter-chip--active' : ''}`}
+            onClick={() => setContentTypeFilters((prev) => {
+              const next = new Set(prev);
+              if (next.has(type)) next.delete(type);
+              else next.add(type);
+              return next;
+            })}
+          >
+            {CONTENT_TYPE_LABELS[type]}
+          </button>
+        ))}
+      </div>
+
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       {translateWarning && (
         <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
@@ -288,12 +312,14 @@ export function PluginPage(): React.ReactElement {
         <LoadingSpinner message="Loading plugins..." />
       ) : grouped.size === 0 ? (
         <div className="empty-state">
-          {search ? 'No plugins match your search.' : 'No plugins found. Add a marketplace first.'}
+          {search || filterEnabled || contentTypeFilters.size > 0
+            ? 'No plugins match the current filters.'
+            : 'No plugins found. Add a marketplace first.'}
         </div>
       ) : (
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
-          const isCollapsed = !filterEnabled && !search && !expanded.has(marketplace);
+          const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
           const installedCount = items.filter((p) =>
             p.userInstall || p.projectInstalls.length > 0 || p.localInstall,
           ).length;

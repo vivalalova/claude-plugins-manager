@@ -170,6 +170,44 @@ body {
   user-select: none;
 }
 
+/* ----------------------------------------------------------------
+ * Filter Chips（Content Type 篩選）
+ * ---------------------------------------------------------------- */
+
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.filter-chip:hover {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+}
+
+.filter-chip--active {
+  background: var(--vscode-button-secondaryBackground);
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+  font-weight: 500;
+}
+
 .translate-btn {
   white-space: nowrap;
   font-size: 13px;
