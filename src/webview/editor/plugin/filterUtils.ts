@@ -36,6 +36,30 @@ export function matchesContentType(
   return false;
 }
 
+/**
+ * 搜尋 plugin name/description 以及 contents 內 commands/skills/agents 的 name/description。
+ * mcpServers（純 string ID）不列入搜尋。
+ * case-insensitive substring match。空 query 回傳 true。
+ */
+export function matchesSearch(plugin: MergedPlugin, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+
+  if (plugin.name.toLowerCase().includes(q)) return true;
+  if (plugin.description?.toLowerCase().includes(q)) return true;
+
+  if (plugin.contents) {
+    for (const arr of [plugin.contents.commands, plugin.contents.skills, plugin.contents.agents]) {
+      for (const item of arr) {
+        if (item.name.toLowerCase().includes(q)) return true;
+        if (item.description.toLowerCase().includes(q)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 /** localStorage keys for plugin filter persistence */
 export const PLUGIN_SEARCH_KEY = 'plugin.search';
 export const PLUGIN_FILTER_ENABLED_KEY = 'plugin.filter.enabled';

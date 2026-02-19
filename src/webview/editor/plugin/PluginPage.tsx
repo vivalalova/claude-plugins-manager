@@ -6,6 +6,7 @@ import { PluginCard } from './PluginCard';
 import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
 import {
   matchesContentType,
+  matchesSearch,
   CONTENT_TYPE_FILTERS,
   CONTENT_TYPE_LABELS,
   PLUGIN_SEARCH_KEY,
@@ -189,12 +190,8 @@ export function PluginPage(): React.ReactElement {
 
   /** 過濾 + 按 marketplace 分組 */
   const grouped = useMemo(() => {
-    const q = search.toLowerCase();
-    let filtered = q
-      ? plugins.filter((p) =>
-        p.name.toLowerCase().includes(q)
-        || (p.description?.toLowerCase().includes(q) ?? false),
-      )
+    let filtered = search
+      ? plugins.filter((p) => matchesSearch(p, search))
       : plugins;
 
     if (filterEnabled) {
