@@ -4,6 +4,7 @@ import type { PanelCategory } from '../constants';
 import type { MessageRouter } from '../messaging/MessageRouter';
 import type { RequestMessage } from '../messaging/protocol';
 import type { McpService } from '../services/McpService';
+import type { FileWatcherService } from '../services/FileWatcherService';
 import { getWebviewHtml } from './webviewHtml';
 
 /**
@@ -13,21 +14,31 @@ import { getWebviewHtml } from './webviewHtml';
 export class EditorPanelManager {
   private panel: vscode.WebviewPanel | undefined;
   private currentCategory: PanelCategory | undefined;
-  private mcpDisposable: vscode.Disposable | undefined;
+  private readonly pushDisposables: vscode.Disposable[] = [];
 
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly router: MessageRouter,
     private readonly mcpService: McpService,
+    private readonly fileWatcherService: FileWatcherService,
   ) {
-    this.mcpDisposable = this.mcpService.onStatusChange.event((servers) => {
-      if (this.panel?.visible && this.currentCategory === 'mcp') {
-        this.panel.webview.postMessage({
-          type: 'mcp.statusUpdate',
-          servers,
-        });
-      }
-    });
+    this.pushDisposables.push(
+      this.mcpService.onStatusChange.event((servers) => {
+        if (this.panel?.visible && this.currentCategory === 'mcp') {
+          this.panel.webview.postMessage({ type: 'mcp.statusUpdate', servers });
+        }
+      }),
+      this.fileWatcherService.onPluginFilesChanged(() => {
+        if (this.panel?.visible && this.currentCategory === 'plugin') {
+          this.panel.webview.postMessage({ type: 'plugin.refresh' });
+        }
+      }),
+      this.fileWatcherService.onMarketplaceFilesChanged(() => {
+        if (this.panel?.visible && this.currentCategory === 'marketplace') {
+          this.panel.webview.postMessage({ type: 'marketplace.refresh' });
+        }
+      }),
+    );
   }
 
   /** 打開或切換至指定分類的 editor panel */
@@ -85,7 +96,7 @@ export class EditorPanelManager {
 
   /** 釋放資源 */
   dispose(): void {
-    this.mcpDisposable?.dispose();
+    for (const d of this.pushDisposables) d.dispose();
     this.panel?.dispose();
     this.panel = undefined;
   }

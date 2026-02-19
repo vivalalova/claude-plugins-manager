@@ -37,4 +37,6 @@ export type RequestMessage =
 export type ResponseMessage =
   | { type: 'response'; requestId: string; data: unknown }
   | { type: 'error'; requestId: string; error: string }
-  | { type: 'mcp.statusUpdate'; servers: McpServer[] };
+  | { type: 'mcp.statusUpdate'; servers: McpServer[] }
+  | { type: 'plugin.refresh' }
+  | { type: 'marketplace.refresh' };
