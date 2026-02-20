@@ -290,4 +290,91 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
     const final = await svc.readInstalledPlugins();
     expect(final.plugins['flow@mp']).toBeUndefined();
   });
+
+  describe('scanAvailablePlugins — plugin.json 讀取', () => {
+    it('plugin.json 存在時，description/version/author 優先於 marketplace.json', async () => {
+      const mpName = `scan-mp-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const pluginDir = join(mpDir, 'plugins', 'my-plugin');
+      const claudePluginDir = join(pluginDir, '.claude-plugin');
+
+      // 建立目錄結構
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(claudePluginDir, { recursive: true });
+
+      // marketplace.json：description 和 version 來自 marketplace
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'my-plugin',
+            description: 'marketplace desc',
+            version: '1.0.0',
+            source: './plugins/my-plugin',
+          }],
+        }),
+      );
+
+      // plugin.json：更準確的 metadata
+      await writeFile(
+        join(claudePluginDir, 'plugin.json'),
+        JSON.stringify({
+          name: 'my-plugin',
+          description: 'plugin.json desc',
+          version: '2.0.0',
+          author: 'Test Author',
+        }),
+      );
+
+      // known_marketplaces.json 加入此 marketplace
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `my-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.description).toBe('plugin.json desc');
+      expect(plugin!.version).toBe('2.0.0');
+    });
+
+    it('plugin.json 不存在時，fallback 為 marketplace.json', async () => {
+      const mpName = `scan-mp-fallback-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      // plugin source 目錄（無 .claude-plugin/plugin.json）
+      mkdirSync(join(mpDir, 'plugins', 'no-meta'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'no-meta',
+            description: 'from marketplace',
+            version: '0.5.0',
+            source: './plugins/no-meta',
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `no-meta@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.description).toBe('from marketplace');
+      expect(plugin!.version).toBe('0.5.0');
+    });
+  });
 });
