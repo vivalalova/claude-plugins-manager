@@ -153,6 +153,23 @@ export class SettingsFileService {
         for (const p of manifest.plugins ?? []) {
           const pluginDir = resolve(mpDir, p.source ?? '.');
           const contents = await this.scanPluginContents(pluginDir);
+          // plugin 來源目錄內最新檔案的 mtime 作為 available lastUpdated（heuristic）
+          let lastUpdated: string | undefined;
+          try {
+            const entries = await readdir(pluginDir);
+            let latestMtime = 0;
+            for (const entry of entries) {
+              try {
+                const st = await stat(join(pluginDir, entry));
+                if (st.mtimeMs > latestMtime) latestMtime = st.mtimeMs;
+              } catch (err: unknown) {
+                if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+              }
+            }
+            if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
+          } catch (err: unknown) {
+            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+          }
           result.push({
             pluginId: `${p.name}@${mpName}`,
             name: p.name,
@@ -161,6 +178,7 @@ export class SettingsFileService {
             version: p.version,
             contents,
             sourceDir: typeof p.source === 'string' ? p.source : undefined,
+            lastUpdated,
           });
         }
       } catch {

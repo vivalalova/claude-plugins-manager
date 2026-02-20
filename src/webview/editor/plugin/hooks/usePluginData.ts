@@ -81,6 +81,7 @@ function mergePlugins(
       if (!existing.version && avail.version) {
         existing.version = avail.version;
       }
+      if (avail.lastUpdated) existing.availableLastUpdated = avail.lastUpdated;
     } else {
       map.set(id, {
         id,
@@ -90,6 +91,7 @@ function mergePlugins(
         version: avail.version,
         contents: avail.contents,
         sourceDir: avail.sourceDir,
+        availableLastUpdated: avail.lastUpdated,
         userInstall: null,
         projectInstalls: [],
         localInstall: null,

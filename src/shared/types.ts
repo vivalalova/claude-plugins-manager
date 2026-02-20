@@ -102,6 +102,8 @@ export interface AvailablePlugin {
   contents?: PluginContents;
   /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
   sourceDir?: string;
+  /** plugin 來源目錄的最後修改時間（ISO 8601），用於偵測更新 */
+  lastUpdated?: string;
 }
 
 /** Plugin listAvailable 的回傳結構 */
@@ -172,6 +174,8 @@ export interface MergedPlugin {
   contents?: PluginContents;
   /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
   sourceDir?: string;
+  /** marketplace 上可用版本的最後修改時間（ISO 8601），用於偵測更新 */
+  availableLastUpdated?: string;
   /** user scope 安裝（null = 未安裝） */
   userInstall: InstalledPlugin | null;
   /** project scope 安裝（可能多個 project） */
