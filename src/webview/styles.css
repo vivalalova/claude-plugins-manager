@@ -1190,3 +1190,91 @@ body.vscode-light .badge-enabled {
   background: rgba(56, 138, 52, 0.08);
   color: #2e7d32;
 }
+
+/* ----------------------------------------------------------------
+ * Toast notifications — fixed bottom-right
+ * ---------------------------------------------------------------- */
+
+.toast-container {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column-reverse; /* 新 toast 在下 */
+  gap: 8px;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 360px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: toastSlideIn 0.2s ease-out;
+  background: var(--vscode-notifications-background);
+  color: var(--vscode-notifications-foreground);
+  border: 1px solid var(--vscode-notifications-border);
+}
+
+.toast-item--exiting {
+  animation: toastFadeOut 0.3s ease-in forwards;
+}
+
+.toast-item__icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.toast-item--success .toast-item__icon { color: var(--vscode-testing-iconPassed); }
+.toast-item--error .toast-item__icon { color: var(--vscode-testing-iconFailed); }
+.toast-item--info .toast-item__icon { color: var(--vscode-notificationsInfoIcon-foreground); }
+
+.toast-item__message {
+  flex: 1;
+  word-break: break-word;
+}
+
+.toast-item__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--vscode-notifications-foreground);
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 2px 4px;
+  font-size: 12px;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.toast-item__close:hover,
+.toast-item__close:focus-visible {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.toast-item__close:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(8px); }
+}
