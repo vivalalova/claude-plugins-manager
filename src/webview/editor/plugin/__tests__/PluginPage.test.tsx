@@ -119,6 +119,64 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.getByText('network timeout')).toBeTruthy();
       });
     });
+
+    it('空 plugin 列表顯示 EmptyState + "Go to Marketplace" 按鈕觸發導航', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], []);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('No plugins found')).toBeTruthy();
+      });
+
+      expect(screen.getByText('Add a marketplace first to discover and install plugins.')).toBeTruthy();
+
+      // 監聽 window.postMessage
+      const postMessageSpy = vi.spyOn(window, 'postMessage');
+      fireEvent.click(screen.getByRole('button', { name: 'Go to Marketplace' }));
+      expect(postMessageSpy).toHaveBeenCalledWith(
+        { type: 'navigate', category: 'marketplace' },
+        '*',
+      );
+      postMessageSpy.mockRestore();
+    });
+
+    it('filter 無符合 → EmptyState + "Clear filters" 重置所有過濾', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+      });
+
+      // 搜尋一個不存在的東西
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      fireEvent.change(searchInput, { target: { value: 'zzznomatch' } });
+
+      await waitFor(() => {
+        expect(screen.getByText('No plugins match the current filters.')).toBeTruthy();
+      }, { timeout: 1000 });
+
+      // 有 Clear filters 按鈕
+      fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+      // 清除後 alpha 回來
+      expect(screen.getByText('alpha')).toBeTruthy();
+      expect((searchInput as HTMLInputElement).value).toBe('');
+    });
   });
 
   describe('Section 展開/收合', () => {

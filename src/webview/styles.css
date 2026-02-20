@@ -1063,10 +1063,33 @@ body {
 
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   padding: 48px 20px;
   color: var(--vscode-descriptionForeground);
   font-size: 13px;
+  gap: 8px;
+}
+
+.empty-state-icon {
+  opacity: 0.5;
+}
+
+.empty-state-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.empty-state-description {
+  font-size: 12px;
+  max-width: 320px;
+}
+
+.empty-state-action {
+  margin-top: 4px;
 }
 
 .confirm-overlay {

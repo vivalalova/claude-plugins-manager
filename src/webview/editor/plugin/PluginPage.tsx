@@ -1,5 +1,6 @@
 import React from 'react';
 import { PluginCardSkeleton } from '../../components/Skeleton';
+import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginCard } from './PluginCard';
 import { getCardTranslateStatus } from './translateUtils';
@@ -204,11 +205,31 @@ export function PluginPage(): React.ReactElement {
       {loading ? (
         <PluginCardSkeleton />
       ) : grouped.size === 0 ? (
-        <div className="empty-state">
-          {debouncedSearch || filterEnabled || contentTypeFilters.size > 0
-            ? 'No plugins match the current filters.'
-            : 'No plugins found. Add a marketplace first.'}
-        </div>
+        debouncedSearch || filterEnabled || contentTypeFilters.size > 0 ? (
+          <EmptyState
+            icon={<NoResultsIcon />}
+            title="No plugins match the current filters."
+            action={{
+              label: 'Clear filters',
+              onClick: () => {
+                setSearch('');
+                flushSearch('');
+                setFilterEnabled(false);
+                setContentTypeFilters(new Set());
+              },
+            }}
+          />
+        ) : (
+          <EmptyState
+            icon={<PluginIcon />}
+            title="No plugins found"
+            description="Add a marketplace first to discover and install plugins."
+            action={{
+              label: 'Go to Marketplace',
+              onClick: () => window.postMessage({ type: 'navigate', category: 'marketplace' }, '*'),
+            }}
+          />
+        )
       ) : (
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果

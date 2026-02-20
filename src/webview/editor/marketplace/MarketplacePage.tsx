@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { MarketplaceCardSkeleton } from '../../components/Skeleton';
+import { EmptyState, MarketplaceIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
@@ -13,6 +14,7 @@ import type { Marketplace } from '../../../shared/types';
  */
 export function MarketplacePage(): React.ReactElement {
   const { addToast } = useToast();
+  const addInputRef = useRef<HTMLInputElement>(null);
   const [marketplaces, setMarketplaces] = useState<Marketplace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +161,7 @@ export function MarketplacePage(): React.ReactElement {
 
       <div className="form-inline">
         <input
+          ref={addInputRef}
           className="input"
           placeholder="Git URL, GitHub owner/repo, or local path"
           value={addSource}
@@ -178,7 +181,12 @@ export function MarketplacePage(): React.ReactElement {
       {loading ? (
         <MarketplaceCardSkeleton />
       ) : marketplaces.length === 0 ? (
-        <div className="empty-state">No marketplaces configured</div>
+        <EmptyState
+          icon={<MarketplaceIcon />}
+          title="No marketplaces configured"
+          description="Add a marketplace source to discover and install plugins."
+          action={{ label: 'Add Marketplace', onClick: () => addInputRef.current?.focus() }}
+        />
       ) : (
         <div className="card-list">
           {marketplaces.map((mp) => (

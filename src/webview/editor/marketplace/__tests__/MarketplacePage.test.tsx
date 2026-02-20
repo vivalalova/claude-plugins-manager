@@ -65,7 +65,7 @@ describe('MarketplacePage', () => {
     expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
   });
 
-  it('空列表顯示 "No marketplaces configured"', async () => {
+  it('空列表顯示 EmptyState + "Add Marketplace" 按鈕聚焦輸入框', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'marketplace.list') return [];
       return undefined;
@@ -75,6 +75,14 @@ describe('MarketplacePage', () => {
     await waitFor(() => {
       expect(screen.getByText('No marketplaces configured')).toBeTruthy();
     });
+
+    // EmptyState 有 description
+    expect(screen.getByText('Add a marketplace source to discover and install plugins.')).toBeTruthy();
+
+    // 點 action button → input 獲得 focus
+    const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Marketplace' }));
+    expect(document.activeElement).toBe(input);
   });
 
   it('新增 marketplace：輸入 source → 點 Add → 送出 marketplace.add → 刷新列表', async () => {

@@ -72,7 +72,7 @@ describe('McpPage — 核心流程', () => {
     expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
   });
 
-  it('空列表顯示 "No MCP servers configured"', async () => {
+  it('空列表顯示 EmptyState + "Add Server" 按鈕開啟 AddMcpDialog', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') return [];
       return undefined;
@@ -83,9 +83,21 @@ describe('McpPage — 核心流程', () => {
     await waitFor(() => {
       expect(screen.getByText('No MCP servers configured')).toBeTruthy();
     });
+
+    // EmptyState 有 description 和 action button
+    expect(screen.getByText('Add an MCP server to extend Claude\'s capabilities.')).toBeTruthy();
+
+    // empty-state 內的 Add Server 按鈕（header 也有一個，用 within 區分）
+    const emptyState = document.querySelector('.empty-state')!;
+    await act(async () => {
+      fireEvent.click(within(emptyState as HTMLElement).getByRole('button', { name: 'Add Server' }));
+    });
+
+    // AddMcpDialog 開啟
+    expect(screen.getByText('Add MCP Server')).toBeTruthy();
   });
 
-  it('點 "Add Server" → 顯示 AddMcpDialog', async () => {
+  it('點 header "Add Server" → 顯示 AddMcpDialog', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') return [];
       return undefined;
@@ -97,11 +109,13 @@ describe('McpPage — 核心流程', () => {
       expect(screen.getByText('No MCP servers configured')).toBeTruthy();
     });
 
+    // page-actions 內的 Add Server（header 按鈕）
+    const header = document.querySelector('.page-actions')!;
     await act(async () => {
-      fireEvent.click(screen.getByText('Add Server'));
+      fireEvent.click(within(header as HTMLElement).getByText('Add Server'));
     });
 
-    // AddMcpDialog 顯示（dialog 標題 "Add MCP Server"）
+    // AddMcpDialog 顯示
     expect(screen.getByText('Add MCP Server')).toBeTruthy();
   });
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { McpCardSkeleton } from '../../components/Skeleton';
+import { EmptyState, ServerIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { McpServerCard } from './McpServerCard';
@@ -209,7 +210,12 @@ export function McpPage(): React.ReactElement {
       {loading ? (
         <McpCardSkeleton />
       ) : servers.length === 0 ? (
-        <div className="empty-state">No MCP servers configured</div>
+        <EmptyState
+          icon={<ServerIcon />}
+          title="No MCP servers configured"
+          description="Add an MCP server to extend Claude's capabilities."
+          action={{ label: 'Add Server', onClick: () => setShowAddDialog(true) }}
+        />
       ) : (
         <div className="card-list">
           {servers.map((server) => (
