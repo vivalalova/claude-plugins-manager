@@ -130,6 +130,19 @@ export function usePluginOperations(
           { type: 'plugin.install', plugin: pluginId, scope },
           120_000,
         );
+        const plugin = plugins.find((p) => p.id === pluginId);
+        const lastUpdated = plugin?.userInstall?.lastUpdated
+          ?? plugin?.projectInstalls[0]?.lastUpdated
+          ?? plugin?.localInstall?.lastUpdated;
+        const recentlyUpdated = lastUpdated
+          && (Date.now() - new Date(lastUpdated).getTime()) < 60_000;
+        if (!recentlyUpdated) {
+          try {
+            await sendRequest({ type: 'plugin.update', plugin: pluginId, scope }, 120_000);
+          } catch {
+            // 剛安裝的 plugin 可能無需 update → 靜默
+          }
+        }
         try {
           await sendRequest({ type: 'plugin.enable', plugin: pluginId, scope });
         } catch {

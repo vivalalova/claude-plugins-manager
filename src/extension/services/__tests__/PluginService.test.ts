@@ -29,6 +29,7 @@ function createMockSettings(): SettingsFileService & Record<string, ReturnType<t
     writeInstalledPlugins: vi.fn().mockResolvedValue(undefined),
     addInstallEntry: vi.fn().mockResolvedValue(undefined),
     removeInstallEntry: vi.fn().mockResolvedValue(undefined),
+    updateInstallEntryTimestamp: vi.fn().mockResolvedValue(undefined),
     scanAvailablePlugins: vi.fn().mockResolvedValue([]),
     readMarketplaceSources: vi.fn().mockResolvedValue({}),
   } as unknown as SettingsFileService & Record<string, ReturnType<typeof vi.fn>>;
@@ -541,20 +542,22 @@ describe('PluginService', () => {
 
   /* ═══════ update（保留 CLI） ═══════ */
   describe('update()', () => {
-    it('帶 scope', async () => {
+    it('帶 scope → CLI + 更新 timestamp', async () => {
       await svc.update('my-plugin', 'user');
       expect(cli.exec).toHaveBeenCalledWith(
         ['plugin', 'update', 'my-plugin', '--scope', 'user'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
+      expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', 'user');
     });
 
-    it('不帶 scope', async () => {
+    it('不帶 scope → CLI + 更新 timestamp', async () => {
       await svc.update('my-plugin');
       expect(cli.exec).toHaveBeenCalledWith(
         ['plugin', 'update', 'my-plugin'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
+      expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', undefined);
     });
   });
 });

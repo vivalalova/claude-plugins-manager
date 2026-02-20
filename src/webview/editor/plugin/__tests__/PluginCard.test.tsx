@@ -217,7 +217,7 @@ describe('PluginCard', () => {
     expect(onToggle).toHaveBeenCalledWith('user', true);
   });
 
-  it('已安裝 plugin → 同時顯示 Update 和 GitHub 按鈕', () => {
+  it('已安裝但無 update → 不顯示 Update 按鈕，顯示 GitHub', () => {
     const plugin = createPlugin({
       sourceDir: './plugins/my-plugin',
       userInstall: {
@@ -240,7 +240,8 @@ describe('PluginCard', () => {
       />,
     );
 
-    expect(screen.getByText('Update')).toBeTruthy();
+    expect(screen.queryByText('Update')).toBeNull();
+    expect(screen.queryByText('Update available')).toBeNull();
     expect(screen.getByText('GitHub')).toBeTruthy();
   });
 

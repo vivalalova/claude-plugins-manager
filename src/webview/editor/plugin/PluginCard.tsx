@@ -5,7 +5,7 @@ import type {
   PluginContentItem,
   PluginScope,
 } from '../../../shared/types';
-import { isPluginInstalled, getInstalledScopes, hasPluginUpdate } from './filterUtils';
+import { getInstalledScopes, hasPluginUpdate } from './filterUtils';
 import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
 
@@ -42,7 +42,6 @@ export function PluginCard({
   const [expanded, setExpanded] = useState(false);
   const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir);
 
-  const isInstalled = isPluginInstalled(plugin);
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
   const hasUpdate = hasPluginUpdate(plugin);
@@ -90,15 +89,6 @@ export function PluginCard({
               disabled={!!loadingScopes?.size}
             >
               {loadingScopes?.size ? <span className="scope-spinner" /> : 'Update available'}
-            </button>
-          )}
-          {isInstalled && !hasUpdate && (
-            <button
-              className="btn btn-secondary btn-sm"
-              disabled={!!loadingScopes?.size}
-              onClick={() => onUpdate(getInstalledScopes(plugin))}
-            >
-              Update
             </button>
           )}
           {pluginUrl && (

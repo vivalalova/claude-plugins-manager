@@ -563,4 +563,58 @@ describe('SettingsFileService', () => {
       expect(written.plugins['plugin-b@mp']).toHaveLength(1);
     });
   });
+
+  /* ═══════ updateInstallEntryTimestamp ═══════ */
+  describe('updateInstallEntryTimestamp()', () => {
+    it('更新指定 plugin 所有 entries 的 lastUpdated', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({
+        version: 2,
+        plugins: {
+          'my-plugin@mp': [
+            { scope: 'user', installPath: '/cache', version: '1.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+            { scope: 'project', projectPath: '/ws', installPath: '/cache', version: '1.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+          ],
+        },
+      }));
+
+      const before = Date.now();
+      await svc.updateInstallEntryTimestamp('my-plugin@mp');
+      const after = Date.now();
+
+      const [, content] = mockWriteFile.mock.calls[0];
+      const written = JSON.parse(content);
+      for (const entry of written.plugins['my-plugin@mp']) {
+        const ts = new Date(entry.lastUpdated).getTime();
+        expect(ts).toBeGreaterThanOrEqual(before);
+        expect(ts).toBeLessThanOrEqual(after);
+      }
+    });
+
+    it('帶 scope → 只更新匹配 scope 的 entry', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({
+        version: 2,
+        plugins: {
+          'my-plugin@mp': [
+            { scope: 'user', installPath: '/cache', version: '1.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+            { scope: 'project', projectPath: '/ws', installPath: '/cache', version: '1.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+          ],
+        },
+      }));
+
+      await svc.updateInstallEntryTimestamp('my-plugin@mp', 'user');
+
+      const [, content] = mockWriteFile.mock.calls[0];
+      const written = JSON.parse(content);
+      expect(written.plugins['my-plugin@mp'][0].lastUpdated).not.toBe('2026-01-01');
+      expect(written.plugins['my-plugin@mp'][1].lastUpdated).toBe('2026-01-01');
+    });
+
+    it('plugin 不存在 → 不寫入', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({ version: 2, plugins: {} }));
+
+      await svc.updateInstallEntryTimestamp('nonexistent@mp');
+
+      expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -128,6 +128,24 @@ export class SettingsFileService {
     await this.writeInstalledPlugins(data);
   }
 
+  /** 更新指定 plugin 的 installed entries 的 lastUpdated 時間戳 */
+  async updateInstallEntryTimestamp(
+    pluginId: string,
+    scope?: PluginScope,
+  ): Promise<void> {
+    const data = await this.readInstalledPlugins();
+    const entries = data.plugins[pluginId];
+    if (!entries) return;
+
+    const now = new Date().toISOString();
+    for (const entry of entries) {
+      if (!scope || entry.scope === scope) {
+        entry.lastUpdated = now;
+      }
+    }
+    await this.writeInstalledPlugins(data);
+  }
+
   /**
    * 掃描所有 marketplace 的 marketplace.json，回傳 available plugins。
    * 從 known_marketplaces.json 取得 marketplace 清單和實際路徑。

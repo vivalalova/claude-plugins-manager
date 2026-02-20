@@ -178,6 +178,7 @@ export class PluginService {
     }
     const cwd = scope && scope !== 'user' ? this.getProjectPath(scope) : undefined;
     await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
+    await this.settings.updateInstallEntryTimestamp(plugin, scope);
   }
 
   /** 讀取三個 scope 的 enabledPlugins */
