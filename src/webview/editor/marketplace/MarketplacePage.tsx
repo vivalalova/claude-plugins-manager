@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { MarketplaceCardSkeleton } from '../../components/Skeleton';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
@@ -176,7 +176,7 @@ export function MarketplacePage(): React.ReactElement {
       </div>
 
       {loading ? (
-        <LoadingSpinner message="Loading marketplaces..." />
+        <MarketplaceCardSkeleton />
       ) : marketplaces.length === 0 ? (
         <div className="empty-state">No marketplaces configured</div>
       ) : (

@@ -62,13 +62,14 @@ describe('McpPage — 核心流程', () => {
     expect(screen.getByText('project')).toBeTruthy();
   });
 
-  it('載入中顯示 Loading spinner', () => {
+  it('載入中顯示 skeleton 卡片', () => {
     // mcp.list never resolves during this test
     mockSendRequest.mockImplementation(() => new Promise(() => {}));
 
-    renderPage();
+    const { container } = renderPage();
 
-    expect(screen.getByText('Loading MCP servers...')).toBeTruthy();
+    expect(container.querySelectorAll('.skeleton-card').length).toBe(3);
+    expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
   });
 
   it('空列表顯示 "No MCP servers configured"', async () => {

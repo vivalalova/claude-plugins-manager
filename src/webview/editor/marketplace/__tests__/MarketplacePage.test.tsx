@@ -56,12 +56,13 @@ describe('MarketplacePage', () => {
     });
   });
 
-  it('載入中顯示 Loading spinner', () => {
+  it('載入中顯示 skeleton 卡片', () => {
     // sendRequest 永遠不 resolve → 保持 loading 狀態
     mockSendRequest.mockImplementation(() => new Promise(() => {}));
 
-    renderPage();
-    expect(screen.getByText('Loading marketplaces...')).toBeTruthy();
+    const { container } = renderPage();
+    expect(container.querySelectorAll('.skeleton-card').length).toBe(3);
+    expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
   });
 
   it('空列表顯示 "No marketplaces configured"', async () => {

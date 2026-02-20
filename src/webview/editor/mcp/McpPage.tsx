@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { McpCardSkeleton } from '../../components/Skeleton';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { McpServerCard } from './McpServerCard';
@@ -207,7 +207,7 @@ export function McpPage(): React.ReactElement {
       )}
 
       {loading ? (
-        <LoadingSpinner message="Loading MCP servers..." />
+        <McpCardSkeleton />
       ) : servers.length === 0 ? (
         <div className="empty-state">No MCP servers configured</div>
       ) : (

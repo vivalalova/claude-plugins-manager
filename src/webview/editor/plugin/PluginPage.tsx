@@ -1,5 +1,5 @@
 import React from 'react';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { PluginCardSkeleton } from '../../components/Skeleton';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginCard } from './PluginCard';
 import { getCardTranslateStatus } from './translateUtils';
@@ -202,7 +202,7 @@ export function PluginPage(): React.ReactElement {
       )}
 
       {loading ? (
-        <LoadingSpinner message="Loading plugins..." />
+        <PluginCardSkeleton />
       ) : grouped.size === 0 ? (
         <div className="empty-state">
           {debouncedSearch || filterEnabled || contentTypeFilters.size > 0

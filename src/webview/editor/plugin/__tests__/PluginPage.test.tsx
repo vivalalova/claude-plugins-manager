@@ -60,7 +60,7 @@ describe('PluginPage — 核心流程', () => {
   });
 
   describe('載入狀態', () => {
-    it('載入中顯示 Loading spinner', async () => {
+    it('載入中顯示 skeleton 卡片', async () => {
       // plugin.listAvailable 永不 resolve → 保持 loading 狀態
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
@@ -68,9 +68,10 @@ describe('PluginPage — 核心流程', () => {
         return new Promise(() => {});
       });
 
-      renderPage();
+      const { container } = renderPage();
 
-      expect(screen.getByText('Loading plugins...')).toBeTruthy();
+      expect(container.querySelectorAll('.skeleton-card').length).toBe(3);
+      expect(container.querySelectorAll('.skeleton').length).toBeGreaterThan(0);
     });
 
     it('載入完成顯示 plugin 卡片，按 marketplace 分 section', async () => {
@@ -429,7 +430,7 @@ describe('PluginPage — 核心流程', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading plugins...')).toBeNull();
+        expect(document.querySelectorAll('.skeleton-card').length).toBe(0);
       });
 
       // 更新 mock 回傳新資料
@@ -449,8 +450,8 @@ describe('PluginPage — 核心流程', () => {
         pushCallback?.({ type: 'plugin.refresh' });
       });
 
-      // 刷新後 loading spinner 不出現（靜默刷新）
-      expect(screen.queryByText('Loading plugins...')).toBeNull();
+      // 刷新後 skeleton 不出現（靜默刷新）
+      expect(document.querySelectorAll('.skeleton-card').length).toBe(0);
 
       // 新 plugin 出現在畫面上
       await waitFor(() => {
