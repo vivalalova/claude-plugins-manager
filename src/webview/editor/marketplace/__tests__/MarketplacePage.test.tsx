@@ -16,7 +16,10 @@ vi.mock('../../../vscode', () => ({
 }));
 
 import { MarketplacePage } from '../MarketplacePage';
+import { ToastProvider } from '../../../components/Toast';
 import type { Marketplace } from '../../../../shared/types';
+
+const renderPage = () => render(<ToastProvider><MarketplacePage /></ToastProvider>);
 
 function makeMarketplace(name: string, autoUpdate = true): Marketplace {
   return {
@@ -46,7 +49,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('alpha')).toBeTruthy();
       expect(screen.getByText('beta')).toBeTruthy();
@@ -57,7 +60,7 @@ describe('MarketplacePage', () => {
     // sendRequest 永遠不 resolve → 保持 loading 狀態
     mockSendRequest.mockImplementation(() => new Promise(() => {}));
 
-    render(<MarketplacePage />);
+    renderPage();
     expect(screen.getByText('Loading marketplaces...')).toBeTruthy();
   });
 
@@ -67,7 +70,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('No marketplaces configured')).toBeTruthy();
     });
@@ -85,7 +88,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('No marketplaces configured')).toBeTruthy();
     });
@@ -112,7 +115,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('No marketplaces configured')).toBeTruthy();
     });
@@ -140,7 +143,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('alpha')).toBeTruthy();
     });
@@ -172,7 +175,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('network failure')).toBeTruthy();
     });
@@ -190,7 +193,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('alpha')).toBeTruthy();
     });
@@ -232,7 +235,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('alpha')).toBeTruthy();
     });
@@ -262,7 +265,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('No marketplaces configured')).toBeTruthy();
     });
@@ -289,7 +292,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('alpha')).toBeTruthy();
     });
@@ -314,7 +317,7 @@ describe('MarketplacePage', () => {
       return undefined;
     });
 
-    render(<MarketplacePage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('alpha')).toBeTruthy();
       expect(screen.getByText('beta')).toBeTruthy();

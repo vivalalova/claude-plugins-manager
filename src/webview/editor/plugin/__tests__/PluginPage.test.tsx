@@ -16,11 +16,14 @@ vi.mock('../../../vscode', () => ({
 }));
 
 import { PluginPage } from '../PluginPage';
+import { ToastProvider } from '../../../components/Toast';
 import type {
   InstalledPlugin,
   AvailablePlugin,
   PluginListResponse,
 } from '../../../../shared/types';
+
+const renderPage = () => render(<ToastProvider><PluginPage /></ToastProvider>);
 
 function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlugin {
   return {
@@ -65,7 +68,7 @@ describe('PluginPage — 核心流程', () => {
         return new Promise(() => {});
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       expect(screen.getByText('Loading plugins...')).toBeTruthy();
     });
@@ -86,7 +89,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -109,7 +112,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('network timeout')).toBeTruthy();
@@ -127,7 +130,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -147,7 +150,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -177,7 +180,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -202,7 +205,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -226,7 +229,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -255,7 +258,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -302,7 +305,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -356,7 +359,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -385,7 +388,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -423,7 +426,7 @@ describe('PluginPage — 核心流程', () => {
         return undefined;
       });
 
-      render(<PluginPage />);
+      renderPage();
 
       await waitFor(() => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();

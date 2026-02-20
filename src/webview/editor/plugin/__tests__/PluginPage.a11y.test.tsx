@@ -16,7 +16,10 @@ vi.mock('../../../vscode', () => ({
 }));
 
 import { PluginPage } from '../PluginPage';
+import { ToastProvider } from '../../../components/Toast';
 import type { PluginListResponse } from '../../../../shared/types';
+
+const renderPage = () => render(<ToastProvider><PluginPage /></ToastProvider>);
 
 const emptyResponse: PluginListResponse = {
   installed: [],
@@ -37,7 +40,7 @@ describe('PluginPage accessibility', () => {
   afterEach(cleanup);
 
   it('search input 有 aria-label="Search plugins"', async () => {
-    render(<PluginPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -49,7 +52,7 @@ describe('PluginPage accessibility', () => {
   });
 
   it('translate dialog 有 role="dialog" + aria-modal + aria-labelledby', async () => {
-    render(<PluginPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -67,7 +70,7 @@ describe('PluginPage accessibility', () => {
   });
 
   it('translate dialog form labels 關聯 input', async () => {
-    render(<PluginPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.queryByText('Loading plugins...')).toBeNull();
@@ -87,7 +90,7 @@ describe('PluginPage accessibility', () => {
   });
 
   it('translate dialog Escape 關閉', async () => {
-    render(<PluginPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.queryByText('Loading plugins...')).toBeNull();

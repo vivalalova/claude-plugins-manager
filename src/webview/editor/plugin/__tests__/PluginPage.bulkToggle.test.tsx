@@ -16,11 +16,14 @@ vi.mock('../../../vscode', () => ({
 }));
 
 import { PluginPage } from '../PluginPage';
+import { ToastProvider } from '../../../components/Toast';
 import type {
   InstalledPlugin,
   AvailablePlugin,
   PluginListResponse,
 } from '../../../../shared/types';
+
+const renderPage = () => render(<ToastProvider><PluginPage /></ToastProvider>);
 
 function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlugin {
   return {
@@ -93,7 +96,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
@@ -114,7 +117,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Disable All')).toBeTruthy();
     });
@@ -132,7 +135,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
@@ -150,7 +153,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
@@ -179,7 +182,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
@@ -209,7 +212,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Disable All')).toBeTruthy();
     });
@@ -240,7 +243,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Enable All')).toBeTruthy();
     });
@@ -272,7 +275,7 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       return undefined;
     });
 
-    render(<PluginPage />);
+    renderPage();
     await waitFor(() => {
       // mp1 只有 alpha 且已 enabled → Disable All
       // mp2 只有 gamma 且未安裝 → Enable All

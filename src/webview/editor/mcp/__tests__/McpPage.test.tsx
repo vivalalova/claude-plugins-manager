@@ -16,7 +16,10 @@ vi.mock('../../../vscode', () => ({
 }));
 
 import { McpPage } from '../McpPage';
+import { ToastProvider } from '../../../components/Toast';
 import type { McpServer } from '../../../../shared/types';
+
+const renderPage = () => render(<ToastProvider><McpPage /></ToastProvider>);
 
 function makeServer(name: string, status: McpServer['status'] = 'connected'): McpServer {
   return { name, fullName: name, command: `npx ${name}`, status, scope: 'user' };
@@ -42,7 +45,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('filesystem')).toBeTruthy();
@@ -63,7 +66,7 @@ describe('McpPage — 核心流程', () => {
     // mcp.list never resolves during this test
     mockSendRequest.mockImplementation(() => new Promise(() => {}));
 
-    render(<McpPage />);
+    renderPage();
 
     expect(screen.getByText('Loading MCP servers...')).toBeTruthy();
   });
@@ -74,7 +77,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('No MCP servers configured')).toBeTruthy();
@@ -87,7 +90,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('No MCP servers configured')).toBeTruthy();
@@ -113,7 +116,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('my-tool')).toBeTruthy();
@@ -154,7 +157,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('details-srv')).toBeTruthy();
@@ -190,7 +193,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('old-srv')).toBeTruthy();
@@ -227,7 +230,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('proj-srv')).toBeTruthy();
@@ -255,7 +258,7 @@ describe('McpPage — 核心流程', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('Connection refused')).toBeTruthy();

@@ -16,7 +16,10 @@ vi.mock('../../../vscode', () => ({
 }));
 
 import { McpPage } from '../McpPage';
+import { ToastProvider } from '../../../components/Toast';
 import type { McpServer } from '../../../../shared/types';
+
+const renderPage = () => render(<ToastProvider><McpPage /></ToastProvider>);
 
 function makeServer(name: string, status: McpServer['status']): McpServer {
   return {
@@ -50,7 +53,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Connected: 2')).toBeTruthy();
       expect(screen.getByText('Failed: 1')).toBeTruthy();
@@ -69,7 +72,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Connected: 2')).toBeTruthy();
     });
@@ -85,7 +88,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Connection failed')).toBeTruthy();
       expect(screen.getByText('Retry')).toBeTruthy();
@@ -100,7 +103,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('good-srv')).toBeTruthy();
     });
@@ -118,7 +121,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('Retry')).toBeTruthy();
     });
@@ -147,7 +150,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('srv1')).toBeTruthy();
     });
@@ -177,7 +180,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('srv1')).toBeTruthy();
     });
@@ -219,7 +222,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('srv1')).toBeTruthy();
     });
@@ -247,7 +250,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
       return undefined;
     });
 
-    render(<McpPage />);
+    renderPage();
     await waitFor(() => {
       expect(screen.getByText('No MCP servers configured')).toBeTruthy();
     });
