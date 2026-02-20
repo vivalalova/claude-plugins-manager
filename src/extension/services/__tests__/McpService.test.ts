@@ -517,6 +517,55 @@ describe('McpService', () => {
       expect(cli.exec).toHaveBeenCalledTimes(1);
     });
 
+    it('pollOnce() diff 不使用 JSON.stringify 序列化陣列（效能保證）', async () => {
+      const spy = vi.spyOn(JSON, 'stringify');
+
+      try {
+        cli.exec.mockResolvedValue('srv: node test - ✓ Connected');
+        svc.startPolling();
+        await vi.advanceTimersByTimeAsync(0);
+
+        // 不應呼叫 JSON.stringify 序列化整個 server 陣列做 diff
+        const calledWithArray = spy.mock.calls.some(([arg]) => Array.isArray(arg));
+        expect(calledWithArray).toBe(false);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('server 狀態未變 → 不觸發 onStatusChange', async () => {
+      const listener = vi.fn();
+      svc.onStatusChange.event(listener);
+
+      cli.exec.mockResolvedValue('srv: node test - ✓ Connected');
+      svc.startPolling();
+      await vi.advanceTimersByTimeAsync(0);
+      // 首次 poll → 觸發（statusCache 從空變為有值）
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      // 第二次 poll，相同狀態
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(listener).toHaveBeenCalledTimes(1); // 不再觸發
+    });
+
+    it('server 被移除 → 觸發 onStatusChange（fullName 比對）', async () => {
+      const listener = vi.fn();
+      svc.onStatusChange.event(listener);
+
+      // 首次：兩個 server
+      cli.exec.mockResolvedValue(
+        'srv-a: node a.js - ✓ Connected\nsrv-b: node b.js - ✓ Connected',
+      );
+      svc.startPolling();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      // 第二次：srv-b 消失
+      cli.exec.mockResolvedValue('srv-a: node a.js - ✓ Connected');
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+
     it('狀態變更時觸發 onStatusChange', async () => {
       const listener = vi.fn();
       svc.onStatusChange.event(listener);

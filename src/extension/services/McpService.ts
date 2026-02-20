@@ -218,12 +218,17 @@ export class McpService {
     return this.statusCache;
   }
 
+  /** 輕量 fingerprint：fullName + status 串接，取代 JSON.stringify 全序列化 */
+  private makeStatusFingerprint(servers: McpServer[]): string {
+    return servers.map((s) => `${s.fullName}:${s.status}`).join('|');
+  }
+
   /** 單次輪詢，比對快取，有變更時觸發事件 */
   private async pollOnce(): Promise<void> {
     try {
-      const prev = JSON.stringify(this.statusCache);
+      const prev = this.makeStatusFingerprint(this.statusCache);
       const servers = await this.list();
-      if (JSON.stringify(servers) !== prev) {
+      if (this.makeStatusFingerprint(servers) !== prev) {
         this.onStatusChange.fire(servers);
       }
       this.consecutiveErrors = 0;
