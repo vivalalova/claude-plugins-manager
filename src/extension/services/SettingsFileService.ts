@@ -178,7 +178,12 @@ export class SettingsFileService {
         const manifest = await this.readJson<MarketplaceManifest>(manifestPath);
         for (const p of manifest.plugins ?? []) {
           const pluginDir = resolve(mpDir, p.source ?? '.');
-          const contents = await this.scanPluginContents(pluginDir);
+          const [contents, pluginMeta] = await Promise.all([
+            this.scanPluginContents(pluginDir),
+            this.readJson<{ description?: string; version?: string }>(
+              join(pluginDir, '.claude-plugin', 'plugin.json'),
+            ).catch(() => ({} as { description?: string; version?: string })),
+          ]);
           // plugin 來源目錄內最新檔案的 mtime 作為 available lastUpdated（heuristic）
           let lastUpdated: string | undefined;
           try {
@@ -199,9 +204,9 @@ export class SettingsFileService {
           result.push({
             pluginId: `${p.name}@${mpName}`,
             name: p.name,
-            description: p.description ?? '',
+            description: pluginMeta.description ?? p.description ?? '',
             marketplaceName: mpName,
-            version: p.version,
+            version: pluginMeta.version ?? p.version,
             contents,
             sourceDir: typeof p.source === 'string' ? p.source : undefined,
             lastUpdated,

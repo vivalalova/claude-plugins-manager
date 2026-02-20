@@ -99,6 +99,8 @@ export interface AvailablePlugin {
   description: string;
   marketplaceName: string;
   version?: string;
+  // /** plugin.json 的 author（string 或 { name } → 正規化為 string）。目前 UI 未使用（同 section 同作者）。 */
+  // author?: string;
   contents?: PluginContents;
   /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
   sourceDir?: string;
@@ -171,6 +173,8 @@ export interface MergedPlugin {
   marketplaceName?: string;
   description?: string;
   version?: string;
+  // /** plugin.json 的 author。目前 UI 未使用（同 section 同作者）。 */
+  // author?: string;
   contents?: PluginContents;
   /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
   sourceDir?: string;
