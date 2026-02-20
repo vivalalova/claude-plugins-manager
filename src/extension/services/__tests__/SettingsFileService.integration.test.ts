@@ -225,6 +225,40 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
     expect(data.plugins['my-plugin@mp']).toBeUndefined();
   });
 
+  /* ═══════ readJson fail-fast：JSON 損壞 → throw ═══════ */
+
+  it('settings.json 損壞（非 JSON）→ readEnabledPlugins throw 含檔案路徑', async () => {
+    await writeFile(userSettingsPath(), 'not valid json!!!');
+
+    await expect(svc.readEnabledPlugins('user'))
+      .rejects.toThrow(/Invalid JSON/);
+    await expect(svc.readEnabledPlugins('user'))
+      .rejects.toThrow(userSettingsPath());
+  });
+
+  it('installed_plugins.json 損壞 → readInstalledPlugins throw 含檔案路徑', async () => {
+    await writeFile(installedPluginsPath(), '{broken');
+
+    await expect(svc.readInstalledPlugins())
+      .rejects.toThrow(/Invalid JSON/);
+    await expect(svc.readInstalledPlugins())
+      .rejects.toThrow(installedPluginsPath());
+  });
+
+  it('settings.json 不存在（ENOENT）→ readEnabledPlugins 回傳空物件（不 throw）', async () => {
+    await rm(userSettingsPath());
+
+    const result = await svc.readEnabledPlugins('user');
+    expect(result).toEqual({});
+  });
+
+  it('installed_plugins.json 不存在 → readInstalledPlugins 回傳 defaultValue', async () => {
+    await rm(installedPluginsPath());
+
+    const result = await svc.readInstalledPlugins();
+    expect(result).toEqual({ version: 2, plugins: {} });
+  });
+
   /* ═══════ 全流程 round-trip ═══════ */
 
   it('完整流程：addInstallEntry + setPluginEnabled → readInstalledPlugins + readEnabledPlugins 一致', async () => {

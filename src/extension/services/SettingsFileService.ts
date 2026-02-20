@@ -347,14 +347,24 @@ export class SettingsFileService {
     }
   }
 
-  /** 讀取 JSON 檔，不存在時回傳預設值 */
+  /** 讀取 JSON 檔，ENOENT 時回傳預設值，JSON parse error 時 throw（fail-fast） */
   private async readJson<T>(filePath: string, defaultValue?: T): Promise<T> {
+    let content: string;
     try {
-      const content = await readFile(filePath, 'utf-8');
+      content = await readFile(filePath, 'utf-8');
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (defaultValue !== undefined) return defaultValue;
+        return {} as T;
+      }
+      throw err;
+    }
+    try {
       return JSON.parse(content) as T;
-    } catch {
-      if (defaultValue !== undefined) return defaultValue;
-      return {} as T;
+    } catch (err: unknown) {
+      throw new Error(
+        `Invalid JSON in ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

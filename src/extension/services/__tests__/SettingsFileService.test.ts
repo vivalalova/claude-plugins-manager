@@ -31,6 +31,13 @@ describe('SettingsFileService', () => {
     mockMkdir.mockResolvedValue(undefined);
   });
 
+  /** 建立帶 code 屬性的 ENOENT error（readJson 用 err.code === 'ENOENT' 判斷） */
+  function enoentError(): NodeJS.ErrnoException {
+    const err = new Error('ENOENT: no such file or directory') as NodeJS.ErrnoException;
+    err.code = 'ENOENT';
+    return err;
+  }
+
   /* ═══════ getSettingsPath ═══════ */
   describe('getSettingsPath()', () => {
     it('user → ~/.claude/settings.json', () => {
@@ -82,7 +89,7 @@ describe('SettingsFileService', () => {
     });
 
     it('檔案不存在 → 回傳空物件', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       const result = await svc.readEnabledPlugins('user');
       expect(result).toEqual({});
@@ -102,11 +109,10 @@ describe('SettingsFileService', () => {
       expect(result).toEqual({});
     });
 
-    it('settings.json 內容損毀（非 JSON） → 回傳空物件', async () => {
+    it('settings.json 內容損毀（非 JSON） → throw Invalid JSON', async () => {
       mockReadFile.mockResolvedValue('this is not json {{{');
 
-      const result = await svc.readEnabledPlugins('user');
-      expect(result).toEqual({});
+      await expect(svc.readEnabledPlugins('user')).rejects.toThrow(/Invalid JSON/);
     });
 
     it('project scope → 讀取 workspace 路徑下的 settings.json', async () => {
@@ -172,7 +178,7 @@ describe('SettingsFileService', () => {
     });
 
     it('project scope → 寫入 <workspace>/.claude/settings.json', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       await svc.setPluginEnabled('my-plugin@mp', 'project', true);
 
@@ -181,7 +187,7 @@ describe('SettingsFileService', () => {
     });
 
     it('local scope → 寫入 <workspace>/.claude/settings.local.json', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       await svc.setPluginEnabled('my-plugin@mp', 'local', true);
 
@@ -190,7 +196,7 @@ describe('SettingsFileService', () => {
     });
 
     it('project scope 寫入前先建立 .claude/ 目錄', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       await svc.setPluginEnabled('my-plugin@mp', 'project', true);
 
@@ -204,7 +210,7 @@ describe('SettingsFileService', () => {
     });
 
     it('local scope 寫入前先建立 .claude/ 目錄', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       await svc.setPluginEnabled('my-plugin@mp', 'local', true);
 
@@ -223,7 +229,7 @@ describe('SettingsFileService', () => {
     });
 
     it('檔案不存在 → 建立新檔寫入 enabledPlugins', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       await svc.setPluginEnabled('my-plugin@mp', 'project', true);
 
@@ -269,14 +275,10 @@ describe('SettingsFileService', () => {
       expect(written.enabledPlugins).toEqual({});
     });
 
-    it('settings.json 損毀 → 覆寫為乾淨結構', async () => {
+    it('settings.json 損毀 → throw Invalid JSON（fail-fast）', async () => {
       mockReadFile.mockResolvedValue('NOT VALID JSON!!!');
 
-      await svc.setPluginEnabled('new@mp', 'project', true);
-
-      const [, content] = mockWriteFile.mock.calls[0];
-      const written = JSON.parse(content);
-      expect(written).toEqual({ enabledPlugins: { 'new@mp': true } });
+      await expect(svc.setPluginEnabled('new@mp', 'project', true)).rejects.toThrow(/Invalid JSON/);
     });
 
     it('pluginId 含特殊字元（Unicode） → 正確處理', async () => {
@@ -299,7 +301,7 @@ describe('SettingsFileService', () => {
     });
 
     it('mkdir 失敗 → 拋出錯誤（不吞掉）', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
       mockMkdir.mockRejectedValue(new Error('EACCES: permission denied'));
 
       await expect(
@@ -425,7 +427,7 @@ describe('SettingsFileService', () => {
     });
 
     it('installed_plugins.json 不存在 → 使用預設結構', async () => {
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockReadFile.mockRejectedValue(enoentError());
 
       await svc.addInstallEntry('my-plugin@mp', baseEntry);
 
