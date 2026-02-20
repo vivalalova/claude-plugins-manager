@@ -7,6 +7,7 @@ import { McpServerCard } from './McpServerCard';
 import { AddMcpDialog } from './AddMcpDialog';
 import type { EditServerInfo } from './AddMcpDialog';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useToast } from '../../components/Toast';
 import type { McpServer } from '../../../shared/types';
 
 /** 從 McpServer 建構編輯 dialog 預填資訊（優先用結構化 config） */
@@ -24,6 +25,7 @@ export function buildEditServerInfo(server: McpServer): EditServerInfo {
  * 即時狀態：mount 時 list + 訂閱 mcp.statusUpdate push。
  */
 export function McpPage(): React.ReactElement {
+  const { addToast } = useToast();
   const [servers, setServers] = useState<McpServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export function McpPage(): React.ReactElement {
     try {
       await sendRequest({ type: 'mcp.remove', name });
       await fetchList();
+      addToast('MCP server removed');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -140,6 +143,14 @@ export function McpPage(): React.ReactElement {
     setShowAddDialog(false);
     setEditingServer(null);
     await fetchList();
+    addToast('MCP server added');
+  };
+
+  const handleEdited = async (): Promise<void> => {
+    setShowAddDialog(false);
+    setEditingServer(null);
+    await fetchList();
+    addToast('MCP server updated');
   };
 
   return (
@@ -236,7 +247,7 @@ export function McpPage(): React.ReactElement {
       {editingServer && (
         <AddMcpDialog
           editServer={editingServer}
-          onAdded={handleAdded}
+          onAdded={handleEdited}
           onCancel={() => setEditingServer(null)}
         />
       )}

@@ -8,6 +8,7 @@ import {
   getInstalledScopes,
   getEnabledScopes,
 } from '../filterUtils';
+import { useToast } from '../../../components/Toast';
 
 /** 安裝失敗可重試的錯誤資訊 */
 interface InstallError {
@@ -88,6 +89,7 @@ export function usePluginOperations(
   fetchAll: (showSpinner?: boolean) => Promise<void>,
   setError: Dispatch<SetStateAction<string | null>>,
 ): UsePluginOperationsReturn {
+  const { addToast } = useToast();
   const [loadingPlugins, setLoadingPlugins] = useState<Map<string, Set<PluginScope>>>(new Map());
   const [installError, setInstallError] = useState<InstallError | null>(null);
   const [updateAllProgress, setUpdateAllProgress] = useState<{ current: number; total: number } | null>(null);
@@ -137,6 +139,7 @@ export function usePluginOperations(
         await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope });
       }
       await fetchAll(false);
+      addToast(`${enable ? 'Enabled' : 'Disabled'} ${pluginId}`);
     } catch (e) {
       setInstallError({
         message: e instanceof Error ? e.message : String(e),
@@ -157,6 +160,7 @@ export function usePluginOperations(
         await sendRequest({ type: 'plugin.update', plugin: pluginId, scope });
       }
       await fetchAll(false);
+      addToast(`Updated ${pluginId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -185,7 +189,11 @@ export function usePluginOperations(
     }
 
     setUpdateAllProgress(null);
-    if (errors.length > 0) setUpdateAllErrors(errors);
+    if (errors.length > 0) {
+      setUpdateAllErrors(errors);
+    } else {
+      addToast('All plugins updated');
+    }
     try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
   };
 
@@ -233,7 +241,11 @@ export function usePluginOperations(
         return next;
       });
     }
-    if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
+    if (errors.length > 0) {
+      setBulkErrors((prev) => [...prev, ...errors]);
+    } else {
+      addToast(`Enabled all in ${marketplace}`);
+    }
     try { await fetchAll(false); } catch { /* non-blocking */ }
   };
 
@@ -278,7 +290,11 @@ export function usePluginOperations(
         return next;
       });
     }
-    if (errors.length > 0) setBulkErrors((prev) => [...prev, ...errors]);
+    if (errors.length > 0) {
+      setBulkErrors((prev) => [...prev, ...errors]);
+    } else {
+      addToast(`Disabled all in ${marketplace}`);
+    }
     try { await fetchAll(false); } catch { /* non-blocking */ }
   };
 

@@ -4,6 +4,7 @@ import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
+import { useToast } from '../../components/Toast';
 import type { Marketplace } from '../../../shared/types';
 
 /**
@@ -11,6 +12,7 @@ import type { Marketplace } from '../../../shared/types';
  * Marketplace 無 scope 概念，全域唯一。
  */
 export function MarketplacePage(): React.ReactElement {
+  const { addToast } = useToast();
   const [marketplaces, setMarketplaces] = useState<Marketplace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export function MarketplacePage(): React.ReactElement {
       await sendRequest({ type: 'marketplace.add', source });
       setAddSource('');
       await fetchList();
+      addToast('Marketplace added');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -68,6 +71,7 @@ export function MarketplacePage(): React.ReactElement {
     try {
       await sendRequest({ type: 'marketplace.remove', name });
       await fetchList();
+      addToast('Marketplace removed');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -79,6 +83,7 @@ export function MarketplacePage(): React.ReactElement {
     try {
       await sendRequest({ type: 'marketplace.update', name });
       await fetchList();
+      addToast(name ? `Updated ${name}` : 'All marketplaces updated');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
