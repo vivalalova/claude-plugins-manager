@@ -168,7 +168,7 @@ describe('McpPage — 核心流程', () => {
   it('點 "Details" → 送出 mcp.getDetail → 顯示 detail modal', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string; name?: string }) => {
       if (req.type === 'mcp.list') return [makeServer('details-srv')];
-      if (req.type === 'mcp.getDetail') return 'command: npx details-srv\nstatus: connected';
+      if (req.type === 'mcp.getDetail') return JSON.stringify({ name: 'details-srv', command: 'npx details-srv', status: 'connected' }, null, 2);
       return undefined;
     });
 
@@ -185,7 +185,9 @@ describe('McpPage — 核心流程', () => {
     // detail modal 顯示
     await waitFor(() => {
       expect(screen.getByText('Server Detail')).toBeTruthy();
-      expect(screen.getByText(/command: npx details-srv/)).toBeTruthy();
+      // JsonHighlight 將 JSON token 拆成 span，用 container query 驗證
+      expect(document.querySelector('.json-highlight')).toBeTruthy();
+      expect(document.querySelector('.json-token--key')).toBeTruthy();
     });
 
     // 關閉 modal

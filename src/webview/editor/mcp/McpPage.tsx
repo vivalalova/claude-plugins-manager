@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { McpCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, ServerIcon } from '../../components/EmptyState';
+import { JsonHighlight } from '../../components/JsonHighlight';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { McpServerCard } from './McpServerCard';
@@ -10,6 +11,16 @@ import type { EditServerInfo } from './AddMcpDialog';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useToast } from '../../components/Toast';
 import type { McpServer } from '../../../shared/types';
+
+/** 檢查字串是否為合法 JSON */
+function isValidJson(str: string): boolean {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** 從 McpServer 建構編輯 dialog 預填資訊（優先用結構化 config） */
 export function buildEditServerInfo(server: McpServer): EditServerInfo {
@@ -270,17 +281,13 @@ export function McpPage(): React.ReactElement {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="confirm-dialog-title" id={detailTitleId}>Server Detail</div>
-            <pre style={{
-              fontSize: 12,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-              background: 'var(--vscode-textCodeBlock-background)',
-              padding: 12,
-              borderRadius: 4,
-              marginBottom: 16,
-            }}>
-              {detailText}
-            </pre>
+            {isValidJson(detailText) ? (
+              <JsonHighlight json={detailText} />
+            ) : (
+              <pre className="json-highlight" style={{ padding: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {detailText}
+              </pre>
+            )}
             <div className="confirm-dialog-actions">
               <button className="btn btn-primary" onClick={() => setDetailText(null)}>
                 Close
