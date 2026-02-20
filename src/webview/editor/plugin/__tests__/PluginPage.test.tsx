@@ -186,11 +186,11 @@ describe('PluginPage — 核心流程', () => {
       const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
       fireEvent.change(searchInput, { target: { value: 'hello' } });
 
-      // hello-world 顯示，farewell 不顯示
+      // debounce 300ms 後過濾生效
       await waitFor(() => {
         expect(screen.getByText('hello-world')).toBeTruthy();
         expect(screen.queryByText('farewell')).toBeNull();
-      });
+      }, { timeout: 1000 });
     });
 
     it('搜尋有結果時 section 自動展開（無 collapsed class）', async () => {
@@ -214,7 +214,7 @@ describe('PluginPage — 核心流程', () => {
       await waitFor(() => {
         const sectionBody = document.querySelector('.section-body');
         expect(sectionBody?.classList.contains('section-body--collapsed')).toBe(false);
-      });
+      }, { timeout: 1000 });
     });
 
     it('無符合結果顯示 "No plugins match the current filters."', async () => {
@@ -237,7 +237,103 @@ describe('PluginPage — 核心流程', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No plugins match the current filters.')).toBeTruthy();
+      }, { timeout: 1000 });
+    });
+
+    it('debounce：打字中不過濾，300ms 後才過濾', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('hello-world', 'mp1', 'greeting plugin'),
+              makeAvailable('farewell', 'mp1', 'goodbye plugin'),
+            ],
+          );
+        }
+        return undefined;
       });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 切換到 fake timers（在 render 和初始資料載入完成後）
+      vi.useFakeTimers();
+
+      try {
+        const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+        fireEvent.change(searchInput, { target: { value: 'hello' } });
+
+        // 299ms 時結果尚未過濾，兩個 plugin 仍顯示
+        act(() => {
+          vi.advanceTimersByTime(299);
+        });
+
+        expect(screen.getByText('farewell')).toBeTruthy();
+
+        // 再推進 1ms，debounce 觸發
+        act(() => {
+          vi.advanceTimersByTime(1);
+        });
+
+        expect(screen.queryByText('farewell')).toBeNull();
+        expect(screen.getByText('hello-world')).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('clear 按鈕：search 有文字時顯示，點擊後立即清空', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('hello-world', 'mp1', 'greeting plugin'),
+              makeAvailable('farewell', 'mp1', 'goodbye plugin'),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      render(<PluginPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 初始無 clear 按鈕
+      expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      fireEvent.change(searchInput, { target: { value: 'hello' } });
+
+      // 輸入後 clear 按鈕出現
+      expect(screen.getByRole('button', { name: 'Clear search' })).toBeTruthy();
+
+      // 等 debounce 觸發 → 只顯示 hello-world
+      await waitFor(() => {
+        expect(screen.queryByText('farewell')).toBeNull();
+      }, { timeout: 1000 });
+
+      // 點擊 clear 按鈕
+      fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+
+      // search input 立即清空（不用等 debounce）
+      expect((searchInput as HTMLInputElement).value).toBe('');
+
+      // clear 按鈕消失
+      expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+
+      // flush 立即生效：兩個 plugin 都**同步**回來（不用 waitFor）
+      expect(screen.getByText('hello-world')).toBeTruthy();
+      expect(screen.getByText('farewell')).toBeTruthy();
     });
   });
 

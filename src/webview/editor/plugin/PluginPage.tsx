@@ -3,6 +3,7 @@ import { sendRequest, onPushMessage } from '../../vscode';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useDebouncedValue } from '../../hooks/useDebounce';
 import { PluginCard } from './PluginCard';
 import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from './translateUtils';
 import {
@@ -31,6 +32,9 @@ import {
   type PluginListResponse,
   type PluginScope,
 } from '../../../shared/types';
+
+/** 搜尋欄位 debounce 延遲（ms） */
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface WorkspaceFolder {
   name: string;
@@ -66,6 +70,7 @@ export function PluginPage(): React.ReactElement {
   const [pendingBulkEnable, setPendingBulkEnable] = useState<{ marketplace: string; items: MergedPlugin[] } | null>(null);
   const [bulkDialogScope, setBulkDialogScope] = useState<PluginScope>('user');
   const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
+  const [debouncedSearch, flushSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [filterEnabled, setFilterEnabled] = useState(
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
   );
@@ -127,8 +132,8 @@ export function PluginPage(): React.ReactElement {
     return unsubscribe;
   }, [fetchAll]);
 
-  // Filter 狀態持久化 → localStorage
-  useEffect(() => { localStorage.setItem(PLUGIN_SEARCH_KEY, search); }, [search]);
+  // Filter 狀態持久化 → localStorage（用 debouncedSearch 避免每次 keystroke 都寫入）
+  useEffect(() => { localStorage.setItem(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch]);
   useEffect(() => { localStorage.setItem(PLUGIN_FILTER_ENABLED_KEY, String(filterEnabled)); }, [filterEnabled]);
   useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
 
@@ -221,8 +226,8 @@ export function PluginPage(): React.ReactElement {
 
   /** 過濾 + 按 marketplace 分組 */
   const grouped = useMemo(() => {
-    let filtered = search
-      ? plugins.filter((p) => matchesSearch(p, search))
+    let filtered = debouncedSearch
+      ? plugins.filter((p) => matchesSearch(p, debouncedSearch))
       : plugins;
 
     if (filterEnabled) {
@@ -245,7 +250,7 @@ export function PluginPage(): React.ReactElement {
       }
     }
     return groups;
-  }, [plugins, search, filterEnabled, contentTypeFilters]);
+  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters]);
 
   /** 設定 per-plugin per-scope loading */
   const setPluginLoading = (pluginId: string, scope: PluginScope, on: boolean): void => {
@@ -456,14 +461,26 @@ export function PluginPage(): React.ReactElement {
       </div>
 
       <div className="search-row">
-        <input
-          className="input search-bar"
-          type="text"
-          placeholder="Search plugins..."
-          aria-label="Search plugins"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="search-input-wrapper">
+          <input
+            className="input search-bar"
+            type="text"
+            placeholder="Search plugins..."
+            aria-label="Search plugins"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              aria-label="Clear search"
+              onClick={() => { setSearch(''); flushSearch(''); }}
+            >
+              &#x2715;
+            </button>
+          )}
+        </div>
         <label className="filter-checkbox">
           <input
             type="checkbox"
@@ -533,14 +550,14 @@ export function PluginPage(): React.ReactElement {
         <LoadingSpinner message="Loading plugins..." />
       ) : grouped.size === 0 ? (
         <div className="empty-state">
-          {search || filterEnabled || contentTypeFilters.size > 0
+          {debouncedSearch || filterEnabled || contentTypeFilters.size > 0
             ? 'No plugins match the current filters.'
             : 'No plugins found. Add a marketplace first.'}
         </div>
       ) : (
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
-          const isCollapsed = !filterEnabled && !search && contentTypeFilters.size === 0 && !expanded.has(marketplace);
+          const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
           const enabledCount = items.filter(isPluginEnabled).length;
           const mpBulk = bulkProgress.get(marketplace);
           const allEnabled = items.every(isPluginEnabled);

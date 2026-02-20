@@ -154,9 +154,49 @@ body {
   margin-bottom: 20px;
 }
 
-.search-row .search-bar {
+.search-input-wrapper {
+  position: relative;
   flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-wrapper .search-bar {
+  width: 100%;
   margin-bottom: 0;
+  padding-right: 28px;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  opacity: 0.5;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.search-clear-btn:hover,
+.search-clear-btn:focus-visible {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.search-clear-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 .filter-checkbox {
