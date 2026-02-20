@@ -183,15 +183,15 @@ export class SettingsFileService {
           let lastUpdated: string | undefined;
           try {
             const entries = await readdir(pluginDir);
-            let latestMtime = 0;
-            for (const entry of entries) {
-              try {
-                const st = await stat(join(pluginDir, entry));
-                if (st.mtimeMs > latestMtime) latestMtime = st.mtimeMs;
-              } catch (err: unknown) {
-                if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-              }
-            }
+            const stats = await Promise.all(
+              entries.map((entry) =>
+                stat(join(pluginDir, entry)).catch((err: unknown) => {
+                  if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+                  return null;
+                }),
+              ),
+            );
+            const latestMtime = Math.max(0, ...stats.map((s) => s?.mtimeMs ?? 0));
             if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
           } catch (err: unknown) {
             if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
@@ -247,32 +247,23 @@ export class SettingsFileService {
       hooks: false,
     };
 
-    // commands/*.md
-    contents.commands = await this.scanMdDir(join(pluginDir, 'commands'));
+    const [commands, skills, agents, mcpKeys, hasHooks] = await Promise.all([
+      this.scanMdDir(join(pluginDir, 'commands')),
+      this.scanSkillsDir(join(pluginDir, 'skills')),
+      this.scanMdDir(join(pluginDir, 'agents')),
+      this.readJson<Record<string, unknown>>(join(pluginDir, '.mcp.json'))
+        .then((mcp) => Object.keys(mcp))
+        .catch(() => [] as string[]),
+      stat(join(pluginDir, 'hooks', 'hooks.json'))
+        .then(() => true)
+        .catch(() => false),
+    ]);
 
-    // skills/*/SKILL.md or skills/skill-name/SKILL.md
-    contents.skills = await this.scanSkillsDir(join(pluginDir, 'skills'));
-
-    // agents/*.md
-    contents.agents = await this.scanMdDir(join(pluginDir, 'agents'));
-
-    // .mcp.json
-    try {
-      const mcp = await this.readJson<Record<string, unknown>>(
-        join(pluginDir, '.mcp.json'),
-      );
-      contents.mcpServers = Object.keys(mcp);
-    } catch {
-      // no .mcp.json
-    }
-
-    // hooks/hooks.json
-    try {
-      await stat(join(pluginDir, 'hooks', 'hooks.json'));
-      contents.hooks = true;
-    } catch {
-      // no hooks
-    }
+    contents.commands = commands;
+    contents.skills = skills;
+    contents.agents = agents;
+    contents.mcpServers = mcpKeys;
+    contents.hooks = hasHooks;
 
     return contents;
   }
@@ -289,17 +280,19 @@ export class SettingsFileService {
       return [];
     }
 
-    const items: PluginContentItem[] = [];
-    for (const file of files) {
-      if (!file.endsWith('.md')) continue;
+    const mdFiles = files.filter((f) => f.endsWith('.md'));
+    const fmResults = await Promise.all(
+      mdFiles.map((file) => this.parseFrontmatter(join(dir, file))),
+    );
+
+    return mdFiles.map((file, i) => {
       const fallbackName = file.replace(/\.md$/, '');
-      const fm = await this.parseFrontmatter(join(dir, file));
-      items.push({
+      const fm = fmResults[i];
+      return {
         name: fm.name || fm.description ? (fm.name || fallbackName) : fallbackName,
         description: fm.description ?? '',
-      });
-    }
-    return items;
+      };
+    });
   }
 
   /**
@@ -313,21 +306,22 @@ export class SettingsFileService {
       return [];
     }
 
-    const items: PluginContentItem[] = [];
-    for (const entry of entries) {
-      const skillMd = join(dir, entry, 'SKILL.md');
-      try {
-        await stat(skillMd);
-        const fm = await this.parseFrontmatter(skillMd);
-        items.push({
-          name: fm.name || entry,
-          description: fm.description ?? '',
-        });
-      } catch {
-        // 非目錄或無 SKILL.md，跳過
-      }
-    }
-    return items;
+    const results = await Promise.all(
+      entries.map(async (entry) => {
+        const skillMd = join(dir, entry, 'SKILL.md');
+        try {
+          await stat(skillMd);
+          const fm = await this.parseFrontmatter(skillMd);
+          return {
+            name: fm.name || entry,
+            description: fm.description ?? '',
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return results.filter((r): r is PluginContentItem => r !== null);
   }
 
   /** 從 .md 檔案解析 YAML frontmatter 的 name 和 description */
