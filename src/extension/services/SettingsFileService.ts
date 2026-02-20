@@ -49,6 +49,14 @@ export class SettingsFileService {
     return (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
   }
 
+  /** 清除指定 scope 的所有 enabledPlugins（單次 read-write） */
+  async clearAllEnabledPlugins(scope: PluginScope): Promise<void> {
+    const path = this.getSettingsPath(scope);
+    const settings = await this.readJson<Record<string, unknown>>(path);
+    settings.enabledPlugins = {};
+    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+  }
+
   /** 寫入單一 plugin 的 enabled 狀態到指定 scope 的 settings 檔 */
   async setPluginEnabled(
     pluginId: string,

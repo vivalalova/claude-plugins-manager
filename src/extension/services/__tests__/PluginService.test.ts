@@ -32,6 +32,7 @@ function createMockSettings(): SettingsFileService & Record<string, ReturnType<t
     updateInstallEntryTimestamp: vi.fn().mockResolvedValue(undefined),
     scanAvailablePlugins: vi.fn().mockResolvedValue([]),
     readMarketplaceSources: vi.fn().mockResolvedValue({}),
+    clearAllEnabledPlugins: vi.fn().mockResolvedValue(undefined),
   } as unknown as SettingsFileService & Record<string, ReturnType<typeof vi.fn>>;
 }
 
@@ -545,43 +546,36 @@ describe('PluginService', () => {
 
   /* ═══════ disableAll ═══════ */
   describe('disableAll()', () => {
-    it('清除三個 scope 所有 enabledPlugins', async () => {
-      settings.readEnabledPlugins
-        .mockResolvedValueOnce({ 'a@mp': true, 'b@mp': true }) // user
-        .mockResolvedValueOnce({ 'a@mp': true })               // project
-        .mockResolvedValueOnce({});                             // local
-
+    it('呼叫 clearAllEnabledPlugins 三個 scope 各一次', async () => {
       await svc.disableAll();
 
-      expect(settings.setPluginEnabled).toHaveBeenCalledWith('a@mp', 'user', false);
-      expect(settings.setPluginEnabled).toHaveBeenCalledWith('b@mp', 'user', false);
-      expect(settings.setPluginEnabled).toHaveBeenCalledWith('a@mp', 'project', false);
-      expect(settings.setPluginEnabled).toHaveBeenCalledTimes(3);
+      expect(settings.clearAllEnabledPlugins).toHaveBeenCalledWith('user');
+      expect(settings.clearAllEnabledPlugins).toHaveBeenCalledWith('project');
+      expect(settings.clearAllEnabledPlugins).toHaveBeenCalledWith('local');
+      expect(settings.clearAllEnabledPlugins).toHaveBeenCalledTimes(3);
+    });
+
+    it('不呼叫 setPluginEnabled（批次清除，非逐一）', async () => {
+      await svc.disableAll();
+
+      expect(settings.setPluginEnabled).not.toHaveBeenCalled();
     });
 
     it('project/local scope 無 workspace → 靜默跳過', async () => {
-      settings.readEnabledPlugins
-        .mockResolvedValueOnce({})                                  // user
-        .mockRejectedValueOnce(new Error('No workspace'))           // project
-        .mockRejectedValueOnce(new Error('No workspace'));          // local
+      settings.clearAllEnabledPlugins
+        .mockResolvedValueOnce(undefined)                        // user
+        .mockRejectedValueOnce(new Error('No workspace'))        // project
+        .mockRejectedValueOnce(new Error('No workspace'));       // local
 
       await expect(svc.disableAll()).resolves.toBeUndefined();
     });
 
     it('非 workspace 錯誤 → 往上拋（不靜默吞掉）', async () => {
-      settings.readEnabledPlugins
-        .mockResolvedValueOnce({})                                      // user
+      settings.clearAllEnabledPlugins
+        .mockResolvedValueOnce(undefined)                               // user
         .mockRejectedValueOnce(new Error('EACCES: permission denied')); // project
 
       await expect(svc.disableAll()).rejects.toThrow('EACCES');
-    });
-
-    it('所有 scope 都空 → 不呼叫 setPluginEnabled', async () => {
-      settings.readEnabledPlugins.mockResolvedValue({});
-
-      await svc.disableAll();
-
-      expect(settings.setPluginEnabled).not.toHaveBeenCalled();
     });
   });
 
