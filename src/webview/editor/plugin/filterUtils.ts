@@ -50,6 +50,25 @@ export function isInstalledInScope(p: MergedPlugin, scope: PluginScope): boolean
   }
 }
 
+/**
+ * 判斷 plugin 是否有可用更新。
+ * 比較 availableLastUpdated 與所有已安裝 scope 的最新 lastUpdated。
+ * 未安裝或無 availableLastUpdated 時回傳 false。
+ */
+export function hasPluginUpdate(p: MergedPlugin): boolean {
+  if (!p.availableLastUpdated) return false;
+  const installedDates = [
+    p.userInstall?.lastUpdated,
+    ...p.projectInstalls.map((i) => i.lastUpdated),
+    p.localInstall?.lastUpdated,
+  ].filter(Boolean) as string[];
+  if (installedDates.length === 0) return false;
+  const latestInstalledMs = installedDates
+    .map((d) => new Date(d).getTime())
+    .reduce((a, b) => Math.max(a, b));
+  return new Date(p.availableLastUpdated).getTime() > latestInstalledMs;
+}
+
 /** 所有可用的 content type filter chips */
 export const CONTENT_TYPE_FILTERS = ['commands', 'skills', 'agents', 'mcp'] as const;
 

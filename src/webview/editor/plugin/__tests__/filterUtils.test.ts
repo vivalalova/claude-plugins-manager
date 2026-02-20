@@ -6,9 +6,10 @@ import {
   readContentTypeFilters,
   writeContentTypeFilters,
   CONTENT_TYPE_STORAGE_KEY,
+  hasPluginUpdate,
   type ContentTypeFilter,
 } from '../filterUtils';
-import type { MergedPlugin, PluginContents } from '../../../../shared/types';
+import type { MergedPlugin, PluginContents, InstalledPlugin, PluginScope } from '../../../../shared/types';
 
 /** 建立測試用 MergedPlugin */
 function makeMerged(opts?: {
@@ -245,5 +246,82 @@ describe('readContentTypeFilters / writeContentTypeFilters', () => {
     const all: Set<ContentTypeFilter> = new Set(['commands', 'skills', 'agents', 'mcp']);
     writeContentTypeFilters(all);
     expect(readContentTypeFilters()).toEqual(all);
+  });
+});
+
+describe('hasPluginUpdate', () => {
+  function makeInstall(lastUpdated: string): InstalledPlugin {
+    return {
+      id: 'test@mp',
+      version: '1.0.0',
+      scope: 'user' as PluginScope,
+      enabled: true,
+      installPath: '/path',
+      installedAt: '2026-01-01T00:00:00Z',
+      lastUpdated,
+    };
+  }
+
+  it('無 availableLastUpdated → false', () => {
+    const p = makeMerged();
+    expect(hasPluginUpdate(p)).toBe(false);
+  });
+
+  it('有 availableLastUpdated 但未安裝 → false', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      availableLastUpdated: '2026-02-01T00:00:00Z',
+    };
+    expect(hasPluginUpdate(p)).toBe(false);
+  });
+
+  it('availableLastUpdated > installed lastUpdated → true（有更新）', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      availableLastUpdated: '2026-02-20T00:00:00Z',
+      userInstall: makeInstall('2026-01-01T00:00:00Z'),
+    };
+    expect(hasPluginUpdate(p)).toBe(true);
+  });
+
+  it('availableLastUpdated === installed lastUpdated → false（無更新）', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      availableLastUpdated: '2026-01-01T00:00:00Z',
+      userInstall: makeInstall('2026-01-01T00:00:00Z'),
+    };
+    expect(hasPluginUpdate(p)).toBe(false);
+  });
+
+  it('availableLastUpdated < installed lastUpdated → false（已是最新）', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      availableLastUpdated: '2026-01-01T00:00:00Z',
+      userInstall: makeInstall('2026-02-20T00:00:00Z'),
+    };
+    expect(hasPluginUpdate(p)).toBe(false);
+  });
+
+  it('多個 scope 安裝，取最新 lastUpdated 比較', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      availableLastUpdated: '2026-02-15T00:00:00Z',
+      userInstall: makeInstall('2026-01-01T00:00:00Z'),
+      projectInstalls: [{ ...makeInstall('2026-02-20T00:00:00Z'), scope: 'project' as PluginScope }],
+      localInstall: null,
+    };
+    // project install lastUpdated (2026-02-20) > available (2026-02-15) → false
+    expect(hasPluginUpdate(p)).toBe(false);
+  });
+
+  it('多個 scope 安裝，available 比所有 installed 都新 → true', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      availableLastUpdated: '2026-03-01T00:00:00Z',
+      userInstall: makeInstall('2026-01-01T00:00:00Z'),
+      projectInstalls: [{ ...makeInstall('2026-02-01T00:00:00Z'), scope: 'project' as PluginScope }],
+      localInstall: { ...makeInstall('2026-01-15T00:00:00Z'), scope: 'local' as PluginScope },
+    };
+    expect(hasPluginUpdate(p)).toBe(true);
   });
 });
