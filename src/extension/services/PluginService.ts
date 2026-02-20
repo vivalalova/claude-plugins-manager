@@ -2,7 +2,9 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type {
+  AvailablePlugin,
   InstalledPlugin,
+  InstalledPluginsFile,
   PluginListResponse,
   PluginScope,
   PluginInstallEntry,
@@ -29,7 +31,27 @@ export class PluginService {
       this.readAllEnabledPlugins(),
       this.settings.scanAvailablePlugins(),
     ]);
+    return this.buildInstalledList(data, enabledByScope, available);
+  }
 
+  /** 列出已安裝 + marketplace 可用的 plugin + marketplace source URLs */
+  async listAvailable(): Promise<PluginListResponse> {
+    const [data, enabledByScope, available, marketplaceSources] = await Promise.all([
+      this.settings.readInstalledPlugins(),
+      this.readAllEnabledPlugins(),
+      this.settings.scanAvailablePlugins(),
+      this.settings.readMarketplaceSources(),
+    ]);
+    const installed = await this.buildInstalledList(data, enabledByScope, available);
+    return { installed, available, marketplaceSources };
+  }
+
+  /** 從已取得的資料組裝 InstalledPlugin 列表（避免重複 IO） */
+  private async buildInstalledList(
+    data: InstalledPluginsFile,
+    enabledByScope: Record<PluginScope, Record<string, boolean>>,
+    available: AvailablePlugin[],
+  ): Promise<InstalledPlugin[]> {
     const descMap = new Map(
       available.map((a) => [a.pluginId, a.description]),
     );
@@ -85,16 +107,6 @@ export class PluginService {
       description,
       mcpServers: mcpServersResults[i],
     }));
-  }
-
-  /** 列出已安裝 + marketplace 可用的 plugin + marketplace source URLs */
-  async listAvailable(): Promise<PluginListResponse> {
-    const [installed, available, marketplaceSources] = await Promise.all([
-      this.listInstalled(),
-      this.settings.scanAvailablePlugins(),
-      this.settings.readMarketplaceSources(),
-    ]);
-    return { installed, available, marketplaceSources };
   }
 
   /** 安裝 plugin（寫入 installed_plugins.json + enable） */

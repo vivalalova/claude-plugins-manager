@@ -301,6 +301,51 @@ describe('PluginService', () => {
       expect(result.available).toEqual(available);
       expect(result.marketplaceSources).toEqual({ mp: 'https://github.com/example/mp' });
     });
+
+    it('scanAvailablePlugins 只呼叫一次（不重複掃描）', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      settings.readEnabledPlugins.mockResolvedValue({});
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+      settings.readMarketplaceSources.mockResolvedValue({});
+
+      await svc.listAvailable();
+
+      expect(settings.scanAvailablePlugins).toHaveBeenCalledTimes(1);
+    });
+
+    it('available 結果傳遞給 listInstalled 作為 descMap 來源', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'my-plugin@mp': [{
+            scope: 'user',
+            installPath: '/cache/my-plugin',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-06-01',
+          }],
+        },
+      });
+      settings.readEnabledPlugins.mockResolvedValue({});
+      mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
+
+      const available = [{
+        pluginId: 'my-plugin@mp',
+        name: 'my-plugin',
+        description: 'Plugin from marketplace',
+        marketplaceName: 'mp',
+        version: '2.0.0',
+      }];
+      settings.scanAvailablePlugins.mockResolvedValue(available);
+      settings.readMarketplaceSources.mockResolvedValue({});
+
+      const result = await svc.listAvailable();
+
+      // description 應從 available 傳入的結果中取得
+      expect(result.installed[0].description).toBe('Plugin from marketplace');
+      // 仍只呼叫一次
+      expect(settings.scanAvailablePlugins).toHaveBeenCalledTimes(1);
+    });
   });
 
   /* ═══════ install ═══════ */
