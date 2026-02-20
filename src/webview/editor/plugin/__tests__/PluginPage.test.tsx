@@ -468,6 +468,82 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Toggle install：單次 sendRequest', () => {
+    it('已安裝但 disabled 的 plugin → 勾選只發 plugin.enable（不重新 install）', async () => {
+      const allRequests: { type: string }[] = [];
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        allRequests.push(req);
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [makeInstalled('alpha', 'mp1', false)], // installed but disabled
+            [makeAvailable('alpha', 'mp1')],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      allRequests.length = 0;
+
+      // installed-but-disabled → checkbox unchecked
+      const userCheckbox = screen.getByRole('checkbox', { name: 'User' });
+      expect((userCheckbox as HTMLInputElement).checked).toBe(false);
+      fireEvent.click(userCheckbox);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Enabled alpha@mp1/)).toBeTruthy();
+      });
+
+      const types = allRequests.map((r) => r.type);
+      expect(types).toContain('plugin.enable');
+      expect(types).not.toContain('plugin.install');
+      expect(types).not.toContain('plugin.update');
+    });
+
+    it('勾選未安裝的 plugin → 只發一次 plugin.install（不發 update + enable）', async () => {
+      const allRequests: { type: string }[] = [];
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        allRequests.push(req);
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // Reset：追蹤 toggle 後的請求
+      allRequests.length = 0;
+
+      // 勾選 User scope toggle
+      const userCheckbox = screen.getByRole('checkbox', { name: 'User' });
+      fireEvent.click(userCheckbox);
+
+      // 等待操作完成（toast 出現）
+      await waitFor(() => {
+        expect(screen.getByText(/Enabled alpha@mp1/)).toBeTruthy();
+      });
+
+      const types = allRequests.map((r) => r.type);
+      expect(types.filter((t) => t === 'plugin.install')).toHaveLength(1);
+      expect(types).not.toContain('plugin.update');
+      expect(types).not.toContain('plugin.enable');
+    });
+  });
+
   describe('plugin.refresh 推送', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
       let pushCallback: ((msg: { type: string }) => void) | null = null;

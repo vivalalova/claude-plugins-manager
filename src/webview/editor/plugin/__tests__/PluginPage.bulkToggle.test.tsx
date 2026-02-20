@@ -168,6 +168,9 @@ describe('PluginPage — Marketplace Bulk Toggle', () => {
       plugin: 'beta@mp1',
       scope: 'user',
     });
+
+    // install 自動 enable，不應額外呼叫 plugin.enable
+    expect(filterCalls('plugin.enable')).toHaveLength(0);
   });
 
   it('已安裝但 disabled 的 plugin → dialog 確認 → 只呼叫 enable（不重新 install）', async () => {

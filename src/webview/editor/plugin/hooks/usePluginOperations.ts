@@ -126,27 +126,16 @@ export function usePluginOperations(
     setPluginLoading(pluginId, scope, true);
     try {
       if (enable) {
-        await sendRequest(
-          { type: 'plugin.install', plugin: pluginId, scope },
-          120_000,
-        );
-        const plugin = plugins.find((p) => p.id === pluginId);
-        const lastUpdated = plugin?.userInstall?.lastUpdated
-          ?? plugin?.projectInstalls[0]?.lastUpdated
-          ?? plugin?.localInstall?.lastUpdated;
-        const recentlyUpdated = lastUpdated
-          && (Date.now() - new Date(lastUpdated).getTime()) < 60_000;
-        if (!recentlyUpdated) {
-          try {
-            await sendRequest({ type: 'plugin.update', plugin: pluginId, scope }, 120_000);
-          } catch {
-            // 剛安裝的 plugin 可能無需 update → 靜默
-          }
-        }
-        try {
+        const pluginData = plugins.find((p) => p.id === pluginId);
+        if (pluginData && isInstalledInScope(pluginData, scope)) {
+          // 已安裝但停用 → 只需 enable
           await sendRequest({ type: 'plugin.enable', plugin: pluginId, scope });
-        } catch {
-          // install 已自動 enable → 靜默
+        } else {
+          // 未安裝 → install（已含 enable）
+          await sendRequest(
+            { type: 'plugin.install', plugin: pluginId, scope },
+            120_000,
+          );
         }
       } else {
         await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope });
@@ -237,10 +226,8 @@ export function usePluginOperations(
           if (isInstalledInScope(plugin, scope)) {
             await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
           } else {
+            // plugin.install 已自動 enable，不需額外呼叫
             await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
-            try {
-              await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
-            } catch { /* install auto-enables */ }
           }
         } catch (e) {
           errors.push({ marketplace, pluginId: plugin.id, message: e instanceof Error ? e.message : String(e) });
