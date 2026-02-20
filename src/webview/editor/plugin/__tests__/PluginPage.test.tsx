@@ -424,10 +424,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      // 勾選 Enabled filter（label 文字是 "Enabled"）
-      const enabledLabel = screen.getByText('Enabled');
-      const checkbox = enabledLabel.closest('label')!.querySelector('input[type="checkbox"]')!;
-      fireEvent.click(checkbox);
+      fireEvent.click(screen.getByText('Enabled'));
 
       await waitFor(() => {
         expect(screen.getByText('enabled-plugin')).toBeTruthy();
@@ -456,10 +453,7 @@ describe('PluginPage — 核心流程', () => {
       // section 預設收合
       expect(document.querySelector('.section-body--collapsed')).toBeTruthy();
 
-      // 勾選 Enabled filter（label 文字是 "Enabled"）
-      const enabledLabel = screen.getByText('Enabled');
-      const checkbox = enabledLabel.closest('label')!.querySelector('input[type="checkbox"]')!;
-      fireEvent.click(checkbox);
+      fireEvent.click(screen.getByText('Enabled'));
 
       await waitFor(() => {
         // filter 啟用後 section 自動展開

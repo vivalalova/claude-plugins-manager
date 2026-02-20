@@ -148,14 +148,6 @@ export function PluginPage(): React.ReactElement {
             </button>
           )}
         </div>
-        <label className="filter-checkbox">
-          <input
-            type="checkbox"
-            checked={filterEnabled}
-            onChange={() => setFilterEnabled((v) => !v)}
-          />
-          <span>Enabled</span>
-        </label>
         <button
           className="btn btn-secondary translate-btn"
           onClick={() => { setDraftEmail(translateEmail); setDraftLang(translateLang); setDialogOpen(true); }}
@@ -166,6 +158,12 @@ export function PluginPage(): React.ReactElement {
       </div>
 
       <div className="filter-chips">
+        <button
+          className={`filter-chip${filterEnabled ? ' filter-chip--active' : ''}`}
+          onClick={() => setFilterEnabled((v) => !v)}
+        >
+          Enabled
+        </button>
         {CONTENT_TYPE_FILTERS.map((type) => (
           <button
             key={type}
