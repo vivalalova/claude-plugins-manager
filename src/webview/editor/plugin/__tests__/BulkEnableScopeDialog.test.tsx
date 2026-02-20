@@ -160,4 +160,42 @@ describe('BulkEnableScopeDialog', () => {
     const userChip = [...chips].find((c) => c.textContent === 'User');
     expect(userChip?.className).not.toContain('filter-chip--active');
   });
+
+  it('ESC 鍵 → onCancel', () => {
+    const { container } = render(
+      <BulkEnableScopeDialog
+        marketplace="mp1"
+        itemCount={3}
+        scope="user"
+        workspaceFolders={noWorkspace}
+        onScopeChange={onScopeChange}
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    const dialog = container.querySelector('.confirm-dialog')!;
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('dialog 有 aria-labelledby 指向 title', () => {
+    const { container } = render(
+      <BulkEnableScopeDialog
+        marketplace="mp1"
+        itemCount={3}
+        scope="user"
+        workspaceFolders={noWorkspace}
+        onScopeChange={onScopeChange}
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    const dialog = container.querySelector('[role="dialog"]')!;
+    const labelledById = dialog.getAttribute('aria-labelledby');
+    expect(labelledById).toBeTruthy();
+    const titleEl = container.querySelector(`[id="${labelledById}"]`)!;
+    expect(titleEl.textContent).toContain('Enable All — mp1');
+  });
 });

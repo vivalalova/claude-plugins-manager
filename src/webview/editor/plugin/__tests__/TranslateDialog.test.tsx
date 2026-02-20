@@ -88,4 +88,13 @@ describe('TranslateDialog', () => {
     render(<TranslateDialog {...defaultProps} />);
     expect(screen.getByText('繁體中文')).toBeTruthy();
   });
+
+  it('email input 有 aria-describedby 指向 hint span', () => {
+    const { container } = render(<TranslateDialog {...defaultProps} emailId="test-email" />);
+    const input = container.querySelector('#test-email')!;
+    const hintId = input.getAttribute('aria-describedby');
+    expect(hintId).toBeTruthy();
+    const hint = container.querySelector(`[id="${hintId}"]`)!;
+    expect(hint.textContent).toContain('MyMemory');
+  });
 });
