@@ -17,6 +17,10 @@ export class McpService {
   private consecutiveErrors = 0;
   private readonly MAX_ERRORS_BEFORE_BACKOFF = 3;
 
+  /** buildServerMetadata() 快取，避免每次 poll 都重讀 disk */
+  private metadataCache: Map<string, { scope: McpScope; config?: McpServerConfig }> | null = null;
+  private metadataCacheDirty = true;
+
   /** 狀態變更事件，EditorPanelManager 訂閱後推送給 webview */
   readonly onStatusChange = new vscode.EventEmitter<McpServer[]>();
 
@@ -24,6 +28,12 @@ export class McpService {
   readonly onPollUnavailable = new vscode.EventEmitter<void>();
 
   constructor(private readonly cli: CliService) {}
+
+  /** 使 metadata cache 失效，下次 buildServerMetadata() 將重新從 disk 讀取 */
+  invalidateMetadataCache(): void {
+    this.metadataCache = null;
+    this.metadataCacheDirty = true;
+  }
 
   /**
    * 快速列出 MCP server（從設定檔 + 已安裝 plugin，不做 health check）。
@@ -105,6 +115,7 @@ export class McpService {
 
     const cwd = this.getCwdForScope(params.scope);
     await this.cli.exec(args, { cwd });
+    this.invalidateMetadataCache();
   }
 
   /** 移除 MCP server */
@@ -115,6 +126,7 @@ export class McpService {
     }
     const cwd = this.getWorkspaceCwd();
     await this.cli.exec(args, { cwd });
+    this.invalidateMetadataCache();
   }
 
   /**
@@ -280,6 +292,10 @@ export class McpService {
    * - project scope: {workspace}/.mcp.json → mcpServers
    */
   private async buildServerMetadata(): Promise<Map<string, { scope: McpScope; config?: McpServerConfig }>> {
+    if (!this.metadataCacheDirty && this.metadataCache) {
+      return this.metadataCache;
+    }
+
     const map = new Map<string, { scope: McpScope; config?: McpServerConfig }>();
 
     const workspacePath = this.getWorkspaceCwd();
@@ -354,6 +370,8 @@ export class McpService {
       );
     } catch { /* installed_plugins.json not found */ }
 
+    this.metadataCache = map;
+    this.metadataCacheDirty = false;
     return map;
   }
 

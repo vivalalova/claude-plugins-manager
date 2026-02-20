@@ -9,6 +9,7 @@ export const FILE_WATCHER_DEBOUNCE_MS = 500;
 enum FileChangeCategory {
   Plugin = 'plugin',
   Marketplace = 'marketplace',
+  Mcp = 'mcp',
 }
 
 /**
@@ -28,6 +29,10 @@ export class FileWatcherService implements vscode.Disposable {
   /** Marketplace 相關檔案變更（known_marketplaces.json） */
   private readonly _onMarketplaceFilesChanged = new vscode.EventEmitter<void>();
   readonly onMarketplaceFilesChanged = this._onMarketplaceFilesChanged.event;
+
+  /** MCP 相關檔案變更（.claude.json、.mcp.json、installed_plugins.json） */
+  private readonly _onMcpFilesChanged = new vscode.EventEmitter<void>();
+  readonly onMcpFilesChanged = this._onMcpFilesChanged.event;
 
   constructor() {
     this.setupWatchers();
@@ -63,6 +68,21 @@ export class FileWatcherService implements vscode.Disposable {
 
     // workspace .claude/settings.local.json → plugin refresh
     this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Plugin);
+
+    // ~/.claude.json → MCP metadata refresh（user + local scope MCP servers）
+    this.watchFile(
+      join(home, '.claude.json'),
+      FileChangeCategory.Mcp,
+    );
+
+    // ~/.claude/plugins/installed_plugins.json → MCP metadata refresh（plugin MCP servers）
+    this.watchFile(
+      join(home, '.claude', 'plugins', 'installed_plugins.json'),
+      FileChangeCategory.Mcp,
+    );
+
+    // workspace .mcp.json → MCP metadata refresh（project scope）
+    this.watchWorkspaceFile('.mcp.json', FileChangeCategory.Mcp);
   }
 
   /** 監控絕對路徑檔案 */
@@ -91,6 +111,7 @@ export class FileWatcherService implements vscode.Disposable {
     this.workspaceWatchers.length = 0;
     this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Plugin);
     this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Plugin);
+    this.watchWorkspaceFile('.mcp.json', FileChangeCategory.Mcp);
   }
 
   /** 建立 watcher 並綁定 change/create/delete 事件 */
@@ -120,8 +141,10 @@ export class FileWatcherService implements vscode.Disposable {
         this.debounceTimers.delete(category);
         if (category === FileChangeCategory.Plugin) {
           this._onPluginFilesChanged.fire();
-        } else {
+        } else if (category === FileChangeCategory.Marketplace) {
           this._onMarketplaceFilesChanged.fire();
+        } else {
+          this._onMcpFilesChanged.fire();
         }
       }, FILE_WATCHER_DEBOUNCE_MS),
     );
@@ -135,6 +158,7 @@ export class FileWatcherService implements vscode.Disposable {
     this.workspaceWatchers.length = 0;
     this._onPluginFilesChanged.dispose();
     this._onMarketplaceFilesChanged.dispose();
+    this._onMcpFilesChanged.dispose();
     for (const d of this.disposables) d.dispose();
   }
 }

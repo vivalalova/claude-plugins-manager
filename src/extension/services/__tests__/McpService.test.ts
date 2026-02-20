@@ -332,6 +332,41 @@ describe('McpService', () => {
         expect.anything(),
       );
     });
+
+    it('add 後 metadata cache 立即 invalidate（不等 FileWatcher debounce）', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { srv: { command: 'npx', args: ['test'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      // 建立 cache
+      await svc.listFromFiles();
+      mockReadFile.mockClear();
+
+      // add() 後 cache 應被 invalidate
+      await svc.add({ name: 'new-srv', commandOrUrl: 'npx new' });
+
+      // 下次 listFromFiles() 應重讀 disk（cache miss）
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: {
+              srv: { command: 'npx', args: ['test'] },
+              'new-srv': { command: 'npx', args: ['new'] },
+            },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const result = await svc.listFromFiles();
+      expect(mockReadFile).toHaveBeenCalled();
+      expect(result).toHaveLength(2);
+    });
   });
 
   describe('remove()', () => {
@@ -358,6 +393,26 @@ describe('McpService', () => {
         ['mcp', 'remove', 'my-server', '--scope', 'project'],
         expect.objectContaining({ cwd: '/my/project' }),
       );
+    });
+
+    it('remove 後 metadata cache 立即 invalidate', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { srv: { command: 'npx', args: ['test'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      await svc.listFromFiles();
+      mockReadFile.mockClear();
+
+      await svc.remove('srv');
+
+      // cache invalidated → 下次 listFromFiles() 重讀 disk
+      await svc.listFromFiles();
+      expect(mockReadFile).toHaveBeenCalled();
     });
   });
 
@@ -559,6 +614,89 @@ describe('McpService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].status).toBe('connected');
       expect(listener).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('buildServerMetadata cache', () => {
+    it('連續兩次 listFromFiles()：第二次不重讀 disk（cache hit）', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { srv: { command: 'npx', args: ['test'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const first = await svc.listFromFiles();
+      expect(first).toHaveLength(1);
+
+      // 清除呼叫紀錄
+      mockReadFile.mockClear();
+
+      const second = await svc.listFromFiles();
+      expect(second).toHaveLength(1);
+
+      // cache hit → readFile 不應被呼叫
+      expect(mockReadFile).not.toHaveBeenCalled();
+    });
+
+    it('invalidateMetadataCache() 後重新從 disk 讀取', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { srv: { command: 'npx', args: ['v1'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      await svc.listFromFiles();
+      mockReadFile.mockClear();
+
+      // invalidate cache
+      svc.invalidateMetadataCache();
+
+      // 更新 mock 回傳新資料
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { srv: { command: 'npx', args: ['v2'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const result = await svc.listFromFiles();
+
+      // 重新讀取 → readFile 被呼叫
+      expect(mockReadFile).toHaveBeenCalled();
+      // 結果反映新資料
+      expect(result[0].command).toBe('npx v2');
+    });
+
+    it('polling 週期內 cache 避免重複 disk read', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { srv: { command: 'npx', args: ['test'] } },
+          });
+        }
+        throw new Error('ENOENT');
+      });
+      cli.exec.mockResolvedValue('srv: npx test - ✓ Connected');
+
+      svc.startPolling();
+      // 首次 pollOnce → list() → buildServerMetadata() → 讀 disk
+      await vi.advanceTimersByTimeAsync(0);
+      const firstReadCount = mockReadFile.mock.calls.length;
+      expect(firstReadCount).toBeGreaterThan(0);
+
+      mockReadFile.mockClear();
+
+      // 第二次 poll → cache hit，不讀 disk
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(mockReadFile).not.toHaveBeenCalled();
     });
   });
 });

@@ -21,6 +21,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const translationService = new TranslationService();
   const fileWatcherService = new FileWatcherService();
   const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService);
+  // MCP 相關檔案變更 → invalidate metadata cache
+  fileWatcherService.onMcpFilesChanged(() => mcpService.invalidateMetadataCache());
+  // Workspace 切換 → invalidate（不同 workspace 有不同的 .mcp.json）
+  vscode.workspace.onDidChangeWorkspaceFolders(() => mcpService.invalidateMetadataCache());
   const editorManager = new EditorPanelManager(context.extensionUri, router, mcpService, fileWatcherService);
 
   const sidebarProvider = new SidebarViewProvider(
