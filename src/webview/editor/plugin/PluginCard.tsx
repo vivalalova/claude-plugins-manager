@@ -66,9 +66,6 @@ export function PluginCard({
       <div className="card-header">
         <div>
           <span className="card-name">{plugin.name}</span>
-          {plugin.marketplaceName && (
-            <span className="card-marketplace">@{plugin.marketplaceName}</span>
-          )}
         </div>
         <div className="card-header-right">
           {lastUpdated && (

@@ -371,4 +371,5 @@ describe('PluginCard', () => {
     // 應顯示預計算的 lastUpdated（非 inline 計算）
     expect(screen.getByText(/Updated:/)).toBeTruthy();
   });
+
 });
