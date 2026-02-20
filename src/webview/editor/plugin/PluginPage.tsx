@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { KeyboardHelpOverlay } from '../../components/KeyboardHelpOverlay';
 import { PluginCard } from './PluginCard';
 import { getCardTranslateStatus } from './translateUtils';
 import {
@@ -17,6 +18,7 @@ import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
 import { usePluginOperations } from './hooks/usePluginOperations';
 import { useTranslation } from './hooks/useTranslation';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 /**
  * Plugin 管理頁面。
@@ -91,6 +93,13 @@ export function PluginPage(): React.ReactElement {
     translateEmail,
   } = useTranslation(plugins);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { showHelp, setShowHelp } = useKeyboardShortcuts({
+    searchInputRef,
+    onSearchClear: () => { setSearch(''); flushSearch(''); },
+    cardSelector: '.card[tabindex]',
+  });
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -120,6 +129,7 @@ export function PluginPage(): React.ReactElement {
       <div className="search-row">
         <div className="search-input-wrapper">
           <input
+            ref={searchInputRef}
             className="input search-bar"
             type="text"
             placeholder="Search plugins..."
@@ -338,6 +348,8 @@ export function PluginPage(): React.ReactElement {
           </div>
         </div>
       )}
+
+      {showHelp && <KeyboardHelpOverlay onClose={() => setShowHelp(false)} />}
 
       {dialogOpen && (
         <div

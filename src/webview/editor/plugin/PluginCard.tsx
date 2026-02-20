@@ -67,6 +67,9 @@ export function PluginCard({
     <div
       className={`card${hasContents ? ' card--expandable' : ''}`}
       onClick={handleCardClick}
+      tabIndex={0}
+      role="group"
+      aria-label={plugin.name}
     >
       <div className="card-header">
         <div>

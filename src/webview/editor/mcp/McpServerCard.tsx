@@ -23,7 +23,7 @@ export function McpServerCard({
 }: McpServerCardProps): React.ReactElement {
   const isFailed = server.status === 'failed';
   return (
-    <div className={`card${isFailed ? ' card--failed' : ''}`}>
+    <div className={`card${isFailed ? ' card--failed' : ''}`} tabIndex={0} role="group" aria-label={server.name}>
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="card-name">{server.name}</span>
