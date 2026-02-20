@@ -243,4 +243,116 @@ describe('PluginCard', () => {
     expect(screen.getByText('Update')).toBeTruthy();
     expect(screen.getByText('GitHub')).toBeTruthy();
   });
+
+  it('availableLastUpdated > installed lastUpdated → 顯示 Update available badge', () => {
+    const plugin = createPlugin({
+      availableLastUpdated: '2026-02-20T00:00:00Z',
+      userInstall: {
+        id: 'test-plugin@test-mp',
+        version: '1.0.0',
+        scope: 'user' as PluginScope,
+        enabled: true,
+        installPath: '/path',
+        installedAt: '2026-01-01T00:00:00Z',
+        lastUpdated: '2026-01-01T00:00:00Z',
+      },
+    });
+
+    render(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    expect(screen.getByText('Update available')).toBeTruthy();
+  });
+
+  it('無 availableLastUpdated → 不顯示 badge', () => {
+    const plugin = createPlugin({
+      userInstall: {
+        id: 'test-plugin@test-mp',
+        version: '1.0.0',
+        scope: 'user' as PluginScope,
+        enabled: true,
+        installPath: '/path',
+        installedAt: '2026-01-01T00:00:00Z',
+        lastUpdated: '2026-01-01T00:00:00Z',
+      },
+    });
+
+    render(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    expect(screen.queryByText('Update available')).toBeNull();
+  });
+
+  it('available <= installed → 不顯示 badge', () => {
+    const plugin = createPlugin({
+      availableLastUpdated: '2026-01-01T00:00:00Z',
+      userInstall: {
+        id: 'test-plugin@test-mp',
+        version: '1.0.0',
+        scope: 'user' as PluginScope,
+        enabled: true,
+        installPath: '/path',
+        installedAt: '2026-01-01T00:00:00Z',
+        lastUpdated: '2026-02-20T00:00:00Z',
+      },
+    });
+
+    render(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    expect(screen.queryByText('Update available')).toBeNull();
+  });
+
+  it('badge click → 觸發 onUpdate', () => {
+    const plugin = createPlugin({
+      availableLastUpdated: '2026-02-20T00:00:00Z',
+      userInstall: {
+        id: 'test-plugin@test-mp',
+        version: '1.0.0',
+        scope: 'user' as PluginScope,
+        enabled: true,
+        installPath: '/path',
+        installedAt: '2026-01-01T00:00:00Z',
+        lastUpdated: '2026-01-01T00:00:00Z',
+      },
+    });
+
+    render(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    fireEvent.click(screen.getByText('Update available'));
+    expect(onUpdate).toHaveBeenCalledWith(['user']);
+  });
+
+  it('badge loading 時顯示 spinner 取代文字', () => {
+    const plugin = createPlugin({
+      availableLastUpdated: '2026-02-20T00:00:00Z',
+      userInstall: {
+        id: 'test-plugin@test-mp',
+        version: '1.0.0',
+        scope: 'user' as PluginScope,
+        enabled: true,
+        installPath: '/path',
+        installedAt: '2026-01-01T00:00:00Z',
+        lastUpdated: '2026-01-01T00:00:00Z',
+      },
+    });
+
+    const { container } = render(
+      <PluginCard
+        plugin={plugin}
+        loadingScopes={new Set<PluginScope>(['user'])}
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    // badge 存在但顯示 spinner 而非文字
+    expect(screen.queryByText('Update available')).toBeNull();
+    expect(container.querySelector('.badge-update .scope-spinner')).toBeTruthy();
+  });
 });

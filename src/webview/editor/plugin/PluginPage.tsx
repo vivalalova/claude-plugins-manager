@@ -8,6 +8,7 @@ import {
   CONTENT_TYPE_FILTERS,
   CONTENT_TYPE_LABELS,
   isPluginEnabled,
+  hasPluginUpdate,
 } from './filterUtils';
 import {
   TRANSLATE_LANGS,
@@ -235,6 +236,7 @@ export function PluginPage(): React.ReactElement {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
           const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
           const enabledCount = items.filter(isPluginEnabled).length;
+          const updateCount = items.filter(hasPluginUpdate).length;
           const mpBulk = bulkProgress.get(marketplace);
           const allEnabled = items.every(isPluginEnabled);
           return (
@@ -252,6 +254,9 @@ export function PluginPage(): React.ReactElement {
                   <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
                   <span className="section-toggle-label">{marketplace}</span>
                   <span className="section-count">{enabledCount} / {items.length}</span>
+                  {updateCount > 0 && (
+                    <span className="section-updates">{updateCount} update{updateCount > 1 ? 's' : ''}</span>
+                  )}
                   {marketplaceSources[marketplace] && (
                     <span className="section-source">{marketplaceSources[marketplace]}</span>
                   )}

@@ -1399,3 +1399,42 @@ body.vscode-light .json-token--boolean {
 body.vscode-light .json-token--null {
   color: var(--vscode-debugTokenExpression-value, #0000ff);
 }
+
+/* ----------------------------------------------------------------
+ * Plugin Update Badge
+ * ---------------------------------------------------------------- */
+
+.badge-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: var(--vscode-editor-background, #1e1e1e);
+  white-space: nowrap;
+}
+
+.badge-update:hover {
+  opacity: 0.85;
+}
+
+.badge-update:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+body.vscode-light .badge-update {
+  background: var(--vscode-editorWarning-foreground, #bf8803);
+  color: #fff;
+}
+
+.section-updates {
+  font-size: 11px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  margin-left: 8px;
+}

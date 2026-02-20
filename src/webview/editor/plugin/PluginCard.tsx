@@ -5,7 +5,7 @@ import type {
   PluginContentItem,
   PluginScope,
 } from '../../../shared/types';
-import { isPluginInstalled, getInstalledScopes } from './filterUtils';
+import { isPluginInstalled, getInstalledScopes, hasPluginUpdate } from './filterUtils';
 import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
 
@@ -45,6 +45,7 @@ export function PluginCard({
   const isInstalled = isPluginInstalled(plugin);
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
+  const hasUpdate = hasPluginUpdate(plugin);
 
   const lastUpdated = [
     plugin.userInstall?.lastUpdated,
@@ -78,7 +79,17 @@ export function PluginCard({
           {lastUpdated && (
             <span className="card-updated">Updated: {formatDate(lastUpdated)}</span>
           )}
-          {isInstalled && (
+          {hasUpdate && (
+            <button
+              type="button"
+              className="badge-update"
+              onClick={(e) => { e.stopPropagation(); onUpdate(getInstalledScopes(plugin)); }}
+              disabled={!!loadingScopes?.size}
+            >
+              {loadingScopes?.size ? <span className="scope-spinner" /> : 'Update available'}
+            </button>
+          )}
+          {isInstalled && !hasUpdate && (
             <button
               className="btn btn-secondary btn-sm"
               disabled={!!loadingScopes?.size}
