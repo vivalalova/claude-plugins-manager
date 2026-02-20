@@ -4,6 +4,8 @@ import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptySta
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { KeyboardHelpOverlay } from '../../components/KeyboardHelpOverlay';
 import { PluginCard } from './PluginCard';
+import { BulkEnableScopeDialog } from './BulkEnableScopeDialog';
+import { TranslateDialog } from './TranslateDialog';
 import { getCardTranslateStatus } from './translateUtils';
 import {
   CONTENT_TYPE_FILTERS,
@@ -11,9 +13,7 @@ import {
   isPluginEnabled,
   hasPluginUpdate,
 } from './filterUtils';
-import {
-  TRANSLATE_LANGS,
-} from '../../../shared/types';
+import { TRANSLATE_LANGS } from '../../../shared/types';
 import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
 import { usePluginOperations } from './hooks/usePluginOperations';
@@ -308,101 +308,36 @@ export function PluginPage(): React.ReactElement {
       )}
 
       {pendingBulkEnable && (
-        <div className="confirm-overlay" onClick={() => setPendingBulkEnable(null)}>
-          <div
-            className="confirm-dialog"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="confirm-dialog-title">Enable All — {pendingBulkEnable.marketplace}</div>
-            <div className="confirm-dialog-message">
-              Select scope for enabling {pendingBulkEnable.items.length} plugins:
-            </div>
-            <div className="scope-checkboxes" style={{ marginBottom: 16 }}>
-              {(['user', 'project', 'local'] as const)
-                .filter((s) => s === 'user' || workspaceFolders.length > 0)
-                .map((s) => (
-                  <button
-                    key={s}
-                    className={`filter-chip${bulkDialogScope === s ? ' filter-chip--active' : ''}`}
-                    onClick={() => setBulkDialogScope(s)}
-                  >
-                    {s === 'user' ? 'User' : s === 'project' ? 'Project' : 'Local'}
-                  </button>
-                ))}
-            </div>
-            <div className="confirm-dialog-actions">
-              <button className="btn btn-secondary" onClick={() => setPendingBulkEnable(null)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  const { marketplace, items } = pendingBulkEnable;
-                  setPendingBulkEnable(null);
-                  handleBulkEnable(marketplace, items, bulkDialogScope);
-                }}
-              >
-                Enable All
-              </button>
-            </div>
-          </div>
-        </div>
+        <BulkEnableScopeDialog
+          marketplace={pendingBulkEnable.marketplace}
+          itemCount={pendingBulkEnable.items.length}
+          scope={bulkDialogScope}
+          workspaceFolders={workspaceFolders}
+          onScopeChange={setBulkDialogScope}
+          onCancel={() => setPendingBulkEnable(null)}
+          onConfirm={() => {
+            const { marketplace, items } = pendingBulkEnable;
+            setPendingBulkEnable(null);
+            handleBulkEnable(marketplace, items, bulkDialogScope);
+          }}
+        />
       )}
 
       {showHelp && <KeyboardHelpOverlay onClose={() => setShowHelp(false)} />}
 
       {dialogOpen && (
-        <div
-          className="confirm-overlay"
-          onClick={() => setDialogOpen(false)}
-        >
-          <div
-            ref={translateTrapRef}
-            className="confirm-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={translateTitleId}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="confirm-dialog-title" id={translateTitleId}>Translate</div>
-            <div className="form-row">
-              <label className="form-label" htmlFor={translateEmailId}>Email (MyMemory API)</label>
-              <input
-                id={translateEmailId}
-                className="input"
-                type="email"
-                value={draftEmail}
-                onChange={(e) => setDraftEmail(e.target.value)}
-                placeholder="your@email.com"
-              />
-              <span className="form-hint">
-                Email is sent to MyMemory API to increase daily quota.
-              </span>
-            </div>
-            <div className="form-row">
-              <label className="form-label" htmlFor={translateLangId}>Language</label>
-              <select
-                id={translateLangId}
-                className="input"
-                value={draftLang}
-                onChange={(e) => setDraftLang(e.target.value)}
-              >
-                <option value="">English</option>
-                {Object.entries(TRANSLATE_LANGS).map(([code, label]) => (
-                  <option key={code} value={code}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="confirm-dialog-actions" style={{ marginTop: 16 }}>
-              <button className="btn btn-secondary" onClick={() => setDialogOpen(false)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                onClick={handleDialogConfirm}
-                disabled={!draftEmail || !draftLang}
-              >OK</button>
-            </div>
-          </div>
-        </div>
+        <TranslateDialog
+          trapRef={translateTrapRef}
+          titleId={translateTitleId}
+          emailId={translateEmailId}
+          langId={translateLangId}
+          draftEmail={draftEmail}
+          draftLang={draftLang}
+          onEmailChange={setDraftEmail}
+          onLangChange={setDraftLang}
+          onCancel={() => setDialogOpen(false)}
+          onConfirm={handleDialogConfirm}
+        />
       )}
     </div>
   );
