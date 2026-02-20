@@ -4,7 +4,7 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（159 tests）
+npm test                   # vitest run（513 tests）
 npm run build              # esbuild 雙配置（extension + webview）
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
@@ -29,6 +29,7 @@ npm run watch              # concurrently watch extension + webview
 | PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable          |
 | MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate                       |
 | McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢                                |
+| FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
 | TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯                              |
 
 ### 設定檔結構
@@ -49,6 +50,7 @@ npm run watch              # concurrently watch extension + webview
 - `claude mcp list` 無 `--json`，需解析文字輸出
 - `tsconfig.json` 的 `exclude` 要加 `__tests__` 和 `__mocks__`，避免 vscode mock 型別衝突
 - Plugin contents 掃描：frontmatter 用簡易 regex 解析（非完整 YAML parser），足夠處理 `name`/`description`
+- `scanAvailablePlugins()` 會讀 `plugin.json`（description/version 優先於 marketplace.json）；`author` 欄位可能是 string 或 `{ name, email }` object
 
 ## 測試
 
