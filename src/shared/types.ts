@@ -176,6 +176,8 @@ export interface MergedPlugin {
   sourceDir?: string;
   /** marketplace 上可用版本的最後修改時間（ISO 8601），用於偵測更新 */
   availableLastUpdated?: string;
+  /** 所有已安裝 scope 中最新的 lastUpdated（mergePlugins 預計算，PluginCard 直接讀取） */
+  lastUpdated?: string;
   /** user scope 安裝（null = 未安裝） */
   userInstall: InstalledPlugin | null;
   /** project scope 安裝（可能多個 project） */

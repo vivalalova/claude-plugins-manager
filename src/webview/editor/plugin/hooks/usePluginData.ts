@@ -99,6 +99,18 @@ function mergePlugins(
     }
   }
 
+  // 預計算 lastUpdated（最新安裝日期），避免 PluginCard 每次 render 重算
+  for (const p of map.values()) {
+    const dates = [
+      p.userInstall?.lastUpdated,
+      ...p.projectInstalls.map((i) => i.lastUpdated),
+      p.localInstall?.lastUpdated,
+    ].filter(Boolean) as string[];
+    if (dates.length > 0) {
+      p.lastUpdated = dates.sort().pop();
+    }
+  }
+
   // 按名稱排序
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }

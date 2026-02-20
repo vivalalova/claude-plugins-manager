@@ -356,4 +356,19 @@ describe('PluginCard', () => {
     expect(screen.queryByText('Update available')).toBeNull();
     expect(container.querySelector('.badge-update .scope-spinner')).toBeTruthy();
   });
+
+  it('lastUpdated 從 plugin.lastUpdated 讀取（預計算，無 installs 也能顯示）', () => {
+    // plugin.lastUpdated 預計算後，無 install 記錄也應顯示
+    const plugin = createPlugin({
+      lastUpdated: '2026-02-20T00:00:00Z',
+      userInstall: null,
+      projectInstalls: [],
+      localInstall: null,
+    });
+
+    render(<PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />);
+
+    // 應顯示預計算的 lastUpdated（非 inline 計算）
+    expect(screen.getByText(/Updated:/)).toBeTruthy();
+  });
 });

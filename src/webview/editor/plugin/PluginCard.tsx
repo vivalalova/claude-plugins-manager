@@ -46,14 +46,7 @@ export function PluginCard({
   const hasContents = pluginHasContents(plugin.contents);
   const hasUpdate = hasPluginUpdate(plugin);
 
-  const lastUpdated = [
-    plugin.userInstall?.lastUpdated,
-    ...plugin.projectInstalls.map((p) => p.lastUpdated),
-    plugin.localInstall?.lastUpdated,
-  ]
-    .filter(Boolean)
-    .sort()
-    .pop();
+  const { lastUpdated } = plugin;
 
   const handleCardClick = (e: React.MouseEvent) => {
     // 不攔截互動元素的 click
