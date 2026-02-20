@@ -1,7 +1,7 @@
-import { type Dispatch, type RefObject, type SetStateAction, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { type Dispatch, type RefObject, type SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../../vscode';
 import { useFocusTrap } from '../../../hooks/useFocusTrap';
-import { collectPluginTexts, runConcurrent } from '../translateUtils';
+import { collectPluginTexts, computeTranslateFingerprint, runConcurrent } from '../translateUtils';
 import type { TranslateResult } from '../../../../extension/services/TranslationService';
 import type { MergedPlugin } from '../../../../shared/types';
 
@@ -143,12 +143,25 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
     await runConcurrent(tasks, 3);
   }, []);
 
-  // 語言、email 或 plugins 變更時自動翻譯
+  // 語言、email 或 plugins descriptions 變更時自動翻譯
+  // fingerprint 含 lang + email + 所有 description，避免 array reference 變更觸發無用重譯
+  const textsFingerprint = useMemo(
+    () => computeTranslateFingerprint(plugins, translateLang, translateEmail),
+    [plugins, translateLang, translateEmail],
+  );
+  const prevFingerprintRef = useRef('');
+
   useEffect(() => {
+    if (textsFingerprint === prevFingerprintRef.current) return;
+    prevFingerprintRef.current = textsFingerprint;
+
     if (plugins.length > 0 && translateLang && translateEmail) {
       doTranslate(translateLang, translateEmail, plugins);
     }
-  }, [translateLang, translateEmail, plugins, doTranslate]);
+  // plugins/translateLang/translateEmail 已 encode 進 textsFingerprint，
+  // 但 effect body 引用了它們，須列入 deps 以遵守 exhaustive-deps 規則。
+  // fingerprint guard 會阻擋 reference-only 變更，避免無用 API call。
+  }, [textsFingerprint, plugins, translateLang, translateEmail, doTranslate]);
 
   /** Dialog confirm：儲存設定並觸發翻譯 */
   const handleDialogConfirm = (): void => {

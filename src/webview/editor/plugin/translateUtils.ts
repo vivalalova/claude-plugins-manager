@@ -28,6 +28,17 @@ export function getCardTranslateStatus(
   return undefined;
 }
 
+/** 計算翻譯 fingerprint（lang + email + 所有 description），用於比對是否需要重譯 */
+export function computeTranslateFingerprint(
+  plugins: MergedPlugin[],
+  lang: string,
+  email: string,
+): string {
+  const texts = collectPluginTexts(plugins);
+  const sorted = [...texts].sort();
+  return `${lang}\0${email}\0${sorted.length}\0${sorted.join('\0')}`;
+}
+
 /** 以最多 limit 個併發執行 tasks（個別 task 失敗不影響其他） */
 export async function runConcurrent(tasks: (() => Promise<void>)[], limit: number): Promise<void> {
   const executing = new Set<Promise<void>>();

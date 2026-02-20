@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { collectPluginTexts, getCardTranslateStatus, runConcurrent } from '../translateUtils';
+import { collectPluginTexts, computeTranslateFingerprint, getCardTranslateStatus, runConcurrent } from '../translateUtils';
 import type { MergedPlugin, PluginContents } from '../../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -164,6 +164,68 @@ describe('getCardTranslateStatus', () => {
       new Set(),
     );
     expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runConcurrent
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// computeTranslateFingerprint
+// ---------------------------------------------------------------------------
+
+describe('computeTranslateFingerprint', () => {
+  it('相同 plugins + lang + email → 相同 fingerprint', () => {
+    const plugins1 = [makePlugin({ description: 'Hello' })];
+    const plugins2 = [makePlugin({ description: 'Hello' })]; // 新 reference
+    expect(computeTranslateFingerprint(plugins1, 'zh-TW', 'a@b.com'))
+      .toBe(computeTranslateFingerprint(plugins2, 'zh-TW', 'a@b.com'));
+  });
+
+  it('description 變更 → 不同 fingerprint', () => {
+    const plugins1 = [makePlugin({ description: 'Hello' })];
+    const plugins2 = [makePlugin({ description: 'World' })];
+    expect(computeTranslateFingerprint(plugins1, 'zh-TW', 'a@b.com'))
+      .not.toBe(computeTranslateFingerprint(plugins2, 'zh-TW', 'a@b.com'));
+  });
+
+  it('lang 變更 → 不同 fingerprint', () => {
+    const plugins = [makePlugin({ description: 'Hello' })];
+    expect(computeTranslateFingerprint(plugins, 'zh-TW', 'a@b.com'))
+      .not.toBe(computeTranslateFingerprint(plugins, 'ja', 'a@b.com'));
+  });
+
+  it('email 變更 → 不同 fingerprint', () => {
+    const plugins = [makePlugin({ description: 'Hello' })];
+    expect(computeTranslateFingerprint(plugins, 'zh-TW', 'a@b.com'))
+      .not.toBe(computeTranslateFingerprint(plugins, 'zh-TW', 'x@y.com'));
+  });
+
+  it('description 順序不同但內容相同 → 相同 fingerprint（sorted）', () => {
+    const plugins1 = [
+      makePlugin({ id: 'a@mp', description: 'Alpha' }),
+      makePlugin({ id: 'b@mp', description: 'Beta' }),
+    ];
+    const plugins2 = [
+      makePlugin({ id: 'b@mp', description: 'Beta' }),
+      makePlugin({ id: 'a@mp', description: 'Alpha' }),
+    ];
+    expect(computeTranslateFingerprint(plugins1, 'zh-TW', 'a@b.com'))
+      .toBe(computeTranslateFingerprint(plugins2, 'zh-TW', 'a@b.com'));
+  });
+
+  it('空 plugins + 空 lang → 穩定 fingerprint（不 crash）', () => {
+    const fp = computeTranslateFingerprint([], '', '');
+    expect(typeof fp).toBe('string');
+    expect(fp).toBe(computeTranslateFingerprint([], '', ''));
+  });
+
+  it('新增 plugin → 不同 fingerprint', () => {
+    const plugins1 = [makePlugin({ description: 'A' })];
+    const plugins2 = [makePlugin({ description: 'A' }), makePlugin({ id: 'b@mp', description: 'B' })];
+    expect(computeTranslateFingerprint(plugins1, 'zh-TW', 'a@b.com'))
+      .not.toBe(computeTranslateFingerprint(plugins2, 'zh-TW', 'a@b.com'));
   });
 });
 
