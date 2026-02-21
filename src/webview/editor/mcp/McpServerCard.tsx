@@ -9,6 +9,7 @@ interface McpServerCardProps {
   onRemove: () => void;
   onViewDetail: () => void;
   onRetry: () => void;
+  onAuthenticate?: () => void;
   retrying?: boolean;
 }
 
@@ -19,11 +20,14 @@ export function McpServerCard({
   onRemove,
   onViewDetail,
   onRetry,
+  onAuthenticate,
   retrying,
 }: McpServerCardProps): React.ReactElement {
   const isFailed = server.status === 'failed';
+  const isNeedsAuth = server.status === 'needs-auth';
+  const cardClass = `card${isFailed ? ' card--failed' : ''}${isNeedsAuth ? ' card--needs-auth' : ''}`;
   return (
-    <div className={`card${isFailed ? ' card--failed' : ''}`} tabIndex={0} role="group" aria-label={server.name}>
+    <div className={cardClass} tabIndex={0} role="group" aria-label={server.name}>
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="card-name">{server.name}</span>
@@ -33,6 +37,11 @@ export function McpServerCard({
       </div>
       {isFailed && (
         <div className="card-error">Connection failed</div>
+      )}
+      {isNeedsAuth && (
+        <div className="card-auth-guide" role="status">
+          Authentication required — complete the auth flow in Claude Code CLI, then check status
+        </div>
       )}
       <div className="card-meta">
         <div style={{ fontFamily: 'var(--vscode-editor-font-family)', fontSize: 12 }}>
@@ -46,6 +55,11 @@ export function McpServerCard({
         {isFailed && (
           <button className="btn btn-primary" onClick={onRetry} disabled={retrying}>
             {retrying ? 'Retrying...' : 'Retry'}
+          </button>
+        )}
+        {isNeedsAuth && onAuthenticate && (
+          <button className="btn btn-primary" onClick={onAuthenticate} disabled={retrying}>
+            {retrying ? 'Checking...' : 'Check Status'}
           </button>
         )}
         <button className="btn btn-secondary" onClick={onViewDetail}>

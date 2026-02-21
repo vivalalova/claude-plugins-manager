@@ -244,6 +244,68 @@ describe('McpPage — Status Summary + Error Indicator', () => {
     expect(screen.queryByText('Status polling unavailable')).toBeNull();
   });
 
+  it('needs-auth server 在 summary bar 顯示獨立的 "Needs Auth" 計數', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          makeServer('srv1', 'connected'),
+          makeServer('srv2', 'needs-auth'),
+          makeServer('srv3', 'needs-auth'),
+        ];
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Connected: 1')).toBeTruthy();
+      expect(screen.getByText('Needs Auth: 2')).toBeTruthy();
+    });
+    // 不該歸類到 "Other"
+    expect(screen.queryByText(/Other/)).toBeNull();
+  });
+
+  it('needs-auth server card 顯示認證引導和 Check Status 按鈕', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [makeServer('auth-srv', 'needs-auth')];
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText(/authentication required/i)).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Check Status' })).toBeTruthy();
+    });
+  });
+
+  it('點擊 Check Status → 呼叫 mcp.refreshStatus（重新檢查認證狀態）', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [makeServer('auth-srv', 'needs-auth')];
+      }
+      if (req.type === 'mcp.refreshStatus') {
+        return [makeServer('auth-srv', 'connected')];
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Check Status' })).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Check Status' }));
+    });
+
+    const refreshCalls = mockSendRequest.mock.calls
+      .map((args: unknown[]) => (args[0] as { type: string }).type)
+      .filter((t: string) => t === 'mcp.refreshStatus');
+    expect(refreshCalls).toHaveLength(1);
+  });
+
   it('空 server 列表 → 不顯示 status summary', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') return [];

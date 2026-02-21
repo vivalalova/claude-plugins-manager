@@ -81,10 +81,11 @@ export function McpPage(): React.ReactElement {
 
   /** 狀態摘要計數 */
   const statusCounts = useMemo(() => {
-    const counts = { connected: 0, failed: 0, pending: 0, other: 0 };
+    const counts = { connected: 0, failed: 0, needsAuth: 0, pending: 0, other: 0 };
     for (const s of servers) {
       if (s.status === 'connected') counts.connected++;
       else if (s.status === 'failed') counts.failed++;
+      else if (s.status === 'needs-auth') counts.needsAuth++;
       else if (s.status === 'pending') counts.pending++;
       else counts.other++;
     }
@@ -200,6 +201,11 @@ export function McpPage(): React.ReactElement {
               Connected: {statusCounts.connected}
             </span>
           )}
+          {statusCounts.needsAuth > 0 && (
+            <span className="mcp-status-item mcp-status-item--needs-auth">
+              Needs Auth: {statusCounts.needsAuth}
+            </span>
+          )}
           {statusCounts.failed > 0 && (
             <span className="mcp-status-item mcp-status-item--failed">
               Failed: {statusCounts.failed}
@@ -237,6 +243,7 @@ export function McpPage(): React.ReactElement {
               onRemove={() => setConfirmRemove(server.name)}
               onViewDetail={() => handleViewDetail(server.fullName)}
               onRetry={handleRefreshStatus}
+              onAuthenticate={handleRefreshStatus}
               retrying={retrying}
             />
           ))}

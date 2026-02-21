@@ -829,6 +829,7 @@ body {
 }
 
 .mcp-status-item--connected::before { background: var(--vscode-testing-iconPassed, #4caf50); }
+.mcp-status-item--needs-auth::before { background: var(--vscode-charts-orange, #ff9800); }
 .mcp-status-item--failed::before { background: var(--vscode-testing-iconFailed, #f44336); }
 .mcp-status-item--pending::before { background: var(--vscode-descriptionForeground, #9e9e9e); animation: pulse 1.5s infinite; }
 .mcp-status-item--other::before { background: var(--vscode-descriptionForeground, #9e9e9e); }
@@ -859,9 +860,19 @@ body {
   box-shadow: inset 3px 0 0 var(--vscode-testing-iconFailed, #f44336);
 }
 
+.card--needs-auth {
+  box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9800);
+}
+
 .card-error {
   font-size: 12px;
   color: var(--vscode-testing-iconFailed, #f44336);
+  margin-bottom: 6px;
+}
+
+.card-auth-guide {
+  font-size: 12px;
+  color: var(--vscode-charts-orange, #ff9800);
   margin-bottom: 6px;
 }
 
@@ -1179,13 +1190,26 @@ body {
  * Light Theme — depth adjustments
  * ---------------------------------------------------------------- */
 
-/* Cards: 微陰影創造層次（dark 背景足夠深，不需 shadow） */
+/* Cards: 微陰影創造層次（dark 背景足夠深，不需 shadow）
+   composite shadow 保留 card--failed / card--needs-auth 的 inset 邊框 */
 body.vscode-light .card {
   box-shadow: 0 1px 3px color-mix(in srgb, black 6%, transparent);
+}
+body.vscode-light .card.card--failed {
+  box-shadow: inset 3px 0 0 var(--vscode-testing-iconFailed, #f44336), 0 1px 3px color-mix(in srgb, black 6%, transparent);
+}
+body.vscode-light .card.card--needs-auth {
+  box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9800), 0 1px 3px color-mix(in srgb, black 6%, transparent);
 }
 
 body.vscode-light .card:hover {
   box-shadow: 0 2px 6px color-mix(in srgb, black 10%, transparent);
+}
+body.vscode-light .card.card--failed:hover {
+  box-shadow: inset 3px 0 0 var(--vscode-testing-iconFailed, #f44336), 0 2px 6px color-mix(in srgb, black 10%, transparent);
+}
+body.vscode-light .card.card--needs-auth:hover {
+  box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9800), 0 2px 6px color-mix(in srgb, black 10%, transparent);
 }
 
 /* Section toggle */
