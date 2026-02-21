@@ -1,4 +1,5 @@
 import type { MergedPlugin, PluginScope } from '../../../shared/types';
+import { getViewState, setViewState } from '../../vscode';
 
 /** Plugin 是否已安裝（任一 scope） */
 export function isPluginInstalled(p: MergedPlugin): boolean {
@@ -163,43 +164,47 @@ export function getPluginComparator(sortBy: PluginSortBy): (a: MergedPlugin, b: 
   return sortBy === 'lastUpdated' ? compareByLastUpdated : compareByName;
 }
 
-/** localStorage keys for plugin filter persistence */
+/** VSCode viewState keys for plugin filter persistence */
 export const PLUGIN_SEARCH_KEY = 'plugin.search';
 export const PLUGIN_FILTER_ENABLED_KEY = 'plugin.filter.enabled';
 export const CONTENT_TYPE_STORAGE_KEY = 'plugin.filter.contentTypes';
 export const PLUGIN_SORT_KEY = 'plugin.sort';
+export const PLUGIN_EXPANDED_KEY = 'plugin.expanded';
 
 /**
- * localStorage → Set<ContentTypeFilter>。
- * 格式不相容時清除舊資料並回傳空 Set。
+ * viewState → Set<ContentTypeFilter>。
+ * 格式不相容時回傳空 Set。
  */
 export function readContentTypeFilters(): Set<ContentTypeFilter> {
-  try {
-    const raw = localStorage.getItem(CONTENT_TYPE_STORAGE_KEY);
-    if (!raw) return new Set();
-    const arr: unknown = JSON.parse(raw);
-    if (!Array.isArray(arr)) return new Set();
-    const valid = new Set<string>(CONTENT_TYPE_FILTERS);
-    return new Set(arr.filter((v): v is ContentTypeFilter => valid.has(v as string)));
-  } catch (e) {
-    console.warn('[filterUtils] corrupt contentTypeFilters in localStorage, clearing', e);
-    localStorage.removeItem(CONTENT_TYPE_STORAGE_KEY);
-    return new Set();
-  }
+  const arr = getViewState<unknown[]>(CONTENT_TYPE_STORAGE_KEY, []);
+  if (!Array.isArray(arr)) return new Set();
+  const valid = new Set<string>(CONTENT_TYPE_FILTERS);
+  return new Set(arr.filter((v): v is ContentTypeFilter => valid.has(v as string)));
 }
 
-/** Set<ContentTypeFilter> → localStorage JSON string */
+/** Set<ContentTypeFilter> → viewState */
 export function writeContentTypeFilters(filters: ReadonlySet<ContentTypeFilter>): void {
-  localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, JSON.stringify([...filters]));
+  setViewState(CONTENT_TYPE_STORAGE_KEY, [...filters]);
 }
 
-/** localStorage → PluginSortBy。無效值 fallback 'name'。 */
+/** viewState → PluginSortBy。無效值 fallback 'name'。 */
 export function readPluginSort(): PluginSortBy {
-  const raw = localStorage.getItem(PLUGIN_SORT_KEY);
+  const raw = getViewState<string>(PLUGIN_SORT_KEY, 'name');
   return raw === 'lastUpdated' ? 'lastUpdated' : 'name';
 }
 
-/** PluginSortBy → localStorage */
+/** PluginSortBy → viewState */
 export function writePluginSort(sort: PluginSortBy): void {
-  localStorage.setItem(PLUGIN_SORT_KEY, sort);
+  setViewState(PLUGIN_SORT_KEY, sort);
+}
+
+/** viewState → Set<string>（展開的 marketplace section） */
+export function readExpandedSections(): Set<string> {
+  const arr = getViewState<string[]>(PLUGIN_EXPANDED_KEY, []);
+  return new Set(Array.isArray(arr) ? arr : []);
+}
+
+/** Set<string> → viewState */
+export function writeExpandedSections(expanded: ReadonlySet<string>): void {
+  setViewState(PLUGIN_EXPANDED_KEY, [...expanded]);
 }

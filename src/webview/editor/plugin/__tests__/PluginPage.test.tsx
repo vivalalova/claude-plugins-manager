@@ -6,13 +6,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
-const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
+const { mockSendRequest, mockOnPushMessage, mockViewState } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
   mockOnPushMessage: vi.fn(() => () => {}),
+  mockViewState: {} as Record<string, unknown>,
 }));
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
   onPushMessage: mockOnPushMessage,
+  getViewState: (key: string, fallback: unknown) => key in mockViewState ? mockViewState[key] : fallback,
+  setViewState: (key: string, value: unknown) => { mockViewState[key] = value; },
 }));
 
 import { PluginPage } from '../PluginPage';
@@ -52,7 +55,7 @@ function makeResponse(
 describe('PluginPage — 核心流程', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
   });
 
   afterEach(() => {
@@ -597,7 +600,7 @@ describe('PluginPage — 核心流程', () => {
       expect(cards()[1]?.textContent).toBe('alpha');
     });
 
-    it('sort 持久化到 localStorage', async () => {
+    it('sort 持久化到 viewState', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
         if (req.type === 'plugin.listAvailable') {
@@ -614,7 +617,7 @@ describe('PluginPage — 核心流程', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Last Updated' }));
 
-      expect(localStorage.getItem('plugin.sort')).toBe('lastUpdated');
+      expect(mockViewState['plugin.sort']).toBe('lastUpdated');
     });
   });
 

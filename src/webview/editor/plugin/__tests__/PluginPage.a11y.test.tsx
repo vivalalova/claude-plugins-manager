@@ -13,6 +13,8 @@ const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
   onPushMessage: mockOnPushMessage,
+  getViewState: (_key: string, fallback: unknown) => fallback,
+  setViewState: () => {},
 }));
 
 import { PluginPage } from '../PluginPage';

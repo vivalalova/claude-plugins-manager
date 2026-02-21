@@ -1,5 +1,13 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+/* ── Mock vscode bridge ── */
+const mockViewState: Record<string, unknown> = {};
+vi.mock('../../../vscode', () => ({
+  getViewState: (key: string, fallback: unknown) => key in mockViewState ? mockViewState[key] : fallback,
+  setViewState: (key: string, value: unknown) => { mockViewState[key] = value; },
+}));
+
 import {
   matchesContentType,
   matchesSearch,
@@ -12,7 +20,10 @@ import {
   getPluginComparator,
   readPluginSort,
   writePluginSort,
+  readExpandedSections,
+  writeExpandedSections,
   PLUGIN_SORT_KEY,
+  PLUGIN_EXPANDED_KEY,
   type ContentTypeFilter,
   type PluginSortBy,
 } from '../filterUtils';
@@ -210,10 +221,10 @@ describe('matchesSearch', () => {
 
 describe('readContentTypeFilters / writeContentTypeFilters', () => {
   beforeEach(() => {
-    localStorage.clear();
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
   });
 
-  it('localStorage 無資料 → 空 Set', () => {
+  it('viewState 無資料 → 空 Set', () => {
     expect(readContentTypeFilters()).toEqual(new Set());
   });
 
@@ -233,19 +244,13 @@ describe('readContentTypeFilters / writeContentTypeFilters', () => {
     expect(readContentTypeFilters()).toEqual(new Set());
   });
 
-  it('localStorage 含無效值 → 過濾掉，只保留合法 filter', () => {
-    localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, '["skills","invalid","mcp"]');
+  it('viewState 含無效值 → 過濾掉，只保留合法 filter', () => {
+    mockViewState[CONTENT_TYPE_STORAGE_KEY] = ['skills', 'invalid', 'mcp'];
     expect(readContentTypeFilters()).toEqual(new Set(['skills', 'mcp']));
   });
 
-  it('localStorage 含非 JSON → 清除並回空 Set', () => {
-    localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, 'not-json');
-    expect(readContentTypeFilters()).toEqual(new Set());
-    expect(localStorage.getItem(CONTENT_TYPE_STORAGE_KEY)).toBeNull();
-  });
-
-  it('localStorage 含非陣列 JSON → 回空 Set', () => {
-    localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, '{"a":1}');
+  it('viewState 含非陣列 → 回空 Set', () => {
+    mockViewState[CONTENT_TYPE_STORAGE_KEY] = { a: 1 };
     expect(readContentTypeFilters()).toEqual(new Set());
   });
 
@@ -412,9 +417,11 @@ describe('getPluginComparator', () => {
 });
 
 describe('readPluginSort / writePluginSort', () => {
-  beforeEach(() => { localStorage.clear(); });
+  beforeEach(() => {
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
+  });
 
-  it('localStorage 無資料 → 預設 name', () => {
+  it('viewState 無資料 → 預設 name', () => {
     expect(readPluginSort()).toBe('name');
   });
 
@@ -428,8 +435,33 @@ describe('readPluginSort / writePluginSort', () => {
     expect(readPluginSort()).toBe('name');
   });
 
-  it('localStorage 含無效值 → fallback name', () => {
-    localStorage.setItem(PLUGIN_SORT_KEY, 'invalid');
+  it('viewState 含無效值 → fallback name', () => {
+    mockViewState[PLUGIN_SORT_KEY] = 'invalid';
     expect(readPluginSort()).toBe('name');
+  });
+});
+
+describe('readExpandedSections / writeExpandedSections', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
+  });
+
+  it('viewState 無資料 → 空 Set', () => {
+    expect(readExpandedSections()).toEqual(new Set());
+  });
+
+  it('write 後 read round-trip 保持一致', () => {
+    writeExpandedSections(new Set(['mp1', 'mp2']));
+    expect(readExpandedSections()).toEqual(new Set(['mp1', 'mp2']));
+  });
+
+  it('空 Set round-trip', () => {
+    writeExpandedSections(new Set());
+    expect(readExpandedSections()).toEqual(new Set());
+  });
+
+  it('viewState 含非陣列 → 回空 Set', () => {
+    mockViewState[PLUGIN_EXPANDED_KEY] = 'not-array';
+    expect(readExpandedSections()).toEqual(new Set());
   });
 });

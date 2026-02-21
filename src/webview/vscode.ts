@@ -88,3 +88,16 @@ export function onPushMessage(handler: PushHandler): () => void {
 export function postMessage(message: Record<string, unknown>): void {
   vscode.postMessage(message);
 }
+
+/** 從 webview 持久化 state 讀取指定 key，不存在時回傳 fallback */
+export function getViewState<T>(key: string, fallback: T): T {
+  const state = vscode.getState() as Record<string, unknown> | null;
+  if (!state || !(key in state)) return fallback;
+  return state[key] as T;
+}
+
+/** 將值寫入 webview 持久化 state 的指定 key（合併既有 state） */
+export function setViewState<T>(key: string, value: T): void {
+  const state = (vscode.getState() as Record<string, unknown>) ?? {};
+  vscode.setState({ ...state, [key]: value });
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDebouncedValue } from '../../../hooks/useDebounce';
 import type { MergedPlugin } from '../../../../shared/types';
+import { getViewState, setViewState } from '../../../vscode';
 import {
   matchesContentType,
   matchesSearch,
@@ -12,6 +13,8 @@ import {
   writeContentTypeFilters,
   readPluginSort,
   writePluginSort,
+  readExpandedSections,
+  writeExpandedSections,
   type ContentTypeFilter,
   type PluginSortBy,
 } from '../filterUtils';
@@ -56,21 +59,21 @@ export interface UsePluginFiltersReturn {
  * @param plugins - 完整 plugin 列表
  */
 export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersReturn {
-  const [search, setSearch] = useState(() => localStorage.getItem(PLUGIN_SEARCH_KEY) ?? '');
+  const [search, setSearch] = useState(() => getViewState(PLUGIN_SEARCH_KEY, ''));
   const [debouncedSearch, flushSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [filterEnabled, setFilterEnabled] = useState(
-    () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
+    () => getViewState(PLUGIN_FILTER_ENABLED_KEY, false),
   );
   const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(readContentTypeFilters);
   const [sortBy, setSortBy] = useState<PluginSortBy>(readPluginSort);
-  // 預設收合，使用者手動展開的 marketplace 加入此 set
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(readExpandedSections);
 
-  // Filter 狀態持久化 → localStorage（用 debouncedSearch 避免每次 keystroke 都寫入）
-  useEffect(() => { localStorage.setItem(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch]);
-  useEffect(() => { localStorage.setItem(PLUGIN_FILTER_ENABLED_KEY, String(filterEnabled)); }, [filterEnabled]);
+  // Filter 狀態持久化 → VSCode viewState（用 debouncedSearch 避免每次 keystroke 都寫入）
+  useEffect(() => { setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch]);
+  useEffect(() => { setViewState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); }, [filterEnabled]);
   useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
   useEffect(() => { writePluginSort(sortBy); }, [sortBy]);
+  useEffect(() => { writeExpandedSections(expanded); }, [expanded]);
 
   /** 過濾 + 按 marketplace 分組 */
   const grouped = useMemo(() => {

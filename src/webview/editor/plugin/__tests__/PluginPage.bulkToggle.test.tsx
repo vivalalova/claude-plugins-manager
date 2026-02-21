@@ -6,13 +6,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup, act, within } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
-const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
+const { mockSendRequest, mockOnPushMessage, mockViewState } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
   mockOnPushMessage: vi.fn(() => () => {}),
+  mockViewState: {} as Record<string, unknown>,
 }));
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
   onPushMessage: mockOnPushMessage,
+  getViewState: (key: string, fallback: unknown) => key in mockViewState ? mockViewState[key] : fallback,
+  setViewState: (key: string, value: unknown) => { mockViewState[key] = value; },
 }));
 
 import { PluginPage } from '../PluginPage';
@@ -77,7 +80,7 @@ function filterCalls(type: string): { type: string; plugin?: string; scope?: str
 describe('PluginPage — Marketplace Bulk Toggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
   });
 
   afterEach(() => {
