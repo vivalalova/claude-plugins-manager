@@ -36,7 +36,7 @@ export interface UsePluginDataReturn {
  * @param installed - 已安裝的 plugin 清單（可能同 id 多 scope）
  * @param available - marketplace 上可用的 plugin 清單
  */
-function mergePlugins(
+export function mergePlugins(
   installed: InstalledPlugin[],
   available: AvailablePlugin[],
 ): MergedPlugin[] {

@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { postMessage, sendRequest, onPushMessage } from '../vscode';
+import { mergePlugins } from '../editor/plugin/hooks/usePluginData';
+import { hasPluginUpdate } from '../editor/plugin/filterUtils';
 import type { Marketplace, PluginListResponse, McpServer } from '../../shared/types';
 
+type CategoryId = 'marketplace' | 'plugin' | 'mcp';
+
 interface CategoryButton {
-  id: keyof Counts;
+  id: CategoryId;
   label: string;
   icon: string;
   description: string;
@@ -39,18 +43,30 @@ interface Counts {
 /** Sidebar：三個分類按鈕，點擊打開對應 Editor 頁面 */
 export function SidebarApp(): React.ReactElement {
   const [counts, setCounts] = useState<Counts | null>(null);
+  const [pluginUpdates, setPluginUpdates] = useState(0);
 
   const fetchCounts = useCallback(async () => {
     const [mktResult, pluginResult, mcpResult] = await Promise.allSettled([
       sendRequest<Marketplace[]>({ type: 'marketplace.list' }),
-      sendRequest<PluginListResponse>({ type: 'plugin.listInstalled' }),
+      sendRequest<PluginListResponse>({ type: 'plugin.listAvailable' }),
       sendRequest<McpServer[]>({ type: 'mcp.list' }),
     ]);
+    let pluginCount = 0;
+    let updateCount = 0;
+    if (pluginResult.status === 'fulfilled') {
+      const { installed, available } = pluginResult.value;
+      pluginCount = installed.length;
+      const merged = mergePlugins(installed, available);
+      updateCount = merged.filter(hasPluginUpdate).length;
+    }
     setCounts((prev) => ({
       marketplace: mktResult.status === 'fulfilled' ? mktResult.value.length : (prev?.marketplace ?? 0),
-      plugin: pluginResult.status === 'fulfilled' ? pluginResult.value.installed.length : (prev?.plugin ?? 0),
+      plugin: pluginResult.status === 'fulfilled' ? pluginCount : (prev?.plugin ?? 0),
       mcp: mcpResult.status === 'fulfilled' ? mcpResult.value.length : (prev?.mcp ?? 0),
     }));
+    if (pluginResult.status === 'fulfilled') {
+      setPluginUpdates(updateCount);
+    }
   }, []);
 
   useEffect(() => {
@@ -75,7 +91,7 @@ export function SidebarApp(): React.ReactElement {
     postMessage({ type: 'sidebar.openCategory', category });
   };
 
-  const getCount = (id: keyof Counts): number => {
+  const getCount = (id: CategoryId): number => {
     if (!counts) return 0;
     return counts[id] ?? 0;
   };
@@ -85,6 +101,7 @@ export function SidebarApp(): React.ReactElement {
       <div className="sidebar-buttons">
         {CATEGORIES.map((cat) => {
           const count = getCount(cat.id);
+          const updates = cat.id === 'plugin' ? pluginUpdates : 0;
           return (
             <button
               key={cat.id}
@@ -96,7 +113,9 @@ export function SidebarApp(): React.ReactElement {
               <div className="sidebar-button-text">
                 <span className="sidebar-button-label">
                   {cat.label}
-                  {count > 0 && <span className="sidebar-button-badge">{count}</span>}
+                  {updates > 0
+                    ? <span className="sidebar-update-badge">{updates}</span>
+                    : count > 0 && <span className="sidebar-button-badge">{count}</span>}
                 </span>
                 <span className="sidebar-button-desc">{cat.description}</span>
               </div>
