@@ -116,6 +116,32 @@ export function PluginPage(): React.ReactElement {
     return map;
   }, [plugins]);
 
+  /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled） */
+  const sectionStats = useMemo(() => {
+    const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean }>();
+    for (const [marketplace, items] of grouped) {
+      map.set(marketplace, {
+        enabledCount: items.filter(isPluginEnabled).length,
+        updateCount: items.filter(hasPluginUpdate).length,
+        allEnabled: items.every(isPluginEnabled),
+      });
+    }
+    return map;
+  }, [grouped]);
+
+  /** 預計算 per-plugin translateStatus，只計算 grouped 內可見的 plugin */
+  const translateStatusMap = useMemo(() => {
+    const map = new Map<string, 'translating' | 'queued'>();
+    if (!translateLang) return map;
+    for (const items of grouped.values()) {
+      for (const p of items) {
+        const status = getCardTranslateStatus(p, translateLang, activeTexts, queuedTexts);
+        if (status) map.set(p.id, status);
+      }
+    }
+    return map;
+  }, [grouped, translateLang, activeTexts, queuedTexts]);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showHelp, setShowHelp } = useKeyboardShortcuts({
     searchInputRef,
@@ -311,10 +337,8 @@ export function PluginPage(): React.ReactElement {
         [...grouped.entries()].map(([marketplace, items]) => {
           // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
           const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
-          const enabledCount = items.filter(isPluginEnabled).length;
-          const updateCount = items.filter(hasPluginUpdate).length;
+          const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false };
           const mpBulk = bulkProgress.get(marketplace);
-          const allEnabled = items.every(isPluginEnabled);
           return (
             <div key={marketplace} className="plugin-section">
               <div className="section-header">
@@ -329,9 +353,9 @@ export function PluginPage(): React.ReactElement {
                 >
                   <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
                   <span className="section-toggle-label">{marketplace}</span>
-                  <span className="section-count">{enabledCount} / {items.length}</span>
-                  {updateCount > 0 && (
-                    <span className="section-updates">{updateCount} update{updateCount > 1 ? 's' : ''}</span>
+                  <span className="section-count">{stats.enabledCount} / {items.length}</span>
+                  {stats.updateCount > 0 && (
+                    <span className="section-updates">{stats.updateCount} update{stats.updateCount > 1 ? 's' : ''}</span>
                   )}
                   {marketplaceSources[marketplace] && (
                     <span className="section-source">{marketplaceSources[marketplace]}</span>
@@ -340,13 +364,13 @@ export function PluginPage(): React.ReactElement {
                 <button
                   className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
                   disabled={!!mpBulk || isUpdatingAll}
-                  onClick={() => allEnabled
+                  onClick={() => stats.allEnabled
                     ? handleBulkDisable(marketplace, items)
                     : setPendingBulkEnable({ marketplace, items })}
                 >
                   {mpBulk
                     ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
-                    : allEnabled ? 'Disable All' : 'Enable All'}
+                    : stats.allEnabled ? 'Disable All' : 'Enable All'}
                 </button>
               </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
@@ -361,7 +385,7 @@ export function PluginPage(): React.ReactElement {
                         workspaceName={workspaceFolders[0]?.name}
                         marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
                         translations={translations}
-                        translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
+                        translateStatus={translateStatusMap.get(plugin.id)}
                         loadingScopes={loadingPlugins.get(plugin.id)}
                         conflicts={conflictsByPlugin.get(plugin.id)}
                         onToggle={handleToggle}
