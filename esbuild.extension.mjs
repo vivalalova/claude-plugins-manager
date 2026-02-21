@@ -13,6 +13,7 @@ const config = {
   target: 'node20',
   sourcemap: true,
   minify: !watch,
+  metafile: !watch,
 };
 
 if (watch) {
@@ -20,6 +21,10 @@ if (watch) {
   await ctx.watch();
   console.log('[extension] watching...');
 } else {
-  await esbuild.build(config);
+  const result = await esbuild.build(config);
+  if (result.metafile) {
+    const { writeFile } = await import('fs/promises');
+    await writeFile('dist/extension/meta.json', JSON.stringify(result.metafile));
+  }
   console.log('[extension] build complete');
 }

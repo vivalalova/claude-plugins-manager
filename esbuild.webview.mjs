@@ -20,6 +20,8 @@ const config = {
   define: {
     'process.env.NODE_ENV': watch ? '"development"' : '"production"',
   },
+  ...(!watch && { drop: ['console'] }),
+  metafile: !watch,
 };
 
 if (watch) {
@@ -27,6 +29,10 @@ if (watch) {
   await ctx.watch();
   console.log('[webview] watching...');
 } else {
-  await esbuild.build(config);
+  const result = await esbuild.build(config);
+  if (result.metafile) {
+    const { writeFile } = await import('fs/promises');
+    await writeFile('dist/webview/meta.json', JSON.stringify(result.metafile));
+  }
   console.log('[webview] build complete');
 }
