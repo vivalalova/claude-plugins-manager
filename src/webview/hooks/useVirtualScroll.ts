@@ -31,6 +31,30 @@ interface UseVirtualScrollResult {
   measureHeight: (index: number, height: number) => void;
 }
 
+/** Binary search: first index in [0, len) where arr[index] > target */
+function upperBound(arr: Float64Array, target: number, len: number): number {
+  let lo = 0;
+  let hi = len;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid] <= target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Binary search: first index in [0, len) where arr[index] >= target */
+function lowerBound(arr: Float64Array, target: number, len: number): number {
+  let lo = 0;
+  let hi = len;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 export function useVirtualScroll({
   itemCount,
   estimatedItemHeight,
@@ -39,26 +63,29 @@ export function useVirtualScroll({
   containerRef,
   cacheVersion,
 }: UseVirtualScrollOptions): UseVirtualScrollResult {
-  const heightCache = useRef(new Map<number, number>());
+  // heights[i] = item i 的高度（量測值或 estimatedItemHeight）
+  const heightsRef = useRef<Float64Array>(new Float64Array(0));
+  // prefixSums[i] = heights[0..i-1] 的總和，length = itemCount + 1
+  const prefixSumsRef = useRef<Float64Array>(new Float64Array(1));
+  const totalHeightRef = useRef(0);
+  const prevRebuildRef = useRef({ itemCount: -1, cacheVersion: undefined as number | undefined });
+
   const [scrollTick, setScrollTick] = useState(0);
   const rafRef = useRef(0);
 
-  // items 變更（filter/sort/cacheVersion）→ 清空 height cache
-  useEffect(() => {
-    heightCache.current.clear();
-  }, [cacheVersion, itemCount]);
-
-  const getItemHeight = useCallback(
-    (index: number): number => heightCache.current.get(index) ?? estimatedItemHeight,
-    [estimatedItemHeight],
-  );
-
-  const totalHeight = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < itemCount; i++) h += getItemHeight(i);
-    return h;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemCount, getItemHeight, scrollTick]);
+  // itemCount / cacheVersion 變更 → 同步重建 prefix sums（render phase，無延遲）
+  if (prevRebuildRef.current.itemCount !== itemCount || prevRebuildRef.current.cacheVersion !== cacheVersion) {
+    prevRebuildRef.current = { itemCount, cacheVersion };
+    const heights = new Float64Array(itemCount);
+    const prefixSums = new Float64Array(itemCount + 1);
+    for (let i = 0; i < itemCount; i++) {
+      heights[i] = estimatedItemHeight;
+      prefixSums[i + 1] = prefixSums[i] + estimatedItemHeight;
+    }
+    heightsRef.current = heights;
+    prefixSumsRef.current = prefixSums;
+    totalHeightRef.current = prefixSums[itemCount];
+  }
 
   // Scroll listener with RAF throttle
   useEffect(() => {
@@ -78,17 +105,25 @@ export function useVirtualScroll({
     };
   }, [enabled]);
 
-  // containerRef 在首次 render 時為 null，mount 後觸發重新計算
+  // mount 後觸發初次計算
   useLayoutEffect(() => {
     if (enabled) setScrollTick((t) => t + 1);
   }, [enabled]);
 
   const measureHeight = useCallback((index: number, height: number): void => {
-    const prev = heightCache.current.get(index);
-    if (prev !== height) {
-      heightCache.current.set(index, height);
-      setScrollTick((t) => t + 1);
+    const heights = heightsRef.current;
+    if (index >= heights.length) return;
+    const prev = heights[index];
+    if (prev === height) return;
+    const diff = height - prev;
+    heights[index] = height;
+    // Incremental prefix sum update: O(n-index)
+    const prefixSums = prefixSumsRef.current;
+    for (let i = index + 1; i < prefixSums.length; i++) {
+      prefixSums[i] += diff;
     }
+    totalHeightRef.current += diff;
+    setScrollTick((t) => t + 1);
   }, []);
 
   const computed = useMemo(() => {
@@ -101,44 +136,30 @@ export function useVirtualScroll({
       return { virtualRange: null, paddingTop: 0, paddingBottom: 0 };
     }
 
+    const n = itemCount;
+    if (n === 0) {
+      return { virtualRange: { start: 0, end: -1 }, paddingTop: 0, paddingBottom: 0 };
+    }
+
+    const prefixSums = prefixSumsRef.current;
     const viewportHeight = window.innerHeight;
     const rect = container.getBoundingClientRect();
 
-    // 可見範圍起點：viewport top 相對於 container top 的偏移
     const scrolledIntoContainer = -rect.top;
     const visibleStart = Math.max(0, scrolledIntoContainer);
     const visibleEnd = Math.max(0, scrolledIntoContainer + viewportHeight);
 
-    // 找到可見範圍的 item index
-    let cumHeight = 0;
-    let startIndex = itemCount; // 預設：全部滾出
-    for (let i = 0; i < itemCount; i++) {
-      const h = getItemHeight(i);
-      if (cumHeight + h > visibleStart) {
-        startIndex = i;
-        break;
-      }
-      cumHeight += h;
-    }
+    // O(log n) binary search for visible range
+    const startIndex = Math.max(0, Math.min(upperBound(prefixSums, visibleStart, n + 1) - 1, n - 1));
+    const endIndex = Math.max(startIndex, Math.min(lowerBound(prefixSums, visibleEnd, n + 1) - 1, n - 1));
 
-    let endIndex = startIndex;
-    let endCumHeight = cumHeight;
-    for (let i = startIndex; i < itemCount; i++) {
-      endCumHeight += getItemHeight(i);
-      endIndex = i;
-      if (endCumHeight >= visibleEnd) break;
-    }
-
-    // 加上 overscan
+    // overscan
     const start = Math.max(0, startIndex - overscan);
-    const end = Math.min(itemCount - 1, endIndex + overscan);
+    const end = Math.min(n - 1, endIndex + overscan);
 
-    // 計算 padding
-    let paddingTop = 0;
-    for (let i = 0; i < start; i++) paddingTop += getItemHeight(i);
-
-    let paddingBottom = 0;
-    for (let i = end + 1; i < itemCount; i++) paddingBottom += getItemHeight(i);
+    // O(1) padding from prefix sums
+    const paddingTop = prefixSums[start];
+    const paddingBottom = Math.max(0, totalHeightRef.current - prefixSums[end + 1]);
 
     return {
       virtualRange: { start, end },
@@ -146,11 +167,11 @@ export function useVirtualScroll({
       paddingBottom,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, containerRef, itemCount, getItemHeight, overscan, scrollTick]);
+  }, [enabled, containerRef, itemCount, overscan, scrollTick]);
 
   return {
     ...computed,
-    totalHeight,
+    totalHeight: totalHeightRef.current,
     measureHeight,
   };
 }
