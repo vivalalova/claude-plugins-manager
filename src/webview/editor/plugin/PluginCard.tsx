@@ -23,8 +23,8 @@ interface PluginCardProps {
   loadingScopes?: ReadonlySet<PluginScope>;
   /** 與此 plugin 相關的 resource 衝突 */
   conflicts?: ResourceConflict[];
-  onToggle: (scope: PluginScope, enable: boolean) => void;
-  onUpdate: (scopes: PluginScope[]) => void;
+  onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => void;
+  onUpdate: (pluginId: string, scopes: PluginScope[]) => void;
 }
 
 /**
@@ -32,7 +32,7 @@ interface PluginCardProps {
  * 每個 scope 一個 checkbox：勾 = enable，取消勾 = disable。
  * 可展開顯示內含的 commands/skills/agents/MCP servers/hooks。
  */
-export function PluginCard({
+export const PluginCard = React.memo(function PluginCard({
   plugin,
   workspaceName,
   marketplaceUrl,
@@ -80,7 +80,7 @@ export function PluginCard({
             <button
               type="button"
               className="badge-update"
-              onClick={(e) => { e.stopPropagation(); onUpdate(getInstalledScopes(plugin)); }}
+              onClick={(e) => { e.stopPropagation(); onUpdate(plugin.id, getInstalledScopes(plugin)); }}
               disabled={!!loadingScopes?.size}
             >
               {loadingScopes?.size ? <span className="scope-spinner" /> : 'Update available'}
@@ -124,7 +124,7 @@ export function PluginCard({
           enabled={plugin.userInstall?.enabled ?? false}
           loading={loadingScopes?.has('user') ?? false}
           disabled={!!loadingScopes?.size}
-          onToggle={(on) => onToggle('user', on)}
+          onToggle={(on) => onToggle(plugin.id, 'user', on)}
         />
         {hasWorkspace && (
           <ScopeToggle
@@ -133,7 +133,7 @@ export function PluginCard({
             enabled={plugin.projectInstalls[0]?.enabled ?? false}
             loading={loadingScopes?.has('project') ?? false}
             disabled={!!loadingScopes?.size}
-            onToggle={(on) => onToggle('project', on)}
+            onToggle={(on) => onToggle(plugin.id, 'project', on)}
           />
         )}
         {hasWorkspace && (
@@ -143,7 +143,7 @@ export function PluginCard({
             enabled={plugin.localInstall?.enabled ?? false}
             loading={loadingScopes?.has('local') ?? false}
             disabled={!!loadingScopes?.size}
-            onToggle={(on) => onToggle('local', on)}
+            onToggle={(on) => onToggle(plugin.id, 'local', on)}
           />
         )}
         </div>
@@ -161,7 +161,7 @@ export function PluginCard({
       )}
     </div>
   );
-}
+});
 
 /** 檢查 plugin 是否有任何內容可展示 */
 function pluginHasContents(c?: PluginContents): boolean {

@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useRef, useState } from 'react';
 import { sendRequest } from '../../../vscode';
 import type { MergedPlugin, PluginScope } from '../../../../shared/types';
 import {
@@ -103,13 +103,17 @@ export function usePluginOperations(
   const [pendingBulkEnable, setPendingBulkEnable] = useState<{ marketplace: string; items: MergedPlugin[] } | null>(null);
   const [bulkDialogScope, setBulkDialogScope] = useState<PluginScope>('user');
 
+  // Refs — 讓 useCallback 內部讀取最新值，避免 stale closure
+  const pluginsRef = useRef(plugins);
+  pluginsRef.current = plugins;
+  const loadingPluginsRef = useRef(loadingPlugins);
+  loadingPluginsRef.current = loadingPlugins;
+
   /**
    * 設定 per-plugin per-scope loading 狀態。
-   * @param pluginId - plugin 識別碼
-   * @param scope - 操作的 scope
-   * @param on - true=加入 loading，false=移除
+   * 用 functional update 存取 prev state，不需外部依賴。
    */
-  const setPluginLoading = (pluginId: string, scope: PluginScope, on: boolean): void => {
+  const setPluginLoading = useCallback((pluginId: string, scope: PluginScope, on: boolean): void => {
     setLoadingPlugins((prev) => {
       const next = new Map(prev);
       const scopes = new Set(prev.get(pluginId));
@@ -117,20 +121,20 @@ export function usePluginOperations(
       if (scopes.size === 0) next.delete(pluginId); else next.set(pluginId, scopes);
       return next;
     });
-  };
+  }, []);
 
   /** Toggle = 勾 → install + enable，取消勾 → disable */
-  const handleToggle = async (
+  const handleToggle = useCallback(async (
     pluginId: string,
     scope: PluginScope,
     enable: boolean,
   ): Promise<void> => {
-    if (loadingPlugins.get(pluginId)?.has(scope)) return;
+    if (loadingPluginsRef.current.get(pluginId)?.has(scope)) return;
     setInstallError(null);
     setPluginLoading(pluginId, scope, true);
     try {
       if (enable) {
-        const pluginData = plugins.find((p) => p.id === pluginId);
+        const pluginData = pluginsRef.current.find((p) => p.id === pluginId);
         if (pluginData && isInstalledInScope(pluginData, scope)) {
           // 已安裝但停用 → 只需 enable
           await sendRequest({ type: 'plugin.enable', plugin: pluginId, scope });
@@ -156,10 +160,10 @@ export function usePluginOperations(
     } finally {
       setPluginLoading(pluginId, scope, false);
     }
-  };
+  }, [fetchAll, addToast, setPluginLoading]);
 
   /** 更新指定 plugin 的指定 scopes */
-  const handleUpdate = async (pluginId: string, scopes: PluginScope[]): Promise<void> => {
+  const handleUpdate = useCallback(async (pluginId: string, scopes: PluginScope[]): Promise<void> => {
     setError(null);
     try {
       for (const scope of scopes) {
@@ -170,7 +174,7 @@ export function usePluginOperations(
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }, [setError, fetchAll, addToast]);
 
   /** 批次更新所有已安裝 plugin */
   const handleUpdateAll = async (): Promise<void> => {

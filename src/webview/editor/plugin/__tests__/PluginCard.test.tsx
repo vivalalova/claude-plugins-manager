@@ -214,7 +214,7 @@ describe('PluginCard', () => {
     const checkbox = screen.getByRole('checkbox');
     expect((checkbox as HTMLInputElement).disabled).toBe(false);
     fireEvent.click(checkbox);
-    expect(onToggle).toHaveBeenCalledWith('user', true);
+    expect(onToggle).toHaveBeenCalledWith('test-plugin@test-mp', 'user', true);
   });
 
   it('已安裝但無 update → 不顯示 Update 按鈕，顯示 GitHub', () => {
@@ -326,7 +326,7 @@ describe('PluginCard', () => {
     );
 
     fireEvent.click(screen.getByText('Update available'));
-    expect(onUpdate).toHaveBeenCalledWith(['user']);
+    expect(onUpdate).toHaveBeenCalledWith('test-plugin@test-mp', ['user']);
   });
 
   it('badge loading 時顯示 spinner 取代文字', () => {

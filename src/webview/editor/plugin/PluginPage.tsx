@@ -364,8 +364,8 @@ export function PluginPage(): React.ReactElement {
                         translateStatus={getCardTranslateStatus(plugin, translateLang, activeTexts, queuedTexts)}
                         loadingScopes={loadingPlugins.get(plugin.id)}
                         conflicts={conflictsByPlugin.get(plugin.id)}
-                        onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
-                        onUpdate={(scopes) => handleUpdate(plugin.id, scopes)}
+                        onToggle={handleToggle}
+                        onUpdate={handleUpdate}
                       />
                     )}
                   />
