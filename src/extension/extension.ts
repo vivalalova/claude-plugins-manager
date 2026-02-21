@@ -30,6 +30,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const sidebarProvider = new SidebarViewProvider(
     context.extensionUri,
     editorManager,
+    router,
+    mcpService,
+    fileWatcherService,
   );
 
   context.subscriptions.push(
@@ -53,6 +56,7 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
     { dispose: () => editorManager.dispose() },
+    { dispose: () => sidebarProvider.dispose() },
     { dispose: () => mcpService.dispose() },
     fileWatcherService,
   );
