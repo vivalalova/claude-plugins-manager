@@ -162,6 +162,17 @@ describe('TranslationService', () => {
       expect(Object.keys(saved.entries['zh-TW']).length).toBe(1);
     });
 
+    it('第二次 saveCache 跳過 mkdir（dirCreated 去重）', async () => {
+      mockApiResponse('[1] 翻譯A');
+      await service.translate(['text1'], 'zh-TW');
+      expect(mockMkdir).toHaveBeenCalledTimes(1);
+
+      mockMkdir.mockClear();
+      mockApiResponse('[1] 翻譯B');
+      await service.translate(['text2'], 'zh-TW');
+      expect(mockMkdir).not.toHaveBeenCalled();
+    });
+
     it('載入既有 cache 檔案', async () => {
       const existingCache = {
         version: 1,

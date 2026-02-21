@@ -38,6 +38,7 @@ export interface TranslateResult {
 export class TranslationService {
   private cache: TranslationCache | null = null;
   private pendingSave: Promise<void> = Promise.resolve();
+  private dirCreated = false;
 
   /**
    * 批次翻譯。回傳 translations map + 可選 warning。
@@ -215,7 +216,10 @@ export class TranslationService {
   /** 儲存 cache（排隊寫入，避免並發損壞檔案） */
   private saveCache(cache: TranslationCache): Promise<void> {
     this.pendingSave = this.pendingSave.then(async () => {
-      await mkdir(CACHE_DIR, { recursive: true });
+      if (!this.dirCreated) {
+        await mkdir(CACHE_DIR, { recursive: true });
+        this.dirCreated = true;
+      }
       await writeFile(this.cachePath(), JSON.stringify(cache, null, 2));
     }).catch(() => { /* 寫入失敗不影響主流程 */ });
     return this.pendingSave;
