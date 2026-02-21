@@ -113,6 +113,50 @@ describe('VirtualCardList', () => {
     expect(cards.length).toBeGreaterThan(0);
   });
 
+  it('cacheVersion 變更 → 不 crash 且正確 re-render（callbackCache 清空）', () => {
+    const items = makeItems(50);
+    const { container, rerender } = render(
+      <VirtualCardList
+        items={items}
+        renderItem={(item) => <div className="card" key={item.id}>{item.name}</div>}
+        keyExtractor={(item) => item.id}
+        className="card-list"
+        cacheVersion={0}
+      />,
+    );
+
+    expect(container.querySelectorAll('.card').length).toBeGreaterThan(0);
+
+    // cacheVersion 遞增（模擬 filter/sort） + items 變化
+    const filtered = items.slice(0, 40);
+    rerender(
+      <VirtualCardList
+        items={filtered}
+        renderItem={(item) => <div className="card" key={item.id}>{item.name}</div>}
+        keyExtractor={(item) => item.id}
+        className="card-list"
+        cacheVersion={1}
+      />,
+    );
+
+    const cardsAfter = container.querySelectorAll('.card');
+    expect(cardsAfter.length).toBeGreaterThan(0);
+    expect(cardsAfter.length).toBeLessThanOrEqual(40);
+
+    // 再次 cacheVersion 變更 → 連續操作不 crash
+    rerender(
+      <VirtualCardList
+        items={items}
+        renderItem={(item) => <div className="card" key={item.id}>{item.name}</div>}
+        keyExtractor={(item) => item.id}
+        className="card-list"
+        cacheVersion={2}
+      />,
+    );
+
+    expect(container.querySelectorAll('.card').length).toBeGreaterThan(0);
+  });
+
   it('500 items 渲染時間 < 500ms', () => {
     const items = makeItems(500);
     const start = performance.now();

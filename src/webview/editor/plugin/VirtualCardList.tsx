@@ -43,6 +43,12 @@ export function VirtualCardList<T>({
     cacheVersion,
   });
 
+  // items 變更（filter/sort）→ 清空 callbackCache + itemRefs（與 useVirtualScroll 的 heightCache 同步）
+  useEffect(() => {
+    callbackCache.current.clear();
+    itemRefs.current.clear();
+  }, [cacheVersion]);
+
   // ResizeObserver 追蹤可見 card 的高度變化（展開/收合）
   useEffect(() => {
     if (!shouldVirtualize) return;
