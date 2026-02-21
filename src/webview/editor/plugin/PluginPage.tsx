@@ -94,6 +94,7 @@ export function PluginPage(): React.ReactElement {
     setTranslateWarning,
     handleDialogConfirm,
     translateEmail,
+    retryTranslate,
   } = useTranslation(plugins);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +214,15 @@ export function PluginPage(): React.ReactElement {
         <ErrorBanner
           message={`Update All: ${updateAllErrors.length} failed — ${updateAllErrors.map((e) => `${e.pluginId} (${e.scope})`).join(', ')}`}
           onDismiss={() => setUpdateAllErrors([])}
+          action={
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleUpdateAll}
+              disabled={isUpdatingAll}
+            >
+              Retry
+            </button>
+          }
         />
       )}
       {bulkErrors.length > 0 && (
@@ -222,7 +232,18 @@ export function PluginPage(): React.ReactElement {
         />
       )}
       {translateWarning && (
-        <ErrorBanner message={translateWarning} onDismiss={() => setTranslateWarning(null)} />
+        <ErrorBanner
+          message={translateWarning}
+          onDismiss={() => setTranslateWarning(null)}
+          action={
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => { setTranslateWarning(null); retryTranslate(); }}
+            >
+              Retry Translation
+            </button>
+          }
+        />
       )}
 
       {loading ? (

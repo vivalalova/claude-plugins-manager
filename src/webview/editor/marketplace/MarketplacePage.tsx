@@ -22,6 +22,7 @@ export function MarketplacePage(): React.ReactElement {
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(null);
 
   const fetchList = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -48,13 +49,14 @@ export function MarketplacePage(): React.ReactElement {
     return unsubscribe;
   }, [fetchList]);
 
-  const handleAdd = async (): Promise<void> => {
-    const source = addSource.trim();
+  const handleAdd = async (sourceOverride?: string): Promise<void> => {
+    const source = (sourceOverride ?? addSource).trim();
     if (!source) {
       return;
     }
     setAdding(true);
     setError(null);
+    setRetryAction(null);
     try {
       await sendRequest({ type: 'marketplace.add', source });
       setAddSource('');
@@ -62,6 +64,7 @@ export function MarketplacePage(): React.ReactElement {
       addToast('Marketplace added');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleAdd(source));
     } finally {
       setAdding(false);
     }
@@ -70,24 +73,28 @@ export function MarketplacePage(): React.ReactElement {
   const handleRemove = async (name: string): Promise<void> => {
     setConfirmRemove(null);
     setError(null);
+    setRetryAction(null);
     try {
       await sendRequest({ type: 'marketplace.remove', name });
       await fetchList();
       addToast('Marketplace removed');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleRemove(name));
     }
   };
 
   const handleUpdate = async (name?: string): Promise<void> => {
     setUpdating(name ?? '__all__');
     setError(null);
+    setRetryAction(null);
     try {
       await sendRequest({ type: 'marketplace.update', name });
       await fetchList();
       addToast(name ? `Updated ${name}` : 'All marketplaces updated');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleUpdate(name));
     } finally {
       setUpdating(null);
     }
@@ -95,30 +102,36 @@ export function MarketplacePage(): React.ReactElement {
 
   const handleToggleAutoUpdate = async (name: string): Promise<void> => {
     setError(null);
+    setRetryAction(null);
     try {
       await sendRequest({ type: 'marketplace.toggleAutoUpdate', name });
       await fetchList();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleToggleAutoUpdate(name));
     }
   };
 
   const handleExport = async (): Promise<void> => {
     setError(null);
+    setRetryAction(null);
     try {
       await sendRequest({ type: 'marketplace.export' });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleExport());
     }
   };
 
   const handleImport = async (): Promise<void> => {
     setError(null);
+    setRetryAction(null);
     try {
       await sendRequest<string[]>({ type: 'marketplace.import' });
       await fetchList();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleImport());
     }
   };
 
@@ -157,7 +170,15 @@ export function MarketplacePage(): React.ReactElement {
         </div>
       </div>
 
-      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {error && (
+        <ErrorBanner
+          message={error}
+          onDismiss={() => { setError(null); setRetryAction(null); }}
+          action={retryAction && (
+            <button className="btn btn-secondary btn-sm" onClick={retryAction}>Retry</button>
+          )}
+        />
+      )}
 
       <div className="form-inline">
         <input
@@ -171,7 +192,7 @@ export function MarketplacePage(): React.ReactElement {
         />
         <button
           className="btn btn-primary"
-          onClick={handleAdd}
+          onClick={() => handleAdd()}
           disabled={adding || !addSource.trim()}
         >
           {adding ? 'Adding...' : 'Add'}
