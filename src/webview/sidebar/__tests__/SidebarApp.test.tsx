@@ -1,0 +1,314 @@
+/**
+ * @vitest-environment jsdom
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
+
+/* ── Mock vscode bridge ── */
+const { mockSendRequest, mockOnPushMessage, mockPostMessage } = vi.hoisted(() => ({
+  mockSendRequest: vi.fn(),
+  mockOnPushMessage: vi.fn(() => () => {}),
+  mockPostMessage: vi.fn(),
+}));
+vi.mock('../../vscode', () => ({
+  sendRequest: (...args: unknown[]) => mockSendRequest(...args),
+  onPushMessage: mockOnPushMessage,
+  postMessage: mockPostMessage,
+}));
+
+import { SidebarApp } from '../SidebarApp';
+import type { Marketplace, PluginListResponse, McpServer } from '../../../shared/types';
+
+function makeMarketplaces(count: number): Marketplace[] {
+  return Array.from({ length: count }, (_, i) => ({
+    name: `marketplace-${i}`,
+    source: 'github' as const,
+    repo: `owner/marketplace-${i}`,
+    installLocation: `/home/.claude/plugins/marketplaces/marketplace-${i}`,
+    autoUpdate: true,
+  }));
+}
+
+function makePluginListResponse(installedCount: number): PluginListResponse {
+  return {
+    installed: Array.from({ length: installedCount }, (_, i) => ({
+      id: `plugin-${i}`,
+      version: '1.0.0',
+      scope: 'user' as const,
+      enabled: true,
+      installPath: `/path/plugin-${i}`,
+      installedAt: '2026-01-01T00:00:00Z',
+      lastUpdated: '2026-01-01T00:00:00Z',
+    })),
+    available: [],
+    marketplaceSources: {},
+  };
+}
+
+function makeMcpServers(count: number): McpServer[] {
+  return Array.from({ length: count }, (_, i) => ({
+    name: `server-${i}`,
+    fullName: `server-${i}`,
+    command: `cmd-${i}`,
+    status: 'connected' as const,
+  }));
+}
+
+function setupMocks(opts: {
+  marketplaces?: Marketplace[];
+  plugins?: PluginListResponse;
+  mcpServers?: McpServer[];
+} = {}) {
+  mockSendRequest.mockImplementation(async (req: { type: string }) => {
+    if (req.type === 'marketplace.list') return opts.marketplaces ?? [];
+    if (req.type === 'plugin.listInstalled') return opts.plugins ?? { installed: [], available: [], marketplaceSources: {} };
+    if (req.type === 'mcp.list') return opts.mcpServers ?? [];
+    return undefined;
+  });
+}
+
+describe('SidebarApp badges', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('顯示三個分類的正確 badge 數字', async () => {
+    setupMocks({
+      marketplaces: makeMarketplaces(3),
+      plugins: makePluginListResponse(5),
+      mcpServers: makeMcpServers(2),
+    });
+
+    render(<SidebarApp />);
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(3);
+    });
+
+    const badges = document.querySelectorAll('.sidebar-button-badge');
+    expect(badges[0].textContent).toBe('3');
+    expect(badges[1].textContent).toBe('5');
+    expect(badges[2].textContent).toBe('2');
+  });
+
+  it('count 為 0 時不顯示 badge', async () => {
+    setupMocks({
+      marketplaces: [],
+      plugins: makePluginListResponse(0),
+      mcpServers: [],
+    });
+
+    render(<SidebarApp />);
+
+    // 等待 fetch 完成
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledTimes(3);
+    });
+
+    const badges = document.querySelectorAll('.sidebar-button-badge');
+    expect(badges).toHaveLength(0);
+  });
+
+  it('載入中不顯示 badge（避免 flicker）', () => {
+    // sendRequest 永遠不 resolve → 保持 loading 狀態
+    mockSendRequest.mockReturnValue(new Promise(() => {}));
+
+    render(<SidebarApp />);
+
+    const badges = document.querySelectorAll('.sidebar-button-badge');
+    expect(badges).toHaveLength(0);
+  });
+
+  it('push message 觸發 badge 更新', async () => {
+    setupMocks({
+      marketplaces: makeMarketplaces(1),
+      plugins: makePluginListResponse(1),
+      mcpServers: makeMcpServers(1),
+    });
+
+    // 捕獲 push handler
+    let pushHandler: (msg: { type: string; [key: string]: unknown }) => void = () => {};
+    mockOnPushMessage.mockImplementation((handler: typeof pushHandler) => {
+      pushHandler = handler;
+      return () => {};
+    });
+
+    render(<SidebarApp />);
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(3);
+    });
+
+    // 模擬 marketplace 變更 → 重新 fetch 返回更多
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'marketplace.list') return makeMarketplaces(5);
+      if (req.type === 'plugin.listInstalled') return makePluginListResponse(1);
+      if (req.type === 'mcp.list') return makeMcpServers(1);
+      return undefined;
+    });
+
+    await act(async () => {
+      pushHandler({ type: 'marketplace.refresh' });
+    });
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      const marketplaceBadge = badges[0];
+      expect(marketplaceBadge.textContent).toBe('5');
+    });
+  });
+
+  it('mcp.statusUpdate push 直接用 payload 更新 badge', async () => {
+    setupMocks({
+      marketplaces: [],
+      plugins: makePluginListResponse(0),
+      mcpServers: makeMcpServers(2),
+    });
+
+    let pushHandler: (msg: { type: string; [key: string]: unknown }) => void = () => {};
+    mockOnPushMessage.mockImplementation((handler: typeof pushHandler) => {
+      pushHandler = handler;
+      return () => {};
+    });
+
+    render(<SidebarApp />);
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(1); // 只有 mcp 有 badge（count=2）
+    });
+
+    // mcp.statusUpdate 帶 servers payload
+    await act(async () => {
+      pushHandler({
+        type: 'mcp.statusUpdate',
+        servers: makeMcpServers(4),
+      });
+    });
+
+    await waitFor(() => {
+      const mcpBadge = document.querySelectorAll('.sidebar-button-badge');
+      // marketplace=0 不顯示, plugins=0 不顯示, mcp=4 顯示
+      expect(mcpBadge).toHaveLength(1);
+      expect(mcpBadge[0].textContent).toBe('4');
+    });
+  });
+
+  it('plugin.refresh push 重新 fetch 更新 badge', async () => {
+    setupMocks({
+      marketplaces: [],
+      plugins: makePluginListResponse(3),
+      mcpServers: [],
+    });
+
+    let pushHandler: (msg: { type: string; [key: string]: unknown }) => void = () => {};
+    mockOnPushMessage.mockImplementation((handler: typeof pushHandler) => {
+      pushHandler = handler;
+      return () => {};
+    });
+
+    render(<SidebarApp />);
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(1); // 只有 plugin badge
+      expect(badges[0].textContent).toBe('3');
+    });
+
+    // 更新 mock 回傳值
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'marketplace.list') return [];
+      if (req.type === 'plugin.listInstalled') return makePluginListResponse(7);
+      if (req.type === 'mcp.list') return [];
+      return undefined;
+    });
+
+    await act(async () => {
+      pushHandler({ type: 'plugin.refresh' });
+    });
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(1);
+      expect(badges[0].textContent).toBe('7');
+    });
+  });
+
+  it('全部 fetch 失敗時不顯示 badge', async () => {
+    mockSendRequest.mockRejectedValue(new Error('network error'));
+
+    render(<SidebarApp />);
+
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledTimes(3);
+    });
+
+    const badges = document.querySelectorAll('.sidebar-button-badge');
+    expect(badges).toHaveLength(0);
+  });
+
+  it('部分 fetch 失敗時仍顯示成功的 badge', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'marketplace.list') return makeMarketplaces(3);
+      if (req.type === 'plugin.listInstalled') throw new Error('timeout');
+      if (req.type === 'mcp.list') return makeMcpServers(2);
+      return undefined;
+    });
+
+    render(<SidebarApp />);
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(2); // marketplace=3, mcp=2; plugin 失敗=0
+    });
+
+    const badges = document.querySelectorAll('.sidebar-button-badge');
+    expect(badges[0].textContent).toBe('3');
+    expect(badges[1].textContent).toBe('2');
+  });
+
+  it('mcp.statusUpdate 在初始 fetch 前到達時建立 counts', async () => {
+    // 讓 fetch 永遠不完成
+    mockSendRequest.mockReturnValue(new Promise(() => {}));
+
+    let pushHandler: (msg: { type: string; [key: string]: unknown }) => void = () => {};
+    mockOnPushMessage.mockImplementation((handler: typeof pushHandler) => {
+      pushHandler = handler;
+      return () => {};
+    });
+
+    render(<SidebarApp />);
+
+    // counts 是 null，mcp.statusUpdate 應該建立完整 counts
+    await act(async () => {
+      pushHandler({
+        type: 'mcp.statusUpdate',
+        servers: makeMcpServers(3),
+      });
+    });
+
+    await waitFor(() => {
+      const badges = document.querySelectorAll('.sidebar-button-badge');
+      expect(badges).toHaveLength(1);
+      expect(badges[0].textContent).toBe('3');
+    });
+  });
+
+  it('component unmount 時 unsubscribe push handler', () => {
+    const unsubscribe = vi.fn();
+    mockOnPushMessage.mockReturnValue(unsubscribe);
+    setupMocks();
+
+    const { unmount } = render(<SidebarApp />);
+    unmount();
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+});
