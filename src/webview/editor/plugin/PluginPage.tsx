@@ -71,6 +71,8 @@ export function PluginPage(): React.ReactElement {
     handleUpdateAll,
     handleBulkEnable,
     handleBulkDisable,
+    handleExport,
+    handleImport,
     isUpdatingAll,
     hasInstalledPlugins,
   } = usePluginOperations(plugins, fetchAll, setError);
@@ -126,6 +128,19 @@ export function PluginPage(): React.ReactElement {
             disabled={loading || isUpdatingAll}
           >
             Refresh
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleExport}
+            disabled={loading || !hasInstalledPlugins}
+          >
+            Export
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleImport}
+          >
+            Import
           </button>
         </div>
       </div>

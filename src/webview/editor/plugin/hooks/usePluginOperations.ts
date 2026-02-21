@@ -70,6 +70,10 @@ export interface UsePluginOperationsReturn {
   handleBulkEnable: (marketplace: string, items: MergedPlugin[], scope: PluginScope) => Promise<void>;
   /** Marketplace 層級 bulk disable（全部 scope） */
   handleBulkDisable: (marketplace: string, items: MergedPlugin[]) => Promise<void>;
+  /** 匯出 enabled plugins 為 shell script */
+  handleExport: () => Promise<void>;
+  /** 匯入 shell script 中的 plugin install 指令 */
+  handleImport: () => Promise<void>;
   /** 是否正在執行 Update All */
   isUpdatingAll: boolean;
   /** 是否有任何已安裝的 plugin */
@@ -298,6 +302,37 @@ export function usePluginOperations(
     try { await fetchAll(false); } catch { /* non-blocking */ }
   };
 
+  const handleExport = async (): Promise<void> => {
+    setError(null);
+    try {
+      await sendRequest({ type: 'plugin.export' });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleImport = async (): Promise<void> => {
+    setError(null);
+    try {
+      const results = await sendRequest<string[]>({ type: 'plugin.import' });
+      let failMsg: string | null = null;
+      if (results.length > 0) {
+        const installed = results.filter((r) => r.startsWith('Installed'));
+        const failed = results.filter((r) => r.startsWith('Failed'));
+        if (installed.length > 0) {
+          addToast(`Imported ${installed.length} plugin(s)`);
+        }
+        if (failed.length > 0) {
+          failMsg = `Import: ${failed.length} failed — ${failed.map((f) => f.replace(/^Failed:\s*/, '')).join('; ')}`;
+        }
+      }
+      await fetchAll(false);
+      if (failMsg) setError(failMsg);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const isUpdatingAll = updateAllProgress !== null;
   const hasInstalledPlugins = plugins.some(isPluginInstalled);
 
@@ -320,6 +355,8 @@ export function usePluginOperations(
     handleUpdateAll,
     handleBulkEnable,
     handleBulkDisable,
+    handleExport,
+    handleImport,
     isUpdatingAll,
     hasInstalledPlugins,
   };

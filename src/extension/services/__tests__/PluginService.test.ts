@@ -599,4 +599,208 @@ describe('PluginService', () => {
       expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', undefined);
     });
   });
+
+  describe('exportScript', () => {
+    /** Mock readEnabledPlugins per-scope（readAllEnabledPlugins 呼叫三次） */
+    function mockEnabledPlugins(user: Record<string, boolean>, project: Record<string, boolean> = {}, local: Record<string, boolean> = {}) {
+      const map: Record<string, Record<string, boolean>> = { user, project, local };
+      settings.readEnabledPlugins.mockImplementation(async (scope: string) => map[scope] ?? {});
+    }
+
+    it('enabled plugins → shell script with install commands preserving scope', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@mp1': [
+            { scope: 'user', installPath: '/p/alpha', version: '1.0.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+          ],
+          'beta@mp1': [
+            { scope: 'user', installPath: '/p/beta', version: '1.0.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+            { scope: 'project', installPath: '/p/beta', version: '1.0.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01', projectPath: '/workspace' },
+          ],
+        },
+      });
+      mockEnabledPlugins(
+        { 'alpha@mp1': true, 'beta@mp1': true },
+        { 'beta@mp1': true },
+      );
+
+      workspace.workspaceFolders = [{ uri: { fsPath: '/workspace' } }];
+      (vscWindow.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue({ fsPath: '/tmp/plugins.sh' });
+
+      await svc.exportScript();
+
+      const writeCall = (vscWorkspace.fs.writeFile as ReturnType<typeof vi.fn>).mock.calls[0];
+      const content = Buffer.from(writeCall[1]).toString('utf-8');
+
+      expect(content).toContain('#!/bin/bash');
+      expect(content).toContain("claude plugin install 'alpha@mp1' --scope user");
+      expect(content).toContain("claude plugin install 'beta@mp1' --scope user");
+      expect(content).toContain("claude plugin install 'beta@mp1' --scope project");
+    });
+
+    it('user 取消 save dialog → 不寫檔案', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@mp1': [
+            { scope: 'user', installPath: '/p/alpha', version: '1.0.0', installedAt: '2026-01-01', lastUpdated: '2026-01-01' },
+          ],
+        },
+      });
+      mockEnabledPlugins({ 'alpha@mp1': true });
+
+      (vscWindow.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+      await svc.exportScript();
+
+      expect(vscWorkspace.fs.writeFile).not.toHaveBeenCalled();
+    });
+
+    it('沒有 enabled plugins → 拋錯', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      mockEnabledPlugins({});
+
+      await expect(svc.exportScript()).rejects.toThrow('No enabled plugins to export.');
+    });
+  });
+
+  describe('importScript', () => {
+    it('解析 shell script → 逐一 install，回傳結果', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = [
+        '#!/bin/bash',
+        "claude plugin install 'alpha@mp1' --scope user",
+        "claude plugin install 'beta@mp1' --scope user",
+      ].join('\n');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      // install 走 CLI（EMPTY → cli.exec）
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results.length).toBe(2);
+      expect(results[0]).toContain('Installed');
+      expect(results[0]).toContain('alpha@mp1');
+      expect(results[1]).toContain('Installed');
+      expect(results[1]).toContain('beta@mp1');
+    });
+
+    it('user 取消 open dialog → 回傳空陣列', async () => {
+      const { window: vscWindow } = await import('vscode');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+      const results = await svc.importScript();
+
+      expect(results).toEqual([]);
+    });
+
+    it('檔案中無 install 指令 → 拋錯', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/empty.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from('#!/bin/bash\necho hello'));
+
+      await expect(svc.importScript()).rejects.toThrow('No "claude plugin install" commands found');
+    });
+
+    it('部分 install 失敗 → 繼續執行，結果含 Failed', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = [
+        "claude plugin install 'alpha@mp1' --scope user",
+        "claude plugin install 'fail@mp1' --scope user",
+      ].join('\n');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      // CLI: 第一次成功，第二次拋錯
+      let execCount = 0;
+      cli.exec.mockImplementation(async () => {
+        execCount++;
+        if (execCount === 2) throw new Error('plugin not found');
+        return '';
+      });
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(2);
+      expect(results.some((r) => r.includes('Installed') && r.includes('alpha@mp1'))).toBe(true);
+      expect(results.some((r) => r.includes('Failed') && r.includes('fail@mp1'))).toBe(true);
+    });
+
+    it('single-quoted plugin ID 正確解析', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = "claude plugin install 'my-plugin@marketplace' --scope project";
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toContain('my-plugin@marketplace');
+      expect(results[0]).toContain('project');
+    });
+
+    it('無效 scope → 預設 user', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = "claude plugin install 'alpha@mp1' --scope invalid";
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(1);
+      // install 被呼叫時 scope 應為 'user'（fallback）
+      expect(results[0]).toContain('Installed');
+      expect(results[0]).toContain('user');
+    });
+
+    it('double-quoted 與 unquoted plugin ID 皆可解析', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = [
+        'claude plugin install "alpha@mp1" --scope user',
+        'claude plugin install beta@mp1 --scope project',
+      ].join('\n');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(2);
+      expect(results[0]).toContain('alpha@mp1');
+      expect(results[1]).toContain('beta@mp1');
+    });
+  });
 });

@@ -725,6 +725,145 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Export / Import', () => {
+    it('Export 按鈕有安裝 plugin 時啟用，送出 plugin.export', async () => {
+      const calls: { type: string }[] = [];
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        calls.push(req);
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [makeInstalled('alpha', 'mp1', true)],
+            [makeAvailable('alpha', 'mp1')],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const exportBtn = screen.getByRole('button', { name: 'Export' });
+      expect((exportBtn as HTMLButtonElement).disabled).toBe(false);
+
+      await act(async () => {
+        fireEvent.click(exportBtn);
+      });
+
+      expect(calls.some((c) => c.type === 'plugin.export')).toBe(true);
+    });
+
+    it('Export 按鈕沒有安裝 plugin 時 disabled', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const exportBtn = screen.getByRole('button', { name: 'Export' });
+      expect((exportBtn as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('Import 按鈕送出 plugin.import → 成功後顯示 toast', async () => {
+      const calls: { type: string }[] = [];
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        calls.push(req);
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        if (req.type === 'plugin.import') {
+          return ['Installed: alpha@mp1 (user)'];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+      });
+
+      expect(calls.some((c) => c.type === 'plugin.import')).toBe(true);
+
+      // Toast 顯示
+      await waitFor(() => {
+        expect(screen.getByText(/Imported 1 plugin/)).toBeTruthy();
+      });
+    });
+
+    it('Import 部分失敗 → 成功 toast + 失敗 ErrorBanner', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        if (req.type === 'plugin.import') {
+          return [
+            'Installed: alpha@mp1 (user)',
+            'Failed: bad@mp1 (user) — plugin not found',
+          ];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Imported 1 plugin/)).toBeTruthy();
+      });
+      await waitFor(() => {
+        expect(screen.getByText(/Import: 1 failed/)).toBeTruthy();
+      });
+    });
+
+    it('Export 失敗 → ErrorBanner 顯示', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [makeInstalled('alpha', 'mp1', true)],
+            [makeAvailable('alpha', 'mp1')],
+          );
+        }
+        if (req.type === 'plugin.export') throw new Error('No enabled plugins to export.');
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('No enabled plugins to export.')).toBeTruthy();
+      });
+    });
+  });
+
   describe('plugin.refresh 推送', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
       let pushCallback: ((msg: { type: string }) => void) | null = null;

@@ -78,11 +78,18 @@ export const workspace = {
     return mock.watcher;
   }),
   onDidChangeWorkspaceFolders: mockWorkspaceFoldersChangeEmitter.event,
+  fs: {
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn().mockResolvedValue(Buffer.from('')),
+  },
 };
 
 export const window = {
   createWebviewPanel: vi.fn(),
   registerWebviewViewProvider: vi.fn(),
+  showSaveDialog: vi.fn(),
+  showOpenDialog: vi.fn(),
+  showInformationMessage: vi.fn(),
 };
 
 export const commands = {

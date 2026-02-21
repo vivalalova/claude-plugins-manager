@@ -74,6 +74,10 @@ export class MessageRouter {
         return this.plugin.disableAll();
       case 'plugin.update':
         return this.plugin.update(message.plugin, message.scope);
+      case 'plugin.export':
+        return this.plugin.exportScript();
+      case 'plugin.import':
+        return this.plugin.importScript();
       case 'plugin.translate':
         return this.translation.translate(message.texts, message.targetLang, message.email);
 

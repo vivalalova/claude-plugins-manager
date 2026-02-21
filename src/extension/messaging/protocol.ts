@@ -20,6 +20,8 @@ export type RequestMessage =
   | { type: 'plugin.disable'; requestId: string; plugin: string; scope?: PluginScope }
   | { type: 'plugin.disableAll'; requestId: string }
   | { type: 'plugin.update'; requestId: string; plugin: string; scope?: PluginScope }
+  | { type: 'plugin.export'; requestId: string }
+  | { type: 'plugin.import'; requestId: string }
   | { type: 'mcp.list'; requestId: string }
   | { type: 'mcp.add'; requestId: string; params: McpAddParams }
   | { type: 'mcp.remove'; requestId: string; name: string; scope?: McpScope }
