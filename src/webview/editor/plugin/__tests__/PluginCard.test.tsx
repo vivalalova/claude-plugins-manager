@@ -372,4 +372,111 @@ describe('PluginCard', () => {
     expect(screen.getByText(/Updated:/)).toBeTruthy();
   });
 
+  describe('Resource conflict badge', () => {
+    it('有 conflicts → 顯示衝突數量 badge', () => {
+      const plugin = createPlugin({
+        contents: {
+          commands: [],
+          skills: [],
+          agents: [],
+          mcpServers: ['shared-srv'],
+          hooks: false,
+        },
+      });
+
+      render(
+        <PluginCard
+          plugin={plugin}
+          conflicts={[{ type: 'mcp', name: 'shared-srv', pluginIds: ['test-plugin@test-mp', 'other@mp'] }]}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      expect(screen.getByText(/1 conflict/)).toBeTruthy();
+    });
+
+    it('無 conflicts → 不顯示 badge', () => {
+      const plugin = createPlugin();
+
+      render(
+        <PluginCard
+          plugin={plugin}
+          conflicts={[]}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      expect(screen.queryByText(/conflict/)).toBeNull();
+    });
+
+    it('conflicts undefined → 不顯示 badge', () => {
+      const plugin = createPlugin();
+
+      render(
+        <PluginCard
+          plugin={plugin}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      expect(screen.queryByText(/conflict/)).toBeNull();
+    });
+
+    it('有 conflicts 時展開可見衝突詳情', () => {
+      const plugin = createPlugin({
+        contents: {
+          commands: [],
+          skills: [],
+          agents: [],
+          mcpServers: ['shared-srv'],
+          hooks: false,
+        },
+      });
+
+      const { container } = render(
+        <PluginCard
+          plugin={plugin}
+          conflicts={[{ type: 'mcp', name: 'shared-srv', pluginIds: ['test-plugin@test-mp', 'other@mp'] }]}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      // 預設收合 → 展開
+      fireEvent.click(container.querySelector('.card')!);
+
+      expect(screen.getByText('Conflicts')).toBeTruthy();
+      expect(screen.getByText(/MCP Server: shared-srv/)).toBeTruthy();
+      expect(screen.getByText(/also in other/)).toBeTruthy();
+    });
+
+    it('多個 conflicts → 顯示正確數量', () => {
+      const plugin = createPlugin({
+        contents: {
+          commands: [{ name: 'deploy', description: '' }],
+          skills: [],
+          agents: [],
+          mcpServers: ['srv'],
+          hooks: false,
+        },
+      });
+
+      render(
+        <PluginCard
+          plugin={plugin}
+          conflicts={[
+            { type: 'mcp', name: 'srv', pluginIds: ['test-plugin@test-mp', 'a@mp'] },
+            { type: 'command', name: 'deploy', pluginIds: ['test-plugin@test-mp', 'b@mp'] },
+          ]}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      expect(screen.getByText(/2 conflicts/)).toBeTruthy();
+    });
+  });
 });
