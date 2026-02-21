@@ -12,6 +12,7 @@ export type {
   EnabledPluginsMap,
   MarketplacePluginEntry,
   MarketplaceManifest,
+  PreviewPlugin,
   InstalledPlugin,
   AvailablePlugin,
   PluginListResponse,

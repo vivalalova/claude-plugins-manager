@@ -6,7 +6,7 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
 import { useToast } from '../../components/Toast';
-import type { Marketplace } from '../../../shared/types';
+import type { Marketplace, PreviewPlugin } from '../../../shared/types';
 
 /**
  * Marketplace 管理頁面。
@@ -23,6 +23,9 @@ export function MarketplacePage(): React.ReactElement {
   const [updating, setUpdating] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewPlugins, setPreviewPlugins] = useState<PreviewPlugin[] | null>(null);
+  const [previewSource, setPreviewSource] = useState('');
 
   const fetchList = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -48,6 +51,46 @@ export function MarketplacePage(): React.ReactElement {
     });
     return unsubscribe;
   }, [fetchList]);
+
+  const handlePreview = async (): Promise<void> => {
+    const source = addSource.trim();
+    if (!source) return;
+    setPreviewing(true);
+    setError(null);
+    setRetryAction(null);
+    try {
+      const plugins = await sendRequest<PreviewPlugin[]>({ type: 'marketplace.preview', source });
+      setPreviewPlugins(plugins);
+      setPreviewSource(source);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleClosePreview = (): void => {
+    setPreviewPlugins(null);
+    setPreviewSource('');
+  };
+
+  const handleConfirmAdd = async (): Promise<void> => {
+    const source = previewSource;
+    handleClosePreview();
+    setAdding(true);
+    setError(null);
+    try {
+      await sendRequest({ type: 'marketplace.add', source });
+      setAddSource('');
+      await fetchList();
+      addToast('Marketplace added');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setRetryAction(() => () => handleAdd(source));
+    } finally {
+      setAdding(false);
+    }
+  };
 
   const handleAdd = async (sourceOverride?: string): Promise<void> => {
     const source = (sourceOverride ?? addSource).trim();
@@ -187,9 +230,16 @@ export function MarketplacePage(): React.ReactElement {
           placeholder="Git URL, GitHub owner/repo, or local path"
           value={addSource}
           onChange={(e) => setAddSource(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          disabled={adding}
+          onKeyDown={(e) => e.key === 'Enter' && !previewing && handleAdd()}
+          disabled={adding || previewing}
         />
+        <button
+          className="btn btn-secondary"
+          onClick={handlePreview}
+          disabled={previewing || adding || !addSource.trim()}
+        >
+          {previewing ? 'Loading...' : 'Preview'}
+        </button>
         <button
           className="btn btn-primary"
           onClick={() => handleAdd()}
@@ -232,6 +282,42 @@ export function MarketplacePage(): React.ReactElement {
           onConfirm={() => handleRemove(confirmRemove)}
           onCancel={() => setConfirmRemove(null)}
         />
+      )}
+
+      {previewPlugins && (
+        <div className="confirm-overlay" onClick={handleClosePreview}>
+          <div
+            className="confirm-dialog confirm-dialog--preview"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="confirm-dialog-title">
+              Marketplace Preview — {previewPlugins.length} plugin{previewPlugins.length !== 1 ? 's' : ''}
+            </div>
+            <div className="preview-plugin-list">
+              {previewPlugins.map((p) => (
+                <div key={p.name} className="preview-plugin-item">
+                  <div className="preview-plugin-name">
+                    {p.name}
+                    {p.version && <span className="preview-plugin-version">{p.version}</span>}
+                  </div>
+                  {p.description && (
+                    <div className="preview-plugin-desc">{p.description}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="confirm-dialog-actions">
+              <button className="btn btn-secondary" onClick={handleClosePreview}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleConfirmAdd} disabled={adding}>
+                {adding ? 'Adding...' : 'Add Marketplace'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

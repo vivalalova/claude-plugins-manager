@@ -44,6 +44,8 @@ export class MessageRouter {
       // Marketplace
       case 'marketplace.list':
         return this.marketplace.list();
+      case 'marketplace.preview':
+        return this.marketplace.preview(message.source);
       case 'marketplace.add':
         return this.marketplace.add(message.source);
       case 'marketplace.remove':

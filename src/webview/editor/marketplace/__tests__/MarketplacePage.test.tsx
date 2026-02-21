@@ -441,4 +441,151 @@ describe('MarketplacePage', () => {
     expect(updateBtns).toHaveLength(2);
     expect(removeBtns).toHaveLength(2);
   });
+
+  describe('Preview 功能', () => {
+    it('輸入 source → 點 Preview → 送出 marketplace.preview → 顯示 plugin 清單', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'marketplace.list') return [];
+        if (req.type === 'marketplace.preview') {
+          return [
+            { name: 'plugin-a', description: 'A plugin', version: '1.0.0' },
+            { name: 'plugin-b', description: 'B plugin' },
+          ];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('No marketplaces configured')).toBeTruthy();
+      });
+
+      const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+      fireEvent.change(input, { target: { value: 'owner/my-mp' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Preview'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('plugin-a')).toBeTruthy();
+        expect(screen.getByText('A plugin')).toBeTruthy();
+        expect(screen.getByText('1.0.0')).toBeTruthy();
+        expect(screen.getByText('plugin-b')).toBeTruthy();
+      });
+    });
+
+    it('Preview dialog → 點 Add → 送出 marketplace.add + 關閉 dialog', async () => {
+      const calls: { type: string; source?: string }[] = [];
+      mockSendRequest.mockImplementation(async (req: { type: string; source?: string }) => {
+        calls.push(req);
+        if (req.type === 'marketplace.list') {
+          const added = calls.some((c) => c.type === 'marketplace.add');
+          return added ? [makeMarketplace('my-mp')] : [];
+        }
+        if (req.type === 'marketplace.preview') {
+          return [{ name: 'plugin-a', description: 'A', version: '1.0.0' }];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('No marketplaces configured')).toBeTruthy();
+      });
+
+      const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+      fireEvent.change(input, { target: { value: 'owner/my-mp' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Preview'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('plugin-a')).toBeTruthy();
+      });
+
+      // 點 dialog 的 Add 確認
+      const dialog = screen.getByRole('dialog');
+      await act(async () => {
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Add Marketplace' }));
+      });
+
+      // marketplace.add 被送出
+      const addCall = calls.find((c) => c.type === 'marketplace.add');
+      expect(addCall).toBeDefined();
+      expect(addCall?.source).toBe('owner/my-mp');
+
+      // dialog 關閉，marketplace 列表刷新
+      await waitFor(() => {
+        expect(screen.getByText('my-mp')).toBeTruthy();
+      });
+    });
+
+    it('Preview dialog → 點 Cancel → 不送出 marketplace.add', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'marketplace.list') return [];
+        if (req.type === 'marketplace.preview') {
+          return [{ name: 'plugin-a', description: 'A' }];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('No marketplaces configured')).toBeTruthy();
+      });
+
+      const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+      fireEvent.change(input, { target: { value: 'owner/my-mp' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Preview'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('plugin-a')).toBeTruthy();
+      });
+
+      // 點 Cancel
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      });
+
+      // dialog 關閉
+      expect(screen.queryByText('plugin-a')).toBeNull();
+
+      // marketplace.add 未被呼叫
+      const addCalls = mockSendRequest.mock.calls
+        .map((args: unknown[]) => (args[0] as { type: string }).type)
+        .filter((t: string) => t === 'marketplace.add');
+      expect(addCalls).toHaveLength(0);
+    });
+
+    it('Preview 失敗 → 顯示錯誤訊息', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'marketplace.list') return [];
+        if (req.type === 'marketplace.preview') {
+          throw new Error('Repository not found');
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('No marketplaces configured')).toBeTruthy();
+      });
+
+      const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+      fireEvent.change(input, { target: { value: 'owner/invalid' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Preview'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Repository not found')).toBeTruthy();
+      });
+    });
+  });
 });

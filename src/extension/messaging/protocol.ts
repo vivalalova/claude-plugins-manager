@@ -6,6 +6,7 @@ import type { McpAddParams, McpScope, McpServer, PluginScope } from '../types';
 
 export type RequestMessage =
   | { type: 'marketplace.list'; requestId: string }
+  | { type: 'marketplace.preview'; requestId: string; source: string }
   | { type: 'marketplace.add'; requestId: string; source: string }
   | { type: 'marketplace.remove'; requestId: string; name: string }
   | { type: 'marketplace.update'; requestId: string; name?: string }

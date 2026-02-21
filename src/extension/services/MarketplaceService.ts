@@ -2,10 +2,17 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
+import { execFile } from 'child_process';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
-import type { Marketplace, MarketplaceSourceType } from '../types';
+import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../types';
 import type { CliService } from './CliService';
 import { escapeShellArg } from '../utils/workspace';
+
+/** Git clone timeout (30s — shallow clone should be fast) */
+const GIT_CLONE_TIMEOUT_MS = 30_000;
+
+/** owner/repo 格式（無 protocol、無 .git suffix） */
+const GITHUB_SHORTHAND_RE = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
 
 /** known_marketplaces.json 內每個 marketplace 的原始結構 */
 interface RawMarketplaceEntry {
@@ -92,6 +99,78 @@ export class MarketplaceService {
 
     entry.autoUpdate = !entry.autoUpdate;
     await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
+  }
+
+  /**
+   * 預覽 marketplace 的 plugin 清單（不實際加入）。
+   * 本地路徑直接讀取，Git/GitHub source 透過 shallow clone 到 temp dir。
+   */
+  async preview(source: string): Promise<PreviewPlugin[]> {
+    const isLocal = source.startsWith('/') || source.startsWith('.');
+    const isGitHub = !isLocal && GITHUB_SHORTHAND_RE.test(source);
+    const gitUrl = isGitHub ? `https://github.com/${source}.git` : source;
+
+    let dir: string;
+    let tempDir: string | null = null;
+
+    if (isLocal) {
+      // 確認路徑存在
+      await fs.access(source);
+      dir = source;
+    } else {
+      // Shallow clone to temp dir
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mp-preview-'));
+      dir = tempDir;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          execFile(
+            'git',
+            ['clone', '--depth', '1', '--', gitUrl, tempDir!],
+            { timeout: GIT_CLONE_TIMEOUT_MS },
+            (err) => (err ? reject(err) : resolve()),
+          );
+        });
+      } catch (err) {
+        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+        throw err;
+      }
+    }
+
+    try {
+      const manifestPath = path.join(dir, '.claude-plugin', 'marketplace.json');
+      const manifest: MarketplaceManifest = JSON.parse(
+        await fs.readFile(manifestPath, 'utf-8'),
+      );
+
+      const baseDir = path.resolve(dir);
+      const plugins = await Promise.all(
+        (manifest.plugins ?? []).map(async (p): Promise<PreviewPlugin> => {
+          let description = p.description ?? '';
+          let version = p.version;
+          try {
+            const pluginDir = path.resolve(dir, p.source ?? '.');
+            // 防止 path traversal（惡意 marketplace.json 的 source 欄位）
+            if (!pluginDir.startsWith(baseDir + path.sep) && pluginDir !== baseDir) {
+              throw new Error('Path traversal detected');
+            }
+            const pluginMeta = JSON.parse(
+              await fs.readFile(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf-8'),
+            ) as { description?: string; version?: string };
+            if (pluginMeta.description) description = pluginMeta.description;
+            if (pluginMeta.version) version = pluginMeta.version;
+          } catch {
+            // plugin.json 可能不存在或路徑不合法，使用 manifest 資訊
+          }
+          return { name: p.name, description, version };
+        }),
+      );
+
+      return plugins;
+    } finally {
+      if (tempDir) {
+        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      }
+    }
   }
 
   /**

@@ -62,6 +62,13 @@ export interface InstalledPlugin {
   mcpServers?: Record<string, McpServerConfig>;
 }
 
+/** Marketplace preview 的 plugin 摘要（加入前預覽） */
+export interface PreviewPlugin {
+  name: string;
+  description: string;
+  version?: string;
+}
+
 /** marketplace.json 內的單一 plugin entry */
 export interface MarketplacePluginEntry {
   name: string;
