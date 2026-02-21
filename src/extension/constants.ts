@@ -36,5 +36,5 @@ export const CLI_BASE_BACKOFF_MS = 1_000;
 /** 可重試的系統錯誤碼（暫時性網路/連線問題） */
 export const CLI_RETRYABLE_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN']);
 
-/** MCP 狀態輪詢間隔（毫秒） */
-export const MCP_POLL_INTERVAL_MS = 15_000;
+/** MCP 狀態輪詢間隔（毫秒）— fallback，主要由 FileWatcher 驅動 */
+export const MCP_POLL_INTERVAL_MS = 60_000;

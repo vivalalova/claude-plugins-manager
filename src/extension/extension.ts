@@ -23,8 +23,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService);
   // Marketplace 檔案變更 → invalidate scan cache（plugin settings 變更不影響 marketplace 掃描）
   fileWatcherService.onMarketplaceFilesChanged(() => settingsFileService.invalidateScanCache());
-  // MCP 相關檔案變更 → invalidate metadata cache
-  fileWatcherService.onMcpFilesChanged(() => mcpService.invalidateMetadataCache());
+  // MCP 相關檔案變更 → invalidate metadata cache + 立即 poll（取代等待下一個 interval）
+  fileWatcherService.onMcpFilesChanged(() => {
+    mcpService.invalidateMetadataCache();
+    mcpService.triggerPoll();
+  });
   // Workspace 切換 → invalidate（不同 workspace 有不同的 .mcp.json）
   vscode.workspace.onDidChangeWorkspaceFolders(() => mcpService.invalidateMetadataCache());
   const editorManager = new EditorPanelManager(context.extensionUri, router, mcpService, fileWatcherService);

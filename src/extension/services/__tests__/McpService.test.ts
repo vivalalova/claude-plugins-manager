@@ -544,7 +544,7 @@ describe('McpService', () => {
       expect(listener).toHaveBeenCalledTimes(1);
 
       // 第二次 poll，相同狀態
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(listener).toHaveBeenCalledTimes(1); // 不再觸發
     });
 
@@ -562,7 +562,7 @@ describe('McpService', () => {
 
       // 第二次：srv-b 消失
       cli.exec.mockResolvedValue('srv-a: node a.js - ✓ Connected');
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(listener).toHaveBeenCalledTimes(2);
     });
 
@@ -593,11 +593,11 @@ describe('McpService', () => {
       expect(unavailableListener).not.toHaveBeenCalled();
 
       // 第 2 次 poll
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(unavailableListener).not.toHaveBeenCalled();
 
       // 第 3 次 poll → 達到上限，觸發 onPollUnavailable + 停止 timer
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(unavailableListener).toHaveBeenCalledTimes(1);
 
       // timer 已停止，不再觸發 poll
@@ -614,17 +614,17 @@ describe('McpService', () => {
       cli.exec.mockRejectedValue(new Error('fail'));
       svc.startPolling();
       await vi.advanceTimersByTimeAsync(0);
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
 
       // 第 3 次成功 → 計數歸零
       cli.exec.mockResolvedValue('my-server: node server.js - ✓ Connected');
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(unavailableListener).not.toHaveBeenCalled();
 
       // 再連續 2 次失敗 → 仍不會觸發
       cli.exec.mockRejectedValue(new Error('fail'));
-      await vi.advanceTimersByTimeAsync(15_000);
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(unavailableListener).not.toHaveBeenCalled();
     });
   });
@@ -638,8 +638,8 @@ describe('McpService', () => {
       cli.exec.mockRejectedValue(new Error('fail'));
       svc.startPolling();
       await vi.advanceTimersByTimeAsync(0);
-      await vi.advanceTimersByTimeAsync(15_000);
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(unavailableListener).toHaveBeenCalledTimes(1);
 
       // restartPolling → 重啟
@@ -744,7 +744,7 @@ describe('McpService', () => {
       mockReadFile.mockClear();
 
       // 第二次 poll → cache hit，不讀 disk
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(mockReadFile).not.toHaveBeenCalled();
     });
   });

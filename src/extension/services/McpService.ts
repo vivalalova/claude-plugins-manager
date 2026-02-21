@@ -198,6 +198,11 @@ export class McpService {
     this.startPolling();
   }
 
+  /** 檔案變更後觸發立即 poll（debounce 由 FileWatcherService 處理） */
+  triggerPoll(): void {
+    this.pollOnce();
+  }
+
   /** 手動觸發一次完整狀態刷新（CLI health check），回傳最新 servers */
   async refreshStatus(): Promise<McpServer[]> {
     const servers = await this.list();
