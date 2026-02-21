@@ -4,6 +4,7 @@ import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptySta
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { KeyboardHelpOverlay } from '../../components/KeyboardHelpOverlay';
 import { PluginCard } from './PluginCard';
+import { VirtualCardList } from './VirtualCardList';
 import { BulkEnableScopeDialog } from './BulkEnableScopeDialog';
 import { TranslateDialog } from './TranslateDialog';
 import { getCardTranslateStatus } from './translateUtils';
@@ -350,10 +351,12 @@ export function PluginPage(): React.ReactElement {
               </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
                 <div className="section-body-inner">
-                  <div className="card-list">
-                    {items.map((plugin) => (
+                  <VirtualCardList
+                    items={items}
+                    keyExtractor={(plugin) => plugin.id}
+                    className="card-list"
+                    renderItem={(plugin) => (
                       <PluginCard
-                        key={plugin.id}
                         plugin={plugin}
                         workspaceName={workspaceFolders[0]?.name}
                         marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
@@ -364,8 +367,8 @@ export function PluginPage(): React.ReactElement {
                         onToggle={(scope, enable) => handleToggle(plugin.id, scope, enable)}
                         onUpdate={(scopes) => handleUpdate(plugin.id, scopes)}
                       />
-                    ))}
-                  </div>
+                    )}
+                  />
                 </div>
               </div>
             </div>

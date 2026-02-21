@@ -488,6 +488,16 @@ body {
 .card-list .card:nth-child(5) { animation-delay: 120ms; }
 .card-list .card:nth-child(n+6) { animation-delay: 150ms; }
 
+/* Virtual scroll: wrapper div 讓每個 .card 都成為 :last-child，需覆寫 */
+.card-list.card-list--virtual > div > .card {
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  animation: none;
+}
+/* 只在真正的最後一個 item（data-is-last）才移除 border */
+.card-list.card-list--virtual > div[data-is-last] > .card {
+  border-bottom: none;
+}
+
 .card:hover {
   background: var(--vscode-list-hoverBackground);
 }
