@@ -7,7 +7,14 @@ import {
   writeContentTypeFilters,
   CONTENT_TYPE_STORAGE_KEY,
   hasPluginUpdate,
+  compareByName,
+  compareByLastUpdated,
+  getPluginComparator,
+  readPluginSort,
+  writePluginSort,
+  PLUGIN_SORT_KEY,
   type ContentTypeFilter,
+  type PluginSortBy,
 } from '../filterUtils';
 import type { MergedPlugin, PluginContents, InstalledPlugin, PluginScope } from '../../../../shared/types';
 
@@ -323,5 +330,106 @@ describe('hasPluginUpdate', () => {
       localInstall: { ...makeInstall('2026-01-15T00:00:00Z'), scope: 'local' as PluginScope },
     };
     expect(hasPluginUpdate(p)).toBe(true);
+  });
+});
+
+describe('compareByName', () => {
+  it('按名稱字母升序排列', () => {
+    const a = makeMerged({ name: 'alpha' });
+    const b = makeMerged({ name: 'beta' });
+    expect(compareByName(a, b)).toBeLessThan(0);
+    expect(compareByName(b, a)).toBeGreaterThan(0);
+  });
+
+  it('相同名稱 → 0', () => {
+    const a = makeMerged({ name: 'same' });
+    const b = makeMerged({ name: 'same' });
+    expect(compareByName(a, b)).toBe(0);
+  });
+
+  it('case-insensitive 排序', () => {
+    const a = makeMerged({ name: 'Alpha' });
+    const b = makeMerged({ name: 'beta' });
+    expect(compareByName(a, b)).toBeLessThan(0);
+  });
+});
+
+describe('compareByLastUpdated', () => {
+  it('較新日期排前面（降序）', () => {
+    const newer: MergedPlugin = { ...makeMerged({ name: 'a' }), availableLastUpdated: '2026-02-20T00:00:00Z' };
+    const older: MergedPlugin = { ...makeMerged({ name: 'b' }), availableLastUpdated: '2026-01-01T00:00:00Z' };
+    expect(compareByLastUpdated(newer, older)).toBeLessThan(0);
+    expect(compareByLastUpdated(older, newer)).toBeGreaterThan(0);
+  });
+
+  it('無日期排最後', () => {
+    const withDate: MergedPlugin = { ...makeMerged({ name: 'a' }), availableLastUpdated: '2026-01-01T00:00:00Z' };
+    const noDate = makeMerged({ name: 'b' });
+    expect(compareByLastUpdated(withDate, noDate)).toBeLessThan(0);
+    expect(compareByLastUpdated(noDate, withDate)).toBeGreaterThan(0);
+  });
+
+  it('兩者皆無日期 → fallback 按名稱排序', () => {
+    const a = makeMerged({ name: 'alpha' });
+    const b = makeMerged({ name: 'beta' });
+    expect(compareByLastUpdated(a, b)).toBeLessThan(0);
+  });
+
+  it('日期相同 → fallback 按名稱排序', () => {
+    const a: MergedPlugin = { ...makeMerged({ name: 'alpha' }), availableLastUpdated: '2026-02-01T00:00:00Z' };
+    const b: MergedPlugin = { ...makeMerged({ name: 'beta' }), availableLastUpdated: '2026-02-01T00:00:00Z' };
+    expect(compareByLastUpdated(a, b)).toBeLessThan(0);
+  });
+
+  it('優先使用 availableLastUpdated，fallback 到 lastUpdated', () => {
+    const withAvailable: MergedPlugin = { ...makeMerged({ name: 'a' }), availableLastUpdated: '2026-02-20T00:00:00Z' };
+    const withInstalled: MergedPlugin = { ...makeMerged({ name: 'b' }), lastUpdated: '2026-01-01T00:00:00Z' };
+    expect(compareByLastUpdated(withAvailable, withInstalled)).toBeLessThan(0);
+  });
+
+  it('invalid date string 視為無日期，排最後', () => {
+    const valid: MergedPlugin = { ...makeMerged({ name: 'a' }), availableLastUpdated: '2026-01-01T00:00:00Z' };
+    const invalid: MergedPlugin = { ...makeMerged({ name: 'b' }), availableLastUpdated: 'not-a-date' };
+    expect(compareByLastUpdated(valid, invalid)).toBeLessThan(0);
+    expect(compareByLastUpdated(invalid, valid)).toBeGreaterThan(0);
+  });
+
+  it('兩者都是 invalid date → fallback 按名稱排序', () => {
+    const a: MergedPlugin = { ...makeMerged({ name: 'alpha' }), availableLastUpdated: 'N/A' };
+    const b: MergedPlugin = { ...makeMerged({ name: 'beta' }), availableLastUpdated: 'unknown' };
+    expect(compareByLastUpdated(a, b)).toBeLessThan(0);
+  });
+});
+
+describe('getPluginComparator', () => {
+  it('name → 回傳 compareByName', () => {
+    expect(getPluginComparator('name')).toBe(compareByName);
+  });
+
+  it('lastUpdated → 回傳 compareByLastUpdated', () => {
+    expect(getPluginComparator('lastUpdated')).toBe(compareByLastUpdated);
+  });
+});
+
+describe('readPluginSort / writePluginSort', () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it('localStorage 無資料 → 預設 name', () => {
+    expect(readPluginSort()).toBe('name');
+  });
+
+  it('write lastUpdated → read 回 lastUpdated', () => {
+    writePluginSort('lastUpdated');
+    expect(readPluginSort()).toBe('lastUpdated');
+  });
+
+  it('write name → read 回 name', () => {
+    writePluginSort('name');
+    expect(readPluginSort()).toBe('name');
+  });
+
+  it('localStorage 含無效值 → fallback name', () => {
+    localStorage.setItem(PLUGIN_SORT_KEY, 'invalid');
+    expect(readPluginSort()).toBe('name');
   });
 });

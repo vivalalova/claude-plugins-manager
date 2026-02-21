@@ -129,10 +129,45 @@ export function matchesSearch(plugin: MergedPlugin, query: string): boolean {
   return false;
 }
 
+/** Plugin 排序方式 */
+export type PluginSortBy = 'name' | 'lastUpdated';
+
+/** Sort 下拉選項 */
+export const PLUGIN_SORT_OPTIONS: { value: PluginSortBy; label: string }[] = [
+  { value: 'name', label: 'Name' },
+  { value: 'lastUpdated', label: 'Last Updated' },
+];
+
+/** 按名稱升序（case-insensitive） */
+export function compareByName(a: MergedPlugin, b: MergedPlugin): number {
+  return a.name.localeCompare(b.name);
+}
+
+/** 按最後更新時間降序（新的在前）。無日期或 invalid date 排最後，日期相同 fallback 名稱排序。 */
+export function compareByLastUpdated(a: MergedPlugin, b: MergedPlugin): number {
+  const aRaw = a.availableLastUpdated ?? a.lastUpdated;
+  const bRaw = b.availableLastUpdated ?? b.lastUpdated;
+  const aMs = aRaw ? new Date(aRaw).getTime() : NaN;
+  const bMs = bRaw ? new Date(bRaw).getTime() : NaN;
+  const aValid = !Number.isNaN(aMs);
+  const bValid = !Number.isNaN(bMs);
+  if (!aValid && !bValid) return a.name.localeCompare(b.name);
+  if (!aValid) return 1;
+  if (!bValid) return -1;
+  const diff = bMs - aMs;
+  return diff !== 0 ? diff : a.name.localeCompare(b.name);
+}
+
+/** 取得排序比較函數 */
+export function getPluginComparator(sortBy: PluginSortBy): (a: MergedPlugin, b: MergedPlugin) => number {
+  return sortBy === 'lastUpdated' ? compareByLastUpdated : compareByName;
+}
+
 /** localStorage keys for plugin filter persistence */
 export const PLUGIN_SEARCH_KEY = 'plugin.search';
 export const PLUGIN_FILTER_ENABLED_KEY = 'plugin.filter.enabled';
 export const CONTENT_TYPE_STORAGE_KEY = 'plugin.filter.contentTypes';
+export const PLUGIN_SORT_KEY = 'plugin.sort';
 
 /**
  * localStorage → Set<ContentTypeFilter>。
@@ -156,4 +191,15 @@ export function readContentTypeFilters(): Set<ContentTypeFilter> {
 /** Set<ContentTypeFilter> → localStorage JSON string */
 export function writeContentTypeFilters(filters: ReadonlySet<ContentTypeFilter>): void {
   localStorage.setItem(CONTENT_TYPE_STORAGE_KEY, JSON.stringify([...filters]));
+}
+
+/** localStorage → PluginSortBy。無效值 fallback 'name'。 */
+export function readPluginSort(): PluginSortBy {
+  const raw = localStorage.getItem(PLUGIN_SORT_KEY);
+  return raw === 'lastUpdated' ? 'lastUpdated' : 'name';
+}
+
+/** PluginSortBy → localStorage */
+export function writePluginSort(sort: PluginSortBy): void {
+  localStorage.setItem(PLUGIN_SORT_KEY, sort);
 }
