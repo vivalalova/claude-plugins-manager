@@ -621,6 +621,110 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Retry UI', () => {
+    it('Update All 部分失敗 → ErrorBanner 有 Retry 按鈕 → 點擊重試', async () => {
+      let updateCallCount = 0;
+
+      mockSendRequest.mockImplementation(async (req: { type: string; plugin?: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [makeInstalled('alpha', 'mp1', true)],
+            [makeAvailable('alpha', 'mp1')],
+          );
+        }
+        if (req.type === 'plugin.update') {
+          updateCallCount++;
+          if (updateCallCount === 1) throw new Error('update timeout');
+          return undefined;
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 展開 section
+      fireEvent.click(screen.getByText('mp1'));
+
+      // Update All → 失敗
+      await act(async () => {
+        fireEvent.click(screen.getByText('Update All'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Update All:.*1 failed/)).toBeTruthy();
+      });
+
+      // Retry 按鈕存在
+      const retryBtn = screen.getByRole('button', { name: 'Retry' });
+      expect(retryBtn).toBeTruthy();
+
+      // 點 Retry → 重試成功 → error 消失
+      await act(async () => {
+        fireEvent.click(retryBtn);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Update All:.*failed/)).toBeNull();
+      });
+
+      expect(updateCallCount).toBe(2);
+    });
+
+    it('install 失敗 → ErrorBanner 有 Retry → 重試', async () => {
+      let installCallCount = 0;
+
+      mockSendRequest.mockImplementation(async (req: { type: string; plugin?: string; scope?: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        if (req.type === 'plugin.install') {
+          installCallCount++;
+          if (installCallCount === 1) throw new Error('install failed');
+          return undefined;
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 展開 section
+      fireEvent.click(screen.getByText('mp1'));
+
+      // 勾選 User scope → install → 失敗
+      const userCheckbox = screen.getByRole('checkbox', { name: 'User' });
+      await act(async () => {
+        fireEvent.click(userCheckbox);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('install failed')).toBeTruthy();
+      });
+
+      // Retry 按鈕存在
+      const retryBtn = screen.getByRole('button', { name: 'Retry' });
+      expect(retryBtn).toBeTruthy();
+
+      // 點 Retry → 重試
+      await act(async () => {
+        fireEvent.click(retryBtn);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('install failed')).toBeNull();
+      });
+
+      expect(installCallCount).toBe(2);
+    });
+  });
+
   describe('plugin.refresh 推送', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
       let pushCallback: ((msg: { type: string }) => void) | null = null;

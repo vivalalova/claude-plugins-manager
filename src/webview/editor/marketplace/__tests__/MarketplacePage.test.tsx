@@ -318,6 +318,109 @@ describe('MarketplacePage', () => {
     expect(screen.getByText('alpha')).toBeTruthy();
   });
 
+  it('marketplace update 失敗 → ErrorBanner 有 Retry 按鈕 → 點擊重試成功', async () => {
+    let updateCallCount = 0;
+    mockSendRequest.mockImplementation(async (req: { type: string; name?: string }) => {
+      if (req.type === 'marketplace.list') return [makeMarketplace('alpha')];
+      if (req.type === 'marketplace.update') {
+        updateCallCount++;
+        if (updateCallCount === 1) throw new Error('network error');
+        return undefined;
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await waitFor(() => expect(screen.getByText('alpha')).toBeTruthy());
+
+    // Update All → 失敗
+    await act(async () => {
+      fireEvent.click(screen.getByText('Update All'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('network error')).toBeTruthy();
+    });
+
+    // Retry 按鈕存在
+    const retryBtn = screen.getByRole('button', { name: 'Retry' });
+    expect(retryBtn).toBeTruthy();
+
+    // 點 Retry → 成功
+    await act(async () => {
+      fireEvent.click(retryBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('network error')).toBeNull();
+    });
+
+    expect(updateCallCount).toBe(2);
+  });
+
+  it('marketplace add 失敗 → Retry 用原始 source 重試', async () => {
+    let addCallCount = 0;
+    mockSendRequest.mockImplementation(async (req: { type: string; source?: string }) => {
+      if (req.type === 'marketplace.list') {
+        return addCallCount > 0 && addCallCount % 2 === 0 ? [makeMarketplace('test-mp')] : [];
+      }
+      if (req.type === 'marketplace.add') {
+        addCallCount++;
+        if (addCallCount === 1) throw new Error('clone failed');
+        return undefined;
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await waitFor(() => expect(screen.getByText('No marketplaces configured')).toBeTruthy());
+
+    const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+    fireEvent.change(input, { target: { value: 'owner/test-mp' } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Add'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('clone failed')).toBeTruthy();
+    });
+
+    // Retry → 用原始 source 重試
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('clone failed')).toBeNull();
+    });
+
+    expect(addCallCount).toBe(2);
+  });
+
+  it('dismiss ErrorBanner → 清除 Retry 按鈕', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'marketplace.list') return [makeMarketplace('alpha')];
+      if (req.type === 'marketplace.update') throw new Error('fail');
+      return undefined;
+    });
+
+    renderPage();
+    await waitFor(() => expect(screen.getByText('alpha')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Update All'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+    });
+
+    // Dismiss
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
   it('多個 marketplace → 各自顯示獨立的 Update / Remove 按鈕', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'marketplace.list') {
