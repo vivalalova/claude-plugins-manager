@@ -10,6 +10,7 @@ import { getCardTranslateStatus } from './translateUtils';
 import {
   CONTENT_TYPE_FILTERS,
   CONTENT_TYPE_LABELS,
+  PLUGIN_SORT_OPTIONS,
   isPluginEnabled,
   hasPluginUpdate,
 } from './filterUtils';
@@ -44,6 +45,8 @@ export function PluginPage(): React.ReactElement {
     setFilterEnabled,
     contentTypeFilters,
     setContentTypeFilters,
+    sortBy,
+    setSortBy,
     expanded,
     setExpanded,
     grouped,
@@ -178,6 +181,17 @@ export function PluginPage(): React.ReactElement {
             {CONTENT_TYPE_LABELS[type]}
           </button>
         ))}
+        <span className="filter-separator" aria-hidden="true" />
+        {PLUGIN_SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            className={`filter-chip${sortBy === opt.value ? ' filter-chip--active' : ''}`}
+            aria-pressed={sortBy === opt.value}
+            onClick={() => setSortBy(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
@@ -225,6 +239,7 @@ export function PluginPage(): React.ReactElement {
                 flushSearch('');
                 setFilterEnabled(false);
                 setContentTypeFilters(new Set());
+                setSortBy('name');
               },
             }}
           />

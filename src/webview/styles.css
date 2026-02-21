@@ -248,6 +248,14 @@ body {
   font-weight: 500;
 }
 
+.filter-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  align-self: center;
+  flex-shrink: 0;
+}
+
 .translate-btn {
   white-space: nowrap;
   font-size: 13px;

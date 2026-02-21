@@ -538,6 +538,86 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Sort toggle', () => {
+    it('預設排序為 Name，Name chip 有 active class', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const nameBtn = screen.getByRole('button', { name: 'Name' });
+      const lastUpdatedBtn = screen.getByRole('button', { name: 'Last Updated' });
+      expect(nameBtn.classList.contains('filter-chip--active')).toBe(true);
+      expect(lastUpdatedBtn.classList.contains('filter-chip--active')).toBe(false);
+    });
+
+    it('切換 Last Updated → 按日期降序排列，新的在前', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              { ...makeAvailable('alpha', 'mp1'), lastUpdated: '2026-01-01T00:00:00Z' },
+              { ...makeAvailable('beta', 'mp1'), lastUpdated: '2026-02-20T00:00:00Z' },
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // 展開 section 看順序
+      fireEvent.click(screen.getByText('mp1'));
+
+      // 預設 Name 排序：alpha 先 beta 後
+      const cards = () => document.querySelectorAll('.card-name');
+      expect(cards()[0]?.textContent).toBe('alpha');
+      expect(cards()[1]?.textContent).toBe('beta');
+
+      // 切換到 Last Updated
+      fireEvent.click(screen.getByRole('button', { name: 'Last Updated' }));
+
+      // beta (2026-02-20) 在 alpha (2026-01-01) 前面
+      expect(cards()[0]?.textContent).toBe('beta');
+      expect(cards()[1]?.textContent).toBe('alpha');
+    });
+
+    it('sort 持久化到 localStorage', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Last Updated' }));
+
+      expect(localStorage.getItem('plugin.sort')).toBe('lastUpdated');
+    });
+  });
+
   describe('plugin.refresh 推送', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
       let pushCallback: ((msg: { type: string }) => void) | null = null;

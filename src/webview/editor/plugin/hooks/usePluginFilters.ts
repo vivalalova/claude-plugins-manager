@@ -5,11 +5,15 @@ import {
   matchesContentType,
   matchesSearch,
   isPluginEnabled,
+  getPluginComparator,
   PLUGIN_SEARCH_KEY,
   PLUGIN_FILTER_ENABLED_KEY,
   readContentTypeFilters,
   writeContentTypeFilters,
+  readPluginSort,
+  writePluginSort,
   type ContentTypeFilter,
+  type PluginSortBy,
 } from '../filterUtils';
 
 /** 搜尋欄位 debounce 延遲（ms） */
@@ -33,6 +37,10 @@ export interface UsePluginFiltersReturn {
   contentTypeFilters: Set<ContentTypeFilter>;
   /** 設定 content type 過濾條件 */
   setContentTypeFilters: React.Dispatch<React.SetStateAction<Set<ContentTypeFilter>>>;
+  /** 當前排序方式 */
+  sortBy: PluginSortBy;
+  /** 設定排序方式 */
+  setSortBy: React.Dispatch<React.SetStateAction<PluginSortBy>>;
   /** 手動展開的 marketplace set */
   expanded: Set<string>;
   /** 設定展開狀態 */
@@ -54,6 +62,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     () => localStorage.getItem(PLUGIN_FILTER_ENABLED_KEY) === 'true',
   );
   const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(readContentTypeFilters);
+  const [sortBy, setSortBy] = useState<PluginSortBy>(readPluginSort);
   // 預設收合，使用者手動展開的 marketplace 加入此 set
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -61,6 +70,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   useEffect(() => { localStorage.setItem(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch]);
   useEffect(() => { localStorage.setItem(PLUGIN_FILTER_ENABLED_KEY, String(filterEnabled)); }, [filterEnabled]);
   useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
+  useEffect(() => { writePluginSort(sortBy); }, [sortBy]);
 
   /** 過濾 + 按 marketplace 分組 */
   const grouped = useMemo(() => {
@@ -87,8 +97,14 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
         groups.set(key, [p]);
       }
     }
+
+    const comparator = getPluginComparator(sortBy);
+    for (const items of groups.values()) {
+      items.sort(comparator);
+    }
+
     return groups;
-  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters]);
+  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters, sortBy]);
 
   return {
     search,
@@ -99,6 +115,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     setFilterEnabled,
     contentTypeFilters,
     setContentTypeFilters,
+    sortBy,
+    setSortBy,
     expanded,
     setExpanded,
     grouped,
