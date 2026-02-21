@@ -7,5 +7,6 @@ export default defineConfig({
     alias: {
       vscode: new URL('./src/extension/__mocks__/vscode.ts', import.meta.url).pathname,
     },
+    pool: 'threads',
   },
 });
