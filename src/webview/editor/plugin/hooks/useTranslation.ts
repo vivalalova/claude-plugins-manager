@@ -43,6 +43,8 @@ export interface UseTranslationReturn {
   setTranslateWarning: Dispatch<SetStateAction<string | null>>;
   /** Dialog 確認：儲存設定並觸發翻譯 */
   handleDialogConfirm: () => void;
+  /** 重試翻譯（用目前的 lang/email/plugins） */
+  retryTranslate: () => void;
 }
 
 /**
@@ -172,6 +174,13 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
     setDialogOpen(false);
   };
 
+  /** 重試翻譯（用目前的 lang/email/plugins） */
+  const retryTranslate = useCallback(() => {
+    if (translateLang && translateEmail && plugins.length > 0) {
+      doTranslate(translateLang, translateEmail, plugins);
+    }
+  }, [doTranslate, translateLang, translateEmail, plugins]);
+
   return {
     translations,
     translateLang,
@@ -191,5 +200,6 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
     translateWarning,
     setTranslateWarning,
     handleDialogConfirm,
+    retryTranslate,
   };
 }
