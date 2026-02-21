@@ -165,13 +165,15 @@ export class PluginService {
     await this.settings.setPluginEnabled(plugin, scope ?? 'user', false);
   }
 
-  /** 停用所有 plugin（三個 scope 各一次 read-write） */
+  /** 停用所有 plugin（三個 scope 並行，各寫不同設定檔互不依賴） */
   async disableAll(): Promise<void> {
     const scopes: PluginScope[] = ['user', 'project', 'local'];
-    for (const scope of scopes) {
-      try {
-        await this.settings.clearAllEnabledPlugins(scope);
-      } catch (error: unknown) {
+    const results = await Promise.allSettled(
+      scopes.map((scope) => this.settings.clearAllEnabledPlugins(scope)),
+    );
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        const error = result.reason;
         // project/local scope 需要 workspace，沒開 workspace 時會拋錯，其他錯誤應拋出
         if (error instanceof Error && !error.message.includes('No workspace')) {
           throw error;
