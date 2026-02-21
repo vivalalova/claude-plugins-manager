@@ -619,4 +619,95 @@ describe('SettingsFileService', () => {
       expect(mockWriteFile).not.toHaveBeenCalled();
     });
   });
+
+  /* ═══════ scanAvailablePlugins — cache ═══════ */
+  describe('scanAvailablePlugins() cache', () => {
+    function setupMarketplace() {
+      mockReadFile.mockImplementation((path: string) => {
+        if (path.includes('known_marketplaces.json')) {
+          return Promise.resolve(JSON.stringify({
+            'test-mp': { installLocation: '/mp/test-mp' },
+          }));
+        }
+        if (path.includes('marketplace.json')) {
+          return Promise.resolve(JSON.stringify({
+            name: 'test-mp',
+            plugins: [{ name: 'p1', description: 'desc', source: './p1' }],
+          }));
+        }
+        if (path.includes('plugin.json')) {
+          return Promise.reject(enoentError());
+        }
+        return Promise.reject(enoentError());
+      });
+      mockReaddir.mockImplementation((path: string) => {
+        // pluginDir readdir → 模擬一個檔案
+        if (path.includes('/p1') && !path.includes('.claude-plugin')) {
+          return Promise.resolve(['index.md']);
+        }
+        return Promise.reject(enoentError());
+      });
+      mockStat.mockImplementation((path: string) => {
+        if (path.includes('hooks.json')) return Promise.reject(enoentError());
+        return Promise.resolve({ mtime: new Date('2026-01-01'), mtimeMs: 1735689600000 });
+      });
+    }
+
+    it('第二次呼叫回傳 cache，不重讀磁碟也不 stat', async () => {
+      setupMarketplace();
+
+      const first = await svc.scanAvailablePlugins();
+      expect(first).toHaveLength(1);
+
+      mockReadFile.mockClear();
+      mockStat.mockClear();
+
+      const second = await svc.scanAvailablePlugins();
+      expect(second).toEqual(first);
+      expect(mockReadFile).not.toHaveBeenCalled();
+      expect(mockStat).not.toHaveBeenCalled();
+    });
+
+    it('invalidateScanCache 後重新掃描', async () => {
+      setupMarketplace();
+
+      await svc.scanAvailablePlugins();
+      mockReadFile.mockClear();
+
+      svc.invalidateScanCache();
+      setupMarketplace();
+
+      const result = await svc.scanAvailablePlugins();
+      expect(result).toHaveLength(1);
+      expect(mockReadFile).toHaveBeenCalled();
+    });
+
+    it('concurrent calls 共用同一個 inflight Promise，不重複掃描', async () => {
+      setupMarketplace();
+
+      const [a, b] = await Promise.all([
+        svc.scanAvailablePlugins(),
+        svc.scanAvailablePlugins(),
+      ]);
+      expect(a).toBe(b); // reference identity — 同一個 Promise 結果
+      // known_marketplaces.json 只讀一次
+      const kmCalls = mockReadFile.mock.calls.filter(
+        (c: string[]) => c[0].includes('known_marketplaces.json'),
+      );
+      expect(kmCalls).toHaveLength(1);
+    });
+
+    it('新實例首次呼叫必掃描', async () => {
+      setupMarketplace();
+
+      const fresh = new SettingsFileService();
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/workspace' }, name: 'test', index: 0 },
+      ] as any;
+
+      const result = await fresh.scanAvailablePlugins();
+      expect(result).toHaveLength(1);
+      expect(mockReadFile).toHaveBeenCalled();
+    });
+  });
 });

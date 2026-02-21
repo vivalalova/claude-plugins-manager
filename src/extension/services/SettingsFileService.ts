@@ -25,6 +25,13 @@ const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
  * 取代 CLI 呼叫，實現真正的 per-scope enable/disable。
  */
 export class SettingsFileService {
+  private scanInflight: Promise<AvailablePlugin[]> | null = null;
+
+  /** 清除掃描快取，下次 scanAvailablePlugins 將重新掃描 */
+  invalidateScanCache(): void {
+    this.scanInflight = null;
+  }
+
   /** 取得 scope 對應的 settings.json 路徑 */
   getSettingsPath(scope: PluginScope): string {
     switch (scope) {
@@ -159,65 +166,77 @@ export class SettingsFileService {
    * 從 known_marketplaces.json 取得 marketplace 清單和實際路徑。
    */
   async scanAvailablePlugins(): Promise<AvailablePlugin[]> {
-    const result: AvailablePlugin[] = [];
+    if (this.scanInflight) {
+      return this.scanInflight;
+    }
+    this.scanInflight = this.doScan();
+    return this.scanInflight;
+  }
 
+  /** 實際掃描邏輯（by scanAvailablePlugins 快取驅動） */
+  private async doScan(): Promise<AvailablePlugin[]> {
     let knownMarketplaces: Record<string, { installLocation?: string }>;
     try {
       knownMarketplaces = await this.readJson<Record<string, { installLocation?: string }>>(
         KNOWN_MARKETPLACES_PATH,
       );
     } catch {
-      return result;
+      return [];
     }
 
-    for (const [mpName, mpEntry] of Object.entries(knownMarketplaces)) {
-      // 使用 installLocation，fallback 為預設路徑
-      const mpDir = mpEntry.installLocation ?? join(MARKETPLACES_DIR, mpName);
-      const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
-      try {
-        const manifest = await this.readJson<MarketplaceManifest>(manifestPath);
-        for (const p of manifest.plugins ?? []) {
-          const pluginDir = resolve(mpDir, p.source ?? '.');
-          const [contents, pluginMeta] = await Promise.all([
-            this.scanPluginContents(pluginDir),
-            this.readJson<{ description?: string; version?: string }>(
-              join(pluginDir, '.claude-plugin', 'plugin.json'),
-            ).catch(() => ({} as { description?: string; version?: string })),
-          ]);
-          // plugin 來源目錄內最新檔案的 mtime 作為 available lastUpdated（heuristic）
-          let lastUpdated: string | undefined;
-          try {
-            const entries = await readdir(pluginDir);
-            const stats = await Promise.all(
-              entries.map((entry) =>
-                stat(join(pluginDir, entry)).catch((err: unknown) => {
-                  if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-                  return null;
-                }),
-              ),
-            );
-            const latestMtime = Math.max(0, ...stats.map((s) => s?.mtimeMs ?? 0));
-            if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
-          } catch (err: unknown) {
-            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-          }
-          result.push({
-            pluginId: `${p.name}@${mpName}`,
-            name: p.name,
-            description: pluginMeta.description ?? p.description ?? '',
-            marketplaceName: mpName,
-            version: pluginMeta.version ?? p.version,
-            contents,
-            sourceDir: typeof p.source === 'string' ? p.source : undefined,
-            lastUpdated,
-          });
+    // 並行掃描所有 marketplace
+    const perMarketplace = await Promise.all(
+      Object.entries(knownMarketplaces).map(async ([mpName, mpEntry]) => {
+        const mpDir = mpEntry.installLocation ?? join(MARKETPLACES_DIR, mpName);
+        const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
+        try {
+          const manifest = await this.readJson<MarketplaceManifest>(manifestPath);
+          return Promise.all(
+            (manifest.plugins ?? []).map(async (p) => {
+              const pluginDir = resolve(mpDir, p.source ?? '.');
+              const [contents, pluginMeta] = await Promise.all([
+                this.scanPluginContents(pluginDir),
+                this.readJson<{ description?: string; version?: string }>(
+                  join(pluginDir, '.claude-plugin', 'plugin.json'),
+                ).catch(() => ({} as { description?: string; version?: string })),
+              ]);
+              // plugin 來源目錄內最新檔案的 mtime 作為 available lastUpdated（heuristic）
+              let lastUpdated: string | undefined;
+              try {
+                const entries = await readdir(pluginDir);
+                const stats = await Promise.all(
+                  entries.map((entry) =>
+                    stat(join(pluginDir, entry)).catch((err: unknown) => {
+                      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+                      return null;
+                    }),
+                  ),
+                );
+                const latestMtime = Math.max(0, ...stats.map((s) => s?.mtimeMs ?? 0));
+                if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
+              } catch (err: unknown) {
+                if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+              }
+              return {
+                pluginId: `${p.name}@${mpName}`,
+                name: p.name,
+                description: pluginMeta.description ?? p.description ?? '',
+                marketplaceName: mpName,
+                version: pluginMeta.version ?? p.version,
+                contents,
+                sourceDir: typeof p.source === 'string' ? p.source : undefined,
+                lastUpdated,
+              } satisfies AvailablePlugin;
+            }),
+          );
+        } catch {
+          // marketplace 目錄可能不存在或格式錯誤，跳過
+          return [] as AvailablePlugin[];
         }
-      } catch {
-        // marketplace 目錄可能不存在或格式錯誤，跳過
-      }
-    }
+      }),
+    );
 
-    return result;
+    return perMarketplace.flat();
   }
 
   /**
