@@ -131,11 +131,6 @@ body {
   color: var(--vscode-editor-background, #1e1e1e);
 }
 
-body.vscode-light .sidebar-update-badge {
-  background: var(--vscode-editorWarning-foreground, #bf8803);
-  color: #fff;
-}
-
 .sidebar-button-desc {
   font-size: 11px;
   color: var(--vscode-descriptionForeground);
@@ -584,34 +579,40 @@ body.vscode-light .sidebar-update-badge {
 }
 
 .scope-badge--user {
-  background: rgba(56, 132, 244, 0.15);
-  color: var(--vscode-charts-blue, #3884f4);
+  --scope-badge-color: var(--vscode-charts-blue, #3884f4);
+  background: color-mix(in srgb, var(--scope-badge-color) 15%, transparent);
+  color: var(--scope-badge-color);
 }
 
 .scope-badge--project {
-  background: rgba(76, 175, 80, 0.15);
-  color: var(--vscode-charts-green, #4caf50);
+  --scope-badge-color: var(--vscode-charts-green, #4caf50);
+  background: color-mix(in srgb, var(--scope-badge-color) 15%, transparent);
+  color: var(--scope-badge-color);
 }
 
 .scope-badge--local {
-  background: rgba(255, 152, 0, 0.15);
-  color: var(--vscode-charts-orange, #ff9800);
+  --scope-badge-color: var(--vscode-charts-orange, #ff9800);
+  background: color-mix(in srgb, var(--scope-badge-color) 15%, transparent);
+  color: var(--scope-badge-color);
 }
 
 /* Marketplace source badges */
 .scope-badge--git {
-  background: rgba(245, 108, 66, 0.12);
-  color: var(--vscode-charts-red, #f56c42);
+  --scope-badge-color: var(--vscode-charts-red, #f56c42);
+  background: color-mix(in srgb, var(--scope-badge-color) 12%, transparent);
+  color: var(--scope-badge-color);
 }
 
 .scope-badge--github {
-  background: rgba(130, 80, 223, 0.12);
-  color: var(--vscode-charts-purple, #8250df);
+  --scope-badge-color: var(--vscode-charts-purple, #8250df);
+  background: color-mix(in srgb, var(--scope-badge-color) 12%, transparent);
+  color: var(--scope-badge-color);
 }
 
 .scope-badge--directory {
-  background: rgba(130, 130, 130, 0.12);
-  color: var(--vscode-descriptionForeground);
+  --scope-badge-color: var(--vscode-descriptionForeground, #828282);
+  background: color-mix(in srgb, var(--scope-badge-color) 12%, transparent);
+  color: var(--scope-badge-color);
 }
 
 .scope-badges {
@@ -776,7 +777,7 @@ body.vscode-light .sidebar-update-badge {
   border-radius: 3px;
   font-size: 11px;
   font-weight: 500;
-  background: rgba(76, 175, 80, 0.15);
+  background: color-mix(in srgb, var(--vscode-testing-iconPassed, #4caf50) 15%, transparent);
   color: var(--vscode-testing-iconPassed, #4caf50);
 }
 
@@ -788,8 +789,8 @@ body.vscode-light .sidebar-update-badge {
   border-radius: 3px;
   font-size: 11px;
   font-weight: 500;
-  background: rgba(130, 130, 130, 0.12);
-  color: var(--vscode-disabledForeground);
+  background: color-mix(in srgb, var(--vscode-disabledForeground, #828282) 12%, transparent);
+  color: var(--vscode-disabledForeground, #828282);
 }
 
 /* ----------------------------------------------------------------
@@ -923,12 +924,12 @@ body.vscode-light .sidebar-update-badge {
 }
 
 .btn-danger {
-  background: rgba(244, 67, 54, 0.12);
+  background: color-mix(in srgb, var(--vscode-errorForeground, #f44336) 12%, transparent);
   color: var(--vscode-errorForeground, #f44336);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: rgba(244, 67, 54, 0.2);
+  background: color-mix(in srgb, var(--vscode-errorForeground, #f44336) 20%, transparent);
 }
 
 .btn-icon {
@@ -1137,7 +1138,7 @@ body.vscode-light .sidebar-update-badge {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, black 50%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1152,7 +1153,7 @@ body.vscode-light .sidebar-update-badge {
   padding: 24px;
   max-width: 420px;
   width: 90%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px color-mix(in srgb, black 20%, transparent);
 }
 
 .confirm-dialog-title {
@@ -1175,65 +1176,32 @@ body.vscode-light .sidebar-update-badge {
 }
 
 /* ----------------------------------------------------------------
- * Light Theme — depth + muted colors
+ * Light Theme — depth adjustments
  * ---------------------------------------------------------------- */
 
-/* Cards: 微陰影創造層次 */
+/* Cards: 微陰影創造層次（dark 背景足夠深，不需 shadow） */
 body.vscode-light .card {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px color-mix(in srgb, black 6%, transparent);
 }
 
 body.vscode-light .card:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px color-mix(in srgb, black 10%, transparent);
 }
 
 /* Section toggle */
 body.vscode-light .section-toggle {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px color-mix(in srgb, black 4%, transparent);
 }
 
-/* Scope badges: 降低飽和度，加深底色可辨度 */
-body.vscode-light .scope-badge--user {
-  background: rgba(4, 81, 165, 0.1);
-  color: #0451a5;
-}
-
-body.vscode-light .scope-badge--project {
-  background: rgba(56, 138, 52, 0.1);
-  color: #2e7d32;
-}
-
-body.vscode-light .scope-badge--local {
-  background: rgba(191, 120, 3, 0.1);
-  color: #a56600;
-}
-
-body.vscode-light .scope-badge--git {
-  background: rgba(180, 50, 30, 0.08);
-  color: #b42e1e;
-}
-
-body.vscode-light .scope-badge--github {
-  background: rgba(110, 64, 201, 0.08);
-  color: #6e40c9;
-}
-
-/* Danger button: outline 風格，不搶視覺 */
+/* Danger button: light mode 用 outline 風格 */
 body.vscode-light .btn-danger {
   background: transparent;
-  color: var(--vscode-errorForeground, #c62828);
   border: 1px solid color-mix(in srgb, var(--vscode-errorForeground, #c62828) 30%, transparent);
 }
 
 body.vscode-light .btn-danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--vscode-errorForeground, #c62828) 8%, transparent);
   border-color: color-mix(in srgb, var(--vscode-errorForeground, #c62828) 50%, transparent);
-}
-
-/* Enabled badge */
-body.vscode-light .badge-enabled {
-  background: rgba(56, 138, 52, 0.08);
-  color: #2e7d32;
 }
 
 /* ----------------------------------------------------------------
@@ -1261,7 +1229,7 @@ body.vscode-light .badge-enabled {
   font-size: 13px;
   line-height: 1.4;
   max-width: 360px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px color-mix(in srgb, black 15%, transparent);
   animation: toastSlideIn 0.2s ease-out;
   background: var(--vscode-notifications-background);
   color: var(--vscode-notifications-foreground);
@@ -1419,25 +1387,8 @@ body.vscode-light .badge-enabled {
   color: var(--vscode-foreground);
 }
 
-body.vscode-light .json-token--key {
-  color: var(--vscode-symbolIcon-propertyForeground, #0451a5);
-}
-
-body.vscode-light .json-token--string {
-  color: var(--vscode-debugTokenExpression-string, #a31515);
-}
-
-body.vscode-light .json-token--number {
-  color: var(--vscode-debugTokenExpression-number, #098658);
-}
-
-body.vscode-light .json-token--boolean {
-  color: var(--vscode-debugTokenExpression-boolean, #0000ff);
-}
-
-body.vscode-light .json-token--null {
-  color: var(--vscode-debugTokenExpression-value, #0000ff);
-}
+/* JSON token 顏色由 --vscode-debugTokenExpression-* / --vscode-symbolIcon-*
+   自動適配 light/dark/high-contrast，無需額外覆寫 */
 
 /* ----------------------------------------------------------------
  * Plugin Update Badge
@@ -1465,11 +1416,6 @@ body.vscode-light .json-token--null {
 .badge-update:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-body.vscode-light .badge-update {
-  background: var(--vscode-editorWarning-foreground, #bf8803);
-  color: #fff;
 }
 
 .section-updates {
