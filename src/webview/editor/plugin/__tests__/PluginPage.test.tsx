@@ -40,8 +40,8 @@ function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlu
   };
 }
 
-function makeAvailable(name: string, mp: string, desc = ''): AvailablePlugin {
-  return { pluginId: `${name}@${mp}`, name, description: desc, marketplaceName: mp };
+function makeAvailable(name: string, mp: string, desc = '', lastUpdated?: string): AvailablePlugin {
+  return { pluginId: `${name}@${mp}`, name, description: desc, marketplaceName: mp, ...(lastUpdated ? { lastUpdated } : {}) };
 }
 
 function makeResponse(
@@ -630,7 +630,7 @@ describe('PluginPage — 核心流程', () => {
         if (req.type === 'plugin.listAvailable') {
           return makeResponse(
             [makeInstalled('alpha', 'mp1', true)],
-            [makeAvailable('alpha', 'mp1')],
+            [makeAvailable('alpha', 'mp1', '', '2026-02-01')],
           );
         }
         if (req.type === 'plugin.update') {
