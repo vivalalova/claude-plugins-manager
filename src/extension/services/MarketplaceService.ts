@@ -148,7 +148,8 @@ export class MarketplaceService {
           let description = p.description ?? '';
           let version = p.version;
           try {
-            const pluginDir = path.resolve(dir, p.source ?? '.');
+            if (typeof p.source !== 'string') throw new Error('Remote source, skip local scan');
+            const pluginDir = path.resolve(dir, p.source);
             // 防止 path traversal（惡意 marketplace.json 的 source 欄位）
             if (!pluginDir.startsWith(baseDir + path.sep) && pluginDir !== baseDir) {
               throw new Error('Path traversal detected');

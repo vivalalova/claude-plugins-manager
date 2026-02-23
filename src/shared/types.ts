@@ -74,7 +74,8 @@ export interface MarketplacePluginEntry {
   name: string;
   description?: string;
   version?: string;
-  source: string;
+  /** 本地相對路徑（string）或遠端 URL 來源（object，如 { source: 'url', url: '...' }） */
+  source: string | Record<string, unknown>;
 }
 
 /** marketplace 目錄的 .claude-plugin/marketplace.json */

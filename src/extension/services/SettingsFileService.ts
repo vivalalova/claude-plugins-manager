@@ -193,30 +193,37 @@ export class SettingsFileService {
           const manifest = await this.readJson<MarketplaceManifest>(manifestPath);
           return Promise.all(
             (manifest.plugins ?? []).map(async (p) => {
-              const pluginDir = resolve(mpDir, p.source ?? '.');
-              const [contents, pluginMeta] = await Promise.all([
-                this.scanPluginContents(pluginDir),
-                this.readJson<{ description?: string; version?: string }>(
-                  join(pluginDir, '.claude-plugin', 'plugin.json'),
-                ).catch(() => ({} as { description?: string; version?: string })),
-              ]);
-              // plugin 來源目錄內最新檔案的 mtime 作為 available lastUpdated（heuristic）
+              // source 可能是 object（遠端 URL 型 plugin），此時本地無目錄
+              const localSource = typeof p.source === 'string' ? p.source : null;
+              const pluginDir = localSource ? resolve(mpDir, localSource) : null;
+              let contents: AvailablePlugin['contents'];
+              let pluginMeta: { description?: string; version?: string } = {};
               let lastUpdated: string | undefined;
-              try {
-                const entries = await readdir(pluginDir);
-                const stats = await Promise.all(
-                  entries.map((entry) =>
-                    stat(join(pluginDir, entry)).catch((err: unknown) => {
-                      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-                      return null;
-                    }),
-                  ),
-                );
-                const latestMtime = Math.max(0, ...stats.map((s) => s?.mtimeMs ?? 0));
-                if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
-              } catch (err: unknown) {
-                if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+
+              if (pluginDir) {
+                [contents, pluginMeta] = await Promise.all([
+                  this.scanPluginContents(pluginDir),
+                  this.readJson<{ description?: string; version?: string }>(
+                    join(pluginDir, '.claude-plugin', 'plugin.json'),
+                  ).catch(() => ({} as { description?: string; version?: string })),
+                ]);
+                try {
+                  const entries = await readdir(pluginDir);
+                  const stats = await Promise.all(
+                    entries.map((entry) =>
+                      stat(join(pluginDir, entry)).catch((err: unknown) => {
+                        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+                        return null;
+                      }),
+                    ),
+                  );
+                  const latestMtime = Math.max(0, ...stats.map((s) => s?.mtimeMs ?? 0));
+                  if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
+                } catch (err: unknown) {
+                  if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+                }
               }
+
               return {
                 pluginId: `${p.name}@${mpName}`,
                 name: p.name,
@@ -224,7 +231,7 @@ export class SettingsFileService {
                 marketplaceName: mpName,
                 version: pluginMeta.version ?? p.version,
                 contents,
-                sourceDir: typeof p.source === 'string' ? p.source : undefined,
+                sourceDir: localSource ?? undefined,
                 lastUpdated,
               } satisfies AvailablePlugin;
             }),
