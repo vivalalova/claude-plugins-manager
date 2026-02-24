@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 128 128" fill="currentColor">
-  <g transform="translate(64, 64)">
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <g transform="translate(64, 64)" fill="#e07a5f">
     <circle cx="0" cy="0" r="10"/>
     <ellipse cx="0" cy="-30" rx="8" ry="16"/>
     <ellipse cx="0" cy="-30" rx="8" ry="16" transform="rotate(60)"/>

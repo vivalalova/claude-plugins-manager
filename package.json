@@ -4,6 +4,7 @@
   "description": "Manage Claude Code Marketplace, Plugin, and MCP Server",
   "version": "0.1.0",
   "publisher": "lova",
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
