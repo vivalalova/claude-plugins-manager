@@ -19,7 +19,7 @@
         {
           "id": "claude-plugins-manager",
           "title": "Claude Plugins Manager",
-          "icon": "resources/claude-icon.svg"
+          "icon": "resources/icon.svg"
         }
       ]
     },
