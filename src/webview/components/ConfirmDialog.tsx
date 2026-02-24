@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useI18n } from '../i18n/I18nContext';
 
 interface ConfirmDialogProps {
   title: string;
@@ -15,12 +16,13 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   danger = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps): React.ReactElement {
+  const { t } = useI18n();
   const titleId = useId();
   const trapRef = useFocusTrap(onCancel);
 
@@ -38,13 +40,13 @@ export function ConfirmDialog({
         <div className="confirm-dialog-message">{message}</div>
         <div className="confirm-dialog-actions">
           <button className="btn btn-secondary" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? t('confirm.default.cancel')}
           </button>
           <button
             className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {confirmLabel ?? t('confirm.default.confirm')}
           </button>
         </div>
       </div>

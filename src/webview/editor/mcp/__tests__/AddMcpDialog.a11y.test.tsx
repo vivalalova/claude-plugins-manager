@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
 const mockSendRequest = vi.fn();
@@ -25,7 +26,7 @@ describe('AddMcpDialog accessibility', () => {
   afterEach(cleanup);
 
   it('role="dialog" + aria-modal + aria-labelledby', () => {
-    render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+    renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
     const dialog = screen.getByRole('dialog');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
@@ -36,7 +37,7 @@ describe('AddMcpDialog accessibility', () => {
   });
 
   it('form labels 關聯 input（htmlFor/id）', () => {
-    render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+    renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
     // Name label → htmlFor 對應 input id
     const nameLabel = screen.getByText('Name');
@@ -50,7 +51,7 @@ describe('AddMcpDialog accessibility', () => {
   });
 
   it('Escape 關閉 dialog', () => {
-    render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+    renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
     const dialog = screen.getByRole('dialog');
     fireEvent.keyDown(dialog, { key: 'Escape' });
@@ -59,7 +60,7 @@ describe('AddMcpDialog accessibility', () => {
   });
 
   it('form labels 包含 Transport 和 Scope', () => {
-    render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+    renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
     // Transport label → 關聯 select
     const transportLabel = screen.getByText('Transport');

@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ScopeBadge } from '../../components/ScopeBadge';
 import type { McpServer } from '../../../shared/types';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface McpServerCardProps {
   server: McpServer;
@@ -23,6 +24,7 @@ export function McpServerCard({
   onAuthenticate,
   retrying,
 }: McpServerCardProps): React.ReactElement {
+  const { t } = useI18n();
   const isFailed = server.status === 'failed';
   const isNeedsAuth = server.status === 'needs-auth';
   const cardClass = `card${isFailed ? ' card--failed' : ''}${isNeedsAuth ? ' card--needs-auth' : ''}`;
@@ -36,11 +38,11 @@ export function McpServerCard({
         <StatusBadge status={server.status} />
       </div>
       {isFailed && (
-        <div className="card-error">Connection failed</div>
+        <div className="card-error">{t('mcp.card.connectionFailed')}</div>
       )}
       {isNeedsAuth && (
         <div className="card-auth-guide" role="status">
-          Authentication required — complete the auth flow in Claude Code CLI, then check status
+          {t('mcp.card.authRequired')}
         </div>
       )}
       <div className="card-meta">
@@ -54,25 +56,25 @@ export function McpServerCard({
       <div className="card-actions">
         {isFailed && (
           <button className="btn btn-primary" onClick={onRetry} disabled={retrying}>
-            {retrying ? 'Retrying...' : 'Retry'}
+            {retrying ? t('mcp.card.retrying') : t('mcp.card.retry')}
           </button>
         )}
         {isNeedsAuth && onAuthenticate && (
           <button className="btn btn-primary" onClick={onAuthenticate} disabled={retrying}>
-            {retrying ? 'Checking...' : 'Check Status'}
+            {retrying ? t('mcp.card.checking') : t('mcp.card.checkStatus')}
           </button>
         )}
         <button className="btn btn-secondary" onClick={onViewDetail}>
-          Details
+          {t('mcp.card.details')}
         </button>
         {server.scope && (
           <button className="btn btn-secondary" onClick={onEdit}>
-            Edit
+            {t('mcp.card.edit')}
           </button>
         )}
         {server.scope && (
           <button className="btn btn-danger" onClick={onRemove}>
-            Remove
+            {t('mcp.card.remove')}
           </button>
         )}
       </div>

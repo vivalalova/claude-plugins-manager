@@ -73,6 +73,7 @@ export class EditorPanelManager {
       panel.webview,
       this.extensionUri,
       category,
+      vscode.env.language,
     );
 
     panel.webview.onDidReceiveMessage(

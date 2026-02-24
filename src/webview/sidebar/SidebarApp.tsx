@@ -3,36 +3,9 @@ import { postMessage, sendRequest, onPushMessage } from '../vscode';
 import { mergePlugins } from '../editor/plugin/hooks/usePluginData';
 import { hasPluginUpdate } from '../editor/plugin/filterUtils';
 import type { Marketplace, PluginListResponse, McpServer } from '../../shared/types';
+import { useI18n } from '../i18n/I18nContext';
 
 type CategoryId = 'marketplace' | 'plugin' | 'mcp';
-
-interface CategoryButton {
-  id: CategoryId;
-  label: string;
-  icon: string;
-  description: string;
-}
-
-const CATEGORIES: CategoryButton[] = [
-  {
-    id: 'marketplace',
-    label: 'Marketplace',
-    icon: '🏪',
-    description: 'Manage plugin sources',
-  },
-  {
-    id: 'plugin',
-    label: 'Plugins',
-    icon: '🔌',
-    description: 'Install, enable, and configure plugins',
-  },
-  {
-    id: 'mcp',
-    label: 'MCP Servers',
-    icon: '⚡',
-    description: 'Manage MCP server connections',
-  },
-];
 
 interface Counts {
   marketplace: number;
@@ -42,8 +15,30 @@ interface Counts {
 
 /** Sidebar：三個分類按鈕，點擊打開對應 Editor 頁面 */
 export function SidebarApp(): React.ReactElement {
+  const { t } = useI18n();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [pluginUpdates, setPluginUpdates] = useState(0);
+
+  const categories = [
+    {
+      id: 'marketplace' as CategoryId,
+      label: t('sidebar.marketplace'),
+      icon: '🏪',
+      description: t('sidebar.marketplace.desc'),
+    },
+    {
+      id: 'plugin' as CategoryId,
+      label: t('sidebar.plugins'),
+      icon: '🔌',
+      description: t('sidebar.plugins.desc'),
+    },
+    {
+      id: 'mcp' as CategoryId,
+      label: t('sidebar.mcp'),
+      icon: '⚡',
+      description: t('sidebar.mcp.desc'),
+    },
+  ];
 
   const fetchCounts = useCallback(async () => {
     const [mktResult, pluginResult, mcpResult] = await Promise.allSettled([
@@ -99,7 +94,7 @@ export function SidebarApp(): React.ReactElement {
   return (
     <div className="sidebar-container">
       <div className="sidebar-buttons">
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const count = getCount(cat.id);
           const updates = cat.id === 'plugin' ? pluginUpdates : 0;
           return (

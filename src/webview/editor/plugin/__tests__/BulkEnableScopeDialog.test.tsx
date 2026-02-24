@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { BulkEnableScopeDialog } from '../BulkEnableScopeDialog';
 import type { PluginScope } from '../../../../shared/types';
@@ -19,7 +20,7 @@ describe('BulkEnableScopeDialog', () => {
   afterEach(cleanup);
 
   it('顯示 marketplace 名稱和 item 數量', () => {
-    render(
+    renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={5}
@@ -36,7 +37,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('無 workspace 時只顯示 User scope 按鈕', () => {
-    render(
+    renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -54,7 +55,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('有 workspace 時顯示三個 scope 按鈕', () => {
-    render(
+    renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -72,7 +73,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('點擊 scope 按鈕 → onScopeChange 帶正確 scope', () => {
-    render(
+    renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -89,7 +90,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('Cancel 按鈕 → onCancel', () => {
-    render(
+    renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -106,7 +107,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('Enable All 按鈕 → onConfirm', () => {
-    render(
+    renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -123,7 +124,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('點擊 overlay 背景 → onCancel', () => {
-    const { container } = render(
+    const { container } = renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -141,7 +142,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('active scope 有 filter-chip--active class', () => {
-    const { container } = render(
+    const { container } = renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -162,7 +163,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('ESC 鍵 → onCancel', () => {
-    const { container } = render(
+    const { container } = renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}
@@ -180,7 +181,7 @@ describe('BulkEnableScopeDialog', () => {
   });
 
   it('dialog 有 aria-labelledby 指向 title', () => {
-    const { container } = render(
+    const { container } = renderWithI18n(
       <BulkEnableScopeDialog
         marketplace="mp1"
         itemCount={3}

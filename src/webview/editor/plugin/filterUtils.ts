@@ -76,13 +76,6 @@ export const CONTENT_TYPE_FILTERS = ['commands', 'skills', 'agents', 'mcp'] as c
 /** Content type filter 可選值（從常數推導） */
 export type ContentTypeFilter = typeof CONTENT_TYPE_FILTERS[number];
 
-/** Filter chip 顯示名稱 */
-export const CONTENT_TYPE_LABELS: Record<ContentTypeFilter, string> = {
-  commands: 'Commands',
-  skills: 'Skills',
-  agents: 'Agents',
-  mcp: 'MCP',
-};
 
 /**
  * 判斷 plugin 是否符合 content type filter（OR 邏輯）。
@@ -132,12 +125,6 @@ export function matchesSearch(plugin: MergedPlugin, query: string): boolean {
 
 /** Plugin 排序方式 */
 export type PluginSortBy = 'name' | 'lastUpdated';
-
-/** Sort 下拉選項 */
-export const PLUGIN_SORT_OPTIONS: { value: PluginSortBy; label: string }[] = [
-  { value: 'name', label: 'Name' },
-  { value: 'lastUpdated', label: 'Last Updated' },
-];
 
 /** 按名稱升序（case-insensitive） */
 export function compareByName(a: MergedPlugin, b: MergedPlugin): number {

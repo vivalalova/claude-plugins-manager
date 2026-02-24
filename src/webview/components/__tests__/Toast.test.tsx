@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../__test-utils__/renderWithProviders';
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 import { ToastProvider, useToast } from '../Toast';
 
@@ -30,7 +31,7 @@ describe('Toast 系統', () => {
   });
 
   it('addToast 顯示 toast 訊息', () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Hello toast" />
       </ToastProvider>,
@@ -41,7 +42,7 @@ describe('Toast 系統', () => {
   });
 
   it('success variant 顯示 ✅ icon', () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Done" variant="success" />
       </ToastProvider>,
@@ -54,7 +55,7 @@ describe('Toast 系統', () => {
   });
 
   it('error variant 顯示 ❌ icon', () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Error!" variant="error" />
       </ToastProvider>,
@@ -67,7 +68,7 @@ describe('Toast 系統', () => {
   });
 
   it('info variant 顯示 ℹ icon', () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Info" variant="info" />
       </ToastProvider>,
@@ -80,7 +81,7 @@ describe('Toast 系統', () => {
   });
 
   it('5 秒後 toast 開始 fade-out 動畫（加上 --exiting class）', async () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Fading out" />
       </ToastProvider>,
@@ -99,7 +100,7 @@ describe('Toast 系統', () => {
   });
 
   it('5 秒 + 300ms fade-out 後 toast 從 DOM 移除', async () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Gone" />
       </ToastProvider>,
@@ -115,7 +116,7 @@ describe('Toast 系統', () => {
   });
 
   it('close 按鈕點擊後開始 fade-out', async () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Close me" />
       </ToastProvider>,
@@ -131,7 +132,7 @@ describe('Toast 系統', () => {
   });
 
   it('close 按鈕點擊後 300ms 內從 DOM 移除', async () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Closing" />
       </ToastProvider>,
@@ -161,7 +162,7 @@ describe('Toast 系統', () => {
       );
     }
 
-    render(
+    renderWithI18n(
       <ToastProvider>
         <MultiToastComponent />
       </ToastProvider>,
@@ -181,7 +182,7 @@ describe('Toast 系統', () => {
   });
 
   it('hover 暫停計時器，離開後繼續計時', async () => {
-    render(
+    renderWithI18n(
       <ToastProvider>
         <TestComponent message="Hover test" />
       </ToastProvider>,
@@ -227,7 +228,7 @@ describe('Toast 系統', () => {
     // 抑制 React error boundary 的 console.error
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    expect(() => render(<OutsideComponent />)).toThrow('useToast must be used within a ToastProvider');
+    expect(() => renderWithI18n(<OutsideComponent />)).toThrow('useToast must be used within a ToastProvider');
 
     consoleSpy.mockRestore();
   });

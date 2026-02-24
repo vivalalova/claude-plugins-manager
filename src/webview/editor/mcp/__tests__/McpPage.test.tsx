@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, waitFor, fireEvent, cleanup, act, within } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
@@ -19,7 +20,7 @@ import { McpPage } from '../McpPage';
 import { ToastProvider } from '../../../components/Toast';
 import type { McpServer } from '../../../../shared/types';
 
-const renderPage = () => render(<ToastProvider><McpPage /></ToastProvider>);
+const renderPage = () => renderWithI18n(<ToastProvider><McpPage /></ToastProvider>);
 
 function makeServer(name: string, status: McpServer['status'] = 'connected'): McpServer {
   return { name, fullName: name, command: `npx ${name}`, status, scope: 'user' };

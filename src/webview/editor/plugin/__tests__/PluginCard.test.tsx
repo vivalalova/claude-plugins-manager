@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
 /* ── Mock sendRequest ── */
@@ -94,7 +95,7 @@ describe('PluginCard', () => {
   it('有 marketplaceUrl + sourceDir → 顯示 GitHub 按鈕', () => {
     const plugin = createPlugin({ sourceDir: './plugins/my-plugin' });
 
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         marketplaceUrl="https://github.com/example/repo.git"
@@ -109,7 +110,7 @@ describe('PluginCard', () => {
   it('GitHub 按鈕點擊 → sendRequest openExternal 帶正確 URL', () => {
     const plugin = createPlugin({ sourceDir: './plugins/my-plugin' });
 
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         marketplaceUrl="https://github.com/example/repo.git"
@@ -129,7 +130,7 @@ describe('PluginCard', () => {
   it('無 marketplaceUrl → 不顯示 GitHub 按鈕', () => {
     const plugin = createPlugin();
 
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         onToggle={onToggle}
@@ -143,7 +144,7 @@ describe('PluginCard', () => {
   it('本機路徑 marketplaceUrl → 不顯示 GitHub 按鈕', () => {
     const plugin = createPlugin({ sourceDir: './foo' });
 
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         marketplaceUrl="/Users/lova/.claude/plugins-local"
@@ -157,7 +158,7 @@ describe('PluginCard', () => {
 
   it('loadingScopes 包含 user → User checkbox 替換為 spinner', () => {
     const plugin = createPlugin();
-    const { container } = render(
+    const { container } = renderWithI18n(
       <PluginCard
         plugin={plugin}
         loadingScopes={new Set<PluginScope>(['user'])}
@@ -184,7 +185,7 @@ describe('PluginCard', () => {
         lastUpdated: '2026-01-01T00:00:00Z',
       },
     });
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         workspaceName="my-project"
@@ -203,7 +204,7 @@ describe('PluginCard', () => {
 
   it('loadingScopes 為空/undefined → checkbox 正常互動', () => {
     const plugin = createPlugin();
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         onToggle={onToggle}
@@ -231,7 +232,7 @@ describe('PluginCard', () => {
       },
     });
 
-    render(
+    renderWithI18n(
       <PluginCard
         plugin={plugin}
         marketplaceUrl="https://github.com/example/repo.git"
@@ -259,7 +260,7 @@ describe('PluginCard', () => {
       },
     });
 
-    render(
+    renderWithI18n(
       <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
     );
 
@@ -279,7 +280,7 @@ describe('PluginCard', () => {
       },
     });
 
-    render(
+    renderWithI18n(
       <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
     );
 
@@ -300,7 +301,7 @@ describe('PluginCard', () => {
       },
     });
 
-    render(
+    renderWithI18n(
       <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
     );
 
@@ -321,7 +322,7 @@ describe('PluginCard', () => {
       },
     });
 
-    render(
+    renderWithI18n(
       <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
     );
 
@@ -343,7 +344,7 @@ describe('PluginCard', () => {
       },
     });
 
-    const { container } = render(
+    const { container } = renderWithI18n(
       <PluginCard
         plugin={plugin}
         loadingScopes={new Set<PluginScope>(['user'])}
@@ -366,7 +367,7 @@ describe('PluginCard', () => {
       localInstall: null,
     });
 
-    render(<PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />);
+    renderWithI18n(<PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />);
 
     // 應顯示預計算的 lastUpdated（非 inline 計算）
     expect(screen.getByText(/Updated:/)).toBeTruthy();
@@ -384,7 +385,7 @@ describe('PluginCard', () => {
         },
       });
 
-      render(
+      renderWithI18n(
         <PluginCard
           plugin={plugin}
           conflicts={[{ type: 'mcp', name: 'shared-srv', pluginIds: ['test-plugin@test-mp', 'other@mp'] }]}
@@ -399,7 +400,7 @@ describe('PluginCard', () => {
     it('無 conflicts → 不顯示 badge', () => {
       const plugin = createPlugin();
 
-      render(
+      renderWithI18n(
         <PluginCard
           plugin={plugin}
           conflicts={[]}
@@ -414,7 +415,7 @@ describe('PluginCard', () => {
     it('conflicts undefined → 不顯示 badge', () => {
       const plugin = createPlugin();
 
-      render(
+      renderWithI18n(
         <PluginCard
           plugin={plugin}
           onToggle={onToggle}
@@ -436,7 +437,7 @@ describe('PluginCard', () => {
         },
       });
 
-      const { container } = render(
+      const { container } = renderWithI18n(
         <PluginCard
           plugin={plugin}
           conflicts={[{ type: 'mcp', name: 'shared-srv', pluginIds: ['test-plugin@test-mp', 'other@mp'] }]}
@@ -464,7 +465,7 @@ describe('PluginCard', () => {
         },
       });
 
-      render(
+      renderWithI18n(
         <PluginCard
           plugin={plugin}
           conflicts={[
@@ -476,7 +477,7 @@ describe('PluginCard', () => {
         />,
       );
 
-      expect(screen.getByText(/2 conflicts/)).toBeTruthy();
+      expect(screen.getByText(/2 conflict/)).toBeTruthy();
     });
   });
 });

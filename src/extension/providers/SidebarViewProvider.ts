@@ -55,6 +55,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
       webviewView.webview,
       this.extensionUri,
       'sidebar',
+      vscode.env.language,
     );
 
     webviewView.webview.onDidReceiveMessage(

@@ -9,6 +9,7 @@ export function getWebviewHtml(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
   mode: string,
+  locale: string,
 ): string {
   const nonce = randomBytes(16).toString('hex');
 
@@ -33,7 +34,7 @@ export function getWebviewHtml(
   <title>Claude Plugins Manager</title>
 </head>
 <body>
-  <div id="root" data-mode="${mode}"></div>
+  <div id="root" data-mode="${mode}" data-locale="${locale}"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

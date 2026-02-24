@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { TRANSLATE_LANGS } from '../../../shared/types';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface TranslateDialogProps {
   trapRef: React.RefObject<HTMLDivElement | null>;
@@ -30,6 +31,7 @@ export function TranslateDialog({
   onCancel,
   onConfirm,
 }: TranslateDialogProps): React.ReactElement {
+  const { t } = useI18n();
   const emailHintId = useId();
 
   return (
@@ -45,24 +47,24 @@ export function TranslateDialog({
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="confirm-dialog-title" id={titleId}>Translate</div>
+        <div className="confirm-dialog-title" id={titleId}>{t('translate.title')}</div>
         <div className="form-row">
-          <label className="form-label" htmlFor={emailId}>Email (MyMemory API)</label>
+          <label className="form-label" htmlFor={emailId}>{t('translate.emailLabel')}</label>
           <input
             id={emailId}
             className="input"
             type="email"
             value={draftEmail}
             onChange={(e) => onEmailChange(e.target.value)}
-            placeholder="your@email.com"
+            placeholder={t('translate.emailPlaceholder')}
             aria-describedby={emailHintId}
           />
           <span id={emailHintId} className="form-hint">
-            Email is sent to MyMemory API to increase daily quota.
+            {t('translate.emailHint')}
           </span>
         </div>
         <div className="form-row">
-          <label className="form-label" htmlFor={langId}>Language</label>
+          <label className="form-label" htmlFor={langId}>{t('translate.languageLabel')}</label>
           <select
             id={langId}
             className="input"
@@ -76,12 +78,12 @@ export function TranslateDialog({
           </select>
         </div>
         <div className="confirm-dialog-actions" style={{ marginTop: 16 }}>
-          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-secondary" onClick={onCancel}>{t('translate.cancel')}</button>
           <button
             className="btn btn-primary"
             onClick={onConfirm}
             disabled={!draftEmail || !draftLang}
-          >OK</button>
+          >{t('translate.confirm')}</button>
         </div>
       </div>
     </div>

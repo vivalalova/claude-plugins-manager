@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
@@ -21,7 +22,7 @@ import { PluginPage } from '../PluginPage';
 import { ToastProvider } from '../../../components/Toast';
 import type { PluginListResponse } from '../../../../shared/types';
 
-const renderPage = () => render(<ToastProvider><PluginPage /></ToastProvider>);
+const renderPage = () => renderWithI18n(<ToastProvider><PluginPage /></ToastProvider>);
 
 const emptyResponse: PluginListResponse = {
   installed: [],
@@ -41,16 +42,16 @@ describe('PluginPage accessibility', () => {
 
   afterEach(cleanup);
 
-  it('search input 有 aria-label="Search plugins"', async () => {
+  it('search input 有 aria-label="Search plugins..."', async () => {
     renderPage();
 
     await waitFor(() => {
       expect(screen.queryByText('Loading plugins...')).toBeNull();
     });
 
-    const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+    const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
     expect(searchInput).toBeTruthy();
-    expect(searchInput.getAttribute('aria-label')).toBe('Search plugins');
+    expect(searchInput.getAttribute('aria-label')).toBe('Search plugins...');
   });
 
   it('translate dialog 有 role="dialog" + aria-modal + aria-labelledby', async () => {

@@ -4,6 +4,7 @@ import { sendRequest } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { parseMcpJson } from './parseMcpJson';
+import { useI18n } from '../../i18n/I18nContext';
 
 type InputMode = 'form' | 'json';
 
@@ -31,6 +32,7 @@ export function AddMcpDialog({
   onCancel,
   editServer,
 }: AddMcpDialogProps): React.ReactElement {
+  const { t } = useI18n();
   const isEdit = !!editServer;
   const [mode, setMode] = useState<InputMode>('form');
 
@@ -63,7 +65,7 @@ export function AddMcpDialog({
   /** Form mode → 組裝 params */
   const buildFormParams = (): McpAddParams => {
     if (!name.trim() || !commandOrUrl.trim()) {
-      throw new Error('Name and Command/URL are required');
+      throw new Error(t('mcp.add.validation'));
     }
 
     const env: Record<string, string> = {};

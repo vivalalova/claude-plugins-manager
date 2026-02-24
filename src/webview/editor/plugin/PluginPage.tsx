@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -10,11 +11,10 @@ import { TranslateDialog } from './TranslateDialog';
 import { getCardTranslateStatus } from './translateUtils';
 import {
   CONTENT_TYPE_FILTERS,
-  CONTENT_TYPE_LABELS,
-  PLUGIN_SORT_OPTIONS,
   isPluginEnabled,
   hasPluginUpdate,
 } from './filterUtils';
+import type { ContentTypeFilter } from './filterUtils';
 import { TRANSLATE_LANGS } from '../../../shared/types';
 import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
@@ -29,6 +29,20 @@ import type { ResourceConflict } from './dependencyUtils';
  * Search bar 過濾，按 marketplace 分 section，組內按名稱排序。
  */
 export function PluginPage(): React.ReactElement {
+  const { t } = useI18n();
+
+  const CONTENT_TYPE_LABELS: Record<ContentTypeFilter, string> = {
+    commands: t('filter.commands'),
+    skills: t('filter.skills'),
+    agents: t('filter.agents'),
+    mcp: t('filter.mcp'),
+  };
+
+  const PLUGIN_SORT_OPTIONS = [
+    { value: 'name' as const, label: t('filter.sortName') },
+    { value: 'lastUpdated' as const, label: t('filter.sortLastUpdated') },
+  ];
+
   const {
     plugins,
     loading,
@@ -152,7 +166,7 @@ export function PluginPage(): React.ReactElement {
   return (
     <div className="page-container">
       <div className="page-header">
-        <div className="page-title">Plugins Manager</div>
+        <div className="page-title">{t('plugin.page.title')}</div>
         <div className="page-actions">
           {hasInstalledPlugins && (
             <button
@@ -161,8 +175,8 @@ export function PluginPage(): React.ReactElement {
               disabled={loading || isUpdatingAll}
             >
               {isUpdatingAll
-                ? `Updating ${updateAllProgress?.current ?? 0}/${updateAllProgress?.total ?? 0}...`
-                : 'Update All'}
+                ? t('plugin.page.updating', { current: updateAllProgress?.current ?? 0, total: updateAllProgress?.total ?? 0 })
+                : t('plugin.page.updateAll')}
             </button>
           )}
           <button
@@ -170,20 +184,20 @@ export function PluginPage(): React.ReactElement {
             onClick={() => fetchAll()}
             disabled={loading || isUpdatingAll}
           >
-            Refresh
+            {t('plugin.page.refresh')}
           </button>
           <button
             className="btn btn-secondary"
             onClick={handleExport}
             disabled={loading || !hasInstalledPlugins}
           >
-            Export
+            {t('plugin.page.export')}
           </button>
           <button
             className="btn btn-secondary"
             onClick={handleImport}
           >
-            Import
+            {t('plugin.page.import')}
           </button>
         </div>
       </div>
@@ -194,8 +208,8 @@ export function PluginPage(): React.ReactElement {
             ref={searchInputRef}
             className="input search-bar"
             type="text"
-            placeholder="Search plugins..."
-            aria-label="Search plugins"
+            placeholder={t('plugin.page.searchPlaceholder')}
+            aria-label={t('plugin.page.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -203,7 +217,7 @@ export function PluginPage(): React.ReactElement {
             <button
               type="button"
               className="search-clear-btn"
-              aria-label="Clear search"
+              aria-label={t('plugin.page.clearSearch')}
               onClick={() => { setSearch(''); flushSearch(''); }}
             >
               &#x2715;
@@ -215,7 +229,7 @@ export function PluginPage(): React.ReactElement {
           onClick={() => { setDraftEmail(translateEmail); setDraftLang(translateLang); setDialogOpen(true); }}
           disabled={queuedTexts.size > 0 || activeTexts.size > 0}
         >
-          {translateLang ? TRANSLATE_LANGS[translateLang] ?? translateLang : 'Translate'}
+          {translateLang ? TRANSLATE_LANGS[translateLang] ?? translateLang : t('plugin.page.translate')}
         </button>
       </div>
 
@@ -224,7 +238,7 @@ export function PluginPage(): React.ReactElement {
           className={`filter-chip${filterEnabled ? ' filter-chip--active' : ''}`}
           onClick={() => setFilterEnabled((v) => !v)}
         >
-          Enabled
+          {t('plugin.page.filterEnabled')}
         </button>
         {CONTENT_TYPE_FILTERS.map((type) => (
           <button
@@ -263,7 +277,7 @@ export function PluginPage(): React.ReactElement {
               className="btn btn-secondary btn-sm"
               onClick={() => handleToggle(installError.pluginId, installError.scope, installError.enable)}
             >
-              Retry
+              {t('plugin.page.retry')}
             </button>
           }
         />
@@ -278,7 +292,7 @@ export function PluginPage(): React.ReactElement {
               onClick={handleUpdateAll}
               disabled={isUpdatingAll}
             >
-              Retry
+              {t('plugin.page.retry')}
             </button>
           }
         />
@@ -298,7 +312,7 @@ export function PluginPage(): React.ReactElement {
               className="btn btn-secondary btn-sm"
               onClick={() => { setTranslateWarning(null); retryTranslate(); }}
             >
-              Retry Translation
+              {t('plugin.page.retryTranslation')}
             </button>
           }
         />
@@ -310,9 +324,9 @@ export function PluginPage(): React.ReactElement {
         debouncedSearch || filterEnabled || contentTypeFilters.size > 0 ? (
           <EmptyState
             icon={<NoResultsIcon />}
-            title="No plugins match the current filters."
+            title={t('plugin.page.noResults')}
             action={{
-              label: 'Clear filters',
+              label: t('plugin.page.clearFilters'),
               onClick: () => {
                 setSearch('');
                 flushSearch('');
@@ -325,10 +339,10 @@ export function PluginPage(): React.ReactElement {
         ) : (
           <EmptyState
             icon={<PluginIcon />}
-            title="No plugins found"
-            description="Add a marketplace first to discover and install plugins."
+            title={t('plugin.page.noPlugins')}
+            description={t('plugin.page.noPluginsDesc')}
             action={{
-              label: 'Go to Marketplace',
+              label: t('plugin.page.goToMarketplace'),
               onClick: () => window.postMessage({ type: 'navigate', category: 'marketplace' }, '*'),
             }}
           />
@@ -355,7 +369,7 @@ export function PluginPage(): React.ReactElement {
                   <span className="section-toggle-label">{marketplace}</span>
                   <span className="section-count">{stats.enabledCount} / {items.length}</span>
                   {stats.updateCount > 0 && (
-                    <span className="section-updates">{stats.updateCount} update{stats.updateCount > 1 ? 's' : ''}</span>
+                    <span className="section-updates">{t(stats.updateCount > 1 ? 'plugin.section.updatesPlural' : 'plugin.section.updates', { count: stats.updateCount })}</span>
                   )}
                   {marketplaceSources[marketplace] && (
                     <span className="section-source">{marketplaceSources[marketplace]}</span>
@@ -369,8 +383,8 @@ export function PluginPage(): React.ReactElement {
                     : setPendingBulkEnable({ marketplace, items })}
                 >
                   {mpBulk
-                    ? `${mpBulk.action === 'enable' ? 'Enabling' : 'Disabling'} ${mpBulk.current}/${mpBulk.total}...`
-                    : stats.allEnabled ? 'Disable All' : 'Enable All'}
+                    ? t(mpBulk.action === 'enable' ? 'plugin.section.enabling' : 'plugin.section.disabling', { current: mpBulk.current, total: mpBulk.total })
+                    : stats.allEnabled ? t('plugin.section.disableAll') : t('plugin.section.enableAll')}
                 </button>
               </div>
               <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>

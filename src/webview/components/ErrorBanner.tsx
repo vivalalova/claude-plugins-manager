@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 interface ErrorBannerProps {
   message: string;
@@ -9,12 +10,13 @@ interface ErrorBannerProps {
 
 /** 錯誤提示橫幅 */
 export function ErrorBanner({ message, onDismiss, action }: ErrorBannerProps): React.ReactElement {
+  const { t } = useI18n();
   return (
     <div className="error-banner" role="alert">
       <span>{message}</span>
       {action}
       {onDismiss && (
-        <button className="btn-dismiss" onClick={onDismiss} aria-label="Dismiss">
+        <button className="btn-dismiss" onClick={onDismiss} aria-label={t('error.dismiss')}>
           ×
         </button>
       )}

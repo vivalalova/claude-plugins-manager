@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../__test-utils__/renderWithProviders';
 import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
@@ -101,7 +102,7 @@ describe('SidebarApp badges', () => {
       mcpServers: makeMcpServers(2),
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
       const badges = document.querySelectorAll('.sidebar-button-badge');
@@ -121,7 +122,7 @@ describe('SidebarApp badges', () => {
       mcpServers: [],
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     // 等待 fetch 完成
     await waitFor(() => {
@@ -136,7 +137,7 @@ describe('SidebarApp badges', () => {
     // sendRequest 永遠不 resolve → 保持 loading 狀態
     mockSendRequest.mockReturnValue(new Promise(() => {}));
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     const badges = document.querySelectorAll('.sidebar-button-badge');
     expect(badges).toHaveLength(0);
@@ -156,7 +157,7 @@ describe('SidebarApp badges', () => {
       return () => {};
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
       const badges = document.querySelectorAll('.sidebar-button-badge');
@@ -195,7 +196,7 @@ describe('SidebarApp badges', () => {
       return () => {};
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
       const badges = document.querySelectorAll('.sidebar-button-badge');
@@ -231,7 +232,7 @@ describe('SidebarApp badges', () => {
       return () => {};
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
       const badges = document.querySelectorAll('.sidebar-button-badge');
@@ -261,7 +262,7 @@ describe('SidebarApp badges', () => {
   it('全部 fetch 失敗時不顯示 badge', async () => {
     mockSendRequest.mockRejectedValue(new Error('network error'));
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
       expect(mockSendRequest).toHaveBeenCalledTimes(3);
@@ -279,7 +280,7 @@ describe('SidebarApp badges', () => {
       return undefined;
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
       const badges = document.querySelectorAll('.sidebar-button-badge');
@@ -301,7 +302,7 @@ describe('SidebarApp badges', () => {
       return () => {};
     });
 
-    render(<SidebarApp />);
+    renderWithI18n(<SidebarApp />);
 
     // counts 是 null，mcp.statusUpdate 應該建立完整 counts
     await act(async () => {
@@ -323,7 +324,7 @@ describe('SidebarApp badges', () => {
     mockOnPushMessage.mockReturnValue(unsubscribe);
     setupMocks();
 
-    const { unmount } = render(<SidebarApp />);
+    const { unmount } = renderWithI18n(<SidebarApp />);
     unmount();
 
     expect(unsubscribe).toHaveBeenCalledOnce();
@@ -347,7 +348,7 @@ describe('SidebarApp badges', () => {
         },
       });
 
-      render(<SidebarApp />);
+      renderWithI18n(<SidebarApp />);
 
       await waitFor(() => {
         const updateBadge = document.querySelector('.sidebar-update-badge');
@@ -371,7 +372,7 @@ describe('SidebarApp badges', () => {
         },
       });
 
-      render(<SidebarApp />);
+      renderWithI18n(<SidebarApp />);
 
       await waitFor(() => {
         const countBadges = document.querySelectorAll('.sidebar-button-badge');
@@ -400,7 +401,7 @@ describe('SidebarApp badges', () => {
         },
       });
 
-      render(<SidebarApp />);
+      renderWithI18n(<SidebarApp />);
 
       await waitFor(() => {
         const updateBadge = document.querySelector('.sidebar-update-badge');
@@ -428,7 +429,7 @@ describe('SidebarApp badges', () => {
         return () => {};
       });
 
-      render(<SidebarApp />);
+      renderWithI18n(<SidebarApp />);
 
       await waitFor(() => {
         expect(document.querySelector('.sidebar-update-badge')?.textContent).toBe('1');

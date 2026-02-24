@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import type { PluginScope } from '../../../shared/types';
 import type { WorkspaceFolder } from './hooks/usePluginData';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface BulkEnableScopeDialogProps {
   marketplace: string;
@@ -26,6 +27,7 @@ export function BulkEnableScopeDialog({
   onCancel,
   onConfirm,
 }: BulkEnableScopeDialogProps): React.ReactElement {
+  const { t } = useI18n();
   const titleId = useId();
   const containerRef = useFocusTrap(onCancel);
 
@@ -39,9 +41,11 @@ export function BulkEnableScopeDialog({
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="confirm-dialog-title" id={titleId}>Enable All — {marketplace}</div>
+        <div className="confirm-dialog-title" id={titleId}>
+          {t('bulk.title', { marketplace })}
+        </div>
         <div className="confirm-dialog-message">
-          Select scope for enabling {itemCount} plugins:
+          {t('bulk.message', { count: itemCount })}
         </div>
         <div className="scope-checkboxes" style={{ marginBottom: 16 }}>
           {(['user', 'project', 'local'] as const)
@@ -52,13 +56,13 @@ export function BulkEnableScopeDialog({
                 className={`filter-chip${scope === s ? ' filter-chip--active' : ''}`}
                 onClick={() => onScopeChange(s)}
               >
-                {s === 'user' ? 'User' : s === 'project' ? 'Project' : 'Local'}
+                {s === 'user' ? t('bulk.scopeUser') : s === 'project' ? t('bulk.scopeProject') : t('bulk.scopeLocal')}
               </button>
             ))}
         </div>
         <div className="confirm-dialog-actions">
-          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" onClick={onConfirm}>Enable All</button>
+          <button className="btn btn-secondary" onClick={onCancel}>{t('bulk.cancel')}</button>
+          <button className="btn btn-primary" onClick={onConfirm}>{t('bulk.confirm')}</button>
         </div>
       </div>
     </div>

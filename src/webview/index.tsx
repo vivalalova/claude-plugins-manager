@@ -9,4 +9,5 @@ if (!rootEl) {
 }
 
 const mode = rootEl.dataset.mode ?? 'sidebar';
-createRoot(rootEl).render(<App mode={mode} />);
+const locale = rootEl.dataset.locale ?? 'en';
+createRoot(rootEl).render(<App mode={mode} locale={locale} />);

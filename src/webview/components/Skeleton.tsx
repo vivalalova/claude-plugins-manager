@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 /** Skeleton 元素的形狀 */
 type SkeletonVariant = 'text' | 'rect' | 'circle';
@@ -48,8 +49,9 @@ const SKELETON_COUNT = 3;
 
 /** Plugin 頁面的 skeleton 卡片列表 */
 export function PluginCardSkeleton(): React.ReactElement {
+  const { t } = useI18n();
   return (
-    <div className="card-list" role="status" aria-label="Loading plugins">
+    <div className="card-list" role="status" aria-label={t('skeleton.plugins')}>
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
         <div key={i} className="card skeleton-card">
           <div className="card-header">
@@ -76,8 +78,9 @@ export function PluginCardSkeleton(): React.ReactElement {
 
 /** Marketplace 頁面的 skeleton 卡片列表 */
 export function MarketplaceCardSkeleton(): React.ReactElement {
+  const { t } = useI18n();
   return (
-    <div className="card-list" role="status" aria-label="Loading marketplaces">
+    <div className="card-list" role="status" aria-label={t('skeleton.marketplaces')}>
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
         <div key={i} className="card skeleton-card">
           <div className="card-header">
@@ -98,8 +101,9 @@ export function MarketplaceCardSkeleton(): React.ReactElement {
 
 /** MCP 頁面的 skeleton 卡片列表 */
 export function McpCardSkeleton(): React.ReactElement {
+  const { t } = useI18n();
   return (
-    <div className="card-list" role="status" aria-label="Loading servers">
+    <div className="card-list" role="status" aria-label={t('skeleton.servers')}>
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
         <div key={i} className="card skeleton-card">
           <div className="card-header">

@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
@@ -26,7 +27,7 @@ import type {
   PluginListResponse,
 } from '../../../../shared/types';
 
-const renderPage = () => render(<ToastProvider><PluginPage /></ToastProvider>);
+const renderPage = () => renderWithI18n(<ToastProvider><PluginPage /></ToastProvider>);
 
 function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlugin {
   return {
@@ -166,7 +167,7 @@ describe('PluginPage — 核心流程', () => {
       });
 
       // 搜尋一個不存在的東西
-      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
       fireEvent.change(searchInput, { target: { value: 'zzznomatch' } });
 
       await waitFor(() => {
@@ -248,7 +249,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
       fireEvent.change(searchInput, { target: { value: 'hello' } });
 
       // debounce 300ms 後過濾生效
@@ -273,7 +274,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
       fireEvent.change(searchInput, { target: { value: 'foo' } });
 
       await waitFor(() => {
@@ -297,7 +298,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
       fireEvent.change(searchInput, { target: { value: 'zzznomatch' } });
 
       await waitFor(() => {
@@ -330,7 +331,7 @@ describe('PluginPage — 核心流程', () => {
       vi.useFakeTimers();
 
       try {
-        const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+        const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
         fireEvent.change(searchInput, { target: { value: 'hello' } });
 
         // 299ms 時結果尚未過濾，兩個 plugin 仍顯示
@@ -376,7 +377,7 @@ describe('PluginPage — 核心流程', () => {
       // 初始無 clear 按鈕
       expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
 
-      const searchInput = screen.getByRole('textbox', { name: 'Search plugins' });
+      const searchInput = screen.getByRole('textbox', { name: 'Search plugins...' });
       fireEvent.change(searchInput, { target: { value: 'hello' } });
 
       // 輸入後 clear 按鈕出現

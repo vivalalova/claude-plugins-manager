@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, waitFor, fireEvent, cleanup, act, within } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
@@ -26,7 +27,7 @@ import type {
   PluginListResponse,
 } from '../../../../shared/types';
 
-const renderPage = () => render(<ToastProvider><PluginPage /></ToastProvider>);
+const renderPage = () => renderWithI18n(<ToastProvider><PluginPage /></ToastProvider>);
 
 function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlugin {
   return {

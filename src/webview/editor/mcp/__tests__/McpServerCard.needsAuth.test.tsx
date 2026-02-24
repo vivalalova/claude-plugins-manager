@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { McpServerCard } from '../McpServerCard';
 import type { McpServer } from '../../../../shared/types';
@@ -24,7 +25,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
   afterEach(() => { cleanup(); });
 
   it('needs-auth server 顯示認證引導訊息', () => {
-    render(
+    renderWithI18n(
       <McpServerCard
         server={makeServer()}
         onEdit={noop}
@@ -39,7 +40,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
   });
 
   it('needs-auth server card 有橘色左邊框樣式', () => {
-    const { container } = render(
+    const { container } = renderWithI18n(
       <McpServerCard
         server={makeServer()}
         onEdit={noop}
@@ -54,7 +55,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
   });
 
   it('needs-auth server 顯示 Check Status 按鈕', () => {
-    render(
+    renderWithI18n(
       <McpServerCard
         server={makeServer()}
         onEdit={noop}
@@ -70,7 +71,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
 
   it('點擊 Check Status 呼叫 onAuthenticate', () => {
     const onAuthenticate = vi.fn();
-    render(
+    renderWithI18n(
       <McpServerCard
         server={makeServer()}
         onEdit={noop}
@@ -86,7 +87,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
   });
 
   it('connected server 不顯示認證引導', () => {
-    render(
+    renderWithI18n(
       <McpServerCard
         server={makeServer({ status: 'connected' })}
         onEdit={noop}
@@ -101,7 +102,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
   });
 
   it('failed server 不顯示 Check Status 按鈕（顯示 Retry）', () => {
-    render(
+    renderWithI18n(
       <McpServerCard
         server={makeServer({ status: 'failed' })}
         onEdit={noop}
@@ -116,7 +117,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
   });
 
   it('card-auth-guide 有 role="status"', () => {
-    render(
+    renderWithI18n(
       <McpServerCard
         server={makeServer()}
         onEdit={noop}

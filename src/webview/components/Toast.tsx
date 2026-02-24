@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 /** Toast 外觀類型 */
 export type ToastVariant = 'success' | 'error' | 'info';
@@ -58,6 +59,7 @@ interface ToastItemProps {
  * 5 秒自動消失，hover 暫停計時器，fade-out 動畫後移除 DOM。
  */
 function ToastItem({ toast, onRemove }: ToastItemProps): React.ReactElement {
+  const { t } = useI18n();
   const [exiting, setExiting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** fade-out 結束後移除 DOM 的 timer */
@@ -112,7 +114,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps): React.ReactElement {
       <button
         type="button"
         className="toast-item__close"
-        aria-label="Dismiss notification"
+        aria-label={t('toast.dismiss')}
         onClick={dismiss}
       >
         &#x2715;

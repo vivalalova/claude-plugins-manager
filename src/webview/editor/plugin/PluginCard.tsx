@@ -9,6 +9,7 @@ import type { ResourceConflict, ResourceType } from './dependencyUtils';
 import { getInstalledScopes, hasPluginUpdate } from './filterUtils';
 import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface PluginCardProps {
   plugin: MergedPlugin;
@@ -43,6 +44,7 @@ export const PluginCard = React.memo(function PluginCard({
   onToggle,
   onUpdate,
 }: PluginCardProps): React.ReactElement {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir);
 
@@ -74,7 +76,7 @@ export const PluginCard = React.memo(function PluginCard({
         </div>
         <div className="card-header-right">
           {lastUpdated && (
-            <span className="card-updated">Updated: {formatDate(lastUpdated)}</span>
+            <span className="card-updated">{t('plugin.card.updated')} {formatDate(lastUpdated)}</span>
           )}
           {hasUpdate && (
             <button
@@ -83,14 +85,14 @@ export const PluginCard = React.memo(function PluginCard({
               onClick={(e) => { e.stopPropagation(); onUpdate(plugin.id, getInstalledScopes(plugin)); }}
               disabled={!!loadingScopes?.size}
             >
-              {loadingScopes?.size ? <span className="scope-spinner" /> : 'Update available'}
+              {loadingScopes?.size ? <span className="scope-spinner" /> : t('plugin.card.updateAvailable')}
             </button>
           )}
           {pluginUrl && (
             <button className="btn btn-secondary btn-sm" onClick={() => {
               sendRequest({ type: 'openExternal', url: pluginUrl });
             }}>
-              GitHub
+              {t('plugin.card.github')}
             </button>
           )}
           {conflicts && conflicts.length > 0 && (
@@ -98,7 +100,7 @@ export const PluginCard = React.memo(function PluginCard({
               className="badge-conflict"
               title={conflicts.map((c) => `${c.type}: ${c.name}`).join(', ')}
             >
-              {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''}
+              {t('plugin.card.conflicts', { count: conflicts.length })}
             </span>
           )}
           {translateStatus === 'translating' && <span className="translate-spinner" />}
@@ -119,7 +121,7 @@ export const PluginCard = React.memo(function PluginCard({
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
         <div className="scope-chips" onClick={(e) => e.stopPropagation()}>
         <ScopeToggle
-          label="User"
+          label={t('bulk.scopeUser')}
           scope="user"
           enabled={plugin.userInstall?.enabled ?? false}
           loading={loadingScopes?.has('user') ?? false}
@@ -128,7 +130,7 @@ export const PluginCard = React.memo(function PluginCard({
         />
         {hasWorkspace && (
           <ScopeToggle
-            label="Project"
+            label={t('bulk.scopeProject')}
             scope="project"
             enabled={plugin.projectInstalls[0]?.enabled ?? false}
             loading={loadingScopes?.has('project') ?? false}
@@ -138,7 +140,7 @@ export const PluginCard = React.memo(function PluginCard({
         )}
         {hasWorkspace && (
           <ScopeToggle
-            label="Local"
+            label={t('bulk.scopeLocal')}
             scope="local"
             enabled={plugin.localInstall?.enabled ?? false}
             loading={loadingScopes?.has('local') ?? false}

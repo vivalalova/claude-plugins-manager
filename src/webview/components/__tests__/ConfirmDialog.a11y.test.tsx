@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { renderWithI18n } from '../../__test-utils__/renderWithProviders';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ConfirmDialog } from '../ConfirmDialog';
 
@@ -16,7 +17,7 @@ describe('ConfirmDialog accessibility', () => {
   });
 
   it('role="dialog" + aria-modal + aria-labelledby', () => {
-    render(
+    renderWithI18n(
       <ConfirmDialog
         title="Delete Item"
         message="Are you sure?"
@@ -35,7 +36,7 @@ describe('ConfirmDialog accessibility', () => {
   });
 
   it('mount 時 auto-focus 第一個按鈕', () => {
-    render(
+    renderWithI18n(
       <ConfirmDialog
         title="Test"
         message="msg"
@@ -49,7 +50,7 @@ describe('ConfirmDialog accessibility', () => {
   });
 
   it('Escape 關閉 dialog', () => {
-    render(
+    renderWithI18n(
       <ConfirmDialog
         title="Test"
         message="msg"
@@ -65,7 +66,7 @@ describe('ConfirmDialog accessibility', () => {
   });
 
   it('Tab focus trap：最後元素 Tab → 回到第一個', () => {
-    render(
+    renderWithI18n(
       <ConfirmDialog
         title="Test"
         message="msg"
@@ -90,7 +91,7 @@ describe('ConfirmDialog accessibility', () => {
   });
 
   it('Shift+Tab focus trap：第一個元素 Shift+Tab → 到最後一個', () => {
-    render(
+    renderWithI18n(
       <ConfirmDialog
         title="Test"
         message="msg"
@@ -124,7 +125,7 @@ describe('ConfirmDialog accessibility', () => {
     triggerBtn.focus();
     expect(document.activeElement).toBe(triggerBtn);
 
-    const { unmount } = render(
+    const { unmount } = renderWithI18n(
       <ConfirmDialog
         title="Test"
         message="msg"

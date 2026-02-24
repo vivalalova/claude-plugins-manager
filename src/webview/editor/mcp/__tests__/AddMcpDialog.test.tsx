@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 
 /* ── Mock sendRequest（攔截 webview → extension 通訊） ── */
@@ -30,21 +31,21 @@ describe('AddMcpDialog', () => {
 
   describe('新增模式（無 editServer）', () => {
     it('標題顯示 "Add MCP Server"，按鈕顯示 "Add Server"', () => {
-      render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+      renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
       expect(screen.getByText('Add MCP Server')).toBeTruthy();
       expect(screen.getByText('Add Server')).toBeTruthy();
     });
 
     it('顯示 Form / JSON tabs', () => {
-      render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+      renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
       expect(screen.getByText('Form')).toBeTruthy();
       expect(screen.getByText('JSON')).toBeTruthy();
     });
 
     it('submit 時只呼叫 mcp.add，不呼叫 mcp.remove', async () => {
-      render(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
+      renderWithI18n(<AddMcpDialog onAdded={onAdded} onCancel={onCancel} />);
 
       fireEvent.change(screen.getByPlaceholderText('my-server'), {
         target: { value: 'test-server' },
@@ -71,7 +72,7 @@ describe('AddMcpDialog', () => {
     };
 
     it('標題顯示 "Edit MCP Server"，按鈕顯示 "Update Server"', () => {
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={editServer} />,
       );
 
@@ -80,7 +81,7 @@ describe('AddMcpDialog', () => {
     });
 
     it('隱藏 Form / JSON tabs', () => {
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={editServer} />,
       );
 
@@ -89,7 +90,7 @@ describe('AddMcpDialog', () => {
     });
 
     it('預填 name 和 commandOrUrl', () => {
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={editServer} />,
       );
 
@@ -101,7 +102,7 @@ describe('AddMcpDialog', () => {
     });
 
     it('預填 scope', () => {
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={editServer} />,
       );
 
@@ -110,7 +111,7 @@ describe('AddMcpDialog', () => {
     });
 
     it('submit 時先 mcp.remove 再 mcp.add', async () => {
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={editServer} />,
       );
 
@@ -136,7 +137,7 @@ describe('AddMcpDialog', () => {
     it('remove 失敗時顯示錯誤，不繼續 add', async () => {
       mockSendRequest.mockRejectedValueOnce(new Error('remove failed'));
 
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={editServer} />,
       );
 
@@ -155,7 +156,7 @@ describe('AddMcpDialog', () => {
         commandOrUrl: 'node server.js',
       };
 
-      render(
+      renderWithI18n(
         <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={noScopeServer} />,
       );
 
