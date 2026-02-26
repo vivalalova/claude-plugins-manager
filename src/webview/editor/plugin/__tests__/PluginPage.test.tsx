@@ -865,7 +865,7 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
-  describe('plugin.refresh 推送', () => {
+  describe('push 推送刷新', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
       let pushCallback: ((msg: { type: string }) => void) | null = null;
 
@@ -911,6 +911,54 @@ describe('PluginPage — 核心流程', () => {
       // 新 plugin 出現在畫面上
       await waitFor(() => {
         expect(screen.getByText('new-plugin')).toBeTruthy();
+      });
+    });
+
+    it('收到 marketplace.refresh 推送 → 靜默刷新，新 marketplace 的 plugins 出現', async () => {
+      let pushCallback: ((msg: { type: string }) => void) | null = null;
+
+      mockOnPushMessage.mockImplementation((cb: (msg: { type: string }) => void) => {
+        pushCallback = cb;
+        return () => {};
+      });
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('old-plugin', 'mp1')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(document.querySelectorAll('.skeleton-card').length).toBe(0);
+      });
+
+      // 更新 mock 回傳包含新 marketplace 的 plugins
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [
+            makeAvailable('old-plugin', 'mp1'),
+            makeAvailable('new-mp-plugin', 'mp2'),
+          ]);
+        }
+        return undefined;
+      });
+
+      // 觸發 marketplace.refresh push
+      await act(async () => {
+        pushCallback?.({ type: 'marketplace.refresh' });
+      });
+
+      // 不顯示 spinner（靜默刷新）
+      expect(document.querySelectorAll('.skeleton-card').length).toBe(0);
+
+      // 新 marketplace 的 plugin 出現在畫面上
+      await waitFor(() => {
+        expect(screen.getByText('new-mp-plugin')).toBeTruthy();
       });
     });
   });

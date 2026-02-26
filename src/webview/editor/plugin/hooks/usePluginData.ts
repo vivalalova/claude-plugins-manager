@@ -149,7 +149,7 @@ export function usePluginData(): UsePluginDataReturn {
   // 訂閱檔案變更推送，自動靜默刷新
   useEffect(() => {
     const unsubscribe = onPushMessage((msg) => {
-      if (msg.type === 'plugin.refresh') {
+      if (msg.type === 'plugin.refresh' || msg.type === 'marketplace.refresh') {
         fetchAll(false);
       }
     });
