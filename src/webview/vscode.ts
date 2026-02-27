@@ -101,3 +101,13 @@ export function setViewState<T>(key: string, value: T): void {
   const state = (vscode.getState() as Record<string, unknown>) ?? {};
   vscode.setState({ ...state, [key]: value });
 }
+
+/** 從 extension globalState 讀取指定 key（跨 session 持久化） */
+export async function getGlobalState<T>(key: string, fallback: T): Promise<T> {
+  return sendRequest<T>({ type: 'viewState.get', key, fallback });
+}
+
+/** 將值寫入 extension globalState（跨 session 持久化） */
+export async function setGlobalState<T>(key: string, value: T): Promise<void> {
+  return sendRequest<void>({ type: 'viewState.set', key, value });
+}
