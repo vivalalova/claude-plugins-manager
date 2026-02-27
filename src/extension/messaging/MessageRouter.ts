@@ -7,6 +7,12 @@ import type { RequestMessage, ResponseMessage } from './protocol';
 
 type PostFn = (msg: ResponseMessage) => void;
 
+/** Extension globalState 存取介面（可 mock） */
+export interface GlobalStateAccessor {
+  get<T>(key: string, defaultValue: T): T;
+  update(key: string, value: unknown): Thenable<void>;
+}
+
 /**
  * 路由 Webview 訊息到對應 Service，回傳結果或錯誤。
  * 每個 request 都帶 requestId，用於 webview 端配對 Promise。
@@ -17,6 +23,7 @@ export class MessageRouter {
     private readonly plugin: PluginService,
     private readonly mcp: McpService,
     private readonly translation: TranslationService,
+    private readonly globalState: GlobalStateAccessor,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -111,6 +118,20 @@ export class MessageRouter {
       case 'openExternal':
         await vscode.env.openExternal(vscode.Uri.parse(message.url));
         return;
+
+      // GlobalState（webview UI 偏好持久化）
+      case 'viewState.get':
+        return this.globalState.get(message.key, message.fallback ?? null);
+      case 'viewState.set':
+        await this.globalState.update(message.key, message.value);
+        return;
+      case 'viewState.getAll': {
+        const result: Record<string, unknown> = {};
+        for (const { key, fallback } of message.keys) {
+          result[key] = this.globalState.get(key, fallback);
+        }
+        return result;
+      }
 
       default:
         throw new Error(`Unknown message type: ${(message as { type: string }).type}`);

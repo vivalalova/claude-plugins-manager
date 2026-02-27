@@ -33,7 +33,10 @@ export type RequestMessage =
   | { type: 'plugin.translate'; requestId: string; texts: string[]; targetLang: string; email?: string }
   | { type: 'workspace.getFolders'; requestId: string }
   | { type: 'openExternal'; requestId: string; url: string }
-  | { type: 'sidebar.openCategory'; category: string };
+  | { type: 'sidebar.openCategory'; category: string }
+  | { type: 'viewState.get'; requestId: string; key: string; fallback?: unknown }
+  | { type: 'viewState.set'; requestId: string; key: string; value: unknown }
+  | { type: 'viewState.getAll'; requestId: string; keys: { key: string; fallback: unknown }[] };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Response）

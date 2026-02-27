@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MessageRouter } from '../MessageRouter';
+import type { GlobalStateAccessor } from '../MessageRouter';
 import type { MarketplaceService } from '../../services/MarketplaceService';
 import type { PluginService } from '../../services/PluginService';
 import type { McpService } from '../../services/McpService';
+import type { TranslationService } from '../../services/TranslationService';
 import type { RequestMessage, ResponseMessage } from '../protocol';
 
 function createMockServices(): {
   marketplace: { [K in keyof MarketplaceService]: ReturnType<typeof vi.fn> };
   plugin: { [K in keyof PluginService]: ReturnType<typeof vi.fn> };
   mcp: { [K in keyof McpService]: ReturnType<typeof vi.fn> };
+  translation: Pick<TranslationService, 'translate'> & { translate: ReturnType<typeof vi.fn> };
+  globalState: GlobalStateAccessor & { get: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
 } {
   return {
     marketplace: {
@@ -39,6 +43,13 @@ function createMockServices(): {
       getCachedStatus: vi.fn().mockReturnValue([]),
       onStatusChange: { event: vi.fn(), fire: vi.fn(), dispose: vi.fn() },
     },
+    translation: {
+      translate: vi.fn().mockResolvedValue([]),
+    },
+    globalState: {
+      get: vi.fn().mockImplementation((_key: string, defaultValue: unknown) => defaultValue),
+      update: vi.fn().mockResolvedValue(undefined),
+    },
   };
 }
 
@@ -53,6 +64,8 @@ describe('MessageRouter', () => {
       services.marketplace as unknown as MarketplaceService,
       services.plugin as unknown as PluginService,
       services.mcp as unknown as McpService,
+      services.translation as unknown as TranslationService,
+      services.globalState,
     );
     posted = [];
   });
@@ -166,6 +179,96 @@ describe('MessageRouter', () => {
         post,
       );
       expect(posted).toEqual([]);
+    });
+  });
+
+  describe('globalState 路由', () => {
+    it('viewState.get → 回傳 globalState 值', async () => {
+      services.globalState.get.mockImplementation((key: string, defaultValue: unknown) =>
+        key === 'plugin.sort' ? 'lastUpdated' : defaultValue,
+      );
+
+      await router.handle(
+        { type: 'viewState.get', requestId: 'gs1', key: 'plugin.sort', fallback: 'name' } as RequestMessage,
+        post,
+      );
+
+      expect(services.globalState.get).toHaveBeenCalledWith('plugin.sort', 'name');
+      expect(posted).toEqual([{ type: 'response', requestId: 'gs1', data: 'lastUpdated' }]);
+    });
+
+    it('viewState.get → key 不存在時回傳 fallback', async () => {
+      services.globalState.get.mockImplementation((_key: string, defaultValue: unknown) => defaultValue);
+
+      await router.handle(
+        { type: 'viewState.get', requestId: 'gs2', key: 'nonexistent', fallback: 42 } as RequestMessage,
+        post,
+      );
+
+      expect(posted).toEqual([{ type: 'response', requestId: 'gs2', data: 42 }]);
+    });
+
+    it('viewState.get → fallback 未傳時回傳 null', async () => {
+      services.globalState.get.mockImplementation((_key: string, defaultValue: unknown) => defaultValue);
+
+      await router.handle(
+        { type: 'viewState.get', requestId: 'gs3', key: 'missing' } as RequestMessage,
+        post,
+      );
+
+      expect(posted).toEqual([{ type: 'response', requestId: 'gs3', data: null }]);
+    });
+
+    it('viewState.set → 寫入 globalState 並回傳 response', async () => {
+      await router.handle(
+        { type: 'viewState.set', requestId: 'gs4', key: 'plugin.sort', value: 'lastUpdated' } as RequestMessage,
+        post,
+      );
+
+      expect(services.globalState.update).toHaveBeenCalledWith('plugin.sort', 'lastUpdated');
+      expect(posted).toEqual([{ type: 'response', requestId: 'gs4', data: undefined }]);
+    });
+
+    it('viewState.getAll → 批次讀取多個 key', async () => {
+      const store: Record<string, unknown> = {
+        'plugin.sort': 'lastUpdated',
+        'plugin.filter.enabled': true,
+      };
+      services.globalState.get.mockImplementation((key: string, defaultValue: unknown) =>
+        key in store ? store[key] : defaultValue,
+      );
+
+      await router.handle(
+        {
+          type: 'viewState.getAll',
+          requestId: 'gs5',
+          keys: [
+            { key: 'plugin.sort', fallback: 'name' },
+            { key: 'plugin.filter.enabled', fallback: false },
+            { key: 'plugin.search', fallback: '' },
+          ],
+        } as RequestMessage,
+        post,
+      );
+
+      expect(posted).toEqual([{
+        type: 'response',
+        requestId: 'gs5',
+        data: {
+          'plugin.sort': 'lastUpdated',
+          'plugin.filter.enabled': true,
+          'plugin.search': '',
+        },
+      }]);
+    });
+
+    it('viewState.getAll → keys 為空陣列時回傳空物件', async () => {
+      await router.handle(
+        { type: 'viewState.getAll', requestId: 'gs6', keys: [] } as RequestMessage,
+        post,
+      );
+
+      expect(posted).toEqual([{ type: 'response', requestId: 'gs6', data: {} }]);
     });
   });
 });
