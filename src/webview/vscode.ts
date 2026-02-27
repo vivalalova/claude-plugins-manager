@@ -111,3 +111,22 @@ export async function getGlobalState<T>(key: string, fallback: T): Promise<T> {
 export async function setGlobalState<T>(key: string, value: T): Promise<void> {
   return sendRequest<void>({ type: 'viewState.set', key, value });
 }
+
+/**
+ * 批次從 extension globalState 讀取多個 key，並回填到 webview 同步快取。
+ * 一次 round-trip 取得所有值，後續 getViewState() 可同步讀取。
+ */
+export async function initGlobalState(
+  entries: { key: string; fallback: unknown }[],
+): Promise<Record<string, unknown>> {
+  const result = await sendRequest<Record<string, unknown>>({
+    type: 'viewState.getAll',
+    keys: entries,
+  });
+  for (const { key } of entries) {
+    if (key in result) {
+      setViewState(key, result[key]);
+    }
+  }
+  return result;
+}
