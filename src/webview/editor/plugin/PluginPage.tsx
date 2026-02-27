@@ -176,20 +176,6 @@ export function PluginPage(): React.ReactElement {
     return (
       <div key={marketplace} className="plugin-section">
         <div className="section-header">
-          <div
-            className="section-drag-handle"
-            draggable
-            title={t('plugin.section.dragHandle')}
-            onDragStart={(e) => {
-              e.stopPropagation();
-              e.dataTransfer.effectAllowed = 'move';
-              e.dataTransfer.setData('text/plain', marketplace);
-              setDraggedMarketplace(marketplace);
-            }}
-            onDragEnd={() => { setDraggedMarketplace(null); setDragOverSectionId(null); }}
-          >
-            ⠿
-          </div>
           <button
             className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
             onClick={() => setExpanded((prev) => {
@@ -209,6 +195,20 @@ export function PluginPage(): React.ReactElement {
               <span className="section-source">{marketplaceSources[marketplace]}</span>
             )}
           </button>
+          <div
+            className={`section-drag-handle${isCollapsed ? '' : ' section-drag-handle--expanded'}`}
+            draggable
+            title={t('plugin.section.dragHandle')}
+            onDragStart={(e) => {
+              e.stopPropagation();
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', marketplace);
+              setDraggedMarketplace(marketplace);
+            }}
+            onDragEnd={() => { setDraggedMarketplace(null); setDragOverSectionId(null); }}
+          >
+            ⠿
+          </div>
           <button
             className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
             disabled={!!mpBulk || isUpdatingAll}
