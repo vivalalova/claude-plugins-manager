@@ -382,14 +382,14 @@ body {
   outline-offset: 2px;
 }
 
-.section-2-header {
+.section-divider-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 16px 0 8px;
 }
 
-.section-2-label {
+.section-divider-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -400,7 +400,7 @@ body {
   flex-shrink: 0;
 }
 
-.section-2-divider {
+.section-divider-line {
   flex: 1;
   height: 1px;
   background: var(--vscode-editorWidget-border, var(--vscode-widget-border));
@@ -422,6 +422,26 @@ body {
 }
 
 .sections-drop-zone--drag-over {
+  opacity: 1;
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-hoverBackground);
+}
+
+.sections-add-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 2px dashed var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-radius: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  opacity: 0.35;
+  transition: opacity 0.15s, border-color 0.15s, background-color 0.15s;
+  cursor: default;
+}
+
+.sections-add-zone--drag-over {
   opacity: 1;
   border-color: var(--vscode-focusBorder);
   background: var(--vscode-list-hoverBackground);

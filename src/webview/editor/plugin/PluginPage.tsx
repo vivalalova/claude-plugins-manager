@@ -27,7 +27,7 @@ import type { ResourceConflict } from './dependencyUtils';
 
 /**
  * Plugin 管理頁面。
- * Search bar 過濾，按 marketplace 分 section，組內按名稱排序。
+ * Search bar 過濾，按 marketplace 分 N 個 section，組內按名稱排序。
  */
 export function PluginPage(): React.ReactElement {
   const { t } = useI18n();
@@ -67,11 +67,9 @@ export function PluginPage(): React.ReactElement {
     setSortBy,
     expanded,
     setExpanded,
-    grouped1,
-    grouped2,
-    section2Marketplaces,
-    moveToSection2,
-    moveToSection1,
+    groupedSections,
+    moveToSection,
+    createSection,
   } = usePluginFilters(plugins);
 
   const {
@@ -138,36 +136,39 @@ export function PluginPage(): React.ReactElement {
   /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled） */
   const sectionStats = useMemo(() => {
     const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean }>();
-    for (const [marketplace, items] of [...grouped1, ...grouped2]) {
-      map.set(marketplace, {
-        enabledCount: items.filter(isPluginEnabled).length,
-        updateCount: items.filter(hasPluginUpdate).length,
-        allEnabled: items.every(isPluginEnabled),
-      });
+    for (const section of groupedSections) {
+      for (const [marketplace, items] of section.groups) {
+        if (items.length > 0) {
+          map.set(marketplace, {
+            enabledCount: items.filter(isPluginEnabled).length,
+            updateCount: items.filter(hasPluginUpdate).length,
+            allEnabled: items.every(isPluginEnabled),
+          });
+        }
+      }
     }
     return map;
-  }, [grouped1, grouped2]);
+  }, [groupedSections]);
 
   /** 預計算 per-plugin translateStatus，只計算可見 plugin */
   const translateStatusMap = useMemo(() => {
     const map = new Map<string, 'translating' | 'queued'>();
     if (!translateLang) return map;
-    for (const items of [...grouped1.values(), ...grouped2.values()]) {
-      for (const p of items) {
-        const status = getCardTranslateStatus(p, translateLang, activeTexts, queuedTexts);
-        if (status) map.set(p.id, status);
+    for (const section of groupedSections) {
+      for (const items of section.groups.values()) {
+        for (const p of items) {
+          const status = getCardTranslateStatus(p, translateLang, activeTexts, queuedTexts);
+          if (status) map.set(p.id, status);
+        }
       }
     }
     return map;
-  }, [grouped1, grouped2, translateLang, activeTexts, queuedTexts]);
+  }, [groupedSections, translateLang, activeTexts, queuedTexts]);
 
   const [draggedMarketplace, setDraggedMarketplace] = useState<string | null>(null);
-  const [dragOverContainer, setDragOverContainer] = useState<'section1' | 'section2' | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<number | 'new' | null>(null);
 
-  const isDraggingFromSection1 = draggedMarketplace !== null && !section2Marketplaces.has(draggedMarketplace);
-  const isDraggingFromSection2 = draggedMarketplace !== null && section2Marketplaces.has(draggedMarketplace);
-
-  /** 渲染單一 marketplace section（供 section1 / section2 共用） */
+  /** 渲染單一 marketplace section */
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
     const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
     const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false };
@@ -185,7 +186,7 @@ export function PluginPage(): React.ReactElement {
               e.dataTransfer.setData('text/plain', marketplace);
               setDraggedMarketplace(marketplace);
             }}
-            onDragEnd={() => { setDraggedMarketplace(null); setDragOverContainer(null); }}
+            onDragEnd={() => { setDraggedMarketplace(null); setDragOverSectionId(null); }}
           >
             ⠿
           </div>
@@ -252,6 +253,11 @@ export function PluginPage(): React.ReactElement {
     onSearchClear: () => { setSearch(''); flushSearch(''); },
     cardSelector: '.card[tabindex]',
   });
+
+  /** 總可見 plugin 數（用於空狀態判斷） */
+  const totalVisiblePlugins = groupedSections.reduce((total, s) => {
+    return total + [...s.groups.values()].reduce((sum, items) => sum + items.length, 0);
+  }, 0);
 
   return (
     <div className="page-container">
@@ -410,7 +416,7 @@ export function PluginPage(): React.ReactElement {
 
       {loading ? (
         <PluginCardSkeleton />
-      ) : grouped1.size + grouped2.size === 0 ? (
+      ) : totalVisiblePlugins === 0 ? (
         debouncedSearch || filterEnabled || contentTypeFilters.size > 0 ? (
           <EmptyState
             icon={<NoResultsIcon />}
@@ -439,74 +445,110 @@ export function PluginPage(): React.ReactElement {
         )
       ) : (
         <>
-          {/* Section 1 — 未釘選的 marketplace */}
+          {/* Section 0 — 預設區 */}
           <div
-            className={`sections-container${isDraggingFromSection2 && dragOverContainer === 'section1' ? ' sections-container--drag-over' : ''}`}
+            className={`sections-container${dragOverSectionId === 0 && draggedMarketplace !== null ? ' sections-container--drag-over' : ''}`}
             onDragOver={(e) => {
-              if (isDraggingFromSection2) {
+              if (draggedMarketplace) {
                 e.preventDefault();
-                setDragOverContainer('section1');
+                setDragOverSectionId(0);
               }
             }}
             onDragLeave={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setDragOverContainer(null);
+                setDragOverSectionId(null);
               }
             }}
             onDrop={(e) => {
               const mp = e.dataTransfer.getData('text/plain');
-              if (mp && section2Marketplaces.has(mp)) {
+              if (mp) {
                 e.preventDefault();
-                moveToSection1(mp);
+                moveToSection(mp, 0);
               }
-              setDragOverContainer(null);
+              setDragOverSectionId(null);
               setDraggedMarketplace(null);
             }}
           >
-            {grouped1.size === 0 ? (
-              <div className={`sections-drop-zone${isDraggingFromSection2 && dragOverContainer === 'section1' ? ' sections-drop-zone--drag-over' : ''}`}>
-                {t('plugin.section1.dropHint')}
+            {groupedSections[0].groups.size === 0 ? (
+              <div className={`sections-drop-zone${dragOverSectionId === 0 ? ' sections-drop-zone--drag-over' : ''}`}>
+                {t('plugin.section.emptyHint')}
               </div>
             ) : (
-              [...grouped1.entries()].map(([marketplace, items]) => renderSection(marketplace, items))
+              [...groupedSections[0].groups.entries()].map(([marketplace, items]) => renderSection(marketplace, items))
             )}
           </div>
 
-          {/* Section 2 — 已釘選的 marketplace */}
-          <div className="section-2-header">
-            <span className="section-2-label">{t('plugin.section2.label')}</span>
-            <span className="section-2-divider" />
+          {/* 動態 section N（N >= 1） */}
+          {groupedSections.slice(1).map((section) => (
+            <React.Fragment key={section.id}>
+              <div className="section-divider-header">
+                <span className="section-divider-label">{t('plugin.section.label', { n: section.id })}</span>
+                <span className="section-divider-line" />
+              </div>
+              <div
+                className={`sections-container${dragOverSectionId === section.id && draggedMarketplace !== null ? ' sections-container--drag-over' : ''}`}
+                onDragOver={(e) => {
+                  if (draggedMarketplace) {
+                    e.preventDefault();
+                    setDragOverSectionId(section.id);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverSectionId(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  const mp = e.dataTransfer.getData('text/plain');
+                  if (mp) {
+                    e.preventDefault();
+                    moveToSection(mp, section.id);
+                  }
+                  setDragOverSectionId(null);
+                  setDraggedMarketplace(null);
+                }}
+              >
+                {[...section.groups.values()].every((items) => items.length === 0) ? (
+                  <div className={`sections-drop-zone${dragOverSectionId === section.id ? ' sections-drop-zone--drag-over' : ''}`}>
+                    {t('plugin.section.emptyHint')}
+                  </div>
+                ) : (
+                  [...section.groups.entries()]
+                    .filter(([, items]) => items.length > 0)
+                    .map(([marketplace, items]) => renderSection(marketplace, items))
+                )}
+              </div>
+            </React.Fragment>
+          ))}
+
+          {/* 新增 section 分隔線 + drop zone */}
+          <div className="section-divider-header">
+            <span className="section-divider-line" />
           </div>
           <div
-            className={`sections-container${isDraggingFromSection1 && dragOverContainer === 'section2' ? ' sections-container--drag-over' : ''}`}
+            className={`sections-add-zone${dragOverSectionId === 'new' ? ' sections-add-zone--drag-over' : ''}`}
             onDragOver={(e) => {
-              if (isDraggingFromSection1) {
+              if (draggedMarketplace) {
                 e.preventDefault();
-                setDragOverContainer('section2');
+                setDragOverSectionId('new');
               }
             }}
             onDragLeave={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setDragOverContainer(null);
+                setDragOverSectionId(null);
               }
             }}
             onDrop={(e) => {
               const mp = e.dataTransfer.getData('text/plain');
-              if (mp && !section2Marketplaces.has(mp)) {
+              if (mp) {
                 e.preventDefault();
-                moveToSection2(mp);
+                createSection(mp);
               }
-              setDragOverContainer(null);
+              setDragOverSectionId(null);
               setDraggedMarketplace(null);
             }}
           >
-            {grouped2.size === 0 ? (
-              <div className={`sections-drop-zone${isDraggingFromSection1 && dragOverContainer === 'section2' ? ' sections-drop-zone--drag-over' : ''}`}>
-                {t('plugin.section2.dropHint')}
-              </div>
-            ) : (
-              [...grouped2.entries()].map(([marketplace, items]) => renderSection(marketplace, items))
-            )}
+            {t('plugin.section.addHint')}
           </div>
         </>
       )}

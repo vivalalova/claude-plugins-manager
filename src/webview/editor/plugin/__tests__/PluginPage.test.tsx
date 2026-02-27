@@ -865,7 +865,7 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
-  describe('Section 2 DnD 釘選', () => {
+  describe('N-Section DnD', () => {
     function setupPlugins() {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
@@ -882,7 +882,7 @@ describe('PluginPage — 核心流程', () => {
       });
     }
 
-    it('初始顯示 Section 2 的 Pinned label 和 drop zone', async () => {
+    it('初始顯示 add-zone 提示（無額外 section）', async () => {
       setupPlugins();
       renderPage();
 
@@ -890,8 +890,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      expect(screen.getByText('Pinned')).toBeTruthy();
-      expect(screen.getByText('Drag a marketplace here to pin it')).toBeTruthy();
+      expect(screen.getByText('Drag here to create a new section')).toBeTruthy();
     });
 
     it('每個 section header 都有 drag handle（⠿）', async () => {
@@ -906,7 +905,7 @@ describe('PluginPage — 核心流程', () => {
       expect(handles.length).toBe(2); // mp1 and mp2
     });
 
-    it('dragStart mp1 → drop 到 section2 container → mp1 移入 Section 2', async () => {
+    it('dragStart mp1 → drop 到 add-zone → 新增 Section 1 含 mp1', async () => {
       setupPlugins();
       renderPage();
 
@@ -917,32 +916,30 @@ describe('PluginPage — 核心流程', () => {
       const handles = document.querySelectorAll('.section-drag-handle');
       const mp1Handle = handles[0] as HTMLElement;
 
-      // 拖拉 mp1
       const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
       dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
       dataTransfer.getData = (k: string) => dataTransfer.data[k] ?? '';
 
       fireEvent.dragStart(mp1Handle, { dataTransfer });
 
-      // 找 section2 container（第二個 sections-container）
-      const containers = document.querySelectorAll('.sections-container');
-      const section2Container = containers[1] as HTMLElement;
+      const addZone = document.querySelector('.sections-add-zone') as HTMLElement;
+      fireEvent.dragOver(addZone, { dataTransfer });
+      fireEvent.drop(addZone, { dataTransfer });
 
-      fireEvent.dragOver(section2Container, { dataTransfer });
-      fireEvent.drop(section2Container, { dataTransfer });
-
-      // mp1 的 section 應移到 section2（drop zone 消失）
+      // Section 1 應出現（section-divider-header 出現）
       await waitFor(() => {
-        expect(document.querySelector('.sections-drop-zone')).toBeNull();
+        expect(document.querySelector('.section-divider-header')).toBeTruthy();
       });
 
-      // viewState 中 section2 應包含 mp1
-      expect(mockViewState['plugin.section2']).toContain('mp1');
+      // viewState 應以新格式儲存 mp1 → section 1
+      const sections = mockViewState['plugin.sections'] as { assignments: Record<string, number>; nextId: number };
+      expect(sections.assignments['mp1']).toBe(1);
+      expect(sections.nextId).toBe(2);
     });
 
-    it('section2 的 marketplace 可拖回 section1', async () => {
-      // 預設 mp1 已在 section2
-      mockViewState['plugin.section2'] = ['mp1'];
+    it('從 Section 1 拖回 Section 0 → Section 1 消失（auto-remove）', async () => {
+      // mp1 預先在 Section 1（新格式）
+      mockViewState['plugin.sections'] = { assignments: { mp1: 1 }, nextId: 2 };
       setupPlugins();
       renderPage();
 
@@ -950,12 +947,12 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      // mp1 在 section2，section2 應有一個 section，無 drop zone
-      expect(document.querySelector('.sections-drop-zone')).toBeNull();
+      // Section 1 存在（有帶 label 的 divider）
+      expect(document.querySelector('.section-divider-label')).toBeTruthy();
 
-      // 找 mp1 drag handle（在 section2 裡，是第二個 container 的第一個 handle）
-      const section2Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
-      const mp1Handle = section2Container.querySelector('.section-drag-handle') as HTMLElement;
+      // 找 mp1 drag handle（在 Section 1 container，第二個 sections-container）
+      const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      const mp1Handle = section1Container.querySelector('.section-drag-handle') as HTMLElement;
 
       const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
       dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
@@ -963,20 +960,38 @@ describe('PluginPage — 核心流程', () => {
 
       fireEvent.dragStart(mp1Handle, { dataTransfer });
 
-      // drop 到 section1 container
-      const section1Container = document.querySelectorAll('.sections-container')[0] as HTMLElement;
-      fireEvent.dragOver(section1Container, { dataTransfer });
-      fireEvent.drop(section1Container, { dataTransfer });
+      // drop 到 section0 container
+      const section0Container = document.querySelectorAll('.sections-container')[0] as HTMLElement;
+      fireEvent.dragOver(section0Container, { dataTransfer });
+      fireEvent.drop(section0Container, { dataTransfer });
 
-      // mp1 回到 section1，section2 drop zone 重新出現
+      // mp1 回到 Section 0，Section 1 消失（label divider 不見）
       await waitFor(() => {
-        expect(document.querySelector('.sections-drop-zone')).toBeTruthy();
+        expect(document.querySelector('.section-divider-label')).toBeNull();
       });
 
-      expect((mockViewState['plugin.section2'] as string[]).includes('mp1')).toBe(false);
+      // viewState assignments 中 mp1 應被移除
+      const sections = mockViewState['plugin.sections'] as { assignments: Record<string, number>; nextId: number };
+      expect(sections.assignments['mp1']).toBeUndefined();
     });
 
-    it('section2 狀態從 viewState 恢復（頁面重載後保持釘選）', async () => {
+    it('viewState 從 plugin.sections 新格式恢復', async () => {
+      mockViewState['plugin.sections'] = { assignments: { mp2: 1 }, nextId: 2 };
+      setupPlugins();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // mp2 在 Section 1，帶 label 的 divider 存在
+      expect(document.querySelector('.section-divider-label')).toBeTruthy();
+      // Section 1 container 中有 mp2
+      const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      expect(section1Container.textContent).toContain('mp2');
+    });
+
+    it('migration：舊 plugin.section2 格式 → Section 1 顯示 mp2', async () => {
       mockViewState['plugin.section2'] = ['mp2'];
       setupPlugins();
       renderPage();
@@ -985,18 +1000,17 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      // mp2 在 section2，無 drop zone
-      expect(document.querySelector('.sections-drop-zone')).toBeNull();
-      // section2 container 中有 mp2
-      const section2Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
-      expect(section2Container.textContent).toContain('mp2');
+      // migration 後 mp2 在 Section 1
+      expect(document.querySelector('.section-divider-label')).toBeTruthy();
+      const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      expect(section1Container.textContent).toContain('mp2');
     });
   });
 
-  describe('Section 1 空時 Drop Zone', () => {
-    it('Section 1 清空後顯示 drop zone 提示', async () => {
-      // 兩個 marketplace 都在 section2
-      mockViewState['plugin.section2'] = ['mp1', 'mp2'];
+  describe('Section 0 空時 Drop Zone', () => {
+    it('Section 0 清空後顯示 drop zone 提示', async () => {
+      // 兩個 marketplace 都在 Section 1（新格式）
+      mockViewState['plugin.sections'] = { assignments: { mp1: 1, mp2: 1 }, nextId: 2 };
 
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
@@ -1012,15 +1026,16 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      // Section 1 空 → 顯示 section1 drop zone
-      expect(screen.getByText('Drag a marketplace here to unpin it')).toBeTruthy();
-      // Section 2 有內容 → 無 section2 drop zone
-      expect(screen.queryByText('Drag a marketplace here to pin it')).toBeNull();
+      // Section 0 空 → 顯示 drop zone 提示
+      expect(screen.getByText('Drag a marketplace here')).toBeTruthy();
+      // Section 1 有內容 → 無 section1 drop zone（僅 Section 0 drop zone 存在）
+      const dropZones = document.querySelectorAll('.sections-drop-zone');
+      expect(dropZones.length).toBe(1);
     });
 
-    it('Section 1 空時 drop mp → mp 回到 Section 1，drop zone 消失', async () => {
-      // 兩個 marketplace 都釘選 → Section 1 空
-      mockViewState['plugin.section2'] = ['mp1', 'mp2'];
+    it('Section 0 空時 drop mp → mp 回到 Section 0，drop zone 消失', async () => {
+      // 兩個 marketplace 都在 Section 1
+      mockViewState['plugin.sections'] = { assignments: { mp1: 1, mp2: 1 }, nextId: 2 };
 
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
@@ -1036,12 +1051,12 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      // Section 1 空 → drop zone 存在
-      expect(screen.getByText('Drag a marketplace here to unpin it')).toBeTruthy();
+      // Section 0 空 → drop zone 存在
+      expect(screen.getByText('Drag a marketplace here')).toBeTruthy();
 
-      // 拖拉 mp1 從 section2 handle
-      const section2Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
-      const mp1Handle = section2Container.querySelector('.section-drag-handle') as HTMLElement;
+      // 拖拉 mp1 從 Section 1 handle
+      const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      const mp1Handle = section1Container.querySelector('.section-drag-handle') as HTMLElement;
 
       const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
       dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
@@ -1049,16 +1064,18 @@ describe('PluginPage — 核心流程', () => {
 
       fireEvent.dragStart(mp1Handle, { dataTransfer });
 
-      const section1Container = document.querySelectorAll('.sections-container')[0] as HTMLElement;
-      fireEvent.dragOver(section1Container, { dataTransfer });
-      fireEvent.drop(section1Container, { dataTransfer });
+      const section0Container = document.querySelectorAll('.sections-container')[0] as HTMLElement;
+      fireEvent.dragOver(section0Container, { dataTransfer });
+      fireEvent.drop(section0Container, { dataTransfer });
 
-      // mp1 回到 section1，drop zone 消失
+      // mp1 回到 Section 0，Section 0 drop zone 消失
       await waitFor(() => {
-        expect(screen.queryByText('Drag a marketplace here to unpin it')).toBeNull();
+        expect(screen.queryByText('Drag a marketplace here')).toBeNull();
       });
 
-      expect((mockViewState['plugin.section2'] as string[]).includes('mp1')).toBe(false);
+      // viewState 中 mp1 應不在 assignments
+      const sections = mockViewState['plugin.sections'] as { assignments: Record<string, number> };
+      expect(sections.assignments['mp1']).toBeUndefined();
     });
   });
 

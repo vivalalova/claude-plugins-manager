@@ -34,9 +34,9 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.section.updates': '{count} 件の更新',
   'plugin.section.updatesPlural': '{count} 件の更新',
   'plugin.section.dragHandle': 'このグループを移動',
-  'plugin.section1.dropHint': 'マーケットプレイスをここにドラッグしてピン解除',
-  'plugin.section2.label': 'ピン留め',
-  'plugin.section2.dropHint': 'マーケットプレイスをここにドラッグしてピン留め',
+  'plugin.section.emptyHint': 'マーケットプレイスをここにドラッグ',
+  'plugin.section.label': 'セクション {n}',
+  'plugin.section.addHint': 'ここにドラッグして新しいセクションを作成',
   // PluginCard
   'plugin.card.updated': '更新日:',
   'plugin.card.updateAvailable': 'アップデートあり',
