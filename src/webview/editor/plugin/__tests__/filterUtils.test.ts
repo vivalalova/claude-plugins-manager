@@ -22,11 +22,11 @@ import {
   writePluginSort,
   readExpandedSections,
   writeExpandedSections,
-  readSection2Marketplaces,
-  writeSection2Marketplaces,
+  readSectionAssignments,
+  writeSectionAssignments,
   PLUGIN_SORT_KEY,
   PLUGIN_EXPANDED_KEY,
-  PLUGIN_SECTION2_KEY,
+  PLUGIN_SECTIONS_KEY,
   type ContentTypeFilter,
   type PluginSortBy,
 } from '../filterUtils';
@@ -469,32 +469,64 @@ describe('readExpandedSections / writeExpandedSections', () => {
   });
 });
 
-describe('readSection2Marketplaces / writeSection2Marketplaces', () => {
+describe('readSectionAssignments / writeSectionAssignments', () => {
   beforeEach(() => {
     for (const key of Object.keys(mockViewState)) delete mockViewState[key];
   });
 
-  it('viewState 無資料 → 空 Set', () => {
-    expect(readSection2Marketplaces()).toEqual(new Set());
+  it('viewState 無資料 → 空 assignments，nextId=1', () => {
+    const result = readSectionAssignments();
+    expect(result).toEqual({ assignments: {}, nextId: 1 });
   });
 
   it('write 後 read round-trip 保持一致', () => {
-    writeSection2Marketplaces(new Set(['mp1', 'mp2']));
-    expect(readSection2Marketplaces()).toEqual(new Set(['mp1', 'mp2']));
+    const data = { assignments: { mp1: 1, mp2: 2 }, nextId: 3 };
+    writeSectionAssignments(data);
+    expect(readSectionAssignments()).toEqual(data);
   });
 
-  it('空 Set round-trip', () => {
-    writeSection2Marketplaces(new Set());
-    expect(readSection2Marketplaces()).toEqual(new Set());
+  it('空 assignments round-trip', () => {
+    writeSectionAssignments({ assignments: {}, nextId: 1 });
+    expect(readSectionAssignments()).toEqual({ assignments: {}, nextId: 1 });
   });
 
-  it('viewState 含非陣列 → 回空 Set', () => {
-    mockViewState[PLUGIN_SECTION2_KEY] = 42;
-    expect(readSection2Marketplaces()).toEqual(new Set());
+  it('viewState 含無效資料（非 object）→ fallback 空 assignments', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = 42;
+    expect(readSectionAssignments()).toEqual({ assignments: {}, nextId: 1 });
   });
 
-  it('單一 marketplace round-trip', () => {
-    writeSection2Marketplaces(new Set(['official']));
-    expect(readSection2Marketplaces()).toEqual(new Set(['official']));
+  it('viewState 含 object 但缺 assignments 欄位 → fallback 空 assignments', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = { foo: 'bar' };
+    expect(readSectionAssignments()).toEqual({ assignments: {}, nextId: 1 });
+  });
+
+  it('assignments 含非數字 value → 過濾掉無效 entry', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = { assignments: { mp1: 1, mp2: 'bad', mp3: null }, nextId: 2 };
+    const result = readSectionAssignments();
+    expect(result.assignments).toEqual({ mp1: 1 });
+  });
+
+  it('nextId 小於 max(assignments values)+1 → 自動修正', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = { assignments: { mp1: 1, mp2: 3 }, nextId: 2 };
+    const result = readSectionAssignments();
+    expect(result.nextId).toBe(4); // max is 3, nextId must be >= 4
+  });
+
+  it('migration：舊 plugin.section2 格式轉換 → assignments[mp]=1', () => {
+    mockViewState['plugin.section2'] = ['mp1', 'mp2'];
+    const result = readSectionAssignments();
+    expect(result).toEqual({ assignments: { mp1: 1, mp2: 1 }, nextId: 2 });
+  });
+
+  it('migration：舊 plugin.section2 為空陣列 → 空 assignments', () => {
+    mockViewState['plugin.section2'] = [];
+    expect(readSectionAssignments()).toEqual({ assignments: {}, nextId: 1 });
+  });
+
+  it('新格式優先於舊格式 migration', () => {
+    // 同時有新舊格式時，新格式優先
+    mockViewState[PLUGIN_SECTIONS_KEY] = { assignments: { mp1: 2 }, nextId: 3 };
+    mockViewState['plugin.section2'] = ['mp99'];
+    expect(readSectionAssignments()).toEqual({ assignments: { mp1: 2 }, nextId: 3 });
   });
 });

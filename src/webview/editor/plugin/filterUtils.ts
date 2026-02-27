@@ -196,16 +196,59 @@ export function writeExpandedSections(expanded: ReadonlySet<string>): void {
   setViewState(PLUGIN_EXPANDED_KEY, [...expanded]);
 }
 
-/** viewState key for section 2 pinned marketplaces */
-export const PLUGIN_SECTION2_KEY = 'plugin.section2';
-
-/** viewState → Set<string>（已釘選到 Section 2 的 marketplace） */
-export function readSection2Marketplaces(): Set<string> {
-  const arr = getViewState<string[]>(PLUGIN_SECTION2_KEY, []);
-  return new Set(Array.isArray(arr) ? arr : []);
+/** marketplace name → section ID（0 = 預設 section） */
+export interface SectionAssignments {
+  assignments: Record<string, number>;
+  nextId: number;
 }
 
-/** Set<string> → viewState */
-export function writeSection2Marketplaces(section2: ReadonlySet<string>): void {
-  setViewState(PLUGIN_SECTION2_KEY, [...section2]);
+/** viewState key for N-section assignments */
+export const PLUGIN_SECTIONS_KEY = 'plugin.sections';
+/** old viewState key（migration 用） */
+const PLUGIN_SECTION2_KEY = 'plugin.section2';
+
+/**
+ * viewState → SectionAssignments。
+ * 自動 migrate 舊 plugin.section2 格式（Set → assignments[mp]=1）。
+ * 同時修正 nextId 確保大於所有現有 sectionId。
+ */
+export function readSectionAssignments(): SectionAssignments {
+  const data = getViewState<unknown>(PLUGIN_SECTIONS_KEY, null);
+  if (
+    data !== null
+    && typeof data === 'object'
+    && !Array.isArray(data)
+    && 'assignments' in (data as object)
+    && 'nextId' in (data as object)
+    && typeof (data as Record<string, unknown>)['nextId'] === 'number'
+    && typeof (data as Record<string, unknown>)['assignments'] === 'object'
+    && !Array.isArray((data as Record<string, unknown>)['assignments'])
+  ) {
+    const { assignments, nextId } = data as SectionAssignments;
+    // 過濾非數字 value，確保 nextId > max existing id
+    const validAssignments: Record<string, number> = {};
+    let maxId = 0;
+    for (const [k, v] of Object.entries(assignments)) {
+      if (typeof v === 'number' && Number.isInteger(v) && v >= 0) {
+        validAssignments[k] = v;
+        if (v > maxId) maxId = v;
+      }
+    }
+    return { assignments: validAssignments, nextId: Math.max(nextId, maxId + 1) };
+  }
+  // migration: 讀舊 plugin.section2
+  const old = getViewState<unknown[]>(PLUGIN_SECTION2_KEY, []);
+  if (Array.isArray(old) && old.length > 0) {
+    const assignments: Record<string, number> = {};
+    for (const mp of old) {
+      if (typeof mp === 'string') assignments[mp] = 1;
+    }
+    return { assignments, nextId: 2 };
+  }
+  return { assignments: {}, nextId: 1 };
+}
+
+/** SectionAssignments → viewState */
+export function writeSectionAssignments(data: SectionAssignments): void {
+  setViewState(PLUGIN_SECTIONS_KEY, data);
 }
