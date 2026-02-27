@@ -59,6 +59,10 @@ export interface UsePluginFiltersReturn {
   createSection: (marketplace: string) => void;
   /** 調整非零 section 的顯示順序 */
   reorderSection: (sectionId: number, targetIndex: number) => void;
+  /** 重命名 section（空字串 → 刪除自訂名稱，恢復預設） */
+  renameSection: (sectionId: number, name: string) => void;
+  /** sectionId → 自訂名稱映射（直接傳給 getSectionName） */
+  sectionNames: Record<number, string> | undefined;
 }
 
 /**
@@ -163,10 +167,18 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       if (sectionId === 0) {
         // 移回預設：從 assignments 中刪除
         const { [marketplace]: _, ...rest } = prev.assignments;
-        // 若移除後某 section 已無 assignment，同步從 sectionOrder 清除
+        // 若移除後某 section 已無 assignment，同步從 sectionOrder / sectionNames 清除
         const remainingIds = new Set(Object.values(rest));
         const sectionOrder = prev.sectionOrder?.filter((id) => remainingIds.has(id));
-        return { ...prev, assignments: rest, sectionOrder };
+        let sectionNames = prev.sectionNames;
+        if (sectionNames) {
+          const cleaned: Record<number, string> = {};
+          for (const [k, v] of Object.entries(sectionNames)) {
+            if (remainingIds.has(Number(k))) cleaned[Number(k)] = v;
+          }
+          sectionNames = Object.keys(cleaned).length ? cleaned : undefined;
+        }
+        return { ...prev, assignments: rest, sectionOrder, sectionNames };
       }
       return { ...prev, assignments: { ...prev.assignments, [marketplace]: sectionId } };
     });
@@ -181,6 +193,20 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
         nextId: newId + 1,
         sectionOrder,
       };
+    });
+  };
+
+  const renameSection = (sectionId: number, name: string) => {
+    setSectionAssignments((prev) => {
+      const trimmed = name.trim();
+      const existing = { ...(prev.sectionNames ?? {}) };
+      if (trimmed) {
+        existing[sectionId] = trimmed;
+      } else {
+        delete existing[sectionId];
+      }
+      const sectionNames = Object.keys(existing).length ? existing : undefined;
+      return { ...prev, sectionNames };
     });
   };
 
@@ -219,5 +245,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     moveToSection,
     createSection,
     reorderSection,
+    renameSection,
+    sectionNames: sectionAssignments.sectionNames,
   };
 }

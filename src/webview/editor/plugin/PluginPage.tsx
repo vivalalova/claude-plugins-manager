@@ -13,6 +13,7 @@ import {
   CONTENT_TYPE_FILTERS,
   isPluginEnabled,
   hasPluginUpdate,
+  getSectionName,
 } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
 import { TRANSLATE_LANGS } from '../../../shared/types';
@@ -71,6 +72,8 @@ export function PluginPage(): React.ReactElement {
     moveToSection,
     createSection,
     reorderSection,
+    renameSection,
+    sectionNames,
   } = usePluginFilters(plugins);
 
   const {
@@ -170,6 +173,10 @@ export function PluginPage(): React.ReactElement {
   const [dragOverSectionId, setDragOverSectionId] = useState<number | 'new' | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<number | null>(null);
   const [dragOverDividerId, setDragOverDividerId] = useState<number | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState('');
+  /** Enter / Esc 路徑標記，防止 onBlur 重複觸發或在取消時執行 rename */
+  const editingCommitRef = useRef(false);
 
   /** 渲染單一 marketplace section */
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
@@ -516,7 +523,42 @@ export function PluginPage(): React.ReactElement {
                 >
                   ⠿
                 </div>}
-                <span className="section-divider-label">{t('plugin.section.label', { n: section.id })}</span>
+                {editingSectionId === section.id ? (
+                  <input
+                    className="section-divider-label section-divider-label--editing"
+                    value={editingName}
+                    autoFocus
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        editingCommitRef.current = true;
+                        renameSection(section.id, editingName);
+                        setEditingSectionId(null);
+                      } else if (e.key === 'Escape') {
+                        editingCommitRef.current = true;
+                        setEditingSectionId(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (editingCommitRef.current) {
+                        editingCommitRef.current = false;
+                        return;
+                      }
+                      renameSection(section.id, editingName);
+                      setEditingSectionId(null);
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="section-divider-label section-divider-label--clickable"
+                    onClick={() => {
+                      setEditingName(getSectionName(section.id, sectionNames, t('plugin.section.label', { n: section.id })));
+                      setEditingSectionId(section.id);
+                    }}
+                  >
+                    {getSectionName(section.id, sectionNames, t('plugin.section.label', { n: section.id }))}
+                  </span>
+                )}
                 <span className="section-divider-line" />
               </div>
               <div

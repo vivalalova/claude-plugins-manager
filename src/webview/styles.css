@@ -437,6 +437,37 @@ body {
   flex-shrink: 0;
 }
 
+.section-divider-label--clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 3px;
+  margin: -1px -3px;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.section-divider-label--clickable:hover {
+  opacity: 0.7;
+  background: var(--vscode-list-hoverBackground);
+}
+
+.section-divider-label--editing {
+  cursor: text;
+  opacity: 1;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin: 0;
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  width: 120px;
+  outline: none;
+}
+
 .section-divider-line {
   flex: 1;
   height: 1px;

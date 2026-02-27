@@ -24,6 +24,7 @@ import {
   writeExpandedSections,
   readSectionAssignments,
   writeSectionAssignments,
+  getSectionName,
   PLUGIN_SORT_KEY,
   PLUGIN_EXPANDED_KEY,
   PLUGIN_SECTIONS_KEY,
@@ -556,5 +557,57 @@ describe('readSectionAssignments / writeSectionAssignments', () => {
   it('sectionOrder 為空陣列 → 保留空陣列', () => {
     writeSectionAssignments({ assignments: { mp1: 1 }, nextId: 2, sectionOrder: [] });
     expect(readSectionAssignments().sectionOrder).toEqual([]);
+  });
+
+  it('sectionNames round-trip 保持一致', () => {
+    const data = { assignments: { mp1: 1 }, nextId: 2, sectionNames: { 1: 'My Tasks' } };
+    writeSectionAssignments(data);
+    expect(readSectionAssignments()).toEqual(data);
+  });
+
+  it('sectionNames 未定義 → readSectionAssignments 不含 sectionNames', () => {
+    writeSectionAssignments({ assignments: { mp1: 1 }, nextId: 2 });
+    expect(readSectionAssignments().sectionNames).toBeUndefined();
+  });
+
+  it('sectionNames 含非 string value → 過濾無效 entry', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = {
+      assignments: { mp1: 1, mp2: 2 },
+      nextId: 3,
+      sectionNames: { 1: 'Valid', 2: 42, 3: null },
+    };
+    const result = readSectionAssignments();
+    expect(result.sectionNames).toEqual({ 1: 'Valid' });
+  });
+
+  it('sectionNames key 為非正整數 → 過濾掉', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = {
+      assignments: {},
+      nextId: 1,
+      sectionNames: { 0: 'Zero', '-1': 'Negative', 1: 'Valid' },
+    };
+    expect(readSectionAssignments().sectionNames).toEqual({ 1: 'Valid' });
+  });
+});
+
+describe('getSectionName', () => {
+  it('有自訂名稱 → 回傳自訂名稱', () => {
+    expect(getSectionName(1, { 1: 'My Tasks' }, 'Section 1')).toBe('My Tasks');
+  });
+
+  it('無自訂名稱（undefined names）→ 回傳 fallback', () => {
+    expect(getSectionName(1, undefined, 'Section 1')).toBe('Section 1');
+  });
+
+  it('自訂名稱為空字串 → 回傳 fallback', () => {
+    expect(getSectionName(1, { 1: '' }, 'Section 1')).toBe('Section 1');
+  });
+
+  it('自訂名稱為純空白 → 回傳 fallback', () => {
+    expect(getSectionName(1, { 1: '   ' }, 'Section 1')).toBe('Section 1');
+  });
+
+  it('id 不在 names 中 → 回傳 fallback', () => {
+    expect(getSectionName(2, { 1: 'My Tasks' }, 'Section 2')).toBe('Section 2');
   });
 });

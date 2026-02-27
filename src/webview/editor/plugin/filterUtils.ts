@@ -202,6 +202,21 @@ export interface SectionAssignments {
   nextId: number;
   /** 非零 section 的顯示順序（不含 section 0）；未定義時 fallback ID 升序 */
   sectionOrder?: number[];
+  /** section ID → 自訂名稱；未定義時 fallback 預設名稱 */
+  sectionNames?: Record<number, string>;
+}
+
+/**
+ * 取得 section 顯示名稱。
+ * 自訂名稱優先；無自訂或空字串時回傳 fallback。
+ */
+export function getSectionName(
+  id: number,
+  names: Record<number, string> | undefined,
+  fallback: string,
+): string {
+  const custom = names?.[id];
+  return custom && custom.trim() ? custom : fallback;
 }
 
 /** viewState key for N-section assignments */
@@ -236,15 +251,30 @@ export function readSectionAssignments(): SectionAssignments {
         if (v > maxId) maxId = v;
       }
     }
+    const rawData = raw as unknown as Record<string, unknown>;
     // 驗證 sectionOrder：array of positive integers
-    const rawOrder = (raw as unknown as Record<string, unknown>)['sectionOrder'];
+    const rawOrder = rawData['sectionOrder'];
     const sectionOrder = Array.isArray(rawOrder)
       ? rawOrder.filter((v): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0)
       : undefined;
+    // 驗證 sectionNames：object，key 為數字字串，value 為 string
+    const rawNames = rawData['sectionNames'];
+    let sectionNames: Record<number, string> | undefined;
+    if (rawNames !== null && typeof rawNames === 'object' && !Array.isArray(rawNames)) {
+      const valid: Record<number, string> = {};
+      for (const [k, v] of Object.entries(rawNames as Record<string, unknown>)) {
+        const id = Number(k);
+        if (Number.isInteger(id) && id > 0 && typeof v === 'string') {
+          valid[id] = v;
+        }
+      }
+      sectionNames = valid;
+    }
     return {
       assignments: validAssignments,
       nextId: Math.max(raw.nextId, maxId + 1),
       ...(sectionOrder !== undefined ? { sectionOrder } : {}),
+      ...(sectionNames !== undefined ? { sectionNames } : {}),
     };
   }
   // migration: 讀舊 plugin.section2

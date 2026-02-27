@@ -1088,6 +1088,112 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Section 自訂命名', () => {
+    function setup() {
+      mockViewState['plugin.sections'] = { assignments: { mp1: 1 }, nextId: 2 };
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+    }
+
+    it('Given section with default label, when click label, then input appears with current name', async () => {
+      setup();
+      renderPage();
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label')).toBeTruthy();
+      });
+
+      const label = document.querySelector('.section-divider-label--clickable') as HTMLElement;
+      expect(label.textContent).toMatch(/Section/i);
+      fireEvent.click(label);
+
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label--editing')).toBeTruthy();
+      });
+    });
+
+    it('Given editing, when type "My Tasks" and press Enter, then label shows "My Tasks"', async () => {
+      setup();
+      renderPage();
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label--clickable')).toBeTruthy();
+      });
+
+      fireEvent.click(document.querySelector('.section-divider-label--clickable') as HTMLElement);
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label--editing')).toBeTruthy();
+      });
+
+      const input = document.querySelector('.section-divider-label--editing') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: 'My Tasks' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => {
+        const labelEl = document.querySelector('.section-divider-label--clickable');
+        expect(labelEl?.textContent).toBe('My Tasks');
+      });
+
+      const saved = mockViewState['plugin.sections'] as { sectionNames: Record<number, string> };
+      expect(saved?.sectionNames?.[1]).toBe('My Tasks');
+    });
+
+    it('Given editing "My Tasks", when press Esc, then label reverts to previous value', async () => {
+      mockViewState['plugin.sections'] = { assignments: { mp1: 1 }, nextId: 2, sectionNames: { 1: 'My Tasks' } };
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label--clickable')?.textContent).toBe('My Tasks');
+      });
+
+      fireEvent.click(document.querySelector('.section-divider-label--clickable') as HTMLElement);
+      const input = document.querySelector('.section-divider-label--editing') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: 'Changed' } });
+      fireEvent.keyDown(input, { key: 'Escape' });
+
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label--clickable')?.textContent).toBe('My Tasks');
+      });
+    });
+
+    it('Given custom name, when clear input and confirm, then label falls back to default', async () => {
+      mockViewState['plugin.sections'] = { assignments: { mp1: 1 }, nextId: 2, sectionNames: { 1: 'My Tasks' } };
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        }
+        return undefined;
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(document.querySelector('.section-divider-label--clickable')?.textContent).toBe('My Tasks');
+      });
+
+      fireEvent.click(document.querySelector('.section-divider-label--clickable') as HTMLElement);
+      const input = document.querySelector('.section-divider-label--editing') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: '' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => {
+        const label = document.querySelector('.section-divider-label--clickable');
+        expect(label?.textContent).toMatch(/Section/i);
+        expect(label?.textContent).not.toBe('My Tasks');
+      });
+    });
+  });
+
   describe('Section 0 空時 Drop Zone', () => {
     it('Section 0 清空後顯示 drop zone 提示', async () => {
       // 兩個 marketplace 都在 Section 1（新格式）
