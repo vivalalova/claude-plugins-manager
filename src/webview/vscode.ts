@@ -115,18 +115,41 @@ export async function setGlobalState<T>(key: string, value: T): Promise<void> {
 /**
  * 批次從 extension globalState 讀取多個 key，並回填到 webview 同步快取。
  * 一次 round-trip 取得所有值，後續 getViewState() 可同步讀取。
+ *
+ * 遷移邏輯：舊版用戶 globalState 為空但 viewState 可能有舊資料，
+ * 自動遷移確保升級後偏好設定保留。
  */
 export async function initGlobalState(
   entries: { key: string; fallback: unknown }[],
 ): Promise<Record<string, unknown>> {
-  const result = await sendRequest<Record<string, unknown>>({
+  // 用 null 作為 sentinel：key 未存入 globalState 時 extension 回傳 null
+  const raw = await sendRequest<Record<string, unknown>>({
     type: 'viewState.getAll',
-    keys: entries,
+    keys: entries.map(({ key }) => ({ key, fallback: null })),
   });
-  for (const { key } of entries) {
-    if (key in result) {
-      setViewState(key, result[key]);
+
+  const result: Record<string, unknown> = {};
+
+  for (const { key, fallback } of entries) {
+    if (raw[key] != null) {
+      // globalState 有值 → 優先使用
+      result[key] = raw[key];
+    } else {
+      // globalState 為空 → 嘗試從 viewState 遷移舊資料
+      const viewStateValue = getViewState(key, null);
+      if (viewStateValue != null) {
+        // viewState 有舊資料 → 遷移到 globalState（fire-and-forget）
+        void setGlobalState(key, viewStateValue).catch((err) =>
+          console.error('[initGlobalState] migration failed', key, err),
+        );
+        result[key] = viewStateValue;
+      } else {
+        // 兩者皆空 → 使用 caller 的 fallback
+        result[key] = fallback;
+      }
     }
+    setViewState(key, result[key]);
   }
+
   return result;
 }
