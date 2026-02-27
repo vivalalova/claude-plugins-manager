@@ -33,6 +33,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.section.disabling': '無効化中 {current}/{total}...',
   'plugin.section.updates': '{count} 件の更新',
   'plugin.section.updatesPlural': '{count} 件の更新',
+  'plugin.section.dragHandle': 'このグループを移動',
+  'plugin.section1.dropHint': 'マーケットプレイスをここにドラッグしてピン解除',
+  'plugin.section2.label': 'ピン留め',
+  'plugin.section2.dropHint': 'マーケットプレイスをここにドラッグしてピン留め',
   // PluginCard
   'plugin.card.updated': '更新日:',
   'plugin.card.updateAvailable': 'アップデートあり',

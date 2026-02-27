@@ -22,8 +22,11 @@ import {
   writePluginSort,
   readExpandedSections,
   writeExpandedSections,
+  readSection2Marketplaces,
+  writeSection2Marketplaces,
   PLUGIN_SORT_KEY,
   PLUGIN_EXPANDED_KEY,
+  PLUGIN_SECTION2_KEY,
   type ContentTypeFilter,
   type PluginSortBy,
 } from '../filterUtils';
@@ -463,5 +466,35 @@ describe('readExpandedSections / writeExpandedSections', () => {
   it('viewState 含非陣列 → 回空 Set', () => {
     mockViewState[PLUGIN_EXPANDED_KEY] = 'not-array';
     expect(readExpandedSections()).toEqual(new Set());
+  });
+});
+
+describe('readSection2Marketplaces / writeSection2Marketplaces', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
+  });
+
+  it('viewState 無資料 → 空 Set', () => {
+    expect(readSection2Marketplaces()).toEqual(new Set());
+  });
+
+  it('write 後 read round-trip 保持一致', () => {
+    writeSection2Marketplaces(new Set(['mp1', 'mp2']));
+    expect(readSection2Marketplaces()).toEqual(new Set(['mp1', 'mp2']));
+  });
+
+  it('空 Set round-trip', () => {
+    writeSection2Marketplaces(new Set());
+    expect(readSection2Marketplaces()).toEqual(new Set());
+  });
+
+  it('viewState 含非陣列 → 回空 Set', () => {
+    mockViewState[PLUGIN_SECTION2_KEY] = 42;
+    expect(readSection2Marketplaces()).toEqual(new Set());
+  });
+
+  it('單一 marketplace round-trip', () => {
+    writeSection2Marketplaces(new Set(['official']));
+    expect(readSection2Marketplaces()).toEqual(new Set(['official']));
   });
 });

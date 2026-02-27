@@ -865,6 +865,203 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Section 2 DnD 釘選', () => {
+    function setupPlugins() {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('alpha', 'mp1'),
+              makeAvailable('gamma', 'mp2'),
+            ],
+          );
+        }
+        return undefined;
+      });
+    }
+
+    it('初始顯示 Section 2 的 Pinned label 和 drop zone', async () => {
+      setupPlugins();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      expect(screen.getByText('Pinned')).toBeTruthy();
+      expect(screen.getByText('Drag a marketplace here to pin it')).toBeTruthy();
+    });
+
+    it('每個 section header 都有 drag handle（⠿）', async () => {
+      setupPlugins();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const handles = document.querySelectorAll('.section-drag-handle');
+      expect(handles.length).toBe(2); // mp1 and mp2
+    });
+
+    it('dragStart mp1 → drop 到 section2 container → mp1 移入 Section 2', async () => {
+      setupPlugins();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      const handles = document.querySelectorAll('.section-drag-handle');
+      const mp1Handle = handles[0] as HTMLElement;
+
+      // 拖拉 mp1
+      const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
+      dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
+      dataTransfer.getData = (k: string) => dataTransfer.data[k] ?? '';
+
+      fireEvent.dragStart(mp1Handle, { dataTransfer });
+
+      // 找 section2 container（第二個 sections-container）
+      const containers = document.querySelectorAll('.sections-container');
+      const section2Container = containers[1] as HTMLElement;
+
+      fireEvent.dragOver(section2Container, { dataTransfer });
+      fireEvent.drop(section2Container, { dataTransfer });
+
+      // mp1 的 section 應移到 section2（drop zone 消失）
+      await waitFor(() => {
+        expect(document.querySelector('.sections-drop-zone')).toBeNull();
+      });
+
+      // viewState 中 section2 應包含 mp1
+      expect(mockViewState['plugin.section2']).toContain('mp1');
+    });
+
+    it('section2 的 marketplace 可拖回 section1', async () => {
+      // 預設 mp1 已在 section2
+      mockViewState['plugin.section2'] = ['mp1'];
+      setupPlugins();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // mp1 在 section2，section2 應有一個 section，無 drop zone
+      expect(document.querySelector('.sections-drop-zone')).toBeNull();
+
+      // 找 mp1 drag handle（在 section2 裡，是第二個 container 的第一個 handle）
+      const section2Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      const mp1Handle = section2Container.querySelector('.section-drag-handle') as HTMLElement;
+
+      const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
+      dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
+      dataTransfer.getData = (k: string) => dataTransfer.data[k] ?? '';
+
+      fireEvent.dragStart(mp1Handle, { dataTransfer });
+
+      // drop 到 section1 container
+      const section1Container = document.querySelectorAll('.sections-container')[0] as HTMLElement;
+      fireEvent.dragOver(section1Container, { dataTransfer });
+      fireEvent.drop(section1Container, { dataTransfer });
+
+      // mp1 回到 section1，section2 drop zone 重新出現
+      await waitFor(() => {
+        expect(document.querySelector('.sections-drop-zone')).toBeTruthy();
+      });
+
+      expect((mockViewState['plugin.section2'] as string[]).includes('mp1')).toBe(false);
+    });
+
+    it('section2 狀態從 viewState 恢復（頁面重載後保持釘選）', async () => {
+      mockViewState['plugin.section2'] = ['mp2'];
+      setupPlugins();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // mp2 在 section2，無 drop zone
+      expect(document.querySelector('.sections-drop-zone')).toBeNull();
+      // section2 container 中有 mp2
+      const section2Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      expect(section2Container.textContent).toContain('mp2');
+    });
+  });
+
+  describe('Section 1 空時 Drop Zone', () => {
+    it('Section 1 清空後顯示 drop zone 提示', async () => {
+      // 兩個 marketplace 都在 section2
+      mockViewState['plugin.section2'] = ['mp1', 'mp2'];
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1'), makeAvailable('gamma', 'mp2')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // Section 1 空 → 顯示 section1 drop zone
+      expect(screen.getByText('Drag a marketplace here to unpin it')).toBeTruthy();
+      // Section 2 有內容 → 無 section2 drop zone
+      expect(screen.queryByText('Drag a marketplace here to pin it')).toBeNull();
+    });
+
+    it('Section 1 空時 drop mp → mp 回到 Section 1，drop zone 消失', async () => {
+      // 兩個 marketplace 都釘選 → Section 1 空
+      mockViewState['plugin.section2'] = ['mp1', 'mp2'];
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1'), makeAvailable('gamma', 'mp2')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      // Section 1 空 → drop zone 存在
+      expect(screen.getByText('Drag a marketplace here to unpin it')).toBeTruthy();
+
+      // 拖拉 mp1 從 section2 handle
+      const section2Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      const mp1Handle = section2Container.querySelector('.section-drag-handle') as HTMLElement;
+
+      const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
+      dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
+      dataTransfer.getData = (k: string) => dataTransfer.data[k] ?? '';
+
+      fireEvent.dragStart(mp1Handle, { dataTransfer });
+
+      const section1Container = document.querySelectorAll('.sections-container')[0] as HTMLElement;
+      fireEvent.dragOver(section1Container, { dataTransfer });
+      fireEvent.drop(section1Container, { dataTransfer });
+
+      // mp1 回到 section1，drop zone 消失
+      await waitFor(() => {
+        expect(screen.queryByText('Drag a marketplace here to unpin it')).toBeNull();
+      });
+
+      expect((mockViewState['plugin.section2'] as string[]).includes('mp1')).toBe(false);
+    });
+  });
+
   describe('push 推送刷新', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
       let pushCallback: ((msg: { type: string }) => void) | null = null;

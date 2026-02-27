@@ -15,6 +15,8 @@ import {
   writePluginSort,
   readExpandedSections,
   writeExpandedSections,
+  readSection2Marketplaces,
+  writeSection2Marketplaces,
   type ContentTypeFilter,
   type PluginSortBy,
 } from '../filterUtils';
@@ -48,8 +50,16 @@ export interface UsePluginFiltersReturn {
   expanded: Set<string>;
   /** 設定展開狀態 */
   setExpanded: React.Dispatch<React.SetStateAction<Set<string>>>;
-  /** 過濾後按 marketplace 分組的 plugin 列表 */
-  grouped: Map<string, MergedPlugin[]>;
+  /** Section 1：未釘選的 marketplace 分組 */
+  grouped1: Map<string, MergedPlugin[]>;
+  /** Section 2：已釘選的 marketplace 分組 */
+  grouped2: Map<string, MergedPlugin[]>;
+  /** 已釘選到 Section 2 的 marketplace 名稱集合 */
+  section2Marketplaces: Set<string>;
+  /** 將 marketplace 移到 Section 2 */
+  moveToSection2: (marketplace: string) => void;
+  /** 將 marketplace 移回 Section 1 */
+  moveToSection1: (marketplace: string) => void;
 }
 
 /**
@@ -67,6 +77,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(readContentTypeFilters);
   const [sortBy, setSortBy] = useState<PluginSortBy>(readPluginSort);
   const [expanded, setExpanded] = useState<Set<string>>(readExpandedSections);
+  const [section2Marketplaces, setSection2Marketplaces] = useState<Set<string>>(readSection2Marketplaces);
 
   // Filter 狀態持久化 → VSCode viewState（用 debouncedSearch 避免每次 keystroke 都寫入）
   useEffect(() => { setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch]);
@@ -74,9 +85,10 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
   useEffect(() => { writePluginSort(sortBy); }, [sortBy]);
   useEffect(() => { writeExpandedSections(expanded); }, [expanded]);
+  useEffect(() => { writeSection2Marketplaces(section2Marketplaces); }, [section2Marketplaces]);
 
-  /** 過濾 + 按 marketplace 分組 */
-  const grouped = useMemo(() => {
+  /** 過濾 + 按 marketplace 分組成兩個 section */
+  const { grouped1, grouped2 } = useMemo(() => {
     let filtered = debouncedSearch
       ? plugins.filter((p) => matchesSearch(p, debouncedSearch))
       : plugins;
@@ -90,24 +102,37 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       filtered = filtered.filter((p) => matchesContentType(p, contentTypeFilters));
     }
 
-    const groups = new Map<string, MergedPlugin[]>();
+    const g1 = new Map<string, MergedPlugin[]>();
+    const g2 = new Map<string, MergedPlugin[]>();
     for (const p of filtered) {
       const key = p.marketplaceName ?? 'other';
-      const arr = groups.get(key);
+      const target = section2Marketplaces.has(key) ? g2 : g1;
+      const arr = target.get(key);
       if (arr) {
         arr.push(p);
       } else {
-        groups.set(key, [p]);
+        target.set(key, [p]);
       }
     }
 
     const comparator = getPluginComparator(sortBy);
-    for (const items of groups.values()) {
-      items.sort(comparator);
-    }
+    for (const items of g1.values()) items.sort(comparator);
+    for (const items of g2.values()) items.sort(comparator);
 
-    return groups;
-  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters, sortBy]);
+    return { grouped1: g1, grouped2: g2 };
+  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters, sortBy, section2Marketplaces]);
+
+  const moveToSection2 = (marketplace: string) => {
+    setSection2Marketplaces((prev) => new Set([...prev, marketplace]));
+  };
+
+  const moveToSection1 = (marketplace: string) => {
+    setSection2Marketplaces((prev) => {
+      const next = new Set(prev);
+      next.delete(marketplace);
+      return next;
+    });
+  };
 
   return {
     search,
@@ -122,6 +147,10 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     setSortBy,
     expanded,
     setExpanded,
-    grouped,
+    grouped1,
+    grouped2,
+    section2Marketplaces,
+    moveToSection2,
+    moveToSection1,
   };
 }

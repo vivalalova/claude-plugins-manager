@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
@@ -16,6 +16,7 @@ import {
 } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
 import { TRANSLATE_LANGS } from '../../../shared/types';
+import type { MergedPlugin } from '../../../shared/types';
 import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
 import { usePluginOperations } from './hooks/usePluginOperations';
@@ -66,7 +67,11 @@ export function PluginPage(): React.ReactElement {
     setSortBy,
     expanded,
     setExpanded,
-    grouped,
+    grouped1,
+    grouped2,
+    section2Marketplaces,
+    moveToSection2,
+    moveToSection1,
   } = usePluginFilters(plugins);
 
   const {
@@ -133,7 +138,7 @@ export function PluginPage(): React.ReactElement {
   /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled） */
   const sectionStats = useMemo(() => {
     const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean }>();
-    for (const [marketplace, items] of grouped) {
+    for (const [marketplace, items] of [...grouped1, ...grouped2]) {
       map.set(marketplace, {
         enabledCount: items.filter(isPluginEnabled).length,
         updateCount: items.filter(hasPluginUpdate).length,
@@ -141,20 +146,105 @@ export function PluginPage(): React.ReactElement {
       });
     }
     return map;
-  }, [grouped]);
+  }, [grouped1, grouped2]);
 
-  /** 預計算 per-plugin translateStatus，只計算 grouped 內可見的 plugin */
+  /** 預計算 per-plugin translateStatus，只計算可見 plugin */
   const translateStatusMap = useMemo(() => {
     const map = new Map<string, 'translating' | 'queued'>();
     if (!translateLang) return map;
-    for (const items of grouped.values()) {
+    for (const items of [...grouped1.values(), ...grouped2.values()]) {
       for (const p of items) {
         const status = getCardTranslateStatus(p, translateLang, activeTexts, queuedTexts);
         if (status) map.set(p.id, status);
       }
     }
     return map;
-  }, [grouped, translateLang, activeTexts, queuedTexts]);
+  }, [grouped1, grouped2, translateLang, activeTexts, queuedTexts]);
+
+  const [draggedMarketplace, setDraggedMarketplace] = useState<string | null>(null);
+  const [dragOverContainer, setDragOverContainer] = useState<'section1' | 'section2' | null>(null);
+
+  const isDraggingFromSection1 = draggedMarketplace !== null && !section2Marketplaces.has(draggedMarketplace);
+  const isDraggingFromSection2 = draggedMarketplace !== null && section2Marketplaces.has(draggedMarketplace);
+
+  /** 渲染單一 marketplace section（供 section1 / section2 共用） */
+  const renderSection = (marketplace: string, items: MergedPlugin[]) => {
+    const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
+    const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false };
+    const mpBulk = bulkProgress.get(marketplace);
+    return (
+      <div key={marketplace} className="plugin-section">
+        <div className="section-header">
+          <div
+            className="section-drag-handle"
+            draggable
+            title={t('plugin.section.dragHandle')}
+            onDragStart={(e) => {
+              e.stopPropagation();
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', marketplace);
+              setDraggedMarketplace(marketplace);
+            }}
+            onDragEnd={() => { setDraggedMarketplace(null); setDragOverContainer(null); }}
+          >
+            ⠿
+          </div>
+          <button
+            className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
+            onClick={() => setExpanded((prev) => {
+              const next = new Set(prev);
+              if (next.has(marketplace)) next.delete(marketplace);
+              else next.add(marketplace);
+              return next;
+            })}
+          >
+            <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
+            <span className="section-toggle-label">{marketplace}</span>
+            <span className="section-count">{stats.enabledCount} / {items.length}</span>
+            {stats.updateCount > 0 && (
+              <span className="section-updates">{t(stats.updateCount > 1 ? 'plugin.section.updatesPlural' : 'plugin.section.updates', { count: stats.updateCount })}</span>
+            )}
+            {marketplaceSources[marketplace] && (
+              <span className="section-source">{marketplaceSources[marketplace]}</span>
+            )}
+          </button>
+          <button
+            className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
+            disabled={!!mpBulk || isUpdatingAll}
+            onClick={() => stats.allEnabled
+              ? handleBulkDisable(marketplace, items)
+              : setPendingBulkEnable({ marketplace, items })}
+          >
+            {mpBulk
+              ? t(mpBulk.action === 'enable' ? 'plugin.section.enabling' : 'plugin.section.disabling', { current: mpBulk.current, total: mpBulk.total })
+              : stats.allEnabled ? t('plugin.section.disableAll') : t('plugin.section.enableAll')}
+          </button>
+        </div>
+        <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
+          <div className="section-body-inner">
+            <VirtualCardList
+              items={items}
+              keyExtractor={(plugin) => plugin.id}
+              className="card-list"
+              renderItem={(plugin) => (
+                <PluginCard
+                  plugin={plugin}
+                  workspaceName={workspaceFolders[0]?.name}
+                  marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
+                  translations={translations}
+                  translateStatus={translateStatusMap.get(plugin.id)}
+                  loadingScopes={loadingPlugins.get(plugin.id)}
+                  conflicts={conflictsByPlugin.get(plugin.id)}
+                  onToggle={handleToggle}
+                  onUpdate={handleUpdate}
+                />
+              )}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showHelp, setShowHelp } = useKeyboardShortcuts({
@@ -320,7 +410,7 @@ export function PluginPage(): React.ReactElement {
 
       {loading ? (
         <PluginCardSkeleton />
-      ) : grouped.size === 0 ? (
+      ) : grouped1.size + grouped2.size === 0 ? (
         debouncedSearch || filterEnabled || contentTypeFilters.size > 0 ? (
           <EmptyState
             icon={<NoResultsIcon />}
@@ -348,70 +438,77 @@ export function PluginPage(): React.ReactElement {
           />
         )
       ) : (
-        [...grouped.entries()].map(([marketplace, items]) => {
-          // 搜尋或 Enabled filter 啟用時強制展開所有 section，方便一覽結果
-          const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
-          const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false };
-          const mpBulk = bulkProgress.get(marketplace);
-          return (
-            <div key={marketplace} className="plugin-section">
-              <div className="section-header">
-                <button
-                  className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
-                  onClick={() => setExpanded((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(marketplace)) next.delete(marketplace);
-                    else next.add(marketplace);
-                    return next;
-                  })}
-                >
-                  <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
-                  <span className="section-toggle-label">{marketplace}</span>
-                  <span className="section-count">{stats.enabledCount} / {items.length}</span>
-                  {stats.updateCount > 0 && (
-                    <span className="section-updates">{t(stats.updateCount > 1 ? 'plugin.section.updatesPlural' : 'plugin.section.updates', { count: stats.updateCount })}</span>
-                  )}
-                  {marketplaceSources[marketplace] && (
-                    <span className="section-source">{marketplaceSources[marketplace]}</span>
-                  )}
-                </button>
-                <button
-                  className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
-                  disabled={!!mpBulk || isUpdatingAll}
-                  onClick={() => stats.allEnabled
-                    ? handleBulkDisable(marketplace, items)
-                    : setPendingBulkEnable({ marketplace, items })}
-                >
-                  {mpBulk
-                    ? t(mpBulk.action === 'enable' ? 'plugin.section.enabling' : 'plugin.section.disabling', { current: mpBulk.current, total: mpBulk.total })
-                    : stats.allEnabled ? t('plugin.section.disableAll') : t('plugin.section.enableAll')}
-                </button>
+        <>
+          {/* Section 1 — 未釘選的 marketplace */}
+          <div
+            className={`sections-container${isDraggingFromSection2 && dragOverContainer === 'section1' ? ' sections-container--drag-over' : ''}`}
+            onDragOver={(e) => {
+              if (isDraggingFromSection2) {
+                e.preventDefault();
+                setDragOverContainer('section1');
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setDragOverContainer(null);
+              }
+            }}
+            onDrop={(e) => {
+              const mp = e.dataTransfer.getData('text/plain');
+              if (mp && section2Marketplaces.has(mp)) {
+                e.preventDefault();
+                moveToSection1(mp);
+              }
+              setDragOverContainer(null);
+              setDraggedMarketplace(null);
+            }}
+          >
+            {grouped1.size === 0 ? (
+              <div className={`sections-drop-zone${isDraggingFromSection2 && dragOverContainer === 'section1' ? ' sections-drop-zone--drag-over' : ''}`}>
+                {t('plugin.section1.dropHint')}
               </div>
-              <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
-                <div className="section-body-inner">
-                  <VirtualCardList
-                    items={items}
-                    keyExtractor={(plugin) => plugin.id}
-                    className="card-list"
-                    renderItem={(plugin) => (
-                      <PluginCard
-                        plugin={plugin}
-                        workspaceName={workspaceFolders[0]?.name}
-                        marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
-                        translations={translations}
-                        translateStatus={translateStatusMap.get(plugin.id)}
-                        loadingScopes={loadingPlugins.get(plugin.id)}
-                        conflicts={conflictsByPlugin.get(plugin.id)}
-                        onToggle={handleToggle}
-                        onUpdate={handleUpdate}
-                      />
-                    )}
-                  />
-                </div>
+            ) : (
+              [...grouped1.entries()].map(([marketplace, items]) => renderSection(marketplace, items))
+            )}
+          </div>
+
+          {/* Section 2 — 已釘選的 marketplace */}
+          <div className="section-2-header">
+            <span className="section-2-label">{t('plugin.section2.label')}</span>
+            <span className="section-2-divider" />
+          </div>
+          <div
+            className={`sections-container${isDraggingFromSection1 && dragOverContainer === 'section2' ? ' sections-container--drag-over' : ''}`}
+            onDragOver={(e) => {
+              if (isDraggingFromSection1) {
+                e.preventDefault();
+                setDragOverContainer('section2');
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setDragOverContainer(null);
+              }
+            }}
+            onDrop={(e) => {
+              const mp = e.dataTransfer.getData('text/plain');
+              if (mp && !section2Marketplaces.has(mp)) {
+                e.preventDefault();
+                moveToSection2(mp);
+              }
+              setDragOverContainer(null);
+              setDraggedMarketplace(null);
+            }}
+          >
+            {grouped2.size === 0 ? (
+              <div className={`sections-drop-zone${isDraggingFromSection1 && dragOverContainer === 'section2' ? ' sections-drop-zone--drag-over' : ''}`}>
+                {t('plugin.section2.dropHint')}
               </div>
-            </div>
-          );
-        })
+            ) : (
+              [...grouped2.entries()].map(([marketplace, items]) => renderSection(marketplace, items))
+            )}
+          </div>
+        </>
       )}
 
       {pendingBulkEnable && (

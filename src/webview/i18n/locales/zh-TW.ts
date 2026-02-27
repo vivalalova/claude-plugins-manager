@@ -33,6 +33,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.section.disabling': '停用中 {current}/{total}...',
   'plugin.section.updates': '{count} 個更新',
   'plugin.section.updatesPlural': '{count} 個更新',
+  'plugin.section.dragHandle': '拖拉以移動此分組',
+  'plugin.section1.dropHint': '拖拉 Marketplace 至此以取消釘選',
+  'plugin.section2.label': '已釘選',
+  'plugin.section2.dropHint': '拖拉 Marketplace 至此以釘選',
   // PluginCard
   'plugin.card.updated': '更新時間：',
   'plugin.card.updateAvailable': '有可用更新',

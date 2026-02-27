@@ -195,3 +195,17 @@ export function readExpandedSections(): Set<string> {
 export function writeExpandedSections(expanded: ReadonlySet<string>): void {
   setViewState(PLUGIN_EXPANDED_KEY, [...expanded]);
 }
+
+/** viewState key for section 2 pinned marketplaces */
+export const PLUGIN_SECTION2_KEY = 'plugin.section2';
+
+/** viewState → Set<string>（已釘選到 Section 2 的 marketplace） */
+export function readSection2Marketplaces(): Set<string> {
+  const arr = getViewState<string[]>(PLUGIN_SECTION2_KEY, []);
+  return new Set(Array.isArray(arr) ? arr : []);
+}
+
+/** Set<string> → viewState */
+export function writeSection2Marketplaces(section2: ReadonlySet<string>): void {
+  setViewState(PLUGIN_SECTION2_KEY, [...section2]);
+}
