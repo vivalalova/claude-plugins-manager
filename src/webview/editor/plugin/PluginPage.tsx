@@ -74,6 +74,7 @@ export function PluginPage(): React.ReactElement {
     reorderSection,
     renameSection,
     sectionNames,
+    ready,
   } = usePluginFilters(plugins);
 
   const {
@@ -424,7 +425,7 @@ export function PluginPage(): React.ReactElement {
         />
       )}
 
-      {loading ? (
+      {loading || !ready ? (
         <PluginCardSkeleton />
       ) : totalVisiblePlugins === 0 ? (
         debouncedSearch || filterEnabled || contentTypeFilters.size > 0 ? (

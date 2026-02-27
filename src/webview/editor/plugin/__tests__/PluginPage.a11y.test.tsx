@@ -16,6 +16,8 @@ vi.mock('../../../vscode', () => ({
   onPushMessage: mockOnPushMessage,
   getViewState: (_key: string, fallback: unknown) => fallback,
   setViewState: () => {},
+  setGlobalState: vi.fn().mockResolvedValue(undefined),
+  initGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
 import { PluginPage } from '../PluginPage';

@@ -1,5 +1,5 @@
 import type { MergedPlugin, PluginScope } from '../../../shared/types';
-import { getViewState, setViewState } from '../../vscode';
+import { getViewState, setViewState, setGlobalState } from '../../vscode';
 
 /** Plugin 是否已安裝（任一 scope） */
 export function isPluginInstalled(p: MergedPlugin): boolean {
@@ -169,9 +169,11 @@ export function readContentTypeFilters(): Set<ContentTypeFilter> {
   return new Set(arr.filter((v): v is ContentTypeFilter => valid.has(v as string)));
 }
 
-/** Set<ContentTypeFilter> → viewState */
+/** Set<ContentTypeFilter> → viewState + globalState */
 export function writeContentTypeFilters(filters: ReadonlySet<ContentTypeFilter>): void {
-  setViewState(CONTENT_TYPE_STORAGE_KEY, [...filters]);
+  const value = [...filters];
+  setViewState(CONTENT_TYPE_STORAGE_KEY, value);
+  void setGlobalState(CONTENT_TYPE_STORAGE_KEY, value);
 }
 
 /** viewState → PluginSortBy。無效值 fallback 'name'。 */
@@ -180,9 +182,10 @@ export function readPluginSort(): PluginSortBy {
   return raw === 'lastUpdated' ? 'lastUpdated' : 'name';
 }
 
-/** PluginSortBy → viewState */
+/** PluginSortBy → viewState + globalState */
 export function writePluginSort(sort: PluginSortBy): void {
   setViewState(PLUGIN_SORT_KEY, sort);
+  void setGlobalState(PLUGIN_SORT_KEY, sort);
 }
 
 /** viewState → Set<string>（展開的 marketplace section） */
@@ -191,9 +194,11 @@ export function readExpandedSections(): Set<string> {
   return new Set(Array.isArray(arr) ? arr : []);
 }
 
-/** Set<string> → viewState */
+/** Set<string> → viewState + globalState */
 export function writeExpandedSections(expanded: ReadonlySet<string>): void {
-  setViewState(PLUGIN_EXPANDED_KEY, [...expanded]);
+  const value = [...expanded];
+  setViewState(PLUGIN_EXPANDED_KEY, value);
+  void setGlobalState(PLUGIN_EXPANDED_KEY, value);
 }
 
 /** marketplace name → section ID（0 = 預設 section） */
@@ -289,7 +294,8 @@ export function readSectionAssignments(): SectionAssignments {
   return { assignments: {}, nextId: 1 };
 }
 
-/** SectionAssignments → viewState */
+/** SectionAssignments → viewState + globalState */
 export function writeSectionAssignments(data: SectionAssignments): void {
   setViewState(PLUGIN_SECTIONS_KEY, data);
+  void setGlobalState(PLUGIN_SECTIONS_KEY, data);
 }

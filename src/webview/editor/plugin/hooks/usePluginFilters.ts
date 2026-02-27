@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDebouncedValue } from '../../../hooks/useDebounce';
 import type { MergedPlugin } from '../../../../shared/types';
-import { getViewState, setViewState } from '../../../vscode';
+import { getViewState, setViewState, setGlobalState, initGlobalState } from '../../../vscode';
 import {
   matchesContentType,
   matchesSearch,
@@ -9,6 +9,10 @@ import {
   getPluginComparator,
   PLUGIN_SEARCH_KEY,
   PLUGIN_FILTER_ENABLED_KEY,
+  CONTENT_TYPE_STORAGE_KEY,
+  PLUGIN_SORT_KEY,
+  PLUGIN_EXPANDED_KEY,
+  PLUGIN_SECTIONS_KEY,
   readContentTypeFilters,
   writeContentTypeFilters,
   readPluginSort,
@@ -63,6 +67,8 @@ export interface UsePluginFiltersReturn {
   renameSection: (sectionId: number, name: string) => void;
   /** sectionId → 自訂名稱映射（直接傳給 getSectionName） */
   sectionNames: Record<number, string> | undefined;
+  /** globalState 初始化完成（false 時 UI 顯示 skeleton） */
+  ready: boolean;
 }
 
 /**
@@ -81,14 +87,40 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   const [sortBy, setSortBy] = useState<PluginSortBy>(readPluginSort);
   const [expanded, setExpanded] = useState<Set<string>>(readExpandedSections);
   const [sectionAssignments, setSectionAssignments] = useState<SectionAssignments>(readSectionAssignments);
+  const [ready, setReady] = useState(false);
 
-  // Filter 狀態持久化 → VSCode viewState（用 debouncedSearch 避免每次 keystroke 都寫入）
-  useEffect(() => { setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch]);
-  useEffect(() => { setViewState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); }, [filterEnabled]);
-  useEffect(() => { writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters]);
-  useEffect(() => { writePluginSort(sortBy); }, [sortBy]);
-  useEffect(() => { writeExpandedSections(expanded); }, [expanded]);
-  useEffect(() => { writeSectionAssignments(sectionAssignments); }, [sectionAssignments]);
+  // mount 時批次從 globalState 載入所有 key，回填 viewState 快取後重新初始化 state
+  useEffect(() => {
+    void initGlobalState([
+      { key: PLUGIN_SEARCH_KEY, fallback: '' },
+      { key: PLUGIN_FILTER_ENABLED_KEY, fallback: false },
+      { key: CONTENT_TYPE_STORAGE_KEY, fallback: [] },
+      { key: PLUGIN_SORT_KEY, fallback: 'name' },
+      { key: PLUGIN_EXPANDED_KEY, fallback: [] },
+      { key: PLUGIN_SECTIONS_KEY, fallback: null },
+    ]).then(() => {
+      setSearch(getViewState(PLUGIN_SEARCH_KEY, ''));
+      setFilterEnabled(getViewState(PLUGIN_FILTER_ENABLED_KEY, false));
+      setContentTypeFilters(readContentTypeFilters());
+      setSortBy(readPluginSort());
+      setExpanded(readExpandedSections());
+      setSectionAssignments(readSectionAssignments());
+      setReady(true);
+    }).catch((err) => {
+      // globalState 讀取失敗時降級：保留 viewState 初始值，仍正常顯示 UI
+      console.error('[usePluginFilters] initGlobalState failed, using viewState fallback', err);
+      setReady(true);
+    });
+  }, []);
+
+  // Filter 狀態持久化 → viewState 快取 + globalState 持久化
+  // ready guard：避免 mount 時用初始值覆蓋尚未讀回的持久化資料
+  useEffect(() => { if (!ready) return; setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); void setGlobalState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch, ready]);
+  useEffect(() => { if (!ready) return; setViewState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); void setGlobalState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); }, [filterEnabled, ready]);
+  useEffect(() => { if (!ready) return; writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters, ready]);
+  useEffect(() => { if (!ready) return; writePluginSort(sortBy); }, [sortBy, ready]);
+  useEffect(() => { if (!ready) return; writeExpandedSections(expanded); }, [expanded, ready]);
+  useEffect(() => { if (!ready) return; writeSectionAssignments(sectionAssignments); }, [sectionAssignments, ready]);
 
   /** 過濾 + 按 marketplace 分組成 N 個 section */
   const groupedSections = useMemo(() => {
@@ -247,5 +279,6 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     reorderSection,
     renameSection,
     sectionNames: sectionAssignments.sectionNames,
+    ready,
   };
 }

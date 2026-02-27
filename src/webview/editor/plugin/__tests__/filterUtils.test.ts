@@ -6,6 +6,7 @@ const mockViewState: Record<string, unknown> = {};
 vi.mock('../../../vscode', () => ({
   getViewState: (key: string, fallback: unknown) => key in mockViewState ? mockViewState[key] : fallback,
   setViewState: (key: string, value: unknown) => { mockViewState[key] = value; },
+  setGlobalState: vi.fn().mockResolvedValue(undefined),
 }));
 
 import {
