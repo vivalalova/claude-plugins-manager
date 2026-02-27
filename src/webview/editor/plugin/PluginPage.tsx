@@ -70,6 +70,7 @@ export function PluginPage(): React.ReactElement {
     groupedSections,
     moveToSection,
     createSection,
+    reorderSection,
   } = usePluginFilters(plugins);
 
   const {
@@ -167,6 +168,8 @@ export function PluginPage(): React.ReactElement {
 
   const [draggedMarketplace, setDraggedMarketplace] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<number | 'new' | null>(null);
+  const [draggedSectionId, setDraggedSectionId] = useState<number | null>(null);
+  const [dragOverDividerId, setDragOverDividerId] = useState<number | null>(null);
 
   /** 渲染單一 marketplace section */
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
@@ -479,9 +482,40 @@ export function PluginPage(): React.ReactElement {
           </div>
 
           {/* 動態 section N（N >= 1） */}
-          {groupedSections.slice(1).map((section) => (
+          {groupedSections.slice(1).map((section, index) => (
             <React.Fragment key={section.id}>
-              <div className="section-divider-header">
+              <div
+                className={`section-divider-header${dragOverDividerId === section.id && draggedSectionId !== null && draggedSectionId !== section.id ? ' section-divider-header--drag-over' : ''}`}
+                onDragOver={(e) => {
+                  if (draggedSectionId !== null && draggedSectionId !== section.id) {
+                    e.preventDefault();
+                    setDragOverDividerId(section.id);
+                  }
+                }}
+                onDragLeave={() => setDragOverDividerId(null)}
+                onDrop={(e) => {
+                  if (draggedSectionId !== null && draggedSectionId !== section.id) {
+                    e.preventDefault();
+                    reorderSection(draggedSectionId, index);
+                  }
+                  setDragOverDividerId(null);
+                  setDraggedSectionId(null);
+                }}
+              >
+                {groupedSections.length > 2 && <div
+                  className="section-divider-handle"
+                  draggable
+                  title={t('plugin.section.dragHandle')}
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/x-section-order', String(section.id));
+                    setDraggedSectionId(section.id);
+                  }}
+                  onDragEnd={() => { setDraggedSectionId(null); setDragOverDividerId(null); }}
+                >
+                  ⠿
+                </div>}
                 <span className="section-divider-label">{t('plugin.section.label', { n: section.id })}</span>
                 <span className="section-divider-line" />
               </div>

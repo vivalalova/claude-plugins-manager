@@ -1007,6 +1007,87 @@ describe('PluginPage — 核心流程', () => {
     });
   });
 
+  describe('Section DnD 排序', () => {
+    it('Given 2 non-zero sections, when drag Section 2 handle onto Section 1 divider, then sectionOrder becomes [2, 1]', async () => {
+      // 兩個 marketplace，各自在 Section 1 和 Section 2
+      mockViewState['plugin.sections'] = {
+        assignments: { mp1: 1, mp2: 2 },
+        nextId: 3,
+        sectionOrder: [1, 2],
+      };
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1'), makeAvailable('beta', 'mp2')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(document.querySelectorAll('.section-divider-handle').length).toBe(2);
+      });
+
+      const handles = document.querySelectorAll('.section-divider-handle') as NodeListOf<HTMLElement>;
+      const dividers = document.querySelectorAll('.section-divider-header') as NodeListOf<HTMLElement>;
+      // handle[0] 是 Section 1（index 0），handle[1] 是 Section 2（index 1）
+      const section2Handle = handles[1];
+      const section1Divider = dividers[0];
+
+      // 拖 Section 2 handle
+      const dataTransfer = { effectAllowed: '', setData: vi.fn(), getData: (k: string) => k === 'text/x-section-order' ? '2' : '' };
+      fireEvent.dragStart(section2Handle, { dataTransfer });
+      fireEvent.dragOver(section1Divider, { dataTransfer });
+      fireEvent.drop(section1Divider, { dataTransfer });
+
+      // sectionOrder 應更新為 [2, 1]
+      await waitFor(() => {
+        const saved = mockViewState['plugin.sections'] as { sectionOrder: number[] };
+        expect(saved?.sectionOrder).toEqual([2, 1]);
+      });
+    });
+
+    it('Section DnD 不影響 marketplace DnD（text/plain 不觸發 section 排序）', async () => {
+      mockViewState['plugin.sections'] = {
+        assignments: { mp1: 1, mp2: 2 },
+        nextId: 3,
+        sectionOrder: [1, 2],
+      };
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1'), makeAvailable('beta', 'mp2')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(document.querySelectorAll('.section-divider-handle').length).toBe(2);
+      });
+
+      const dividers = document.querySelectorAll('.section-divider-header') as NodeListOf<HTMLElement>;
+      const section1Divider = dividers[0];
+
+      // 模擬 marketplace DnD（text/plain，非 text/x-section-order）
+      const dataTransfer = {
+        effectAllowed: '',
+        setData: vi.fn(),
+        getData: (k: string) => k === 'text/plain' ? 'mp2' : '',
+      };
+      fireEvent.dragOver(section1Divider, { dataTransfer });
+      fireEvent.drop(section1Divider, { dataTransfer });
+
+      // sectionOrder 不應改變
+      await new Promise((r) => setTimeout(r, 50));
+      const saved = mockViewState['plugin.sections'] as { sectionOrder?: number[] };
+      // 未觸發 section 排序，原始 sectionOrder 保持 [1, 2]
+      expect(saved?.sectionOrder ?? [1, 2]).toEqual([1, 2]);
+    });
+  });
+
   describe('Section 0 空時 Drop Zone', () => {
     it('Section 0 清空後顯示 drop zone 提示', async () => {
       // 兩個 marketplace 都在 Section 1（新格式）
