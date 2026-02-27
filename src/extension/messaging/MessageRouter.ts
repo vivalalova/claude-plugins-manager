@@ -124,6 +124,7 @@ export class MessageRouter {
         return this.globalState.get(message.key, message.fallback ?? null);
       case 'viewState.set':
         await this.globalState.update(message.key, message.value);
+        // TODO: broadcast PushMessage['viewState.changed'] to all webviews when Sidebar reads plugin.* keys
         return;
       case 'viewState.getAll': {
         const result: Record<string, unknown> = {};

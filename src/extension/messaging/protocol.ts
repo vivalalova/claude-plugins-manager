@@ -49,3 +49,15 @@ export type ResponseMessage =
   | { type: 'mcp.pollUnavailable' }
   | { type: 'plugin.refresh' }
   | { type: 'marketplace.refresh' };
+
+// ---------------------------------------------------------------------------
+// Extension → Webview（Push，主動 broadcast，非 Request/Response 配對）
+// ---------------------------------------------------------------------------
+
+/**
+ * Extension 主動 broadcast 給所有 webview 的事件型訊息，不帶 requestId。
+ * viewState.changed：某 webview 寫入 globalState 後 broadcast 通知其他 webview 同步，
+ * 防止雙 webview（Sidebar + Editor）競寫衝突。消費端尚未實作，預留擴充點。
+ */
+// TODO: 實作時將 ResponseMessage 的 push 成員（mcp.statusUpdate 等）遷入此型別
+export type PushMessage = { type: 'viewState.changed'; key: string; value: unknown };
