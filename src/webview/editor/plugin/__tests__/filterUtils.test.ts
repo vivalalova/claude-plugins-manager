@@ -529,4 +529,32 @@ describe('readSectionAssignments / writeSectionAssignments', () => {
     mockViewState['plugin.section2'] = ['mp99'];
     expect(readSectionAssignments()).toEqual({ assignments: { mp1: 2 }, nextId: 3 });
   });
+
+  it('sectionOrder round-trip 保持一致', () => {
+    const data = { assignments: { mp1: 1, mp2: 2 }, nextId: 3, sectionOrder: [2, 1] };
+    writeSectionAssignments(data);
+    expect(readSectionAssignments()).toEqual(data);
+  });
+
+  it('sectionOrder 未定義 → readSectionAssignments 不含 sectionOrder', () => {
+    writeSectionAssignments({ assignments: { mp1: 1 }, nextId: 2 });
+    const result = readSectionAssignments();
+    expect(result.sectionOrder).toBeUndefined();
+  });
+
+  it('sectionOrder 含非數字元素 → 過濾無效元素', () => {
+    mockViewState[PLUGIN_SECTIONS_KEY] = {
+      assignments: { mp1: 1 },
+      nextId: 2,
+      sectionOrder: [1, 'bad', null, 2.5, -1, 0],
+    };
+    const result = readSectionAssignments();
+    // 0 和負數不合法（需正整數），非數字過濾掉，2.5 非整數也過濾
+    expect(result.sectionOrder).toEqual([1]);
+  });
+
+  it('sectionOrder 為空陣列 → 保留空陣列', () => {
+    writeSectionAssignments({ assignments: { mp1: 1 }, nextId: 2, sectionOrder: [] });
+    expect(readSectionAssignments().sectionOrder).toEqual([]);
+  });
 });

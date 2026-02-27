@@ -200,6 +200,8 @@ export function writeExpandedSections(expanded: ReadonlySet<string>): void {
 export interface SectionAssignments {
   assignments: Record<string, number>;
   nextId: number;
+  /** 非零 section 的顯示順序（不含 section 0）；未定義時 fallback ID 升序 */
+  sectionOrder?: number[];
 }
 
 /** viewState key for N-section assignments */
@@ -224,17 +226,26 @@ export function readSectionAssignments(): SectionAssignments {
     && typeof (data as Record<string, unknown>)['assignments'] === 'object'
     && !Array.isArray((data as Record<string, unknown>)['assignments'])
   ) {
-    const { assignments, nextId } = data as SectionAssignments;
+    const raw = data as SectionAssignments;
     // 過濾非數字 value，確保 nextId > max existing id
     const validAssignments: Record<string, number> = {};
     let maxId = 0;
-    for (const [k, v] of Object.entries(assignments)) {
+    for (const [k, v] of Object.entries(raw.assignments)) {
       if (typeof v === 'number' && Number.isInteger(v) && v >= 0) {
         validAssignments[k] = v;
         if (v > maxId) maxId = v;
       }
     }
-    return { assignments: validAssignments, nextId: Math.max(nextId, maxId + 1) };
+    // 驗證 sectionOrder：array of positive integers
+    const rawOrder = (raw as unknown as Record<string, unknown>)['sectionOrder'];
+    const sectionOrder = Array.isArray(rawOrder)
+      ? rawOrder.filter((v): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0)
+      : undefined;
+    return {
+      assignments: validAssignments,
+      nextId: Math.max(raw.nextId, maxId + 1),
+      ...(sectionOrder !== undefined ? { sectionOrder } : {}),
+    };
   }
   // migration: 讀舊 plugin.section2
   const old = getViewState<unknown[]>(PLUGIN_SECTION2_KEY, []);

@@ -57,6 +57,8 @@ export interface UsePluginFiltersReturn {
   moveToSection: (marketplace: string, sectionId: number) => void;
   /** 新增 section 並將 marketplace 放入 */
   createSection: (marketplace: string) => void;
+  /** 調整非零 section 的顯示順序 */
+  reorderSection: (sectionId: number, targetIndex: number) => void;
 }
 
 /**
@@ -99,12 +101,18 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     }
 
     const comparator = getPluginComparator(sortBy);
-    const { assignments } = sectionAssignments;
+    const { assignments, sectionOrder } = sectionAssignments;
 
     // 收集所有非零 section ID（已有 assignment 的）
-    const extraSectionIds = [...new Set(Object.values(assignments))]
-      .filter((id) => id !== 0)
-      .sort((a, b) => a - b);
+    const assignedIds = [...new Set(Object.values(assignments))].filter((id) => id !== 0);
+    // 依 sectionOrder 排序；不在 sectionOrder 中的 ID 附加到尾部（fallback 升序）
+    const orderedIds = sectionOrder
+      ? [
+          ...sectionOrder.filter((id) => assignedIds.includes(id)),
+          ...assignedIds.filter((id) => !sectionOrder.includes(id)).sort((a, b) => a - b),
+        ]
+      : [...assignedIds].sort((a, b) => a - b);
+    const extraSectionIds = orderedIds;
 
     // 為每個 section 建立空 Map
     const sectionMaps = new Map<number, Map<string, MergedPlugin[]>>();
@@ -150,10 +158,15 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
 
   const moveToSection = (marketplace: string, sectionId: number) => {
     setSectionAssignments((prev) => {
+      // 已在目標 section，無需更新
+      if ((prev.assignments[marketplace] ?? 0) === sectionId) return prev;
       if (sectionId === 0) {
         // 移回預設：從 assignments 中刪除
         const { [marketplace]: _, ...rest } = prev.assignments;
-        return { ...prev, assignments: rest };
+        // 若移除後某 section 已無 assignment，同步從 sectionOrder 清除
+        const remainingIds = new Set(Object.values(rest));
+        const sectionOrder = prev.sectionOrder?.filter((id) => remainingIds.has(id));
+        return { ...prev, assignments: rest, sectionOrder };
       }
       return { ...prev, assignments: { ...prev.assignments, [marketplace]: sectionId } };
     });
@@ -162,10 +175,30 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   const createSection = (marketplace: string) => {
     setSectionAssignments((prev) => {
       const newId = prev.nextId;
+      const sectionOrder = [...(prev.sectionOrder ?? []), newId];
       return {
         assignments: { ...prev.assignments, [marketplace]: newId },
         nextId: newId + 1,
+        sectionOrder,
       };
+    });
+  };
+
+  const reorderSection = (sectionId: number, targetIndex: number) => {
+    setSectionAssignments((prev) => {
+      const assignedIds = [...new Set(Object.values(prev.assignments))].filter((id) => id !== 0);
+      const currentOrder = prev.sectionOrder
+        ? [
+            ...prev.sectionOrder.filter((id) => assignedIds.includes(id)),
+            ...assignedIds.filter((id) => !prev.sectionOrder!.includes(id)).sort((a, b) => a - b),
+          ]
+        : [...assignedIds].sort((a, b) => a - b);
+      const fromIndex = currentOrder.indexOf(sectionId);
+      if (fromIndex === -1 || fromIndex === targetIndex) return prev;
+      const newOrder = [...currentOrder];
+      newOrder.splice(fromIndex, 1);
+      newOrder.splice(targetIndex, 0, sectionId);
+      return { ...prev, sectionOrder: newOrder };
     });
   };
 
@@ -185,5 +218,6 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     groupedSections,
     moveToSection,
     createSection,
+    reorderSection,
   };
 }
