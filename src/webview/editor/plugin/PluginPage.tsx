@@ -14,6 +14,7 @@ import {
   isPluginEnabled,
   hasPluginUpdate,
   getSectionName,
+  getVisibleItems,
 } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
 import { TRANSLATE_LANGS } from '../../../shared/types';
@@ -127,21 +128,30 @@ export function PluginPage(): React.ReactElement {
     retryTranslate,
   } = useTranslation(plugins);
 
-  /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled / hiddenCount / visibleCount） */
+  /** 預計算 per-section 統計（single-pass） */
   const sectionStats = useMemo(() => {
     const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean; hiddenCount: number; visibleCount: number }>();
     for (const section of groupedSections) {
       for (const [marketplace, items] of section.groups) {
         if (items.length > 0) {
-          const hiddenCount = hiddenPlugins.size > 0 ? items.filter((p) => hiddenPlugins.has(p.id)).length : 0;
-          const visible = !showHidden && hiddenPlugins.size > 0
-            ? items.filter((p) => !hiddenPlugins.has(p.id))
-            : items;
+          const visible = getVisibleItems(items, hiddenPlugins, showHidden);
+          let enabledCount = 0;
+          let updateCount = 0;
+          let allEnabled = true;
+          for (const p of visible) {
+            const enabled = isPluginEnabled(p);
+            if (enabled) {
+              enabledCount++;
+              if (hasPluginUpdate(p)) updateCount++;
+            } else {
+              allEnabled = false;
+            }
+          }
           map.set(marketplace, {
-            enabledCount: visible.filter(isPluginEnabled).length,
-            updateCount: visible.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length,
-            allEnabled: visible.length > 0 && visible.every(isPluginEnabled),
-            hiddenCount,
+            enabledCount,
+            updateCount,
+            allEnabled: visible.length > 0 && allEnabled,
+            hiddenCount: items.length - visible.length,
             visibleCount: visible.length,
           });
         }
@@ -170,9 +180,7 @@ export function PluginPage(): React.ReactElement {
     const result: MergedPlugin[] = [];
     for (const section of groupedSections) {
       for (const items of section.groups.values()) {
-        for (const p of items) {
-          if (showHidden || !hiddenPlugins.has(p.id)) result.push(p);
-        }
+        result.push(...getVisibleItems(items, hiddenPlugins, showHidden));
       }
     }
     return result;
@@ -189,10 +197,7 @@ export function PluginPage(): React.ReactElement {
 
   /** 渲染單一 marketplace section */
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
-    // 隱藏過濾在渲染層做，section header 始終保持
-    const visibleItems = !showHidden && hiddenPlugins.size > 0
-      ? items.filter((p) => !hiddenPlugins.has(p.id))
-      : items;
+    const visibleItems = getVisibleItems(items, hiddenPlugins, showHidden);
     const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
     const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0, visibleCount: 0 };
     const mpBulk = bulkProgress.get(marketplace);
@@ -280,15 +285,12 @@ export function PluginPage(): React.ReactElement {
     cardSelector: '.card[tabindex]',
   });
 
-  /** 總可見 plugin 數（用於空狀態判斷），排除隱藏 plugin */
-  const totalVisiblePlugins = groupedSections.reduce((total, s) => {
-    return total + [...s.groups.values()].reduce((sum, items) => {
-      if (!showHidden && hiddenPlugins.size > 0) {
-        return sum + items.filter((p) => !hiddenPlugins.has(p.id)).length;
-      }
-      return sum + items.length;
-    }, 0);
-  }, 0);
+  /** 總可見 plugin 數（用於空狀態判斷），從 sectionStats 派生 */
+  const totalVisiblePlugins = useMemo(() => {
+    let total = 0;
+    for (const s of sectionStats.values()) total += s.visibleCount;
+    return total;
+  }, [sectionStats]);
 
   return (
     <div className="page-container">

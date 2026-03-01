@@ -1,6 +1,17 @@
 import type { MergedPlugin, PluginScope } from '../../../shared/types';
 import { getViewState, setViewState, setGlobalState } from '../../vscode';
 
+/** 過濾出可見（非隱藏）的 plugin */
+export function getVisibleItems(
+  items: MergedPlugin[],
+  hiddenPlugins: ReadonlySet<string>,
+  showHidden: boolean,
+): MergedPlugin[] {
+  return !showHidden && hiddenPlugins.size > 0
+    ? items.filter((p) => !hiddenPlugins.has(p.id))
+    : items;
+}
+
 /** Plugin 是否已安裝（任一 scope） */
 export function isPluginInstalled(p: MergedPlugin): boolean {
   return !!(p.userInstall || p.projectInstalls.length > 0 || p.localInstall);
