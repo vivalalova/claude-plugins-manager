@@ -3,6 +3,7 @@ import { sendRequest } from '../../../vscode';
 import type { MergedPlugin, PluginScope } from '../../../../shared/types';
 import {
   isPluginInstalled,
+  isPluginEnabled,
   isEnabledInScope,
   isInstalledInScope,
   getInstalledScopes,
@@ -180,7 +181,7 @@ export function usePluginOperations(
   /** 批次更新有可用更新的 plugin */
   const handleUpdateAll = async (): Promise<void> => {
     if (updateAllProgress) return; // guard concurrent invocation
-    const updatable = plugins.filter((p) => isPluginInstalled(p) && hasPluginUpdate(p));
+    const updatable = plugins.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p));
     if (updatable.length === 0) {
       addToast('All plugins are up to date');
       return;
@@ -193,7 +194,7 @@ export function usePluginOperations(
     for (let i = 0; i < updatable.length; i++) {
       setUpdateAllProgress({ current: i + 1, total: updatable.length });
       const p = updatable[i];
-      for (const scope of getInstalledScopes(p)) {
+      for (const scope of getEnabledScopes(p)) {
         try {
           await sendRequest({ type: 'plugin.update', plugin: p.id, scope });
         } catch (e) {
