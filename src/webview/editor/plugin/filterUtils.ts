@@ -308,7 +308,7 @@ export function readHiddenPlugins(): Set<string> {
   return new Set(Array.isArray(arr) ? arr : []);
 }
 
-/** Set<string> → viewState + globalState */
+/** Set<string> → viewState 快取 + 檔案持久化 */
 export function writeHiddenPlugins(hidden: ReadonlySet<string>): void {
   const value = [...hidden];
   setViewState(PLUGIN_HIDDEN_KEY, value);

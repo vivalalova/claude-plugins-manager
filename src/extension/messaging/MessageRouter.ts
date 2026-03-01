@@ -3,15 +3,10 @@ import type { MarketplaceService } from '../services/MarketplaceService';
 import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
 import type { TranslationService } from '../services/TranslationService';
+import type { SettingsFileService } from '../services/SettingsFileService';
 import type { RequestMessage, ResponseMessage } from './protocol';
 
 type PostFn = (msg: ResponseMessage) => void;
-
-/** Extension globalState 存取介面（可 mock） */
-export interface GlobalStateAccessor {
-  get<T>(key: string, defaultValue: T): T;
-  update(key: string, value: unknown): Thenable<void>;
-}
 
 /**
  * 路由 Webview 訊息到對應 Service，回傳結果或錯誤。
@@ -23,7 +18,7 @@ export class MessageRouter {
     private readonly plugin: PluginService,
     private readonly mcp: McpService,
     private readonly translation: TranslationService,
-    private readonly globalState: GlobalStateAccessor,
+    private readonly settings: SettingsFileService,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -119,20 +114,11 @@ export class MessageRouter {
         await vscode.env.openExternal(vscode.Uri.parse(message.url));
         return;
 
-      // GlobalState（webview UI 偏好持久化）
-      case 'viewState.get':
-        return this.globalState.get(message.key, message.fallback ?? null);
-      case 'viewState.set':
-        await this.globalState.update(message.key, message.value);
-        // TODO: broadcast PushMessage['viewState.changed'] to all webviews when Sidebar reads plugin.* keys
-        return;
-      case 'viewState.getAll': {
-        const result: Record<string, unknown> = {};
-        for (const { key, fallback } of message.keys) {
-          result[key] = this.globalState.get(key, fallback);
-        }
-        return result;
-      }
+      // UI 偏好持久化（檔案）
+      case 'preferences.read':
+        return this.settings.readPreferences();
+      case 'preferences.write':
+        return this.settings.writePreference(message.key, message.value);
 
       default:
         throw new Error(`Unknown message type: ${(message as { type: string }).type}`);

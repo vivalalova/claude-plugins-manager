@@ -102,52 +102,26 @@ export function setViewState<T>(key: string, value: T): void {
   vscode.setState({ ...state, [key]: value });
 }
 
-/** 從 extension globalState 讀取指定 key（跨 session 持久化） */
-export async function getGlobalState<T>(key: string, fallback: T): Promise<T> {
-  return sendRequest<T>({ type: 'viewState.get', key, fallback });
-}
-
-/** 將值寫入 extension globalState（跨 session 持久化） */
+/** 將值寫入 extension 偏好設定檔（跨 session 持久化） */
 export async function setGlobalState<T>(key: string, value: T): Promise<void> {
-  return sendRequest<void>({ type: 'viewState.set', key, value });
+  return sendRequest<void>({ type: 'preferences.write', key, value });
 }
 
 /**
- * 批次從 extension globalState 讀取多個 key，並回填到 webview 同步快取。
+ * 批次從偏好設定檔讀取多個 key，並回填到 webview 同步快取。
  * 一次 round-trip 取得所有值，後續 getViewState() 可同步讀取。
- *
- * 遷移邏輯：舊版用戶 globalState 為空但 viewState 可能有舊資料，
- * 自動遷移確保升級後偏好設定保留。
  */
 export async function initGlobalState(
   entries: { key: string; fallback: unknown }[],
 ): Promise<Record<string, unknown>> {
-  // 用 null 作為 sentinel：key 未存入 globalState 時 extension 回傳 null
-  const raw = await sendRequest<Record<string, unknown>>({
-    type: 'viewState.getAll',
-    keys: entries.map(({ key }) => ({ key, fallback: null })),
+  const prefs = await sendRequest<Record<string, unknown>>({
+    type: 'preferences.read',
   });
 
   const result: Record<string, unknown> = {};
 
   for (const { key, fallback } of entries) {
-    if (raw[key] != null) {
-      // globalState 有值 → 優先使用
-      result[key] = raw[key];
-    } else {
-      // globalState 為空 → 嘗試從 viewState 遷移舊資料
-      const viewStateValue = getViewState(key, null);
-      if (viewStateValue != null) {
-        // viewState 有舊資料 → 遷移到 globalState（fire-and-forget）
-        void setGlobalState(key, viewStateValue).catch((err) =>
-          console.error('[initGlobalState] migration failed', key, err),
-        );
-        result[key] = viewStateValue;
-      } else {
-        // 兩者皆空 → 使用 caller 的 fallback
-        result[key] = fallback;
-      }
-    }
+    result[key] = prefs[key] ?? fallback;
     setViewState(key, result[key]);
   }
 

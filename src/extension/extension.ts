@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const mcpService = new McpService(cli);
   const translationService = new TranslationService();
   const fileWatcherService = new FileWatcherService();
-  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, context.globalState);
+  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService);
   // Marketplace 檔案變更 → invalidate scan cache（plugin settings 變更不影響 marketplace 掃描）
   fileWatcherService.onMarketplaceFilesChanged(() => settingsFileService.invalidateScanCache());
   // MCP 相關檔案變更 → invalidate metadata cache + 立即 poll（取代等待下一個 interval）

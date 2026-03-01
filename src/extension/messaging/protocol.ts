@@ -34,9 +34,8 @@ export type RequestMessage =
   | { type: 'workspace.getFolders'; requestId: string }
   | { type: 'openExternal'; requestId: string; url: string }
   | { type: 'sidebar.openCategory'; category: string }
-  | { type: 'viewState.get'; requestId: string; key: string; fallback?: unknown }
-  | { type: 'viewState.set'; requestId: string; key: string; value: unknown }
-  | { type: 'viewState.getAll'; requestId: string; keys: { key: string; fallback: unknown }[] };
+  | { type: 'preferences.read'; requestId: string }
+  | { type: 'preferences.write'; requestId: string; key: string; value: unknown };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Response）
@@ -56,7 +55,7 @@ export type ResponseMessage =
 
 /**
  * Extension 主動 broadcast 給所有 webview 的事件型訊息，不帶 requestId。
- * viewState.changed：某 webview 寫入 globalState 後 broadcast 通知其他 webview 同步，
+ * viewState.changed：某 webview 寫入偏好設定後 broadcast 通知其他 webview 同步，
  * 防止雙 webview（Sidebar + Editor）競寫衝突。消費端尚未實作，預留擴充點。
  */
 // TODO: 實作時將 ResponseMessage 的 push 成員（mcp.statusUpdate 等）遷入此型別

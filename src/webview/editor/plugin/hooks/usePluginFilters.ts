@@ -105,7 +105,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   );
   const [ready, setReady] = useState(false);
 
-  // mount 時批次從 globalState 載入所有 key，回填 viewState 快取後重新初始化 state
+  // mount 時批次從偏好設定檔載入所有 UI 偏好
   useEffect(() => {
     void initGlobalState([
       { key: PLUGIN_SEARCH_KEY, fallback: '' },
@@ -127,8 +127,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       setShowHidden(getViewState(PLUGIN_SHOW_HIDDEN_KEY, false));
       setReady(true);
     }).catch((err) => {
-      // globalState 讀取失敗時降級：保留 viewState 初始值，仍正常顯示 UI
-      console.error('[usePluginFilters] initGlobalState failed, using viewState fallback', err);
+      // 偏好設定檔讀取失敗時降級：保留 viewState 初始值，仍正常顯示 UI
+      console.error('[usePluginFilters] init failed, using viewState fallback', err);
       setReady(true);
     });
   }, []);

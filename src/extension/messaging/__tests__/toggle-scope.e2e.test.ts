@@ -111,7 +111,7 @@ describe('Plugin scope toggle（E2E：MessageRouter → Service → Filesystem�
     const cli = createMockCli();
     const pluginSvc = new PluginService(cli, settingsSvc);
     const stubs = createStubServices();
-    router = new MessageRouter(stubs.marketplace, pluginSvc, stubs.mcp, stubs.translation);
+    router = new MessageRouter(stubs.marketplace, pluginSvc, stubs.mcp, stubs.translation, settingsSvc);
   });
 
   /* ═══════ 核心場景：勾 Project scope ═══════ */
