@@ -330,41 +330,17 @@ body {
 .section-header {
   display: flex;
   align-items: stretch;
-}
-
-.section-drag-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  flex-shrink: 0;
-  background: var(--vscode-sideBarSectionHeader-background, rgba(128, 128, 128, 0.06));
-  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
-  color: var(--vscode-sideBarSectionHeader-foreground);
   cursor: grab;
-  opacity: 0.35;
-  font-size: 13px;
-  line-height: 1;
-  transition: opacity 0.15s, background-color 0.15s;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.section-drag-handle--expanded {
-  border-bottom: none;
-}
-
-.section-drag-handle:hover {
-  opacity: 0.7;
-  background: var(--vscode-list-hoverBackground);
-}
-
-.section-drag-handle:active {
+.section-header:active:not(:has(button:active)) {
   cursor: grabbing;
-  opacity: 1;
+}
+
+.section-header > button {
+  cursor: pointer;
 }
 
 .section-header > .section-toggle {
@@ -401,29 +377,14 @@ body {
   border-radius: 4px;
 }
 
-.section-divider-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  flex-shrink: 0;
-  color: var(--vscode-foreground);
+.section-divider-header[draggable="true"] {
   cursor: grab;
-  opacity: 0.3;
-  font-size: 12px;
-  line-height: 1;
-  transition: opacity 0.15s;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.section-divider-handle:hover {
-  opacity: 0.7;
-}
-
-.section-divider-handle:active {
+.section-divider-header[draggable="true"]:active {
   cursor: grabbing;
-  opacity: 1;
 }
 
 .section-divider-label {

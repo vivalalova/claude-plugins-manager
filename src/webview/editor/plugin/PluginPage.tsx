@@ -186,7 +186,18 @@ export function PluginPage(): React.ReactElement {
     const mpBulk = bulkProgress.get(marketplace);
     return (
       <div key={marketplace} className="plugin-section">
-        <div className="section-header">
+        <div
+          className="section-header"
+          draggable
+          title={t('plugin.section.dragHandle')}
+          onDragStart={(e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', marketplace);
+            setDraggedMarketplace(marketplace);
+          }}
+          onDragEnd={() => { setDraggedMarketplace(null); setDragOverSectionId(null); }}
+        >
           <button
             className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
             onClick={() => setExpanded((prev) => {
@@ -206,26 +217,14 @@ export function PluginPage(): React.ReactElement {
               <span className="section-source">{marketplaceSources[marketplace]}</span>
             )}
           </button>
-          <div
-            className={`section-drag-handle${isCollapsed ? '' : ' section-drag-handle--expanded'}`}
-            draggable
-            title={t('plugin.section.dragHandle')}
-            onDragStart={(e) => {
-              e.stopPropagation();
-              e.dataTransfer.effectAllowed = 'move';
-              e.dataTransfer.setData('text/plain', marketplace);
-              setDraggedMarketplace(marketplace);
-            }}
-            onDragEnd={() => { setDraggedMarketplace(null); setDragOverSectionId(null); }}
-          >
-            ⠿
-          </div>
           <button
             className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
             disabled={!!mpBulk || isUpdatingAll}
-            onClick={() => stats.allEnabled
-              ? handleBulkDisable(marketplace, items)
-              : setPendingBulkEnable({ marketplace, items })}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (stats.allEnabled) handleBulkDisable(marketplace, items);
+              else setPendingBulkEnable({ marketplace, items });
+            }}
           >
             {mpBulk
               ? t(mpBulk.action === 'enable' ? 'plugin.section.enabling' : 'plugin.section.disabling', { current: mpBulk.current, total: mpBulk.total })
@@ -494,13 +493,27 @@ export function PluginPage(): React.ReactElement {
             <React.Fragment key={section.id}>
               <div
                 className={`section-divider-header${dragOverDividerId === section.id && draggedSectionId !== null && draggedSectionId !== section.id ? ' section-divider-header--drag-over' : ''}`}
+                draggable={groupedSections.length > 2}
+                title={groupedSections.length > 2 ? t('plugin.section.dragHandle') : undefined}
+                onDragStart={(e) => {
+                  if (groupedSections.length <= 2) return;
+                  e.stopPropagation();
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/x-section-order', String(section.id));
+                  setDraggedSectionId(section.id);
+                }}
+                onDragEnd={() => { setDraggedSectionId(null); setDragOverDividerId(null); }}
                 onDragOver={(e) => {
                   if (draggedSectionId !== null && draggedSectionId !== section.id) {
                     e.preventDefault();
                     setDragOverDividerId(section.id);
                   }
                 }}
-                onDragLeave={() => setDragOverDividerId(null)}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverDividerId(null);
+                  }
+                }}
                 onDrop={(e) => {
                   if (draggedSectionId !== null && draggedSectionId !== section.id) {
                     e.preventDefault();
@@ -510,20 +523,6 @@ export function PluginPage(): React.ReactElement {
                   setDraggedSectionId(null);
                 }}
               >
-                {groupedSections.length > 2 && <div
-                  className="section-divider-handle"
-                  draggable
-                  title={t('plugin.section.dragHandle')}
-                  onDragStart={(e) => {
-                    e.stopPropagation();
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/x-section-order', String(section.id));
-                    setDraggedSectionId(section.id);
-                  }}
-                  onDragEnd={() => { setDraggedSectionId(null); setDragOverDividerId(null); }}
-                >
-                  ⠿
-                </div>}
                 {editingSectionId === section.id ? (
                   <input
                     className="section-divider-label section-divider-label--editing"

@@ -895,7 +895,7 @@ describe('PluginPage — 核心流程', () => {
       expect(screen.getByText('Drag here to create a new section')).toBeTruthy();
     });
 
-    it('每個 section header 都有 drag handle（⠿）', async () => {
+    it('每個 section header 都可拖曳', async () => {
       setupPlugins();
       renderPage();
 
@@ -903,7 +903,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      const handles = document.querySelectorAll('.section-drag-handle');
+      const handles = document.querySelectorAll('.plugin-section .section-header');
       expect(handles.length).toBe(2); // mp1 and mp2
     });
 
@@ -915,7 +915,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      const handles = document.querySelectorAll('.section-drag-handle');
+      const handles = document.querySelectorAll('.plugin-section .section-header');
       const mp1Handle = handles[0] as HTMLElement;
 
       const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
@@ -954,7 +954,7 @@ describe('PluginPage — 核心流程', () => {
 
       // 找 mp1 drag handle（在 Section 1 container，第二個 sections-container）
       const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
-      const mp1Handle = section1Container.querySelector('.section-drag-handle') as HTMLElement;
+      const mp1Handle = section1Container.querySelector('.plugin-section .section-header') as HTMLElement;
 
       const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
       dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
@@ -1028,10 +1028,10 @@ describe('PluginPage — 核心流程', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(document.querySelectorAll('.section-divider-handle').length).toBe(2);
+        expect(document.querySelectorAll('.section-divider-header[draggable="true"]').length).toBe(2);
       });
 
-      const handles = document.querySelectorAll('.section-divider-handle') as NodeListOf<HTMLElement>;
+      const handles = document.querySelectorAll('.section-divider-header[draggable="true"]') as NodeListOf<HTMLElement>;
       const dividers = document.querySelectorAll('.section-divider-header') as NodeListOf<HTMLElement>;
       // handle[0] 是 Section 1（index 0），handle[1] 是 Section 2（index 1）
       const section2Handle = handles[1];
@@ -1067,7 +1067,7 @@ describe('PluginPage — 核心流程', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(document.querySelectorAll('.section-divider-handle').length).toBe(2);
+        expect(document.querySelectorAll('.section-divider-header[draggable="true"]').length).toBe(2);
       });
 
       const dividers = document.querySelectorAll('.section-divider-header') as NodeListOf<HTMLElement>;
@@ -1245,7 +1245,7 @@ describe('PluginPage — 核心流程', () => {
 
       // 拖拉 mp1 從 Section 1 handle
       const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
-      const mp1Handle = section1Container.querySelector('.section-drag-handle') as HTMLElement;
+      const mp1Handle = section1Container.querySelector('.plugin-section .section-header') as HTMLElement;
 
       const dataTransfer = { effectAllowed: '', data: {} as Record<string, string> };
       dataTransfer.setData = (k: string, v: string) => { dataTransfer.data[k] = v; };
