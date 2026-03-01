@@ -150,7 +150,7 @@ export function PluginPage(): React.ReactElement {
         if (items.length > 0) {
           map.set(marketplace, {
             enabledCount: items.filter(isPluginEnabled).length,
-            updateCount: items.filter(hasPluginUpdate).length,
+            updateCount: items.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length,
             allEnabled: items.every(isPluginEnabled),
             hiddenCount: hiddenPlugins.size > 0 ? items.filter((p) => hiddenPlugins.has(p.id)).length : 0,
           });

@@ -6,7 +6,7 @@ import type {
   PluginScope,
 } from '../../../shared/types';
 import type { ResourceConflict, ResourceType } from './dependencyUtils';
-import { getInstalledScopes, hasPluginUpdate } from './filterUtils';
+import { getInstalledScopes, hasPluginUpdate, isPluginEnabled } from './filterUtils';
 import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
 import { useI18n } from '../../i18n/I18nContext';
@@ -56,7 +56,7 @@ export const PluginCard = React.memo(function PluginCard({
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
   const hasExpandable = hasContents || (conflicts != null && conflicts.length > 0);
-  const hasUpdate = hasPluginUpdate(plugin);
+  const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
 
   const { lastUpdated } = plugin;
 

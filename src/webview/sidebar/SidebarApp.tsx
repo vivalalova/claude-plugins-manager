@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { postMessage, sendRequest, onPushMessage } from '../vscode';
 import { mergePlugins } from '../editor/plugin/hooks/usePluginData';
-import { hasPluginUpdate } from '../editor/plugin/filterUtils';
+import { hasPluginUpdate, isPluginEnabled } from '../editor/plugin/filterUtils';
 import type { Marketplace, PluginListResponse, McpServer } from '../../shared/types';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -52,7 +52,7 @@ export function SidebarApp(): React.ReactElement {
       const { installed, available } = pluginResult.value;
       pluginCount = installed.length;
       const merged = mergePlugins(installed, available);
-      updateCount = merged.filter(hasPluginUpdate).length;
+      updateCount = merged.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length;
     }
     setCounts((prev) => ({
       marketplace: mktResult.status === 'fulfilled' ? mktResult.value.length : (prev?.marketplace ?? 0),
