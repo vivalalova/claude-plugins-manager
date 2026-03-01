@@ -38,12 +38,10 @@ export const en = {
   'plugin.page.retry': 'Retry',
   'plugin.page.retryTranslation': 'Retry Translation',
   // PluginCard
-  'plugin.card.updated': 'Updated:',
   'plugin.card.updateAvailable': 'Update available',
   'plugin.card.github': 'GitHub',
   'plugin.card.hide': 'Hide',
   'plugin.card.unhide': 'Unhide',
-  'plugin.card.conflicts': '{count} conflict(s)',
   // BulkEnableScopeDialog
   'bulk.title': 'Enable All — {marketplace}',
   'bulk.message': 'Select scope for enabling {count} plugins:',

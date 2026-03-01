@@ -40,12 +40,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.section.addHint': 'ここにドラッグして新しいセクションを作成',
   'plugin.section.hiddenCount': '{count} 件非表示',
   // PluginCard
-  'plugin.card.updated': '更新日:',
   'plugin.card.updateAvailable': 'アップデートあり',
   'plugin.card.github': 'GitHub',
   'plugin.card.hide': '非表示',
   'plugin.card.unhide': '表示する',
-  'plugin.card.conflicts': '{count} 件の競合',
   // BulkEnableScopeDialog
   'bulk.title': 'すべて有効化 — {marketplace}',
   'bulk.message': '{count} 個のプラグインを有効化するスコープを選択:',

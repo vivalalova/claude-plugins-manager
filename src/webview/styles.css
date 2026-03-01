@@ -692,12 +692,6 @@ body {
   flex-shrink: 0;
 }
 
-.card-updated {
-  font-size: 12px;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.7;
-  white-space: nowrap;
-}
 
 .card-description {
   font-size: 12px;
@@ -1638,37 +1632,6 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   cursor: not-allowed;
 }
 
-.content-section--conflict {
-  --conflict-color: var(--vscode-charts-orange, #ff9800);
-  border-top: 1px solid color-mix(in srgb, var(--conflict-color) 20%, transparent);
-  padding-top: 6px;
-  margin-top: 4px;
-}
-
-.content-section-label--conflict {
-  color: var(--conflict-color);
-}
-
-.content-item--conflict .content-item-name {
-  color: var(--conflict-color);
-}
-
-.content-item--conflict .content-item-desc {
-  white-space: normal;
-}
-
-.badge-conflict {
-  --conflict-color: var(--vscode-charts-orange, #ff9800);
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background: color-mix(in srgb, var(--conflict-color) 15%, transparent);
-  color: var(--conflict-color);
-  cursor: help;
-}
 
 .section-updates {
   font-size: 11px;

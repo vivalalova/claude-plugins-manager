@@ -40,12 +40,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.section.addHint': '拖拉至此以新增區塊',
   'plugin.section.hiddenCount': '{count} 個隱藏',
   // PluginCard
-  'plugin.card.updated': '更新時間：',
   'plugin.card.updateAvailable': '有可用更新',
   'plugin.card.github': 'GitHub',
   'plugin.card.hide': '隱藏',
   'plugin.card.unhide': '取消隱藏',
-  'plugin.card.conflicts': '{count} 個衝突',
   // BulkEnableScopeDialog
   'bulk.title': '全部啟用 — {marketplace}',
   'bulk.message': '選擇啟用 {count} 個外掛的範圍：',

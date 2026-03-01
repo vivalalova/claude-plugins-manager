@@ -5,9 +5,7 @@ import type {
   PluginContentItem,
   PluginScope,
 } from '../../../shared/types';
-import type { ResourceConflict, ResourceType } from './dependencyUtils';
 import { getInstalledScopes, hasPluginUpdate, isPluginEnabled } from './filterUtils';
-import { formatDate } from '../../utils/formatDate';
 import { sendRequest } from '../../vscode';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -22,8 +20,6 @@ interface PluginCardProps {
   translateStatus?: 'translating' | 'queued';
   /** 正在安裝/停用中的 scope set */
   loadingScopes?: ReadonlySet<PluginScope>;
-  /** 與此 plugin 相關的 resource 衝突 */
-  conflicts?: ResourceConflict[];
   /** 是否已隱藏 */
   hidden?: boolean;
   onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => void;
@@ -43,7 +39,6 @@ export const PluginCard = React.memo(function PluginCard({
   translations,
   translateStatus,
   loadingScopes,
-  conflicts,
   hidden,
   onToggle,
   onUpdate,
@@ -55,10 +50,8 @@ export const PluginCard = React.memo(function PluginCard({
 
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
-  const hasExpandable = hasContents || (conflicts != null && conflicts.length > 0);
+  const hasExpandable = hasContents;
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
-
-  const { lastUpdated } = plugin;
 
   const handleCardClick = (e: React.MouseEvent) => {
     // 不攔截互動元素的 click
@@ -80,9 +73,6 @@ export const PluginCard = React.memo(function PluginCard({
           <span className="card-name">{plugin.name}</span>
         </div>
         <div className="card-header-right">
-          {lastUpdated && (
-            <span className="card-updated">{t('plugin.card.updated')} {formatDate(lastUpdated)}</span>
-          )}
           {hasUpdate && (
             <button
               type="button"
@@ -107,14 +97,6 @@ export const PluginCard = React.memo(function PluginCard({
             >
               {hidden ? t('plugin.card.unhide') : t('plugin.card.hide')}
             </button>
-          )}
-          {conflicts && conflicts.length > 0 && (
-            <span
-              className="badge-conflict"
-              title={conflicts.map((c) => `${c.type}: ${c.name}`).join(', ')}
-            >
-              {t('plugin.card.conflicts', { count: conflicts.length })}
-            </span>
           )}
           {translateStatus === 'translating' && <span className="translate-spinner" />}
           {translateStatus === 'queued' && <span className="translate-queued" />}
@@ -164,13 +146,10 @@ export const PluginCard = React.memo(function PluginCard({
         </div>
       </div>
 
-      {(hasContents || (conflicts && conflicts.length > 0)) && (
+      {hasContents && (
         <div className={`plugin-contents${expanded ? '' : ' plugin-contents--collapsed'}`}>
           <div className="section-body-inner">
-            {hasContents && <PluginContentsView contents={plugin.contents!} translations={translations} />}
-            {conflicts && conflicts.length > 0 && (
-              <ConflictSection conflicts={conflicts} currentPluginId={plugin.id} />
-            )}
+            <PluginContentsView contents={plugin.contents!} translations={translations} />
           </div>
         </div>
       )}
@@ -252,37 +231,6 @@ function ContentSection({
           )}
         </div>
       ))}
-    </div>
-  );
-}
-
-const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
-  mcp: 'MCP Server',
-  command: 'Command',
-  skill: 'Skill',
-  agent: 'Agent',
-};
-
-/** 展開區域的 resource 衝突列表 */
-function ConflictSection({
-  conflicts,
-  currentPluginId,
-}: {
-  conflicts: ResourceConflict[];
-  currentPluginId: string;
-}): React.ReactElement {
-  return (
-    <div className="content-section content-section--conflict">
-      <div className="content-section-label content-section-label--conflict">Conflicts</div>
-      {conflicts.map((c) => {
-        const others = c.pluginIds.filter((id) => id !== currentPluginId);
-        return (
-          <div key={`${c.type}:${c.name}`} className="content-item content-item--conflict">
-            <span className="content-item-name">{RESOURCE_TYPE_LABELS[c.type] ?? c.type}: {c.name}</span>
-            <span className="content-item-desc">also in {others.map((id) => id.split('@')[0]).join(', ')}</span>
-          </div>
-        );
-      })}
     </div>
   );
 }

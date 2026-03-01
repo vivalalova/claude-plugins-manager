@@ -23,8 +23,7 @@ import { usePluginFilters } from './hooks/usePluginFilters';
 import { usePluginOperations } from './hooks/usePluginOperations';
 import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
-import { findConflicts } from './dependencyUtils';
-import type { ResourceConflict } from './dependencyUtils';
+
 
 /**
  * Plugin 管理頁面。
@@ -127,20 +126,6 @@ export function PluginPage(): React.ReactElement {
     translateEmail,
     retryTranslate,
   } = useTranslation(plugins);
-
-  /** 預計算 per-plugin conflict 映射 */
-  const conflictsByPlugin = useMemo(() => {
-    const allConflicts = findConflicts(plugins);
-    const map = new Map<string, ResourceConflict[]>();
-    for (const c of allConflicts) {
-      for (const pid of c.pluginIds) {
-        const existing = map.get(pid);
-        if (existing) existing.push(c);
-        else map.set(pid, [c]);
-      }
-    }
-    return map;
-  }, [plugins]);
 
   /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled / hiddenCount / visibleCount） */
   const sectionStats = useMemo(() => {
@@ -275,7 +260,6 @@ export function PluginPage(): React.ReactElement {
                   translations={translations}
                   translateStatus={translateStatusMap.get(plugin.id)}
                   loadingScopes={loadingPlugins.get(plugin.id)}
-                  conflicts={conflictsByPlugin.get(plugin.id)}
                   hidden={hiddenPlugins.has(plugin.id)}
                   onToggle={handleToggle}
                   onUpdate={handleUpdate}
