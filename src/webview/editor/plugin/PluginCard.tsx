@@ -50,19 +50,18 @@ export const PluginCard = React.memo(function PluginCard({
 
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
-  const hasExpandable = hasContents;
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // 不攔截互動元素的 click
     const target = e.target as HTMLElement;
     if (target.closest('input, button, label')) return;
-    if (hasExpandable) setExpanded((v) => !v);
+    if (hasContents) setExpanded((v) => !v);
   };
 
   return (
     <div
-      className={`card${hasExpandable ? ' card--expandable' : ''}${hidden ? ' card--hidden' : ''}`}
+      className={`card${hasContents ? ' card--expandable' : ''}${hidden ? ' card--hidden' : ''}`}
       onClick={handleCardClick}
       tabIndex={0}
       role="group"
@@ -110,7 +109,7 @@ export const PluginCard = React.memo(function PluginCard({
       )}
 
       <div className="scope-chips-row">
-        {hasExpandable
+        {hasContents
           ? <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
           : <span className="card-expand-arrow-spacer" />}
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
