@@ -13,6 +13,8 @@ import {
   PLUGIN_SORT_KEY,
   PLUGIN_EXPANDED_KEY,
   PLUGIN_SECTIONS_KEY,
+  PLUGIN_HIDDEN_KEY,
+  PLUGIN_SHOW_HIDDEN_KEY,
   readContentTypeFilters,
   writeContentTypeFilters,
   readPluginSort,
@@ -21,6 +23,8 @@ import {
   writeExpandedSections,
   readSectionAssignments,
   writeSectionAssignments,
+  readHiddenPlugins,
+  writeHiddenPlugins,
   type ContentTypeFilter,
   type PluginSortBy,
   type SectionAssignments,
@@ -67,6 +71,14 @@ export interface UsePluginFiltersReturn {
   renameSection: (sectionId: number, name: string) => void;
   /** sectionId → 自訂名稱映射（直接傳給 getSectionName） */
   sectionNames: Record<number, string> | undefined;
+  /** 隱藏的 plugin ID 集合 */
+  hiddenPlugins: ReadonlySet<string>;
+  /** 是否顯示隱藏的 plugin */
+  showHidden: boolean;
+  /** 切換 showHidden */
+  setShowHidden: React.Dispatch<React.SetStateAction<boolean>>;
+  /** 切換單一 plugin 的隱藏狀態 */
+  toggleHidden: (pluginId: string) => void;
   /** globalState 初始化完成（false 時 UI 顯示 skeleton） */
   ready: boolean;
 }
@@ -87,6 +99,10 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   const [sortBy, setSortBy] = useState<PluginSortBy>(readPluginSort);
   const [expanded, setExpanded] = useState<Set<string>>(readExpandedSections);
   const [sectionAssignments, setSectionAssignments] = useState<SectionAssignments>(readSectionAssignments);
+  const [hiddenPlugins, setHiddenPlugins] = useState<Set<string>>(readHiddenPlugins);
+  const [showHidden, setShowHidden] = useState(
+    () => getViewState(PLUGIN_SHOW_HIDDEN_KEY, false),
+  );
   const [ready, setReady] = useState(false);
 
   // mount 時批次從 globalState 載入所有 key，回填 viewState 快取後重新初始化 state
@@ -98,6 +114,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       { key: PLUGIN_SORT_KEY, fallback: 'name' },
       { key: PLUGIN_EXPANDED_KEY, fallback: [] },
       { key: PLUGIN_SECTIONS_KEY, fallback: null },
+      { key: PLUGIN_HIDDEN_KEY, fallback: [] },
+      { key: PLUGIN_SHOW_HIDDEN_KEY, fallback: false },
     ]).then(() => {
       setSearch(getViewState(PLUGIN_SEARCH_KEY, ''));
       setFilterEnabled(getViewState(PLUGIN_FILTER_ENABLED_KEY, false));
@@ -105,6 +123,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       setSortBy(readPluginSort());
       setExpanded(readExpandedSections());
       setSectionAssignments(readSectionAssignments());
+      setHiddenPlugins(readHiddenPlugins());
+      setShowHidden(getViewState(PLUGIN_SHOW_HIDDEN_KEY, false));
       setReady(true);
     }).catch((err) => {
       // globalState 讀取失敗時降級：保留 viewState 初始值，仍正常顯示 UI
@@ -121,6 +141,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   useEffect(() => { if (!ready) return; writePluginSort(sortBy); }, [sortBy, ready]);
   useEffect(() => { if (!ready) return; writeExpandedSections(expanded); }, [expanded, ready]);
   useEffect(() => { if (!ready) return; writeSectionAssignments(sectionAssignments); }, [sectionAssignments, ready]);
+  useEffect(() => { if (!ready) return; writeHiddenPlugins(hiddenPlugins); }, [hiddenPlugins, ready]);
+  useEffect(() => { if (!ready) return; setViewState(PLUGIN_SHOW_HIDDEN_KEY, showHidden); void setGlobalState(PLUGIN_SHOW_HIDDEN_KEY, showHidden); }, [showHidden, ready]);
 
   /** 過濾 + 按 marketplace 分組成 N 個 section */
   const groupedSections = useMemo(() => {
@@ -260,6 +282,15 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     });
   };
 
+  const toggleHidden = (pluginId: string) => {
+    setHiddenPlugins((prev) => {
+      const next = new Set(prev);
+      if (next.has(pluginId)) next.delete(pluginId);
+      else next.add(pluginId);
+      return next;
+    });
+  };
+
   return {
     search,
     setSearch,
@@ -279,6 +310,10 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     reorderSection,
     renameSection,
     sectionNames: sectionAssignments.sectionNames,
+    hiddenPlugins,
+    showHidden,
+    setShowHidden,
+    toggleHidden,
     ready,
   };
 }

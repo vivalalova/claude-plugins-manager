@@ -18,6 +18,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.searchPlaceholder': '搜尋外掛...',
   'plugin.page.translate': '翻譯',
   'plugin.page.filterEnabled': '已啟用',
+  'plugin.page.showHidden': '顯示隱藏',
   'plugin.page.noResults': '沒有符合條件的外掛。',
   'plugin.page.clearFilters': '清除篩選',
   'plugin.page.noPlugins': '未找到外掛',
@@ -37,10 +38,13 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.section.emptyHint': '拖拉 Marketplace 至此',
   'plugin.section.label': '區塊 {n}',
   'plugin.section.addHint': '拖拉至此以新增區塊',
+  'plugin.section.hiddenCount': '{count} 個隱藏',
   // PluginCard
   'plugin.card.updated': '更新時間：',
   'plugin.card.updateAvailable': '有可用更新',
   'plugin.card.github': 'GitHub',
+  'plugin.card.hide': '隱藏',
+  'plugin.card.unhide': '取消隱藏',
   'plugin.card.conflicts': '{count} 個衝突',
   // BulkEnableScopeDialog
   'bulk.title': '全部啟用 — {marketplace}',

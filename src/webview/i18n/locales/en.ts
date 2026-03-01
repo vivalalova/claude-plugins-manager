@@ -17,6 +17,7 @@ export const en = {
   'plugin.page.clearSearch': 'Clear search',
   'plugin.page.translate': 'Translate',
   'plugin.page.filterEnabled': 'Enabled',
+  'plugin.page.showHidden': 'Show hidden',
   'plugin.page.noResults': 'No plugins match the current filters.',
   // Plugin section (per-marketplace header)
   'plugin.section.enableAll': 'Enable All',
@@ -29,6 +30,7 @@ export const en = {
   'plugin.section.emptyHint': 'Drag a marketplace here',
   'plugin.section.label': 'Section {n}',
   'plugin.section.addHint': 'Drag here to create a new section',
+  'plugin.section.hiddenCount': '{count} hidden',
   'plugin.page.clearFilters': 'Clear filters',
   'plugin.page.noPlugins': 'No plugins found',
   'plugin.page.noPluginsDesc': 'Add a marketplace first to discover and install plugins.',
@@ -39,6 +41,8 @@ export const en = {
   'plugin.card.updated': 'Updated:',
   'plugin.card.updateAvailable': 'Update available',
   'plugin.card.github': 'GitHub',
+  'plugin.card.hide': 'Hide',
+  'plugin.card.unhide': 'Unhide',
   'plugin.card.conflicts': '{count} conflict(s)',
   // BulkEnableScopeDialog
   'bulk.title': 'Enable All — {marketplace}',

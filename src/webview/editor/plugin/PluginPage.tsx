@@ -74,6 +74,10 @@ export function PluginPage(): React.ReactElement {
     reorderSection,
     renameSection,
     sectionNames,
+    hiddenPlugins,
+    showHidden,
+    setShowHidden,
+    toggleHidden,
     ready,
   } = usePluginFilters(plugins);
 
@@ -138,9 +142,9 @@ export function PluginPage(): React.ReactElement {
     return map;
   }, [plugins]);
 
-  /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled） */
+  /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled / hiddenCount） */
   const sectionStats = useMemo(() => {
-    const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean }>();
+    const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean; hiddenCount: number }>();
     for (const section of groupedSections) {
       for (const [marketplace, items] of section.groups) {
         if (items.length > 0) {
@@ -148,12 +152,13 @@ export function PluginPage(): React.ReactElement {
             enabledCount: items.filter(isPluginEnabled).length,
             updateCount: items.filter(hasPluginUpdate).length,
             allEnabled: items.every(isPluginEnabled),
+            hiddenCount: hiddenPlugins.size > 0 ? items.filter((p) => hiddenPlugins.has(p.id)).length : 0,
           });
         }
       }
     }
     return map;
-  }, [groupedSections]);
+  }, [groupedSections, hiddenPlugins]);
 
   /** 預計算 per-plugin translateStatus，只計算可見 plugin */
   const translateStatusMap = useMemo(() => {
@@ -181,8 +186,12 @@ export function PluginPage(): React.ReactElement {
 
   /** 渲染單一 marketplace section */
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
+    // 隱藏過濾在渲染層做，section header 始終保持
+    const visibleItems = !showHidden && hiddenPlugins.size > 0
+      ? items.filter((p) => !hiddenPlugins.has(p.id))
+      : items;
     const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
-    const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false };
+    const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0 };
     const mpBulk = bulkProgress.get(marketplace);
     return (
       <div key={marketplace} className="plugin-section">
@@ -209,7 +218,10 @@ export function PluginPage(): React.ReactElement {
           >
             <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
             <span className="section-toggle-label">{marketplace}</span>
-            <span className="section-count">{stats.enabledCount} / {items.length}</span>
+            <span className="section-count">
+              {stats.enabledCount} / {items.length}
+              {stats.hiddenCount > 0 && ` (${t('plugin.section.hiddenCount', { count: stats.hiddenCount })})`}
+            </span>
             {stats.updateCount > 0 && (
               <span className="section-updates">{t(stats.updateCount > 1 ? 'plugin.section.updatesPlural' : 'plugin.section.updates', { count: stats.updateCount })}</span>
             )}
@@ -234,7 +246,7 @@ export function PluginPage(): React.ReactElement {
         <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
           <div className="section-body-inner">
             <VirtualCardList
-              items={items}
+              items={visibleItems}
               keyExtractor={(plugin) => plugin.id}
               className="card-list"
               renderItem={(plugin) => (
@@ -246,8 +258,10 @@ export function PluginPage(): React.ReactElement {
                   translateStatus={translateStatusMap.get(plugin.id)}
                   loadingScopes={loadingPlugins.get(plugin.id)}
                   conflicts={conflictsByPlugin.get(plugin.id)}
+                  hidden={hiddenPlugins.has(plugin.id)}
                   onToggle={handleToggle}
                   onUpdate={handleUpdate}
+                  onToggleHidden={toggleHidden}
                 />
               )}
             />
@@ -264,9 +278,14 @@ export function PluginPage(): React.ReactElement {
     cardSelector: '.card[tabindex]',
   });
 
-  /** 總可見 plugin 數（用於空狀態判斷） */
+  /** 總可見 plugin 數（用於空狀態判斷），排除隱藏 plugin */
   const totalVisiblePlugins = groupedSections.reduce((total, s) => {
-    return total + [...s.groups.values()].reduce((sum, items) => sum + items.length, 0);
+    return total + [...s.groups.values()].reduce((sum, items) => {
+      if (!showHidden && hiddenPlugins.size > 0) {
+        return sum + items.filter((p) => !hiddenPlugins.has(p.id)).length;
+      }
+      return sum + items.length;
+    }, 0);
   }, 0);
 
   return (
@@ -345,6 +364,12 @@ export function PluginPage(): React.ReactElement {
           onClick={() => setFilterEnabled((v) => !v)}
         >
           {t('plugin.page.filterEnabled')}
+        </button>
+        <button
+          className={`filter-chip${showHidden ? ' filter-chip--active' : ''}`}
+          onClick={() => setShowHidden((v) => !v)}
+        >
+          {t('plugin.page.showHidden')}
         </button>
         {CONTENT_TYPE_FILTERS.map((type) => (
           <button
@@ -427,7 +452,7 @@ export function PluginPage(): React.ReactElement {
       {loading || !ready ? (
         <PluginCardSkeleton />
       ) : totalVisiblePlugins === 0 ? (
-        debouncedSearch || filterEnabled || contentTypeFilters.size > 0 ? (
+        debouncedSearch || filterEnabled || contentTypeFilters.size > 0 || (!showHidden && hiddenPlugins.size > 0) ? (
           <EmptyState
             icon={<NoResultsIcon />}
             title={t('plugin.page.noResults')}
@@ -437,6 +462,7 @@ export function PluginPage(): React.ReactElement {
                 setSearch('');
                 flushSearch('');
                 setFilterEnabled(false);
+                setShowHidden(true);
                 setContentTypeFilters(new Set());
                 setSortBy('name');
               },

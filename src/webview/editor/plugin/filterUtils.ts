@@ -157,6 +157,8 @@ export const PLUGIN_FILTER_ENABLED_KEY = 'plugin.filter.enabled';
 export const CONTENT_TYPE_STORAGE_KEY = 'plugin.filter.contentTypes';
 export const PLUGIN_SORT_KEY = 'plugin.sort';
 export const PLUGIN_EXPANDED_KEY = 'plugin.expanded';
+export const PLUGIN_HIDDEN_KEY = 'plugin.hidden';
+export const PLUGIN_SHOW_HIDDEN_KEY = 'plugin.filter.showHidden';
 
 /**
  * viewState → Set<ContentTypeFilter>。
@@ -298,4 +300,17 @@ export function readSectionAssignments(): SectionAssignments {
 export function writeSectionAssignments(data: SectionAssignments): void {
   setViewState(PLUGIN_SECTIONS_KEY, data);
   void setGlobalState(PLUGIN_SECTIONS_KEY, data);
+}
+
+/** viewState → Set<string>（隱藏的 plugin ID） */
+export function readHiddenPlugins(): Set<string> {
+  const arr = getViewState<string[]>(PLUGIN_HIDDEN_KEY, []);
+  return new Set(Array.isArray(arr) ? arr : []);
+}
+
+/** Set<string> → viewState + globalState */
+export function writeHiddenPlugins(hidden: ReadonlySet<string>): void {
+  const value = [...hidden];
+  setViewState(PLUGIN_HIDDEN_KEY, value);
+  void setGlobalState(PLUGIN_HIDDEN_KEY, value);
 }

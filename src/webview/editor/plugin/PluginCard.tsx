@@ -24,8 +24,11 @@ interface PluginCardProps {
   loadingScopes?: ReadonlySet<PluginScope>;
   /** 與此 plugin 相關的 resource 衝突 */
   conflicts?: ResourceConflict[];
+  /** 是否已隱藏 */
+  hidden?: boolean;
   onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => void;
   onUpdate: (pluginId: string, scopes: PluginScope[]) => void;
+  onToggleHidden?: (pluginId: string) => void;
 }
 
 /**
@@ -41,8 +44,10 @@ export const PluginCard = React.memo(function PluginCard({
   translateStatus,
   loadingScopes,
   conflicts,
+  hidden,
   onToggle,
   onUpdate,
+  onToggleHidden,
 }: PluginCardProps): React.ReactElement {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -64,7 +69,7 @@ export const PluginCard = React.memo(function PluginCard({
 
   return (
     <div
-      className={`card${hasExpandable ? ' card--expandable' : ''}`}
+      className={`card${hasExpandable ? ' card--expandable' : ''}${hidden ? ' card--hidden' : ''}`}
       onClick={handleCardClick}
       tabIndex={0}
       role="group"
@@ -93,6 +98,14 @@ export const PluginCard = React.memo(function PluginCard({
               sendRequest({ type: 'openExternal', url: pluginUrl });
             }}>
               {t('plugin.card.github')}
+            </button>
+          )}
+          {onToggleHidden && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={(e) => { e.stopPropagation(); onToggleHidden(plugin.id); }}
+            >
+              {hidden ? t('plugin.card.unhide') : t('plugin.card.hide')}
             </button>
           )}
           {conflicts && conflicts.length > 0 && (

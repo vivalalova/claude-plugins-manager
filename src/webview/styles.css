@@ -681,6 +681,10 @@ body {
   flex-shrink: 1;
 }
 
+.card--hidden {
+  opacity: 0.5;
+}
+
 .card-header-right {
   display: flex;
   align-items: center;

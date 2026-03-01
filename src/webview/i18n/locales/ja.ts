@@ -18,6 +18,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.searchPlaceholder': 'プラグインを検索...',
   'plugin.page.translate': '翻訳',
   'plugin.page.filterEnabled': '有効',
+  'plugin.page.showHidden': '非表示を表示',
   'plugin.page.noResults': '現在のフィルターに一致するプラグインはありません。',
   'plugin.page.clearFilters': 'フィルターをクリア',
   'plugin.page.noPlugins': 'プラグインが見つかりません',
@@ -37,10 +38,13 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.section.emptyHint': 'マーケットプレイスをここにドラッグ',
   'plugin.section.label': 'セクション {n}',
   'plugin.section.addHint': 'ここにドラッグして新しいセクションを作成',
+  'plugin.section.hiddenCount': '{count} 件非表示',
   // PluginCard
   'plugin.card.updated': '更新日:',
   'plugin.card.updateAvailable': 'アップデートあり',
   'plugin.card.github': 'GitHub',
+  'plugin.card.hide': '非表示',
+  'plugin.card.unhide': '表示する',
   'plugin.card.conflicts': '{count} 件の競合',
   // BulkEnableScopeDialog
   'bulk.title': 'すべて有効化 — {marketplace}',

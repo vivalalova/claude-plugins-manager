@@ -1365,4 +1365,59 @@ describe('PluginPage — 核心流程', () => {
       });
     });
   });
+
+  describe('Plugin 隱藏功能', () => {
+    it('點擊 Hide 按鈕 → plugin 消失；點「Show hidden」→ plugin 以半透明出現', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [
+            makeAvailable('alpha', 'mp1'),
+            makeAvailable('beta', 'mp1'),
+          ]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+        expect(screen.getByText('beta')).toBeTruthy();
+      });
+
+      // 點擊 alpha 的 Hide 按鈕
+      const hideButtons = screen.getAllByText('Hide');
+      fireEvent.click(hideButtons[0]);
+
+      // alpha 消失
+      await waitFor(() => {
+        expect(screen.queryByText('alpha')).toBeNull();
+      });
+      expect(screen.getByText('beta')).toBeTruthy();
+
+      // 點「Show hidden」filter chip
+      fireEvent.click(screen.getByText('Show hidden'));
+
+      // alpha 再次出現，卡片有 card--hidden class
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+      });
+      const alphaCard = screen.getByText('alpha').closest('.card');
+      expect(alphaCard?.classList.contains('card--hidden')).toBe(true);
+
+      // beta 的卡片不應有 card--hidden
+      const betaCard = screen.getByText('beta').closest('.card');
+      expect(betaCard?.classList.contains('card--hidden')).toBe(false);
+
+      // 點 Unhide 按鈕解除隱藏
+      fireEvent.click(screen.getByText('Unhide'));
+
+      // alpha 卡片不再有 card--hidden
+      await waitFor(() => {
+        const card = screen.getByText('alpha').closest('.card');
+        expect(card?.classList.contains('card--hidden')).toBe(false);
+      });
+    });
+  });
 });

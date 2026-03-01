@@ -480,4 +480,76 @@ describe('PluginCard', () => {
       expect(screen.getByText(/2 conflict/)).toBeTruthy();
     });
   });
+
+  describe('隱藏按鈕', () => {
+    it('onToggleHidden 傳入 → 顯示 Hide 按鈕', () => {
+      const plugin = createPlugin();
+      const onToggleHidden = vi.fn();
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+          onToggleHidden={onToggleHidden}
+        />,
+      );
+      expect(screen.getByText('Hide')).toBeTruthy();
+    });
+
+    it('onToggleHidden 未傳入 → 不顯示 Hide 按鈕', () => {
+      const plugin = createPlugin();
+      renderWithI18n(
+        <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+      );
+      expect(screen.queryByText('Hide')).toBeNull();
+      expect(screen.queryByText('Unhide')).toBeNull();
+    });
+
+    it('hidden=true → 按鈕文字為 Unhide，卡片有 card--hidden class', () => {
+      const plugin = createPlugin();
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          hidden
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+          onToggleHidden={vi.fn()}
+        />,
+      );
+      expect(screen.getByText('Unhide')).toBeTruthy();
+      const card = screen.getByRole('group');
+      expect(card.className).toContain('card--hidden');
+    });
+
+    it('hidden=false → 按鈕文字為 Hide，卡片無 card--hidden class', () => {
+      const plugin = createPlugin();
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          hidden={false}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+          onToggleHidden={vi.fn()}
+        />,
+      );
+      expect(screen.getByText('Hide')).toBeTruthy();
+      const card = screen.getByRole('group');
+      expect(card.className).not.toContain('card--hidden');
+    });
+
+    it('點擊 Hide 按鈕 → 觸發 onToggleHidden(pluginId)', () => {
+      const plugin = createPlugin({ id: 'my-plugin@mp' });
+      const onToggleHidden = vi.fn();
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+          onToggleHidden={onToggleHidden}
+        />,
+      );
+      fireEvent.click(screen.getByText('Hide'));
+      expect(onToggleHidden).toHaveBeenCalledWith('my-plugin@mp');
+    });
+  });
 });

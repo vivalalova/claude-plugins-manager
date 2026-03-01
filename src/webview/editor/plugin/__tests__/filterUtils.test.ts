@@ -26,9 +26,12 @@ import {
   readSectionAssignments,
   writeSectionAssignments,
   getSectionName,
+  readHiddenPlugins,
+  writeHiddenPlugins,
   PLUGIN_SORT_KEY,
   PLUGIN_EXPANDED_KEY,
   PLUGIN_SECTIONS_KEY,
+  PLUGIN_HIDDEN_KEY,
   type ContentTypeFilter,
   type PluginSortBy,
 } from '../filterUtils';
@@ -610,5 +613,43 @@ describe('getSectionName', () => {
 
   it('id 不在 names 中 → 回傳 fallback', () => {
     expect(getSectionName(2, { 1: 'My Tasks' }, 'Section 2')).toBe('Section 2');
+  });
+});
+
+describe('readHiddenPlugins / writeHiddenPlugins', () => {
+  beforeEach(() => {
+    delete mockViewState[PLUGIN_HIDDEN_KEY];
+  });
+
+  it('無資料 → 空 Set', () => {
+    expect(readHiddenPlugins()).toEqual(new Set());
+  });
+
+  it('viewState 有 string[] → 正確轉為 Set', () => {
+    mockViewState[PLUGIN_HIDDEN_KEY] = ['a@mp', 'b@mp'];
+    expect(readHiddenPlugins()).toEqual(new Set(['a@mp', 'b@mp']));
+  });
+
+  it('viewState 非 array → 回傳空 Set', () => {
+    mockViewState[PLUGIN_HIDDEN_KEY] = 'not-an-array';
+    expect(readHiddenPlugins()).toEqual(new Set());
+  });
+
+  it('writeHiddenPlugins → viewState 寫入 array', () => {
+    writeHiddenPlugins(new Set(['x@mp', 'y@mp']));
+    const stored = mockViewState[PLUGIN_HIDDEN_KEY] as string[];
+    expect(stored).toEqual(expect.arrayContaining(['x@mp', 'y@mp']));
+    expect(stored).toHaveLength(2);
+  });
+
+  it('round-trip：write → read 一致', () => {
+    const original = new Set(['a@mp', 'b@mp', 'c@mp']);
+    writeHiddenPlugins(original);
+    expect(readHiddenPlugins()).toEqual(original);
+  });
+
+  it('空 Set → write → read 回空', () => {
+    writeHiddenPlugins(new Set());
+    expect(readHiddenPlugins()).toEqual(new Set());
   });
 });
