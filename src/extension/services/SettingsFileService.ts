@@ -253,12 +253,19 @@ export class SettingsFileService {
     return this.readJson<Record<string, unknown>>(PREFERENCES_PATH, {});
   }
 
+  /** 序列化 preferences 寫入，避免併發 read-modify-write 互相覆蓋 */
+  private prefWriteQueue: Promise<void> = Promise.resolve();
+
   /** 寫入單一 UI 偏好 key（檔案持久化） */
   async writePreference(key: string, value: unknown): Promise<void> {
-    const prefs = await this.readPreferences();
-    prefs[key] = value;
-    await mkdir(EXTENSION_DIR, { recursive: true });
-    await writeFile(PREFERENCES_PATH, JSON.stringify(prefs, null, 2) + '\n');
+    const task = this.prefWriteQueue.then(async () => {
+      const prefs = await this.readPreferences();
+      prefs[key] = value;
+      await mkdir(EXTENSION_DIR, { recursive: true });
+      await writeFile(PREFERENCES_PATH, JSON.stringify(prefs, null, 2) + '\n');
+    });
+    this.prefWriteQueue = task.catch(() => {});
+    return task;
   }
 
   /**
