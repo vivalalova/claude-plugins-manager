@@ -142,23 +142,28 @@ export function PluginPage(): React.ReactElement {
     return map;
   }, [plugins]);
 
-  /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled / hiddenCount） */
+  /** 預計算 per-section 統計（enabledCount / updateCount / allEnabled / hiddenCount / visibleCount） */
   const sectionStats = useMemo(() => {
-    const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean; hiddenCount: number }>();
+    const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean; hiddenCount: number; visibleCount: number }>();
     for (const section of groupedSections) {
       for (const [marketplace, items] of section.groups) {
         if (items.length > 0) {
+          const hiddenCount = hiddenPlugins.size > 0 ? items.filter((p) => hiddenPlugins.has(p.id)).length : 0;
+          const visible = !showHidden && hiddenPlugins.size > 0
+            ? items.filter((p) => !hiddenPlugins.has(p.id))
+            : items;
           map.set(marketplace, {
-            enabledCount: items.filter(isPluginEnabled).length,
-            updateCount: items.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length,
-            allEnabled: items.every(isPluginEnabled),
-            hiddenCount: hiddenPlugins.size > 0 ? items.filter((p) => hiddenPlugins.has(p.id)).length : 0,
+            enabledCount: visible.filter(isPluginEnabled).length,
+            updateCount: visible.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length,
+            allEnabled: visible.length > 0 && visible.every(isPluginEnabled),
+            hiddenCount,
+            visibleCount: visible.length,
           });
         }
       }
     }
     return map;
-  }, [groupedSections, hiddenPlugins]);
+  }, [groupedSections, hiddenPlugins, showHidden]);
 
   /** 預計算 per-plugin translateStatus，只計算可見 plugin */
   const translateStatusMap = useMemo(() => {
@@ -174,6 +179,19 @@ export function PluginPage(): React.ReactElement {
     }
     return map;
   }, [groupedSections, translateLang, activeTexts, queuedTexts]);
+
+  /** 所有可見 plugin（排除隱藏），供 handleUpdateAll 使用 */
+  const visiblePlugins = useMemo(() => {
+    const result: MergedPlugin[] = [];
+    for (const section of groupedSections) {
+      for (const items of section.groups.values()) {
+        for (const p of items) {
+          if (showHidden || !hiddenPlugins.has(p.id)) result.push(p);
+        }
+      }
+    }
+    return result;
+  }, [groupedSections, hiddenPlugins, showHidden]);
 
   const [draggedMarketplace, setDraggedMarketplace] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<number | 'new' | null>(null);
@@ -191,7 +209,7 @@ export function PluginPage(): React.ReactElement {
       ? items.filter((p) => !hiddenPlugins.has(p.id))
       : items;
     const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
-    const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0 };
+    const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0, visibleCount: 0 };
     const mpBulk = bulkProgress.get(marketplace);
     return (
       <div key={marketplace} className="plugin-section">
@@ -219,7 +237,7 @@ export function PluginPage(): React.ReactElement {
             <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
             <span className="section-toggle-label">{marketplace}</span>
             <span className="section-count">
-              {stats.enabledCount} / {items.length}
+              {stats.enabledCount} / {stats.visibleCount}
               {stats.hiddenCount > 0 && ` (${t('plugin.section.hiddenCount', { count: stats.hiddenCount })})`}
             </span>
             {stats.updateCount > 0 && (
@@ -234,8 +252,8 @@ export function PluginPage(): React.ReactElement {
             disabled={!!mpBulk || isUpdatingAll}
             onClick={(e) => {
               e.stopPropagation();
-              if (stats.allEnabled) handleBulkDisable(marketplace, items);
-              else setPendingBulkEnable({ marketplace, items });
+              if (stats.allEnabled) handleBulkDisable(marketplace, visibleItems);
+              else setPendingBulkEnable({ marketplace, items: visibleItems });
             }}
           >
             {mpBulk
@@ -296,7 +314,7 @@ export function PluginPage(): React.ReactElement {
           {hasInstalledPlugins && (
             <button
               className="btn btn-secondary"
-              onClick={handleUpdateAll}
+              onClick={() => handleUpdateAll(visiblePlugins)}
               disabled={loading || isUpdatingAll}
             >
               {isUpdatingAll
@@ -420,7 +438,7 @@ export function PluginPage(): React.ReactElement {
           action={
             <button
               className="btn btn-secondary btn-sm"
-              onClick={handleUpdateAll}
+              onClick={() => handleUpdateAll(visiblePlugins)}
               disabled={isUpdatingAll}
             >
               {t('plugin.page.retry')}

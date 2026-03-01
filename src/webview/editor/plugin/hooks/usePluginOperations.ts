@@ -66,8 +66,8 @@ export interface UsePluginOperationsReturn {
   handleToggle: (pluginId: string, scope: PluginScope, enable: boolean) => Promise<void>;
   /** 更新指定 plugin 的指定 scopes */
   handleUpdate: (pluginId: string, scopes: PluginScope[]) => Promise<void>;
-  /** 批次更新所有已安裝 plugin */
-  handleUpdateAll: () => Promise<void>;
+  /** 批次更新所有已安裝 plugin（傳入可見列表則只更新可見的） */
+  handleUpdateAll: (visiblePlugins?: MergedPlugin[]) => Promise<void>;
   /** Marketplace 層級 bulk enable（指定 scope） */
   handleBulkEnable: (marketplace: string, items: MergedPlugin[], scope: PluginScope) => Promise<void>;
   /** Marketplace 層級 bulk disable（全部 scope） */
@@ -178,10 +178,11 @@ export function usePluginOperations(
     }
   }, [setError, fetchAll, addToast]);
 
-  /** 批次更新有可用更新的 plugin */
-  const handleUpdateAll = async (): Promise<void> => {
+  /** 批次更新有可用更新的 plugin（傳入可見列表則只更新可見的） */
+  const handleUpdateAll = async (visiblePlugins?: MergedPlugin[]): Promise<void> => {
     if (updateAllProgress) return; // guard concurrent invocation
-    const updatable = plugins.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p));
+    const source = visiblePlugins ?? pluginsRef.current;
+    const updatable = source.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p));
     if (updatable.length === 0) {
       addToast('All plugins are up to date');
       return;
