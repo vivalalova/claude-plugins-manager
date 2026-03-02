@@ -101,7 +101,11 @@ export function VirtualCardList<T>({
   if (!virtualRange) {
     return (
       <div ref={containerRef} className={className}>
-        {items.map((item, i) => renderItem(item, i))}
+        {items.map((item, i) => (
+          <React.Fragment key={keyExtractor(item)}>
+            {renderItem(item, i)}
+          </React.Fragment>
+        ))}
       </div>
     );
   }

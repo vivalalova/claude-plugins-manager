@@ -52,6 +52,7 @@ export const PluginCard = React.memo(function PluginCard({
   const hasContents = pluginHasContents(plugin.contents);
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
   const scopeControlsDisabled = !!loadingScopes?.size;
+  const projectEnabled = plugin.projectInstalls.some((install) => install.enabled);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // 不攔截互動元素的 click
@@ -126,7 +127,7 @@ export const PluginCard = React.memo(function PluginCard({
         <ScopeToggle
           label={t('bulk.scopeProject')}
           scope="project"
-          enabled={plugin.projectInstalls[0]?.enabled ?? false}
+          enabled={projectEnabled}
           loading={loadingScopes?.has('project') ?? false}
           disabled={scopeControlsDisabled || !hasWorkspace}
           onToggle={(on) => onToggle(plugin.id, 'project', on)}

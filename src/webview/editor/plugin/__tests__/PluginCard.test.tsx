@@ -274,6 +274,48 @@ describe('PluginCard', () => {
     expect(checkboxes[2].disabled).toBe(true);
   });
 
+  it('多個 project installs 時，只要任一 enabled 就顯示為已勾選', () => {
+    const plugin = createPlugin({
+      projectInstalls: [
+        {
+          id: 'test-plugin@test-mp',
+          version: '1.0.0',
+          scope: 'project' as PluginScope,
+          enabled: false,
+          installPath: '/path/a',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+          projectPath: '/workspace-a',
+        },
+        {
+          id: 'test-plugin@test-mp',
+          version: '1.0.0',
+          scope: 'project' as PluginScope,
+          enabled: true,
+          installPath: '/path/b',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+          projectPath: '/workspace-b',
+        },
+      ],
+    });
+
+    renderWithI18n(
+      <PluginCard
+        plugin={plugin}
+        workspaceName="my-project"
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    expect(checkboxes[1].checked).toBe(true);
+
+    fireEvent.click(checkboxes[1]);
+    expect(onToggle).toHaveBeenCalledWith('test-plugin@test-mp', 'project', false);
+  });
+
   it('已安裝但無 update → 不顯示 Update 按鈕，顯示 GitHub', () => {
     const plugin = createPlugin({
       sourceDir: './plugins/my-plugin',

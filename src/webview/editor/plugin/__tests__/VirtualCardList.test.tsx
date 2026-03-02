@@ -3,7 +3,7 @@
  */
 import React from 'react'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, act, waitFor } from '@testing-library/react';
+import { render, cleanup, act } from '@testing-library/react';
 import { VirtualCardList, VIRTUAL_THRESHOLD } from '../VirtualCardList';
 
 function makeItems(count: number): { id: string; name: string }[] {
@@ -173,5 +173,39 @@ describe('VirtualCardList', () => {
     const elapsed = performance.now() - start;
     // CI 環境可能較慢，500ms 足夠寬鬆
     expect(elapsed).toBeLessThan(500);
+  });
+
+  it('非虛擬模式重新排序後，state 仍跟隨 item key 而不是 index', () => {
+    function StatefulCard({ id }: { id: string }): React.ReactElement {
+      const [initialId] = React.useState(id);
+      return <div className="card" data-state-id={initialId}>{id}</div>;
+    }
+
+    const items = [{ id: 'alpha', name: 'Alpha' }, { id: 'beta', name: 'Beta' }];
+    const { container, rerender } = render(
+      <VirtualCardList
+        items={items}
+        renderItem={(item) => <StatefulCard id={item.id} />}
+        keyExtractor={(item) => item.id}
+        className="card-list"
+      />,
+    );
+
+    const before = [...container.querySelectorAll('[data-state-id]')]
+      .map((el) => (el as HTMLElement).dataset.stateId);
+    expect(before).toEqual(['alpha', 'beta']);
+
+    rerender(
+      <VirtualCardList
+        items={[items[1], items[0]]}
+        renderItem={(item) => <StatefulCard id={item.id} />}
+        keyExtractor={(item) => item.id}
+        className="card-list"
+      />,
+    );
+
+    const after = [...container.querySelectorAll('[data-state-id]')]
+      .map((el) => (el as HTMLElement).dataset.stateId);
+    expect(after).toEqual(['beta', 'alpha']);
   });
 });

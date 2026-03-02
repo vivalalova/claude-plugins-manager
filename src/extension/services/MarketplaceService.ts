@@ -43,6 +43,8 @@ const CONFIG_PATH = path.join(
  * CRUD 操作仍透過 CLI 執行。
  */
 export class MarketplaceService {
+  private mutationQueue: Promise<void> = Promise.resolve();
+
   constructor(private readonly cli: CliService) {}
 
   /**
@@ -67,56 +69,64 @@ export class MarketplaceService {
 
   /** 新增 marketplace（Git URL / GitHub repo / 本地路徑） */
   async add(source: string): Promise<void> {
-    const beforeConfig = await this.readConfigIfExists();
-    const beforeNames = new Set(Object.keys(beforeConfig));
+    return this.enqueueMutation(async () => {
+      const beforeConfig = await this.readConfigIfExists();
+      const beforeNames = new Set(Object.keys(beforeConfig));
 
-    await this.cli.exec(
-      ['plugin', 'marketplace', 'add', source],
-      { timeout: CLI_LONG_TIMEOUT_MS },
-    );
+      await this.cli.exec(
+        ['plugin', 'marketplace', 'add', source],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
 
-    const afterRaw = await fs.readFile(CONFIG_PATH, 'utf-8');
-    const afterConfig: RawMarketplaceConfig = JSON.parse(afterRaw);
+      const afterRaw = await fs.readFile(CONFIG_PATH, 'utf-8');
+      const afterConfig: RawMarketplaceConfig = JSON.parse(afterRaw);
 
-    let changed = false;
-    for (const [name, entry] of Object.entries(afterConfig)) {
-      if (!beforeNames.has(name) && entry.autoUpdate !== true) {
-        entry.autoUpdate = true;
-        changed = true;
+      let changed = false;
+      for (const [name, entry] of Object.entries(afterConfig)) {
+        if (!beforeNames.has(name) && entry.autoUpdate !== true) {
+          entry.autoUpdate = true;
+          changed = true;
+        }
       }
-    }
 
-    if (changed) {
-      await fs.writeFile(CONFIG_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
-    }
+      if (changed) {
+        await fs.writeFile(CONFIG_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
+      }
+    });
   }
 
   /** 移除 marketplace */
   async remove(name: string): Promise<void> {
-    await this.cli.exec(['plugin', 'marketplace', 'remove', name]);
+    return this.enqueueMutation(async () => {
+      await this.cli.exec(['plugin', 'marketplace', 'remove', name]);
+    });
   }
 
   /** 更新 marketplace（不指定 name 則更新全部） */
   async update(name?: string): Promise<void> {
-    const args = ['plugin', 'marketplace', 'update'];
-    if (name) {
-      args.push(name);
-    }
-    await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS });
+    return this.enqueueMutation(async () => {
+      const args = ['plugin', 'marketplace', 'update'];
+      if (name) {
+        args.push(name);
+      }
+      await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS });
+    });
   }
 
   /** 切換 autoUpdate flag，直接寫入 config file */
   async toggleAutoUpdate(name: string): Promise<void> {
-    const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
-    const config: RawMarketplaceConfig = JSON.parse(raw);
+    return this.enqueueMutation(async () => {
+      const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
+      const config: RawMarketplaceConfig = JSON.parse(raw);
 
-    const entry = config[name];
-    if (!entry) {
-      throw new Error(`Marketplace "${name}" not found in config.`);
-    }
+      const entry = config[name];
+      if (!entry) {
+        throw new Error(`Marketplace "${name}" not found in config.`);
+      }
 
-    entry.autoUpdate = !entry.autoUpdate;
-    await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
+      entry.autoUpdate = !entry.autoUpdate;
+      await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
+    });
   }
 
   /**
@@ -287,5 +297,11 @@ export class MarketplaceService {
       }
       throw error;
     }
+  }
+
+  private async enqueueMutation<T>(task: () => Promise<T>): Promise<T> {
+    const next = this.mutationQueue.then(task);
+    this.mutationQueue = next.then(() => undefined, () => undefined);
+    return next;
   }
 }

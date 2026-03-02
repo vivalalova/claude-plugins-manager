@@ -21,6 +21,12 @@ function createMockCli(): { exec: ReturnType<typeof vi.fn>; execJson: ReturnType
   } as unknown as { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService;
 }
 
+function enoent(): NodeJS.ErrnoException {
+  const error = new Error('ENOENT') as NodeJS.ErrnoException;
+  error.code = 'ENOENT';
+  return error;
+}
+
 function createMockSettings(): Pick<SettingsFileService, 'readEnabledPlugins'> {
   return {
     readEnabledPlugins: vi.fn().mockResolvedValue({}),
@@ -177,6 +183,97 @@ describe('McpService', () => {
         'plugin:pluginA:srv-a',
         'plugin:pluginB:srv-b',
       ]);
+    });
+
+    it('plugin-provided MCP 只採用當前 workspace 的 entry，忽略其他 workspace', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
+        if (scope === 'project') return { 'context7@official': true };
+        if (scope === 'user') return { 'context7@official': false };
+        return {};
+      });
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) return JSON.stringify({});
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'context7@official': [
+                {
+                  scope: 'project',
+                  projectPath: '/other/project',
+                  installPath: '/cache/other',
+                },
+                {
+                  scope: 'user',
+                  installPath: '/cache/user',
+                },
+                {
+                  scope: 'project',
+                  projectPath: '/my/project',
+                  installPath: '/cache/project',
+                },
+              ],
+            },
+          });
+        }
+        if (path === '/cache/project/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['project-context7'] },
+          });
+        }
+        if (path === '/cache/user/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['user-context7'] },
+          });
+        }
+        throw enoent();
+      });
+
+      const result = await svc.listFromFiles();
+
+      expect(result).toEqual([
+        {
+          name: 'context7',
+          fullName: 'plugin:context7:context7',
+          command: 'npx project-context7',
+          status: 'pending',
+          scope: 'project',
+          config: { command: 'npx', args: ['project-context7'] },
+          plugin: { id: 'context7@official', enabled: true },
+        },
+      ]);
+    });
+
+    it('enabledPlugins 設定檔無效時直接拋錯，不靜默改成 disabled', async () => {
+      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
+        if (scope === 'user') throw new Error('Invalid JSON in settings.json');
+        return {};
+      });
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) return JSON.stringify({});
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'context7@official': [{ scope: 'user', installPath: '/cache/user' }],
+            },
+          });
+        }
+        if (path === '/cache/user/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['user-context7'] },
+          });
+        }
+        throw enoent();
+      });
+
+      await expect(svc.listFromFiles()).rejects.toThrow('Invalid JSON in settings.json');
     });
   });
 
@@ -493,6 +590,67 @@ describe('McpService', () => {
       expect(parsed.env).toEqual({ PORT: '3000' });
       expect(parsed.scope).toBe('project');
     });
+
+    it('plugin server detail 依當前 workspace 挑選 install entry', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
+        if (scope === 'project') return { 'context7@official': true };
+        if (scope === 'user') return { 'context7@official': false };
+        return {};
+      });
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'context7@official': [
+                {
+                  scope: 'user',
+                  installPath: '/cache/user',
+                  installedAt: '2026-01-01T00:00:00Z',
+                  lastUpdated: '2026-01-01T00:00:00Z',
+                },
+                {
+                  scope: 'project',
+                  projectPath: '/my/project',
+                  installPath: '/cache/project',
+                  installedAt: '2026-01-02T00:00:00Z',
+                  lastUpdated: '2026-01-02T00:00:00Z',
+                },
+              ],
+            },
+          });
+        }
+        if (path === '/cache/project/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['project-context7'] },
+          });
+        }
+        if (path === '/cache/project/.claude-plugin/plugin.json') {
+          return JSON.stringify({ description: 'Project install' });
+        }
+        if (path === '/cache/user/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['user-context7'] },
+          });
+        }
+        if (path === '/cache/user/.claude-plugin/plugin.json') {
+          return JSON.stringify({ description: 'User install' });
+        }
+        throw enoent();
+      });
+
+      const detail = JSON.parse(await svc.getDetail('plugin:context7:context7'));
+
+      expect(detail.scope).toBe('project');
+      expect(detail.enabled).toBe(true);
+      expect(detail.installPath).toBe('/cache/project');
+      expect(detail.config).toEqual({ command: 'npx', args: ['project-context7'] });
+    });
   });
 
   describe('resetProjectChoices()', () => {
@@ -639,6 +797,18 @@ describe('McpService', () => {
       await vi.advanceTimersByTimeAsync(60_000);
       await vi.advanceTimersByTimeAsync(60_000);
       expect(unavailableListener).not.toHaveBeenCalled();
+    });
+
+    it('同步重複 triggerPoll() 只觸發一次即時刷新', async () => {
+      cli.exec.mockResolvedValue('srv: node server.js - ✓ Connected');
+
+      svc.triggerPoll();
+      svc.triggerPoll();
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(cli.exec).toHaveBeenCalledTimes(1);
     });
   });
 

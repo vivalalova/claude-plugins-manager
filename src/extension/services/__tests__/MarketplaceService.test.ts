@@ -49,6 +49,7 @@ describe('MarketplaceService', () => {
   let svc: MarketplaceService;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     cli = createMockCli();
     svc = new MarketplaceService(cli);
     mockReadFile.mockResolvedValue(JSON.stringify(MOCK_CONFIG));
@@ -91,6 +92,42 @@ describe('MarketplaceService', () => {
         ['plugin', 'marketplace', 'add', 'https://github.com/owner/repo'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
+    });
+
+    it('add 進行中時，toggleAutoUpdate 會等待前一個 mutation 完成', async () => {
+      let markAddStarted!: () => void;
+      const addStarted = new Promise<void>((resolve) => {
+        markAddStarted = resolve;
+      });
+      let releaseAdd!: (value: string) => void;
+      cli.exec.mockImplementation(() => new Promise<string>((resolve) => {
+        markAddStarted();
+        releaseAdd = resolve;
+      }));
+
+      const addPromise = svc.add('https://github.com/owner/repo');
+      await addStarted;
+      expect(cli.exec).toHaveBeenCalledTimes(1);
+
+      const togglePromise = svc.toggleAutoUpdate('my-marketplace');
+      await Promise.resolve();
+
+      expect(mockWriteFile).not.toHaveBeenCalled();
+
+      mockReadFile.mockResolvedValue(JSON.stringify({
+        ...MOCK_CONFIG,
+        fresh: {
+          source: { source: 'github', repo: 'owner/fresh' },
+          installLocation: '/path/to/fresh',
+          lastUpdated: '2026-03-02T00:01:00.000Z',
+          autoUpdate: false,
+        },
+      }));
+      releaseAdd('');
+
+      await Promise.all([addPromise, togglePromise]);
+
+      expect(mockWriteFile).toHaveBeenCalledTimes(2);
     });
   });
 

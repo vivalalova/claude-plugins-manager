@@ -82,4 +82,50 @@ describe('MarketplaceService（integration / 真實 filesystem）', () => {
     expect(written.existing.autoUpdate).toBe(false);
     expect(written.fresh.autoUpdate).toBe(true);
   });
+
+  it('add 與 toggleAutoUpdate 併發時，不會互相覆蓋 known_marketplaces.json', async () => {
+    let releaseAdd!: () => void;
+    let addFileWritten!: () => void;
+    const addFileWrittenPromise = new Promise<void>((resolve) => {
+      addFileWritten = resolve;
+    });
+
+    cli.exec = vi.fn().mockImplementation(async () => {
+      await writeFile(knownPath, JSON.stringify({
+        existing: {
+          source: { source: 'github', repo: 'owner/existing' },
+          installLocation: '/tmp/existing',
+          lastUpdated: '2026-03-02T00:00:00.000Z',
+          autoUpdate: false,
+        },
+        fresh: {
+          source: { source: 'github', repo: 'owner/fresh' },
+          installLocation: '/tmp/fresh',
+          lastUpdated: '2026-03-02T00:01:00.000Z',
+          autoUpdate: false,
+        },
+      }, null, 2) + '\n');
+      addFileWritten();
+      await new Promise<void>((resolve) => {
+        releaseAdd = resolve;
+      });
+      return '';
+    });
+
+    const addPromise = svc.add('owner/fresh');
+    await addFileWrittenPromise;
+
+    const togglePromise = svc.toggleAutoUpdate('existing');
+    await Promise.resolve();
+
+    const midFlight = JSON.parse(await readFile(knownPath, 'utf-8'));
+    expect(midFlight.existing.autoUpdate).toBe(false);
+
+    releaseAdd();
+    await Promise.all([addPromise, togglePromise]);
+
+    const final = JSON.parse(await readFile(knownPath, 'utf-8'));
+    expect(final.existing.autoUpdate).toBe(true);
+    expect(final.fresh.autoUpdate).toBe(true);
+  });
 });

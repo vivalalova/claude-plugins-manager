@@ -17,6 +17,7 @@ export class McpService {
   private statusCache: McpServer[] = [];
   private consecutiveErrors = 0;
   private readonly MAX_ERRORS_BEFORE_BACKOFF = 3;
+  private triggerScheduled = false;
 
   /** buildServerMetadata() 快取，避免每次 poll 都重讀 disk */
   private metadataCache: Map<string, {
@@ -85,7 +86,7 @@ export class McpService {
     ]);
     const servers = this.parseMcpList(output);
     for (const server of servers) {
-      const meta = metaMap.get(server.name) ?? metaMap.get(server.fullName);
+      const meta = metaMap.get(server.fullName) ?? metaMap.get(server.name);
       if (meta) {
         server.scope = meta.scope;
         server.config = meta.config;
@@ -210,7 +211,14 @@ export class McpService {
 
   /** 檔案變更後觸發立即 poll（debounce 由 FileWatcherService 處理） */
   triggerPoll(): void {
-    this.pollOnce();
+    if (this.triggerScheduled) {
+      return;
+    }
+    this.triggerScheduled = true;
+    void Promise.resolve().then(async () => {
+      this.triggerScheduled = false;
+      await this.pollOnce();
+    });
   }
 
   /** 手動觸發一次完整狀態刷新（CLI health check），回傳最新 servers */
@@ -279,10 +287,13 @@ export class McpService {
     const entries = installed.plugins[pluginKey] as Array<{
       installPath: string;
       scope: string;
+      projectPath?: string;
       installedAt: string;
       lastUpdated: string;
     }>;
-    const entry = entries[0];
+    const enabledByScope = await this.readEnabledPluginsByScope();
+    const relevantEntries = this.getRelevantPluginEntries(entries);
+    const entry = this.pickPreferredPluginEntry(relevantEntries, pluginKey, enabledByScope);
 
     const [mcpRaw, metaRaw] = await Promise.all([
       readFile(join(entry.installPath, '.mcp.json'), 'utf-8').catch(() => '{}'),
@@ -295,7 +306,7 @@ export class McpService {
     const detail = {
       name: mcpServerName,
       plugin: pluginKey,
-      enabled: await this.isPluginEnabled(pluginKey, entry.scope as McpScope),
+      enabled: this.isPluginEnabledInEntries(relevantEntries, pluginKey, enabledByScope),
       description: pluginMeta.description,
       author: pluginMeta.author,
       config: mcpConfig[mcpServerName] ?? mcpConfig,
@@ -369,20 +380,28 @@ export class McpService {
     }
 
     // Plugin-provided MCP servers: installed_plugins.json → each plugin's .mcp.json
-    try {
+    const installedPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
+    const installedRaw = await readFile(installedPath, 'utf-8').catch((error) => {
+      if (this.isNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    });
+
+    if (installedRaw) {
       const enabledByScope = await this.readEnabledPluginsByScope();
-      const installedRaw = await readFile(
-        join(homedir(), '.claude', 'plugins', 'installed_plugins.json'),
-        'utf-8',
-      );
       const installed = JSON.parse(installedRaw) as {
-        plugins: Record<string, Array<{ scope: string; installPath: string }>>;
+        plugins: Record<string, Array<{ scope: string; installPath: string; projectPath?: string }>>;
       };
 
       await Promise.all(
         Object.entries(installed.plugins).map(async ([pluginKey, entries]) => {
-          const entry = entries[0];
-          if (!entry) return;
+          const relevantEntries = this.getRelevantPluginEntries(entries);
+          if (relevantEntries.length === 0) {
+            return;
+          }
+
+          const entry = this.pickPreferredPluginEntry(relevantEntries, pluginKey, enabledByScope);
           const pluginBaseName = pluginKey.split('@')[0];
 
           try {
@@ -396,7 +415,7 @@ export class McpService {
                   config,
                   plugin: {
                     id: pluginKey,
-                    enabled: enabledByScope[entry.scope as McpScope]?.[pluginKey] === true,
+                    enabled: this.isPluginEnabledInEntries(relevantEntries, pluginKey, enabledByScope),
                   },
                 });
               }
@@ -404,7 +423,7 @@ export class McpService {
           } catch { /* plugin has no .mcp.json */ }
         }),
       );
-    } catch { /* installed_plugins.json not found */ }
+    }
 
     this.metadataCache = map;
     this.metadataCacheDirty = false;
@@ -489,16 +508,78 @@ export class McpService {
     }
 
     const [user, project, local] = await Promise.all([
-      this.settings.readEnabledPlugins('user').catch(() => ({})),
-      this.settings.readEnabledPlugins('project').catch(() => ({})),
-      this.settings.readEnabledPlugins('local').catch(() => ({})),
+      this.settings.readEnabledPlugins('user'),
+      this.readScopedEnabledPlugins('project'),
+      this.readScopedEnabledPlugins('local'),
     ]);
 
     return { user, project, local };
   }
 
-  private async isPluginEnabled(pluginId: string, scope: McpScope): Promise<boolean> {
-    const enabledByScope = await this.readEnabledPluginsByScope();
-    return enabledByScope[scope]?.[pluginId] === true;
+  private async readScopedEnabledPlugins(scope: Extract<McpScope, 'project' | 'local'>): Promise<Record<string, boolean>> {
+    try {
+      return await this.settings!.readEnabledPlugins(scope);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('No workspace folder open')) {
+        return {};
+      }
+      throw error;
+    }
+  }
+
+  private getRelevantPluginEntries<T extends { scope: string; projectPath?: string }>(entries: T[]): T[] {
+    const workspacePath = this.getWorkspaceCwd();
+    return entries.filter((entry) => {
+      if (entry.scope === 'user') {
+        return true;
+      }
+      if (!workspacePath) {
+        return false;
+      }
+      return entry.projectPath === workspacePath;
+    });
+  }
+
+  private pickPreferredPluginEntry<T extends { scope: string }>(
+    entries: T[],
+    pluginId: string,
+    enabledByScope: Record<McpScope, Record<string, boolean>>,
+  ): T {
+    if (entries.length === 0) {
+      throw new Error(`Plugin "${pluginId}" not available in current workspace`);
+    }
+
+    const enabledEntries = entries.filter((entry) => enabledByScope[entry.scope as McpScope]?.[pluginId] === true);
+    const pool = enabledEntries.length > 0 ? enabledEntries : entries;
+    return [...pool].sort((a, b) => this.getPluginEntryPriority(b.scope) - this.getPluginEntryPriority(a.scope))[0];
+  }
+
+  private isPluginEnabledInEntries(
+    entries: Array<{ scope: string }>,
+    pluginId: string,
+    enabledByScope: Record<McpScope, Record<string, boolean>>,
+  ): boolean {
+    return entries.some((entry) => enabledByScope[entry.scope as McpScope]?.[pluginId] === true);
+  }
+
+  private getPluginEntryPriority(scope: string): number {
+    switch (scope) {
+      case 'local':
+        return 3;
+      case 'project':
+        return 2;
+      case 'user':
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
+  private isNotFoundError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+    const err = error as NodeJS.ErrnoException;
+    return err.code === 'ENOENT' || err.message === 'ENOENT' || err.message.includes('ENOENT');
   }
 }
