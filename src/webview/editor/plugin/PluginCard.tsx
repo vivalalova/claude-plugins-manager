@@ -51,6 +51,7 @@ export const PluginCard = React.memo(function PluginCard({
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
+  const scopeControlsDisabled = !!loadingScopes?.size;
 
   const handleCardClick = (e: React.MouseEvent) => {
     // 不攔截互動元素的 click
@@ -119,29 +120,25 @@ export const PluginCard = React.memo(function PluginCard({
           scope="user"
           enabled={plugin.userInstall?.enabled ?? false}
           loading={loadingScopes?.has('user') ?? false}
-          disabled={!!loadingScopes?.size}
+          disabled={scopeControlsDisabled}
           onToggle={(on) => onToggle(plugin.id, 'user', on)}
         />
-        {hasWorkspace && (
-          <ScopeToggle
-            label={t('bulk.scopeProject')}
-            scope="project"
-            enabled={plugin.projectInstalls[0]?.enabled ?? false}
-            loading={loadingScopes?.has('project') ?? false}
-            disabled={!!loadingScopes?.size}
-            onToggle={(on) => onToggle(plugin.id, 'project', on)}
-          />
-        )}
-        {hasWorkspace && (
-          <ScopeToggle
-            label={t('bulk.scopeLocal')}
-            scope="local"
-            enabled={plugin.localInstall?.enabled ?? false}
-            loading={loadingScopes?.has('local') ?? false}
-            disabled={!!loadingScopes?.size}
-            onToggle={(on) => onToggle(plugin.id, 'local', on)}
-          />
-        )}
+        <ScopeToggle
+          label={t('bulk.scopeProject')}
+          scope="project"
+          enabled={plugin.projectInstalls[0]?.enabled ?? false}
+          loading={loadingScopes?.has('project') ?? false}
+          disabled={scopeControlsDisabled || !hasWorkspace}
+          onToggle={(on) => onToggle(plugin.id, 'project', on)}
+        />
+        <ScopeToggle
+          label={t('bulk.scopeLocal')}
+          scope="local"
+          enabled={plugin.localInstall?.enabled ?? false}
+          loading={loadingScopes?.has('local') ?? false}
+          disabled={scopeControlsDisabled || !hasWorkspace}
+          onToggle={(on) => onToggle(plugin.id, 'local', on)}
+        />
         </div>
       </div>
 

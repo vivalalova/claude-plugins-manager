@@ -171,10 +171,28 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
         ]
       : [...assignedIds].sort((a, b) => a - b);
     const extraSectionIds = orderedIds;
+    const sectionIds = [0, ...extraSectionIds];
+
+    const marketplaceOrderBySection = new Map<number, string[]>();
+    const marketplaceSeenBySection = new Map<number, Set<string>>();
+    for (const p of plugins) {
+      const marketplace = p.marketplaceName ?? 'other';
+      const sectionId = assignments[marketplace] ?? 0;
+      const seen = marketplaceSeenBySection.get(sectionId) ?? new Set<string>();
+      if (!marketplaceSeenBySection.has(sectionId)) {
+        marketplaceSeenBySection.set(sectionId, seen);
+      }
+      if (!seen.has(marketplace)) {
+        seen.add(marketplace);
+        const orderedMarketplaces = marketplaceOrderBySection.get(sectionId) ?? [];
+        orderedMarketplaces.push(marketplace);
+        marketplaceOrderBySection.set(sectionId, orderedMarketplaces);
+      }
+    }
 
     // 為每個 section 建立空 Map
     const sectionMaps = new Map<number, Map<string, MergedPlugin[]>>();
-    for (const id of [0, ...extraSectionIds]) {
+    for (const id of sectionIds) {
       sectionMaps.set(id, new Map());
     }
 
@@ -208,10 +226,23 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       }
     }
 
-    return [0, ...extraSectionIds].map((id) => ({
-      id,
-      groups: sectionMaps.get(id)!,
-    }));
+    return sectionIds.map((id) => {
+      const unorderedGroups = sectionMaps.get(id)!;
+      const orderedGroups = new Map<string, MergedPlugin[]>();
+      for (const marketplace of marketplaceOrderBySection.get(id) ?? []) {
+        const items = unorderedGroups.get(marketplace);
+        if (items) orderedGroups.set(marketplace, items);
+      }
+      for (const [marketplace, items] of unorderedGroups) {
+        if (!orderedGroups.has(marketplace)) {
+          orderedGroups.set(marketplace, items);
+        }
+      }
+      return {
+        id,
+        groups: orderedGroups,
+      };
+    });
   }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters, sortBy, sectionAssignments]);
 
   const moveToSection = (marketplace: string, sectionId: number) => {

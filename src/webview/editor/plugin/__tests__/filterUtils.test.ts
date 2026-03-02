@@ -69,10 +69,10 @@ describe('matchesContentType', () => {
     });
   });
 
-  describe('無 contents 的 plugin（保守顯示）', () => {
-    it('有 filter 但 plugin 無 contents → 通過', () => {
+  describe('無 contents 的 plugin', () => {
+    it('有 filter 但 plugin 無 contents → 不通過', () => {
       const plugin = makeMerged(); // contents = undefined
-      expect(matchesContentType(plugin, new Set(['skills']))).toBe(true);
+      expect(matchesContentType(plugin, new Set(['skills']))).toBe(false);
     });
   });
 

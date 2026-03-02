@@ -90,7 +90,7 @@ export type ContentTypeFilter = typeof CONTENT_TYPE_FILTERS[number];
 
 /**
  * 判斷 plugin 是否符合 content type filter（OR 邏輯）。
- * 無 contents 的 plugin 保守顯示（回傳 true）。
+ * 有 active filter 時，無 contents 的 plugin 視為不符合。
  * filters 為空時回傳 true（不篩選）。
  * hooks 不列入 filter（spec 僅定義 4 種 chip）。
  */
@@ -99,7 +99,7 @@ export function matchesContentType(
   filters: ReadonlySet<ContentTypeFilter>,
 ): boolean {
   if (filters.size === 0) return true;
-  if (!plugin.contents) return true;
+  if (!plugin.contents) return false;
 
   for (const type of filters) {
     if (type === 'commands' && plugin.contents.commands.length > 0) return true;

@@ -127,6 +127,41 @@ describe('PluginCard', () => {
     });
   });
 
+  it('GitHub shorthand marketplaceUrl + sourceDir "." → 顯示 GitHub 按鈕並開 repo root', () => {
+    const plugin = createPlugin({ sourceDir: '.' });
+
+    renderWithI18n(
+      <PluginCard
+        plugin={plugin}
+        marketplaceUrl="anthropics/claude-plugins-official"
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'GitHub' }));
+
+    expect(mockSendRequest).toHaveBeenCalledWith({
+      type: 'openExternal',
+      url: 'https://github.com/anthropics/claude-plugins-official',
+    });
+  });
+
+  it('GitHub shorthand marketplaceUrl + sourceDir undefined → 仍顯示 GitHub 按鈕', () => {
+    const plugin = createPlugin({ sourceDir: undefined });
+
+    renderWithI18n(
+      <PluginCard
+        plugin={plugin}
+        marketplaceUrl="anthropics/claude-plugins-official"
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'GitHub' })).toBeTruthy();
+  });
+
   it('無 marketplaceUrl → 不顯示 GitHub 按鈕', () => {
     const plugin = createPlugin();
 
@@ -212,10 +247,31 @@ describe('PluginCard', () => {
       />,
     );
 
-    const checkbox = screen.getByRole('checkbox');
-    expect((checkbox as HTMLInputElement).disabled).toBe(false);
-    fireEvent.click(checkbox);
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    expect(checkboxes[0].disabled).toBe(false);
+    fireEvent.click(checkboxes[0]);
     expect(onToggle).toHaveBeenCalledWith('test-plugin@test-mp', 'user', true);
+  });
+
+  it('無 workspace 時仍顯示 Project / Local，但為 disabled', () => {
+    const plugin = createPlugin();
+    renderWithI18n(
+      <PluginCard
+        plugin={plugin}
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    expect(screen.getByText('User')).toBeTruthy();
+    expect(screen.getByText('Project')).toBeTruthy();
+    expect(screen.getByText('Local')).toBeTruthy();
+
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes[0].disabled).toBe(false);
+    expect(checkboxes[1].disabled).toBe(true);
+    expect(checkboxes[2].disabled).toBe(true);
   });
 
   it('已安裝但無 update → 不顯示 Update 按鈕，顯示 GitHub', () => {

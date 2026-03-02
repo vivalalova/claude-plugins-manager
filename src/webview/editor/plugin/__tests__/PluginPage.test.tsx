@@ -4,7 +4,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
-import { render, screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, act, within } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
 const { mockSendRequest, mockOnPushMessage, mockViewState } = vi.hoisted(() => ({
@@ -43,8 +43,22 @@ function makeInstalled(name: string, mp: string, enabled: boolean): InstalledPlu
   };
 }
 
-function makeAvailable(name: string, mp: string, desc = '', lastUpdated?: string): AvailablePlugin {
-  return { pluginId: `${name}@${mp}`, name, description: desc, marketplaceName: mp, ...(lastUpdated ? { lastUpdated } : {}) };
+function makeAvailable(
+  name: string,
+  mp: string,
+  desc = '',
+  lastUpdatedOrOptions?: string | Partial<AvailablePlugin>,
+): AvailablePlugin {
+  if (typeof lastUpdatedOrOptions === 'string') {
+    return { pluginId: `${name}@${mp}`, name, description: desc, marketplaceName: mp, lastUpdated: lastUpdatedOrOptions };
+  }
+  return {
+    pluginId: `${name}@${mp}`,
+    name,
+    description: desc,
+    marketplaceName: mp,
+    ...lastUpdatedOrOptions,
+  };
 }
 
 function makeResponse(
@@ -110,6 +124,31 @@ describe('PluginPage — 核心流程', () => {
       expect(screen.getByText('alpha')).toBeTruthy();
       expect(screen.getByText('beta')).toBeTruthy();
       expect(screen.getByText('gamma')).toBeTruthy();
+    });
+
+    it('無 workspace 時，plugin 卡片仍顯示 Project / Local 選項但為 disabled', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1', 'Alpha plugin')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+      });
+
+      expect(screen.getByText('Project')).toBeTruthy();
+      expect(screen.getByText('Local')).toBeTruthy();
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes).toHaveLength(3);
+      expect(checkboxes[0].disabled).toBe(false);
+      expect(checkboxes[1].disabled).toBe(true);
+      expect(checkboxes[2].disabled).toBe(true);
     });
 
     it('載入失敗顯示 ErrorBanner', async () => {
@@ -465,6 +504,206 @@ describe('PluginPage — 核心流程', () => {
         // filter 啟用後 section 自動展開
         expect(document.querySelector('.section-body--collapsed')).toBeNull();
       });
+    });
+  });
+
+  describe('Content type filter', () => {
+    it('Skills filter 只隱藏沒有 skills 的 plugin，保留有 skills plugin 的 GitHub 按鈕', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('no-skills', 'local-marketplace', 'No extracted contents', {
+                sourceDir: './plugins/no-skills',
+              }),
+              makeAvailable('skill-plugin', 'github-marketplace', 'Has skills', {
+                contents: {
+                  commands: [],
+                  skills: [{ name: 'review', description: 'Review code changes' }],
+                  agents: [],
+                  mcpServers: [],
+                  hooks: false,
+                },
+                sourceDir: './plugins/skill-plugin',
+              }),
+            ],
+            {
+              'local-marketplace': '/Users/lova/.claude/plugins-local',
+              'github-marketplace': 'anthropics/claude-plugins-official',
+            },
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('group', { name: 'no-skills' })).toBeNull();
+      });
+
+      const skillCard = screen.getByRole('group', { name: 'skill-plugin' });
+      expect(within(skillCard).getByRole('button', { name: 'GitHub' })).toBeTruthy();
+    });
+
+    it('Skills filter 保持可見 marketplace 的既有順序', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('aardvark', 'mp-b', 'No skills'),
+              makeAvailable('beta', 'mp-a', 'Has skills', {
+                contents: {
+                  commands: [],
+                  skills: [{ name: 'beta-skill', description: 'Skill from mp-a' }],
+                  agents: [],
+                  mcpServers: [],
+                  hooks: false,
+                },
+              }),
+              makeAvailable('charlie', 'mp-b', 'Has skills', {
+                contents: {
+                  commands: [],
+                  skills: [{ name: 'charlie-skill', description: 'Skill from mp-b' }],
+                  agents: [],
+                  mcpServers: [],
+                  hooks: false,
+                },
+              }),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('group', { name: 'aardvark' })).toBeNull();
+      });
+
+      const marketplaceLabels = [...document.querySelectorAll('.section-toggle-label')]
+        .map((el) => el.textContent);
+      expect(marketplaceLabels).toEqual(['mp-b', 'mp-a']);
+    });
+
+    it('Skills filter 保持 Section 1 的既有 marketplace 順序', async () => {
+      mockViewState['plugin.sections'] = {
+        assignments: { 'mp-b': 1, 'mp-a': 1 },
+        nextId: 2,
+      };
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('aardvark', 'mp-b', 'No skills'),
+              makeAvailable('beta', 'mp-a', 'Has skills', {
+                contents: {
+                  commands: [],
+                  skills: [{ name: 'beta-skill', description: 'Skill from mp-a' }],
+                  agents: [],
+                  mcpServers: [],
+                  hooks: false,
+                },
+              }),
+              makeAvailable('charlie', 'mp-b', 'Has skills', {
+                contents: {
+                  commands: [],
+                  skills: [{ name: 'charlie-skill', description: 'Skill from mp-b' }],
+                  agents: [],
+                  mcpServers: [],
+                  hooks: false,
+                },
+              }),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('group', { name: 'aardvark' })).toBeNull();
+      });
+
+      const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      const marketplaceLabels = [...section1Container.querySelectorAll('.section-toggle-label')]
+        .map((el) => el.textContent);
+      expect(marketplaceLabels).toEqual(['mp-b', 'mp-a']);
+    });
+
+    it('Skills filter 清空 Section 1 時保留 empty drop zone', async () => {
+      mockViewState['plugin.sections'] = {
+        assignments: { 'mp-b': 1 },
+        nextId: 2,
+      };
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [],
+            [
+              makeAvailable('alpha', 'mp-a', 'Has skills', {
+                contents: {
+                  commands: [],
+                  skills: [{ name: 'alpha-skill', description: 'Skill from mp-a' }],
+                  agents: [],
+                  mcpServers: [],
+                  hooks: false,
+                },
+              }),
+              makeAvailable('aardvark', 'mp-b', 'No skills'),
+            ],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('group', { name: 'aardvark' })).toBeNull();
+      });
+
+      const dropZones = [...document.querySelectorAll('.sections-drop-zone')];
+      expect(dropZones).toHaveLength(1);
+      expect(dropZones[0]?.textContent).toContain('Drag a marketplace here');
+
+      const section1Container = document.querySelectorAll('.sections-container')[1] as HTMLElement;
+      expect(section1Container.querySelector('.sections-drop-zone')).toBeTruthy();
     });
   });
 
