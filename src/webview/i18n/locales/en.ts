@@ -74,6 +74,12 @@ export const en = {
   'mcp.card.details': 'Details',
   'mcp.card.edit': 'Edit',
   'mcp.card.remove': 'Remove',
+  'mcp.card.pluginProvided': 'Provided by plugin {plugin}',
+  'mcp.card.pluginEnabled': 'Enabled in Plugins',
+  'mcp.card.pluginDisabled': 'Disabled in Plugins',
+  'mcp.card.pluginManageHint': 'Manage from Plugins page',
+  'mcp.section.direct': 'MCP Servers',
+  'mcp.section.plugin': 'Plugin-provided MCP Servers',
   // AddMcpDialog
   'mcp.add.validation': 'Name and Command/URL are required',
   // ConfirmDialog

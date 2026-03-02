@@ -11,6 +11,7 @@ import type { EditServerInfo } from './AddMcpDialog';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useToast } from '../../components/Toast';
 import type { McpServer } from '../../../shared/types';
+import { useI18n } from '../../i18n/I18nContext';
 
 /** 檢查字串是否為合法 JSON */
 function isValidJson(str: string): boolean {
@@ -37,6 +38,7 @@ export function buildEditServerInfo(server: McpServer): EditServerInfo {
  * 即時狀態：mount 時 list + 訂閱 mcp.statusUpdate push。
  */
 export function McpPage(): React.ReactElement {
+  const { t } = useI18n();
   const { addToast } = useToast();
   const [servers, setServers] = useState<McpServer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +92,19 @@ export function McpPage(): React.ReactElement {
       else counts.other++;
     }
     return counts;
+  }, [servers]);
+
+  const groupedServers = useMemo(() => {
+    const direct: McpServer[] = [];
+    const pluginProvided: McpServer[] = [];
+    for (const server of servers) {
+      if (server.plugin || server.fullName.startsWith('plugin:')) {
+        pluginProvided.push(server);
+      } else {
+        direct.push(server);
+      }
+    }
+    return { direct, pluginProvided };
   }, [servers]);
 
   const handleRemove = async (name: string): Promise<void> => {
@@ -166,6 +181,31 @@ export function McpPage(): React.ReactElement {
     addToast('MCP server updated');
   };
 
+  const renderServerSection = (title: string, sectionServers: McpServer[]): React.ReactElement => (
+    <section className="mcp-section" role="region" aria-label={title}>
+      <div className="mcp-section-header">
+        <div className="mcp-section-title-row">
+          <h2 className="mcp-section-title">{title}</h2>
+          <span className="mcp-section-count">{sectionServers.length}</span>
+        </div>
+      </div>
+      <div className="card-list">
+        {sectionServers.map((server) => (
+          <McpServerCard
+            key={server.fullName}
+            server={server}
+            onEdit={() => handleEdit(server)}
+            onRemove={() => setConfirmRemove(server.name)}
+            onViewDetail={() => handleViewDetail(server.fullName)}
+            onRetry={handleRefreshStatus}
+            onAuthenticate={handleRefreshStatus}
+            retrying={retrying}
+          />
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -234,19 +274,9 @@ export function McpPage(): React.ReactElement {
           action={{ label: 'Add Server', onClick: () => setShowAddDialog(true) }}
         />
       ) : (
-        <div className="card-list">
-          {servers.map((server) => (
-            <McpServerCard
-              key={server.fullName}
-              server={server}
-              onEdit={() => handleEdit(server)}
-              onRemove={() => setConfirmRemove(server.name)}
-              onViewDetail={() => handleViewDetail(server.fullName)}
-              onRetry={handleRefreshStatus}
-              onAuthenticate={handleRefreshStatus}
-              retrying={retrying}
-            />
-          ))}
+        <div className="mcp-sections">
+          {groupedServers.direct.length > 0 && renderServerSection(t('mcp.section.direct'), groupedServers.direct)}
+          {groupedServers.pluginProvided.length > 0 && renderServerSection(t('mcp.section.plugin'), groupedServers.pluginProvided)}
         </div>
       )}
 

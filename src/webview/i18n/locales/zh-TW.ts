@@ -76,6 +76,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'mcp.card.details': '詳細資料',
   'mcp.card.edit': '編輯',
   'mcp.card.remove': '移除',
+  'mcp.card.pluginProvided': '由外掛 {plugin} 提供',
+  'mcp.card.pluginEnabled': '已在外掛頁啟用',
+  'mcp.card.pluginDisabled': '已在外掛頁停用',
+  'mcp.card.pluginManageHint': '請到外掛頁管理',
+  'mcp.section.direct': 'MCP 伺服器',
+  'mcp.section.plugin': '由外掛安裝的 MCP',
   // AddMcpDialog
   'mcp.add.validation': '名稱和指令/URL 為必填',
   // ConfirmDialog

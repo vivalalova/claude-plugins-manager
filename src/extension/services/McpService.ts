@@ -5,6 +5,7 @@ import { homedir } from 'os';
 import { MCP_POLL_INTERVAL_MS } from '../constants';
 import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../types';
 import type { CliService } from './CliService';
+import type { SettingsFileService } from './SettingsFileService';
 import { getWorkspacePath } from '../utils/workspace';
 
 /**
@@ -18,7 +19,11 @@ export class McpService {
   private readonly MAX_ERRORS_BEFORE_BACKOFF = 3;
 
   /** buildServerMetadata() 快取，避免每次 poll 都重讀 disk */
-  private metadataCache: Map<string, { scope: McpScope; config?: McpServerConfig }> | null = null;
+  private metadataCache: Map<string, {
+    scope: McpScope;
+    config?: McpServerConfig;
+    plugin?: McpServer['plugin'];
+  }> | null = null;
   private metadataCacheDirty = true;
 
   /** 狀態變更事件，EditorPanelManager 訂閱後推送給 webview */
@@ -27,7 +32,10 @@ export class McpService {
   /** 連續 polling 失敗達上限，通知 UI 顯示 warning */
   readonly onPollUnavailable = new vscode.EventEmitter<void>();
 
-  constructor(private readonly cli: CliService) {}
+  constructor(
+    private readonly cli: CliService,
+    private readonly settings?: Pick<SettingsFileService, 'readEnabledPlugins'>,
+  ) {}
 
   /** 使 metadata cache 失效，下次 buildServerMetadata() 將重新從 disk 讀取 */
   invalidateMetadataCache(): void {
@@ -55,6 +63,7 @@ export class McpService {
         status: 'pending',
         scope: meta.scope,
         config: meta.config,
+        plugin: meta.plugin,
       });
     }
     if (this.statusCache.length === 0) {
@@ -80,6 +89,7 @@ export class McpService {
       if (meta) {
         server.scope = meta.scope;
         server.config = meta.config;
+        server.plugin = meta.plugin;
       }
     }
     this.statusCache = servers;
@@ -225,7 +235,9 @@ export class McpService {
 
   /** 輕量 fingerprint：fullName + status 串接，取代 JSON.stringify 全序列化 */
   private makeStatusFingerprint(servers: McpServer[]): string {
-    return servers.map((s) => `${s.fullName}:${s.status}`).join('|');
+    return servers
+      .map((s) => `${s.fullName}:${s.status}:${s.plugin?.id ?? ''}:${s.plugin?.enabled ? '1' : '0'}`)
+      .join('|');
   }
 
   /** 單次輪詢，比對快取，有變更時觸發事件 */
@@ -283,6 +295,7 @@ export class McpService {
     const detail = {
       name: mcpServerName,
       plugin: pluginKey,
+      enabled: await this.isPluginEnabled(pluginKey, entry.scope as McpScope),
       description: pluginMeta.description,
       author: pluginMeta.author,
       config: mcpConfig[mcpServerName] ?? mcpConfig,
@@ -301,12 +314,20 @@ export class McpService {
    * - local scope: ~/.claude.json → projects[workspacePath].mcpServers
    * - project scope: {workspace}/.mcp.json → mcpServers
    */
-  private async buildServerMetadata(): Promise<Map<string, { scope: McpScope; config?: McpServerConfig }>> {
+  private async buildServerMetadata(): Promise<Map<string, {
+    scope: McpScope;
+    config?: McpServerConfig;
+    plugin?: McpServer['plugin'];
+  }>> {
     if (!this.metadataCacheDirty && this.metadataCache) {
       return this.metadataCache;
     }
 
-    const map = new Map<string, { scope: McpScope; config?: McpServerConfig }>();
+    const map = new Map<string, {
+      scope: McpScope;
+      config?: McpServerConfig;
+      plugin?: McpServer['plugin'];
+    }>();
 
     const workspacePath = this.getWorkspaceCwd();
 
@@ -349,6 +370,7 @@ export class McpService {
 
     // Plugin-provided MCP servers: installed_plugins.json → each plugin's .mcp.json
     try {
+      const enabledByScope = await this.readEnabledPluginsByScope();
       const installedRaw = await readFile(
         join(homedir(), '.claude', 'plugins', 'installed_plugins.json'),
         'utf-8',
@@ -372,6 +394,10 @@ export class McpService {
                 map.set(`plugin:${pluginBaseName}:${serverName}`, {
                   scope: entry.scope as McpScope,
                   config,
+                  plugin: {
+                    id: pluginKey,
+                    enabled: enabledByScope[entry.scope as McpScope]?.[pluginKey] === true,
+                  },
                 });
               }
             }
@@ -455,5 +481,24 @@ export class McpService {
       return 'pending';
     }
     return 'unknown';
+  }
+
+  private async readEnabledPluginsByScope(): Promise<Record<McpScope, Record<string, boolean>>> {
+    if (!this.settings) {
+      return { user: {}, project: {}, local: {} };
+    }
+
+    const [user, project, local] = await Promise.all([
+      this.settings.readEnabledPlugins('user').catch(() => ({})),
+      this.settings.readEnabledPlugins('project').catch(() => ({})),
+      this.settings.readEnabledPlugins('local').catch(() => ({})),
+    ]);
+
+    return { user, project, local };
+  }
+
+  private async isPluginEnabled(pluginId: string, scope: McpScope): Promise<boolean> {
+    const enabledByScope = await this.readEnabledPluginsByScope();
+    return enabledByScope[scope]?.[pluginId] === true;
   }
 }

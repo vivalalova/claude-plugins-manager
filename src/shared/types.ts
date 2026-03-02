@@ -137,6 +137,12 @@ export interface McpServerConfig {
   env?: Record<string, string>;
 }
 
+/** plugin 自帶的 MCP 來源資訊 */
+export interface McpPluginSource {
+  id: string;
+  enabled: boolean;
+}
+
 /** 從 `claude mcp list` 解析的 MCP server 資訊 */
 export interface McpServer {
   name: string;
@@ -147,6 +153,8 @@ export interface McpServer {
   scope?: McpScope;
   /** 結構化設定（從設定檔讀取的 command/args/env） */
   config?: McpServerConfig;
+  /** plugin 自帶的 MCP（如 context7） */
+  plugin?: McpPluginSource;
 }
 
 /** MCP add 操作參數 */

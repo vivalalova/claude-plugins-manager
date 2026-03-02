@@ -17,12 +17,17 @@ export function activate(context: vscode.ExtensionContext): void {
   const marketplaceService = new MarketplaceService(cli);
   const settingsFileService = new SettingsFileService();
   const pluginService = new PluginService(cli, settingsFileService);
-  const mcpService = new McpService(cli);
+  const mcpService = new McpService(cli, settingsFileService);
   const translationService = new TranslationService();
   const fileWatcherService = new FileWatcherService();
   const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService);
   // Marketplace 檔案變更 → invalidate scan cache（plugin settings 變更不影響 marketplace 掃描）
   fileWatcherService.onMarketplaceFilesChanged(() => settingsFileService.invalidateScanCache());
+  // plugin settings 也會影響 plugin-provided MCP 的 enabled 狀態
+  fileWatcherService.onPluginFilesChanged(() => {
+    mcpService.invalidateMetadataCache();
+    mcpService.triggerPoll();
+  });
   // MCP 相關檔案變更 → invalidate metadata cache + 立即 poll（取代等待下一個 interval）
   fileWatcherService.onMcpFilesChanged(() => {
     mcpService.invalidateMetadataCache();
@@ -57,7 +62,6 @@ export function activate(context: vscode.ExtensionContext): void {
       COMMANDS.openMcp,
       () => {
         editorManager.openPanel('mcp');
-        mcpService.startPolling();
       },
     ),
     { dispose: () => editorManager.dispose() },

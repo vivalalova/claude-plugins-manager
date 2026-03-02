@@ -76,6 +76,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'mcp.card.details': '詳細',
   'mcp.card.edit': '編集',
   'mcp.card.remove': '削除',
+  'mcp.card.pluginProvided': 'プラグイン {plugin} が提供',
+  'mcp.card.pluginEnabled': 'Plugins で有効',
+  'mcp.card.pluginDisabled': 'Plugins で無効',
+  'mcp.card.pluginManageHint': 'Plugins ページで管理してください',
+  'mcp.section.direct': 'MCP サーバー',
+  'mcp.section.plugin': 'プラグイン提供の MCP サーバー',
   // AddMcpDialog
   'mcp.add.validation': '名前とコマンド/URLは必須です',
   // ConfirmDialog

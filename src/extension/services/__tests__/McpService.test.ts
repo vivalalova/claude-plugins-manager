@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { workspace } from 'vscode';
 import { McpService } from '../McpService';
 import type { CliService } from '../CliService';
+import type { SettingsFileService } from '../SettingsFileService';
 
 /* ── fs/promises mock（buildServerMetadata 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
@@ -20,14 +21,22 @@ function createMockCli(): { exec: ReturnType<typeof vi.fn>; execJson: ReturnType
   } as unknown as { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService;
 }
 
+function createMockSettings(): Pick<SettingsFileService, 'readEnabledPlugins'> {
+  return {
+    readEnabledPlugins: vi.fn().mockResolvedValue({}),
+  };
+}
+
 describe('McpService', () => {
   let cli: ReturnType<typeof createMockCli>;
+  let settings: ReturnType<typeof createMockSettings>;
   let svc: McpService;
 
   beforeEach(() => {
     vi.useFakeTimers();
     cli = createMockCli();
-    svc = new McpService(cli);
+    settings = createMockSettings();
+    svc = new McpService(cli, settings);
     workspace.workspaceFolders = undefined;
     // buildServerMetadata 讀取 ~/.claude.json，預設不存在
     mockReadFile.mockRejectedValue(new Error('ENOENT'));
@@ -88,6 +97,9 @@ describe('McpService', () => {
     });
 
     it('包含 plugin-provided MCP servers（如 context7）', async () => {
+      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => (
+        scope === 'user' ? { 'context7@official': true } : {}
+      ));
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) {
           return JSON.stringify({
@@ -126,6 +138,7 @@ describe('McpService', () => {
           name: 'context7', fullName: 'plugin:context7:context7',
           command: 'npx -y @upstash/context7-mcp', status: 'pending',
           scope: 'user', config: { command: 'npx', args: ['-y', '@upstash/context7-mcp'] },
+          plugin: { id: 'context7@official', enabled: true },
         },
       ]);
     });

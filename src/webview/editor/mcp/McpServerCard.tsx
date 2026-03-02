@@ -27,6 +27,8 @@ export function McpServerCard({
   const { t } = useI18n();
   const isFailed = server.status === 'failed';
   const isNeedsAuth = server.status === 'needs-auth';
+  const isPluginProvided = server.fullName.startsWith('plugin:');
+  const canManageInMcp = !!server.scope && !isPluginProvided;
   const cardClass = `card${isFailed ? ' card--failed' : ''}${isNeedsAuth ? ' card--needs-auth' : ''}`;
   return (
     <div className={cardClass} tabIndex={0} role="group" aria-label={server.name}>
@@ -49,6 +51,17 @@ export function McpServerCard({
         <div style={{ fontFamily: 'var(--vscode-editor-font-family)', fontSize: 12 }}>
           {server.command}
         </div>
+        {server.plugin && (
+          <div className="card-plugin-meta" role="note" aria-label={t('mcp.card.pluginManageHint')}>
+            <div>{t('mcp.card.pluginProvided', { plugin: server.plugin.id })}</div>
+            <div className="scope-badges">
+              <span className={server.plugin.enabled ? 'badge-enabled' : 'badge-disabled'}>
+                {server.plugin.enabled ? t('mcp.card.pluginEnabled') : t('mcp.card.pluginDisabled')}
+              </span>
+            </div>
+            <div>{t('mcp.card.pluginManageHint')}</div>
+          </div>
+        )}
         {server.fullName !== server.name && (
           <div style={{ fontSize: 11, marginTop: 2 }}>{server.fullName}</div>
         )}
@@ -67,12 +80,12 @@ export function McpServerCard({
         <button className="btn btn-secondary" onClick={onViewDetail}>
           {t('mcp.card.details')}
         </button>
-        {server.scope && (
+        {canManageInMcp && (
           <button className="btn btn-secondary" onClick={onEdit}>
             {t('mcp.card.edit')}
           </button>
         )}
-        {server.scope && (
+        {canManageInMcp && (
           <button className="btn btn-danger" onClick={onRemove}>
             {t('mcp.card.remove')}
           </button>

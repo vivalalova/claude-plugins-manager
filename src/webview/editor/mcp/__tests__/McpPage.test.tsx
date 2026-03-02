@@ -63,6 +63,103 @@ describe('McpPage — 核心流程', () => {
     expect(screen.getByText('project')).toBeTruthy();
   });
 
+  it('混合列表分成兩個 section：一般 MCP 在前，plugin 自帶 MCP 在後', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          makeServer('filesystem'),
+          {
+            name: 'context7',
+            fullName: 'plugin:context7:context7',
+            command: 'npx -y @upstash/context7-mcp',
+            status: 'connected',
+            scope: 'user',
+            plugin: { id: 'context7@official', enabled: true },
+          } satisfies McpServer,
+          makeServer('github'),
+          {
+            name: 'search',
+            fullName: 'plugin:search:search',
+            command: 'npx -y search-mcp',
+            status: 'pending',
+            scope: 'project',
+            plugin: { id: 'search@official', enabled: false },
+          } satisfies McpServer,
+        ];
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('filesystem')).toBeTruthy();
+      expect(screen.getByText('context7')).toBeTruthy();
+    });
+
+    const directSection = screen.getByRole('region', { name: 'MCP Servers' });
+    const pluginSection = screen.getByRole('region', { name: 'Plugin-provided MCP Servers' });
+
+    expect(within(directSection).getByText('filesystem')).toBeTruthy();
+    expect(within(directSection).getByText('github')).toBeTruthy();
+    expect(within(directSection).queryByText('context7')).toBeNull();
+    expect(within(directSection).queryByText('search')).toBeNull();
+
+    expect(within(pluginSection).getByText('context7')).toBeTruthy();
+    expect(within(pluginSection).getByText('search')).toBeTruthy();
+    expect(within(pluginSection).queryByText('filesystem')).toBeNull();
+    expect(within(pluginSection).queryByText('github')).toBeNull();
+
+    const sectionTitles = [...document.querySelectorAll('.mcp-section-title')]
+      .map((el) => el.textContent);
+    expect(sectionTitles).toEqual(['MCP Servers', 'Plugin-provided MCP Servers']);
+  });
+
+  it('只有一般 MCP 時不顯示 plugin section', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [makeServer('filesystem'), makeServer('github')];
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('filesystem')).toBeTruthy();
+    });
+
+    expect(screen.getByRole('region', { name: 'MCP Servers' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Plugin-provided MCP Servers' })).toBeNull();
+  });
+
+  it('只有 plugin 自帶 MCP 時不顯示空的一般 section', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          {
+            name: 'context7',
+            fullName: 'plugin:context7:context7',
+            command: 'npx -y @upstash/context7-mcp',
+            status: 'connected',
+            scope: 'user',
+            plugin: { id: 'context7@official', enabled: true },
+          } satisfies McpServer,
+        ];
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('context7')).toBeTruthy();
+    });
+
+    expect(screen.queryByRole('region', { name: 'MCP Servers' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Plugin-provided MCP Servers' })).toBeTruthy();
+  });
+
   it('載入中顯示 skeleton 卡片', () => {
     // mcp.list never resolves during this test
     mockSendRequest.mockImplementation(() => new Promise(() => {}));
@@ -166,6 +263,48 @@ describe('McpPage — 核心流程', () => {
     });
   });
 
+  it('plugin 自帶 server 顯示來源與 enabled 狀態，且此頁不顯示編輯/移除', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          makeServer('local-tool'),
+          {
+            name: 'context7',
+            fullName: 'plugin:context7:context7',
+            command: 'npx -y @upstash/context7-mcp',
+            status: 'connected',
+            scope: 'user',
+            plugin: { id: 'context7@official', enabled: true },
+          } satisfies McpServer,
+          {
+            name: 'search',
+            fullName: 'plugin:search:search',
+            command: 'npx -y search-mcp',
+            status: 'pending',
+            scope: 'project',
+            plugin: { id: 'search@official', enabled: false },
+          } satisfies McpServer,
+        ];
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('context7')).toBeTruthy();
+      expect(screen.getByText('search')).toBeTruthy();
+    });
+
+    expect(screen.getByText('Provided by plugin context7@official')).toBeTruthy();
+    expect(screen.getByText('Provided by plugin search@official')).toBeTruthy();
+    expect(screen.getByText('Enabled in Plugins')).toBeTruthy();
+    expect(screen.getByText('Disabled in Plugins')).toBeTruthy();
+    expect(screen.getAllByText('Manage from Plugins page')).toHaveLength(2);
+    expect(screen.getAllByText('Edit')).toHaveLength(1);
+    expect(screen.getAllByText('Remove')).toHaveLength(1);
+  });
+
   it('點 "Details" → 送出 mcp.getDetail → 顯示 detail modal', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string; name?: string }) => {
       if (req.type === 'mcp.list') return [makeServer('details-srv')];
@@ -231,6 +370,49 @@ describe('McpPage — 核心流程', () => {
     });
 
     // old server 消失
+    expect(screen.queryByText('old-srv')).toBeNull();
+  });
+
+  it('mcp.statusUpdate push 後仍維持一般 MCP / plugin MCP 分組', async () => {
+    let pushCallback: ((msg: Record<string, unknown>) => void) | undefined;
+    mockOnPushMessage.mockImplementation((cb: (msg: Record<string, unknown>) => void) => {
+      pushCallback = cb;
+      return () => {};
+    });
+
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') return [makeServer('old-srv')];
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('old-srv')).toBeTruthy();
+    });
+
+    await act(async () => {
+      pushCallback!({
+        type: 'mcp.statusUpdate',
+        servers: [
+          makeServer('filesystem'),
+          {
+            name: 'context7',
+            fullName: 'plugin:context7:context7',
+            command: 'npx -y @upstash/context7-mcp',
+            status: 'connected',
+            scope: 'user',
+            plugin: { id: 'context7@official', enabled: true },
+          } satisfies McpServer,
+        ],
+      });
+    });
+
+    const directSection = await screen.findByRole('region', { name: 'MCP Servers' });
+    const pluginSection = await screen.findByRole('region', { name: 'Plugin-provided MCP Servers' });
+
+    expect(within(directSection).getByText('filesystem')).toBeTruthy();
+    expect(within(pluginSection).getByText('context7')).toBeTruthy();
     expect(screen.queryByText('old-srv')).toBeNull();
   });
 

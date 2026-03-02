@@ -48,6 +48,10 @@ export class EditorPanelManager {
 
   /** 打開或切換至指定分類的 editor panel */
   openPanel(category: PanelCategory): void {
+    if (category === 'mcp') {
+      this.mcpService.startPolling();
+    }
+
     if (this.panel) {
       this.panel.title = PANEL_TITLES[category];
       this.currentCategory = category;
