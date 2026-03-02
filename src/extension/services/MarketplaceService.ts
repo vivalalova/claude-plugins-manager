@@ -67,10 +67,28 @@ export class MarketplaceService {
 
   /** 新增 marketplace（Git URL / GitHub repo / 本地路徑） */
   async add(source: string): Promise<void> {
+    const beforeConfig = await this.readConfigIfExists();
+    const beforeNames = new Set(Object.keys(beforeConfig));
+
     await this.cli.exec(
       ['plugin', 'marketplace', 'add', source],
       { timeout: CLI_LONG_TIMEOUT_MS },
     );
+
+    const afterRaw = await fs.readFile(CONFIG_PATH, 'utf-8');
+    const afterConfig: RawMarketplaceConfig = JSON.parse(afterRaw);
+
+    let changed = false;
+    for (const [name, entry] of Object.entries(afterConfig)) {
+      if (!beforeNames.has(name) && entry.autoUpdate !== true) {
+        entry.autoUpdate = true;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await fs.writeFile(CONFIG_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
+    }
   }
 
   /** 移除 marketplace */
@@ -257,5 +275,17 @@ export class MarketplaceService {
       }
     }
     return results;
+  }
+
+  private async readConfigIfExists(): Promise<RawMarketplaceConfig> {
+    try {
+      const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
+      return JSON.parse(raw) as RawMarketplaceConfig;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return {};
+      }
+      throw error;
+    }
   }
 }
