@@ -181,6 +181,18 @@ export const TRANSLATE_LANGS: Record<string, string> = {
   fr: 'Français',
   de: 'Deutsch',
   es: 'Español',
+  pt: 'Português',
+  it: 'Italiano',
+  ru: 'Русский',
+  ar: 'العربية',
+  th: 'ไทย',
+  vi: 'Tiếng Việt',
+  id: 'Bahasa Indonesia',
+  tr: 'Türkçe',
+  pl: 'Polski',
+  nl: 'Nederlands',
+  uk: 'Українська',
+  hi: 'हिन्दी',
 };
 
 /**
