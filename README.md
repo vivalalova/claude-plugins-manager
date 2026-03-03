@@ -33,22 +33,6 @@ npm run uninstall:ext  # Uninstall from VSCode
 ```bash
 npm run watch     # Watch mode (extension + webview)
 npm run typecheck # Type check (dual tsconfig)
-npm test          # Run tests (vitest, 159 tests)
+npm test          # Run tests (vitest, 765 tests)
 npm run build     # Production build
-```
-
-## Architecture
-
-```text
-src/
-  extension/              # Extension Host (Node.js)
-    services/             # Settings, Plugin, Marketplace, Mcp, Cli, Translation
-    messaging/            # MessageRouter + protocol types
-    providers/            # SidebarViewProvider, EditorPanelManager
-  webview/                # React 19 UI (browser)
-    sidebar/              # Sidebar navigation
-    editor/               # Editor panels (marketplace, plugin, mcp)
-    components/           # Shared UI components
-    utils/                # Shared utilities
-  shared/                 # Types shared between extension and webview
 ```

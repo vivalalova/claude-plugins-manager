@@ -4,7 +4,7 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（697 tests）
+npm test                   # vitest run（765 tests）
 npm run build              # esbuild 雙配置（extension + webview）
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
@@ -56,7 +56,7 @@ npm run watch              # concurrently watch extension + webview
 ## 測試
 
 - 框架：vitest + `@testing-library/react`（jsdom）
-- 位置：`src/extension/services/__tests__/`（含 `*.integration.test.ts`）、`src/webview/editor/**/__tests__/`
+- 位置：`src/extension/services/__tests__/`（含 `*.integration.test.ts`）、`src/webview/__tests__/`、`src/webview/editor/**/__tests__/`
 - Mock 慣例：`vi.hoisted()` + `vi.mock()` factory（不用 `require`）
 - PluginService 測試 mock `SettingsFileService`（非 CLI）
 - `promisify(execFile)` 的 mock 用 callback 形式：`cb(null, { stdout })`
