@@ -376,5 +376,51 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.description).toBe('from marketplace');
       expect(plugin!.version).toBe('0.5.0');
     });
+
+    it('plugin .mcp.json 使用 mcpServers wrapper 時，contents.mcpServers 只包含實際 server 名稱', async () => {
+      const mpName = `scan-mp-mcp-wrapper-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const pluginDir = join(mpDir, 'plugins', 'wrapped-mcp');
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(pluginDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'wrapped-mcp',
+            description: 'has wrapped mcp',
+            version: '1.0.0',
+            source: './plugins/wrapped-mcp',
+          }],
+        }),
+      );
+
+      await writeFile(
+        join(pluginDir, '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            'wrapped-server': {
+              command: 'npx',
+              args: ['-y', 'wrapped-server'],
+            },
+          },
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `wrapped-mcp@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.contents?.mcpServers).toEqual(['wrapped-server']);
+    });
   });
 });

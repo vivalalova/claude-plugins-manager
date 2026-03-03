@@ -123,7 +123,7 @@ describe('activate', () => {
       state.sidebarProviderInstance,
     );
     expect(commands.registerCommand).toHaveBeenCalledTimes(3);
-    expect(context.subscriptions).toHaveLength(8);
+    expect(context.subscriptions).toHaveLength(9);
 
     const commandCalls = commands.registerCommand.mock.calls;
     commandCalls.find(([id]) => id === COMMANDS.openMarketplace)?.[1]();
@@ -152,14 +152,32 @@ describe('activate', () => {
 
     activate(context as never);
 
-    context.subscriptions[4].dispose?.();
-    context.subscriptions[5].dispose?.();
-    context.subscriptions[6].dispose?.();
-    context.subscriptions[7].dispose?.();
+    for (const disposable of context.subscriptions) {
+      disposable.dispose?.();
+    }
 
     expect(state.editorDispose).toHaveBeenCalledTimes(1);
     expect(state.sidebarDispose).toHaveBeenCalledTimes(1);
     expect(state.mcpDispose).toHaveBeenCalledTimes(1);
     expect(state.fileWatcherDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('workspace folder listener 會加入 subscriptions，dispose 後不再觸發 mcp cache invalidate', () => {
+    const context = {
+      extensionUri: { fsPath: '/extension' },
+      subscriptions: [] as Array<{ dispose?: () => void }>,
+    };
+
+    activate(context as never);
+
+    expect(context.subscriptions).toHaveLength(9);
+
+    for (const disposable of context.subscriptions) {
+      disposable.dispose?.();
+    }
+
+    mockWorkspaceFoldersChangeEmitter.fire();
+
+    expect(state.mcpInvalidateMetadataCache).not.toHaveBeenCalled();
   });
 });

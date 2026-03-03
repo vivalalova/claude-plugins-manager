@@ -34,7 +34,9 @@ export function activate(context: vscode.ExtensionContext): void {
     mcpService.triggerPoll();
   });
   // Workspace 切換 → invalidate（不同 workspace 有不同的 .mcp.json）
-  vscode.workspace.onDidChangeWorkspaceFolders(() => mcpService.invalidateMetadataCache());
+  const workspaceFolderDisposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    mcpService.invalidateMetadataCache();
+  });
   const editorManager = new EditorPanelManager(context.extensionUri, router, mcpService, fileWatcherService);
 
   const sidebarProvider = new SidebarViewProvider(
@@ -64,6 +66,7 @@ export function activate(context: vscode.ExtensionContext): void {
         editorManager.openPanel('mcp');
       },
     ),
+    workspaceFolderDisposable,
     { dispose: () => editorManager.dispose() },
     { dispose: () => sidebarProvider.dispose() },
     { dispose: () => mcpService.dispose() },

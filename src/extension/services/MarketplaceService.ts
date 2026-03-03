@@ -264,11 +264,15 @@ export class MarketplaceService {
     const rawFile = await vscode.workspace.fs.readFile(uris[0]);
     const content = Buffer.from(rawFile).toString('utf-8');
 
-    const addRegex = /claude\s+plugin\s+marketplace\s+add\s+["']?([^\s"']+)["']?/g;
     const sources: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = addRegex.exec(content)) !== null) {
-      sources.push(match[1]);
+    const prefix = 'claude plugin marketplace add ';
+    for (const rawLine of content.split('\n')) {
+      const line = rawLine.trim();
+      if (!line.startsWith(prefix)) continue;
+      const source = this.parseShellToken(line.slice(prefix.length).trim());
+      if (source) {
+        sources.push(source);
+      }
     }
 
     if (sources.length === 0) {
@@ -285,6 +289,59 @@ export class MarketplaceService {
       }
     }
     return results;
+  }
+
+  /** 解析 shell command 中的第一個 token，支援 quoted/unquoted 與 shell escaped quote */
+  private parseShellToken(raw: string): string | null {
+    if (!raw) return null;
+
+    let i = 0;
+    let result = '';
+
+    while (i < raw.length) {
+      const ch = raw[i];
+      if (/\s/.test(ch)) break;
+
+      if (ch === '\'') {
+        i++;
+        while (i < raw.length && raw[i] !== '\'') {
+          result += raw[i];
+          i++;
+        }
+        if (i >= raw.length) {
+          throw new Error('Unterminated single-quoted string in marketplace import script.');
+        }
+        i++;
+        continue;
+      }
+
+      if (ch === '"') {
+        i++;
+        while (i < raw.length && raw[i] !== '"') {
+          if (raw[i] === '\\' && i + 1 < raw.length) {
+            i++;
+          }
+          result += raw[i];
+          i++;
+        }
+        if (i >= raw.length) {
+          throw new Error('Unterminated double-quoted string in marketplace import script.');
+        }
+        i++;
+        continue;
+      }
+
+      if (ch === '\\' && i + 1 < raw.length) {
+        result += raw[i + 1];
+        i += 2;
+        continue;
+      }
+
+      result += ch;
+      i++;
+    }
+
+    return result || null;
   }
 
   private async readConfigIfExists(): Promise<RawMarketplaceConfig> {

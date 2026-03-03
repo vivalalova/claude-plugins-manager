@@ -305,7 +305,10 @@ export class SettingsFileService {
       this.scanSkillsDir(join(pluginDir, 'skills')),
       this.scanMdDir(join(pluginDir, 'agents')),
       this.readJson<Record<string, unknown>>(join(pluginDir, '.mcp.json'))
-        .then((mcp) => Object.keys(mcp))
+        .then((mcp) => {
+          const servers = this.unwrapMcpServers(mcp);
+          return Object.keys(servers);
+        })
         .catch(() => [] as string[]),
       stat(join(pluginDir, 'hooks', 'hooks.json'))
         .then(() => true)
@@ -319,6 +322,15 @@ export class SettingsFileService {
     contents.hooks = hasHooks;
 
     return contents;
+  }
+
+  /** 解包 plugin .mcp.json，支援 `{ mcpServers: {...} }` 與直接 server map 兩種格式 */
+  private unwrapMcpServers(mcp: Record<string, unknown>): Record<string, unknown> {
+    const candidate = 'mcpServers' in mcp ? mcp.mcpServers : mcp;
+    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+      throw new Error('mcpServers must be an object');
+    }
+    return candidate as Record<string, unknown>;
   }
 
   /**
