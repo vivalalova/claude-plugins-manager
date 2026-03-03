@@ -10,7 +10,7 @@ import { AddMcpDialog } from './AddMcpDialog';
 import type { EditServerInfo } from './AddMcpDialog';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useToast } from '../../components/Toast';
-import type { McpServer } from '../../../shared/types';
+import type { McpAddParams, McpServer } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 
 /** 檢查字串是否為合法 JSON */
@@ -25,11 +25,18 @@ function isValidJson(str: string): boolean {
 
 /** 從 McpServer 建構編輯 dialog 預填資訊（優先用結構化 config） */
 export function buildEditServerInfo(server: McpServer): EditServerInfo {
+  const config = server.config;
+  const headers = config?.headers
+    ? Object.entries(config.headers).map(([key, value]) => `${key}: ${value}`)
+    : undefined;
   return {
     name: server.name,
-    commandOrUrl: server.config?.command ?? server.command,
-    args: server.config?.args,
+    commandOrUrl: config?.url ?? config?.command ?? server.command,
+    args: config?.args,
+    transport: config?.transport,
     scope: server.scope,
+    env: config?.env,
+    headers,
   };
 }
 
@@ -45,7 +52,7 @@ export function McpPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingServer, setEditingServer] = useState<EditServerInfo | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{ name: string; scope?: McpAddParams['scope'] } | null>(null);
   const [detailText, setDetailText] = useState<string | null>(null);
   const [pollUnavailable, setPollUnavailable] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -107,11 +114,11 @@ export function McpPage(): React.ReactElement {
     return { direct, pluginProvided };
   }, [servers]);
 
-  const handleRemove = async (name: string): Promise<void> => {
+  const handleRemove = async (name: string, scope?: McpAddParams['scope']): Promise<void> => {
     setConfirmRemove(null);
     setError(null);
     try {
-      await sendRequest({ type: 'mcp.remove', name });
+      await sendRequest({ type: 'mcp.remove', name, scope });
       await fetchList();
       addToast('MCP server removed');
     } catch (e) {
@@ -192,10 +199,10 @@ export function McpPage(): React.ReactElement {
       <div className="card-list">
         {sectionServers.map((server) => (
           <McpServerCard
-            key={server.fullName}
+            key={`${server.scope ?? 'none'}:${server.fullName}`}
             server={server}
             onEdit={() => handleEdit(server)}
-            onRemove={() => setConfirmRemove(server.name)}
+            onRemove={() => setConfirmRemove({ name: server.name, scope: server.scope })}
             onViewDetail={() => handleViewDetail(server.fullName)}
             onRetry={handleRefreshStatus}
             onAuthenticate={handleRefreshStatus}
@@ -283,10 +290,10 @@ export function McpPage(): React.ReactElement {
       {confirmRemove && (
         <ConfirmDialog
           title="Remove MCP Server"
-          message={`Remove "${confirmRemove}"?`}
+          message={`Remove "${confirmRemove.name}"?`}
           confirmLabel="Remove"
           danger
-          onConfirm={() => handleRemove(confirmRemove)}
+          onConfirm={() => handleRemove(confirmRemove.name, confirmRemove.scope)}
           onCancel={() => setConfirmRemove(null)}
         />
       )}

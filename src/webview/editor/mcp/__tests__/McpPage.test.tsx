@@ -263,6 +263,47 @@ describe('McpPage — 核心流程', () => {
     });
   });
 
+  it('同名不同 scope 的 server：移除要帶出被點選卡片的 scope', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          { ...makeServer('shared-name'), scope: 'user' },
+          { ...makeServer('shared-name'), scope: 'project' },
+        ];
+      }
+      if (req.type === 'mcp.remove') return undefined;
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('shared-name')).toHaveLength(2);
+    });
+
+    const projectCard = screen.getByText('project').closest('.card');
+    expect(projectCard).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(within(projectCard as HTMLElement).getByText('Remove'));
+    });
+
+    await act(async () => {
+      const dialog = within(screen.getByRole('dialog'));
+      fireEvent.click(dialog.getByRole('button', { name: 'Remove' }));
+    });
+
+    const removeCall = mockSendRequest.mock.calls
+      .map((args: unknown[]) => args[0] as { type: string; name?: string; scope?: string })
+      .find((req) => req.type === 'mcp.remove');
+
+    expect(removeCall).toEqual({
+      type: 'mcp.remove',
+      name: 'shared-name',
+      scope: 'project',
+    });
+  });
+
   it('plugin 自帶 server 顯示來源與 enabled 狀態，且此頁不顯示編輯/移除', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') {

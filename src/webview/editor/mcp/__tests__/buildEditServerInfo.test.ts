@@ -94,6 +94,32 @@ describe('buildEditServerInfo', () => {
     });
   });
 
+  it('URL 型 config 會保留 transport、env、headers', () => {
+    const server: McpServer = {
+      name: 'remote',
+      fullName: 'remote',
+      command: 'https://api.example.com/mcp',
+      status: 'connected',
+      scope: 'project',
+      config: {
+        url: 'https://api.example.com/mcp',
+        transport: 'sse',
+        env: { API_KEY: 'secret' },
+        headers: { Authorization: 'Bearer token', 'X-Trace': 'abc' },
+      },
+    };
+
+    expect(buildEditServerInfo(server)).toEqual({
+      name: 'remote',
+      commandOrUrl: 'https://api.example.com/mcp',
+      transport: 'sse',
+      env: { API_KEY: 'secret' },
+      headers: ['Authorization: Bearer token', 'X-Trace: abc'],
+      args: undefined,
+      scope: 'project',
+    });
+  });
+
   it('config 有 args=[] 時保留空陣列', () => {
     const server: McpServer = {
       name: 'simple',

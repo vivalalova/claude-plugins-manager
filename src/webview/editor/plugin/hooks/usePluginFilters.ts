@@ -117,7 +117,9 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       { key: PLUGIN_HIDDEN_KEY, fallback: [] },
       { key: PLUGIN_SHOW_HIDDEN_KEY, fallback: false },
     ]).then(() => {
-      setSearch(getViewState(PLUGIN_SEARCH_KEY, ''));
+      const persistedSearch = getViewState(PLUGIN_SEARCH_KEY, '');
+      setSearch(persistedSearch);
+      flushSearch(persistedSearch);
       setFilterEnabled(getViewState(PLUGIN_FILTER_ENABLED_KEY, false));
       setContentTypeFilters(readContentTypeFilters());
       setSortBy(readPluginSort());
@@ -131,7 +133,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       console.error('[usePluginFilters] init failed, using viewState fallback', err);
       setReady(true);
     });
-  }, []);
+  }, [flushSearch]);
 
   // Filter 狀態持久化 → viewState 快取 + globalState 持久化
   // ready guard：避免 mount 時用初始值覆蓋尚未讀回的持久化資料

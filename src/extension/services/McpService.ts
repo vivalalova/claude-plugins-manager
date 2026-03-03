@@ -54,9 +54,7 @@ export class McpService {
     for (const [fullName, meta] of metaMap) {
       const nameParts = fullName.split(':');
       const name = nameParts[nameParts.length - 1];
-      const command = meta.config
-        ? [meta.config.command, ...(meta.config.args ?? [])].join(' ')
-        : name;
+      const command = this.formatServerCommand(name, meta.config);
       servers.push({
         name,
         fullName,
@@ -86,8 +84,10 @@ export class McpService {
     ]);
     const servers = this.parseMcpList(output);
     for (const server of servers) {
-      const meta = metaMap.get(server.fullName) ?? metaMap.get(server.name);
+      const [resolvedFullName, meta] = this.resolveServerMetadata(server, metaMap);
       if (meta) {
+        server.fullName = resolvedFullName;
+        server.command = this.formatServerCommand(server.name, meta.config, server.command);
         server.scope = meta.scope;
         server.config = meta.config;
         server.plugin = meta.plugin;
@@ -164,9 +164,12 @@ export class McpService {
     if (meta) {
       detail.scope = meta.scope;
       if (meta.config) {
-        detail.command = meta.config.command;
+        if (meta.config.command) detail.command = meta.config.command;
+        if (meta.config.url) detail.url = meta.config.url;
         if (meta.config.args?.length) detail.args = meta.config.args;
         if (meta.config.env && Object.keys(meta.config.env).length > 0) detail.env = meta.config.env;
+        if (meta.config.headers && Object.keys(meta.config.headers).length > 0) detail.headers = meta.config.headers;
+        if (meta.config.transport) detail.transport = meta.config.transport;
       }
     }
     if (!meta?.config && cached) {
@@ -273,15 +276,16 @@ export class McpService {
    * fullName 格式：`plugin:<pluginName>:<mcpServerName>`
    */
   private async getPluginMcpDetail(fullName: string): Promise<string> {
-    const [, pluginName, mcpServerName] = fullName.split(':');
+    const match = fullName.match(/^plugin:([^:]+):(.+)$/);
+    if (!match) {
+      throw new Error(`Invalid plugin MCP name: ${fullName}`);
+    }
+    const [, pluginKey, mcpServerName] = match;
     const installedPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
     const installed = JSON.parse(await readFile(installedPath, 'utf-8'));
 
-    // key 格式: <pluginName>@<marketplace>
-    const pluginKey = Object.keys(installed.plugins)
-      .find((k: string) => k.startsWith(`${pluginName}@`));
-    if (!pluginKey) {
-      throw new Error(`Plugin not found: ${pluginName}`);
+    if (!(pluginKey in installed.plugins)) {
+      throw new Error(`Plugin not found: ${pluginKey}`);
     }
 
     const entries = installed.plugins[pluginKey] as Array<{
@@ -402,15 +406,14 @@ export class McpService {
           }
 
           const entry = this.pickPreferredPluginEntry(relevantEntries, pluginKey, enabledByScope);
-          const pluginBaseName = pluginKey.split('@')[0];
 
           try {
             const mcpRaw = await readFile(join(entry.installPath, '.mcp.json'), 'utf-8');
             const mcpJson = JSON.parse(mcpRaw) as Record<string, unknown>;
             const pluginServers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
             for (const [serverName, config] of Object.entries(pluginServers)) {
-              if (typeof config === 'object' && config && 'command' in config) {
-                map.set(`plugin:${pluginBaseName}:${serverName}`, {
+              if (this.isValidMcpServerConfig(config)) {
+                map.set(`plugin:${pluginKey}:${serverName}`, {
                   scope: entry.scope as McpScope,
                   config,
                   plugin: {
@@ -582,5 +585,53 @@ export class McpService {
     }
     const err = error as NodeJS.ErrnoException;
     return err.code === 'ENOENT' || err.message === 'ENOENT' || err.message.includes('ENOENT');
+  }
+
+  private formatServerCommand(name: string, config?: McpServerConfig, fallback = name): string {
+    if (!config) {
+      return fallback;
+    }
+    if (config.url) {
+      return config.url;
+    }
+    if (config.command) {
+      return [config.command, ...(config.args ?? [])].join(' ');
+    }
+    return fallback;
+  }
+
+  private isValidMcpServerConfig(config: unknown): config is McpServerConfig {
+    if (typeof config !== 'object' || config === null) {
+      return false;
+    }
+    const candidate = config as McpServerConfig;
+    return typeof candidate.command === 'string' || typeof candidate.url === 'string';
+  }
+
+  private resolveServerMetadata(
+    server: McpServer,
+    metaMap: Map<string, { scope: McpScope; config?: McpServerConfig; plugin?: McpServer['plugin'] }>,
+  ): [string, { scope: McpScope; config?: McpServerConfig; plugin?: McpServer['plugin'] } | undefined] {
+    const direct = metaMap.get(server.fullName) ?? metaMap.get(server.name);
+    if (direct) {
+      return [server.fullName, direct];
+    }
+
+    const candidates = [...metaMap.entries()].filter(([fullName, meta]) => {
+      if (!meta.plugin) {
+        return false;
+      }
+      const shortName = fullName.split(':').pop();
+      if (shortName !== server.name) {
+        return false;
+      }
+      return this.formatServerCommand(server.name, meta.config) === server.command;
+    });
+
+    if (candidates.length === 1) {
+      return [candidates[0][0], candidates[0][1]];
+    }
+
+    return [server.fullName, undefined];
   }
 }

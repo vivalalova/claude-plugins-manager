@@ -5,14 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { MergedPlugin } from '../../../../../shared/types';
 
-const { mockViewState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => {
+const { mockViewState, mockPersistedState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => {
   const mockViewState: Record<string, unknown> = {};
+  const mockPersistedState: Record<string, unknown> = {};
   const mockSetGlobalState = vi.fn(async (key: string, value: unknown) => {
     mockViewState[key] = value;
   });
-  const mockInitGlobalState = vi.fn(async (entries: Array<{ key: string; fallback: unknown }>) =>
-    Object.fromEntries(entries.map(({ key, fallback }) => [key, key in mockViewState ? mockViewState[key] : fallback])));
-  return { mockViewState, mockSetGlobalState, mockInitGlobalState };
+  const mockInitGlobalState = vi.fn(async (entries: Array<{ key: string; fallback: unknown }>) => {
+    for (const { key, fallback } of entries) {
+      mockViewState[key] = key in mockPersistedState ? mockPersistedState[key] : key in mockViewState ? mockViewState[key] : fallback;
+    }
+    return Object.fromEntries(entries.map(({ key }) => [key, mockViewState[key]]));
+  });
+  return { mockViewState, mockPersistedState, mockSetGlobalState, mockInitGlobalState };
 });
 
 vi.mock('../../../../vscode', () => ({
@@ -41,6 +46,7 @@ describe('usePluginFilters', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const key of Object.keys(mockViewState)) delete mockViewState[key];
+    for (const key of Object.keys(mockPersistedState)) delete mockPersistedState[key];
   });
 
   afterEach(() => {
@@ -117,5 +123,35 @@ describe('usePluginFilters', () => {
       sectionOrder: [],
       sectionNames: undefined,
     });
+  });
+
+  it('初始化讀回持久化 search 時，不會先把舊 debounce 值寫回覆蓋', async () => {
+    vi.useFakeTimers();
+    mockViewState['plugin.search'] = '';
+    mockPersistedState['plugin.search'] = 'persisted';
+
+    try {
+      const { result } = renderHook(() => usePluginFilters([
+        makePlugin('alpha@mp1'),
+      ]));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.ready).toBe(true);
+      expect(result.current.search).toBe('persisted');
+      expect(result.current.debouncedSearch).toBe('persisted');
+      expect(mockViewState['plugin.search']).toBe('persisted');
+      expect(mockSetGlobalState).not.toHaveBeenCalledWith('plugin.search', '');
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(mockViewState['plugin.search']).toBe('persisted');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

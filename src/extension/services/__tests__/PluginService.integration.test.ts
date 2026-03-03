@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { mkdirSync, rmSync } from 'fs';
-import { writeFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { workspace } from 'vscode';
 
@@ -190,6 +190,28 @@ describe('PluginService（integration / 真實 SettingsFileService + filesystem�
     const projectPlugins = await settings.readEnabledPlugins('project');
     expect(userPlugins).toEqual({});
     expect(projectPlugins).toEqual({});
+  });
+
+  it('fresh workspace 尚未建立 .claude/ 時，disableAll 仍能清空 project/local scope', async () => {
+    await svc.disableAll();
+
+    const projectSettings = JSON.parse(
+      await readFile(join(workspaceDir, '.claude', 'settings.json'), 'utf-8'),
+    );
+    const localSettings = JSON.parse(
+      await readFile(join(workspaceDir, '.claude', 'settings.local.json'), 'utf-8'),
+    );
+
+    expect(projectSettings.enabledPlugins).toEqual({});
+    expect(localSettings.enabledPlugins).toEqual({});
+  });
+
+  it('project settings JSON 損壞時，listInstalled 直接拋錯，不靜默視為 disabled', async () => {
+    mkdirSync(join(workspaceDir, '.claude'), { recursive: true });
+    await writeFile(join(workspaceDir, '.claude', 'settings.json'), '{broken');
+
+    await expect(svc.listInstalled()).rejects.toThrow(/Invalid JSON/);
+    await expect(svc.listInstalled()).rejects.toThrow(join(workspaceDir, '.claude', 'settings.json'));
   });
 
   /* ═══════ fresh install (CLI 路徑) ═══════ */

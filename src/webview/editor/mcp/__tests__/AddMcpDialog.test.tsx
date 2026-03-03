@@ -170,5 +170,41 @@ describe('AddMcpDialog', () => {
         });
       });
     });
+
+    it('URL 型 edit server 會保留 transport、env、headers 後再送出', async () => {
+      const remoteServer: EditServerInfo = {
+        name: 'remote',
+        commandOrUrl: 'https://api.example.com/mcp',
+        transport: 'sse',
+        scope: 'project',
+        env: { API_KEY: 'secret' },
+        headers: ['Authorization: Bearer token', 'X-Trace: abc'],
+      };
+
+      renderWithI18n(
+        <AddMcpDialog onAdded={onAdded} onCancel={onCancel} editServer={remoteServer} />,
+      );
+
+      expect(screen.getByDisplayValue('sse')).toBeTruthy();
+      expect((screen.getByLabelText('Env vars') as HTMLTextAreaElement).value).toBe('API_KEY=secret');
+      expect((screen.getByLabelText('Headers') as HTMLTextAreaElement).value).toBe('Authorization: Bearer token\nX-Trace: abc');
+
+      fireEvent.click(screen.getByText('Update Server'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenNthCalledWith(2, {
+          type: 'mcp.add',
+          params: {
+            name: 'remote',
+            commandOrUrl: 'https://api.example.com/mcp',
+            args: undefined,
+            transport: 'sse',
+            scope: 'project',
+            env: { API_KEY: 'secret' },
+            headers: ['Authorization: Bearer token', 'X-Trace: abc'],
+          },
+        });
+      });
+    });
   });
 });

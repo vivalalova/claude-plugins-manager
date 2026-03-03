@@ -132,9 +132,12 @@ export type McpScope = 'local' | 'user' | 'project';
 
 /** MCP Server 配置（plugin 自帶的 .mcp.json 格式） */
 export interface McpServerConfig {
-  command: string;
+  command?: string;
+  url?: string;
   args?: string[];
   env?: Record<string, string>;
+  headers?: Record<string, string>;
+  transport?: 'stdio' | 'sse' | 'http';
 }
 
 /** plugin 自帶的 MCP 來源資訊 */

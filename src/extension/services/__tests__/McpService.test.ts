@@ -141,7 +141,7 @@ describe('McpService', () => {
           scope: 'user', config: { command: 'npx', args: ['-y', 'user-mcp'] },
         },
         {
-          name: 'context7', fullName: 'plugin:context7:context7',
+          name: 'context7', fullName: 'plugin:context7@official:context7',
           command: 'npx -y @upstash/context7-mcp', status: 'pending',
           scope: 'user', config: { command: 'npx', args: ['-y', '@upstash/context7-mcp'] },
           plugin: { id: 'context7@official', enabled: true },
@@ -180,8 +180,8 @@ describe('McpService', () => {
       // pluginC 無 .mcp.json → 不列出
       expect(result).toHaveLength(2);
       expect(result.map((s) => s.fullName)).toEqual([
-        'plugin:pluginA:srv-a',
-        'plugin:pluginB:srv-b',
+        'plugin:pluginA@market:srv-a',
+        'plugin:pluginB@market:srv-b',
       ]);
     });
 
@@ -239,7 +239,7 @@ describe('McpService', () => {
       expect(result).toEqual([
         {
           name: 'context7',
-          fullName: 'plugin:context7:context7',
+          fullName: 'plugin:context7@official:context7',
           command: 'npx project-context7',
           status: 'pending',
           scope: 'project',
@@ -274,6 +274,75 @@ describe('McpService', () => {
       });
 
       await expect(svc.listFromFiles()).rejects.toThrow('Invalid JSON in settings.json');
+    });
+
+    it('URL 型 MCP config 顯示為 URL，保留 transport 與 headers', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) return JSON.stringify({});
+        if (path.includes('.mcp.json')) {
+          return JSON.stringify({
+            mcpServers: {
+              remote: {
+                url: 'https://api.example.com/mcp',
+                transport: 'sse',
+                headers: { Authorization: 'Bearer token' },
+                env: { API_KEY: 'secret' },
+              },
+            },
+          });
+        }
+        throw enoent();
+      });
+
+      await expect(svc.listFromFiles()).resolves.toEqual([
+        {
+          name: 'remote',
+          fullName: 'remote',
+          command: 'https://api.example.com/mcp',
+          status: 'pending',
+          scope: 'project',
+          config: {
+            url: 'https://api.example.com/mcp',
+            transport: 'sse',
+            headers: { Authorization: 'Bearer token' },
+            env: { API_KEY: 'secret' },
+          },
+        },
+      ]);
+    });
+
+    it('同 base name 不同 marketplace 的 plugin MCP 會保留獨立 fullName', async () => {
+      settings.readEnabledPlugins = vi.fn().mockResolvedValue({});
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) return JSON.stringify({});
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'shared@official': [{ scope: 'user', installPath: '/cache/official' }],
+              'shared@community': [{ scope: 'user', installPath: '/cache/community' }],
+            },
+          });
+        }
+        if (path === '/cache/official/.mcp.json') {
+          return JSON.stringify({ remote: { command: 'npx', args: ['official'] } });
+        }
+        if (path === '/cache/community/.mcp.json') {
+          return JSON.stringify({ remote: { command: 'npx', args: ['community'] } });
+        }
+        throw enoent();
+      });
+
+      const result = await svc.listFromFiles();
+
+      expect(result.map((server) => server.fullName)).toEqual([
+        'plugin:shared@official:remote',
+        'plugin:shared@community:remote',
+      ]);
     });
   });
 
@@ -644,12 +713,90 @@ describe('McpService', () => {
         throw enoent();
       });
 
-      const detail = JSON.parse(await svc.getDetail('plugin:context7:context7'));
+      const detail = JSON.parse(await svc.getDetail('plugin:context7@official:context7'));
 
       expect(detail.scope).toBe('project');
       expect(detail.enabled).toBe(true);
       expect(detail.installPath).toBe('/cache/project');
       expect(detail.config).toEqual({ command: 'npx', args: ['project-context7'] });
+    });
+
+    it('URL 型 server detail 會保留 url、transport、headers、env', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.mcp.json')) {
+          return JSON.stringify({
+            mcpServers: {
+              remote: {
+                url: 'https://api.example.com/mcp',
+                transport: 'http',
+                headers: { Authorization: 'Bearer token' },
+                env: { API_KEY: 'secret' },
+              },
+            },
+          });
+        }
+        throw enoent();
+      });
+
+      const detail = JSON.parse(await svc.getDetail('remote'));
+
+      expect(detail.url).toBe('https://api.example.com/mcp');
+      expect(detail.transport).toBe('http');
+      expect(detail.headers).toEqual({ Authorization: 'Bearer token' });
+      expect(detail.env).toEqual({ API_KEY: 'secret' });
+    });
+
+    it('同 base name 不同 marketplace 的 plugin detail 依 canonical fullName 命中正確 plugin', async () => {
+      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
+        if (scope === 'user') return { 'shared@community': true, 'shared@official': false };
+        return {};
+      });
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'shared@official': [
+                {
+                  scope: 'user',
+                  installPath: '/cache/official',
+                  installedAt: '2026-01-01T00:00:00Z',
+                  lastUpdated: '2026-01-01T00:00:00Z',
+                },
+              ],
+              'shared@community': [
+                {
+                  scope: 'user',
+                  installPath: '/cache/community',
+                  installedAt: '2026-01-02T00:00:00Z',
+                  lastUpdated: '2026-01-02T00:00:00Z',
+                },
+              ],
+            },
+          });
+        }
+        if (path === '/cache/official/.mcp.json') {
+          return JSON.stringify({ remote: { command: 'npx', args: ['official'] } });
+        }
+        if (path === '/cache/community/.mcp.json') {
+          return JSON.stringify({ remote: { command: 'npx', args: ['community'] } });
+        }
+        if (path.endsWith('.claude-plugin/plugin.json')) {
+          return JSON.stringify({});
+        }
+        throw enoent();
+      });
+
+      const detail = JSON.parse(await svc.getDetail('plugin:shared@community:remote'));
+
+      expect(detail.plugin).toBe('shared@community');
+      expect(detail.installPath).toBe('/cache/community');
+      expect(detail.config).toEqual({ command: 'npx', args: ['community'] });
     });
   });
 

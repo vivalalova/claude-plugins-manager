@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../../vscode';
 import type {
   InstalledPlugin,
@@ -125,21 +125,40 @@ export function usePluginData(): UsePluginDataReturn {
   const [error, setError] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([]);
   const [marketplaceSources, setMarketplaceSources] = useState<Record<string, string>>({});
+  const latestRequestIdRef = useRef(0);
 
   /** 拉取完整列表。showSpinner=false 時靜默刷新，避免畫面閃爍 */
   const fetchAll = useCallback(async (showSpinner = true) => {
+    const requestId = ++latestRequestIdRef.current;
     if (showSpinner) setLoading(true);
     setError(null);
-    try {
-      const data = await sendRequest<PluginListResponse>(
+    const [pluginResult, workspaceResult] = await Promise.allSettled([
+      sendRequest<PluginListResponse>(
         { type: 'plugin.listAvailable' },
-      );
-      setPlugins(mergePlugins(data.installed, data.available));
-      setMarketplaceSources(data.marketplaceSources ?? {});
+      ),
+      sendRequest<WorkspaceFolder[]>({ type: 'workspace.getFolders' }),
+    ]);
+
+    if (requestId !== latestRequestIdRef.current) {
+      return;
+    }
+
+    try {
+      if (pluginResult.status === 'fulfilled') {
+        const data = pluginResult.value;
+        setPlugins(mergePlugins(data.installed, data.available));
+        setMarketplaceSources(data.marketplaceSources ?? {});
+      } else {
+        throw pluginResult.reason;
+      }
+
+      if (workspaceResult.status === 'fulfilled') {
+        setWorkspaceFolders(workspaceResult.value);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      if (showSpinner) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
@@ -155,13 +174,6 @@ export function usePluginData(): UsePluginDataReturn {
     });
     return unsubscribe;
   }, [fetchAll]);
-
-  // 取得 workspace folders
-  useEffect(() => {
-    sendRequest<WorkspaceFolder[]>({ type: 'workspace.getFolders' })
-      .then(setWorkspaceFolders)
-      .catch(() => {});
-  }, []);
 
   return {
     plugins,

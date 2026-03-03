@@ -63,6 +63,9 @@ export class SettingsFileService {
     const path = this.getSettingsPath(scope);
     const settings = await this.readJson<Record<string, unknown>>(path);
     settings.enabledPlugins = {};
+    if (scope !== 'user') {
+      await mkdir(dirname(path), { recursive: true });
+    }
     await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
   }
 

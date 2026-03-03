@@ -13,7 +13,10 @@ export interface EditServerInfo {
   name: string;
   commandOrUrl: string;
   args?: string[];
+  transport?: McpAddParams['transport'];
   scope?: McpScope;
+  env?: Record<string, string>;
+  headers?: string[];
 }
 
 interface AddMcpDialogProps {
@@ -39,9 +42,15 @@ export function AddMcpDialog({
   // Form mode state（編輯模式預填）
   const [name, setName] = useState(editServer?.name ?? '');
   const [commandOrUrl, setCommandOrUrl] = useState(editServer?.commandOrUrl ?? '');
-  const [transport, setTransport] = useState('stdio');
-  const [envText, setEnvText] = useState('');
-  const [headersText, setHeadersText] = useState('');
+  const [transport, setTransport] = useState<McpAddParams['transport']>(editServer?.transport ?? 'stdio');
+  const [envText, setEnvText] = useState(() =>
+    editServer?.env
+      ? Object.entries(editServer.env)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n')
+      : '',
+  );
+  const [headersText, setHeadersText] = useState(() => editServer?.headers?.join('\n') ?? '');
 
   // JSON mode state
   const [jsonText, setJsonText] = useState('');
@@ -209,7 +218,12 @@ export function AddMcpDialog({
 
             <div className="form-row">
               <label className="form-label" htmlFor={transportId}>Transport</label>
-              <select id={transportId} className="select" value={transport} onChange={(e) => setTransport(e.target.value)}>
+              <select
+                id={transportId}
+                className="select"
+                value={transport}
+                onChange={(e) => setTransport(e.target.value as McpAddParams['transport'])}
+              >
                 <option value="stdio">stdio</option>
                 <option value="http">http</option>
                 <option value="sse">sse</option>

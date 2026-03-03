@@ -144,4 +144,93 @@ describe('usePluginData', () => {
     expect(result.current.plugins).toEqual([]);
     expect(result.current.error).toBe('network down');
   });
+
+  it('較舊的 fetchAll 結果晚到時，不得覆寫較新的列表', async () => {
+    let resolveFirst: ((value: PluginListResponse) => void) | undefined;
+    let resolveSecond: ((value: PluginListResponse) => void) | undefined;
+    let requestCount = 0;
+
+    mockSendRequest.mockImplementation((request: { type: string }) => {
+      if (request.type === 'plugin.listAvailable') {
+        requestCount++;
+        return new Promise<PluginListResponse>((resolve) => {
+          if (requestCount === 1) resolveFirst = resolve;
+          else resolveSecond = resolve;
+        });
+      }
+      if (request.type === 'workspace.getFolders') {
+        return Promise.resolve([]);
+      }
+      throw new Error(`unexpected request: ${request.type}`);
+    });
+
+    const { result } = renderHook(() => usePluginData());
+
+    await act(async () => {
+      void result.current.fetchAll(false);
+    });
+
+    await act(async () => {
+      resolveSecond?.({
+        installed: [],
+        available: [makeAvailable('fresh', 'mp')],
+        marketplaceSources: { mp: 'fresh-source' },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.plugins.map((plugin) => plugin.id)).toEqual(['fresh@mp']);
+    });
+
+    await act(async () => {
+      resolveFirst?.({
+        installed: [],
+        available: [makeAvailable('stale', 'mp')],
+        marketplaceSources: { mp: 'stale-source' },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.plugins.map((plugin) => plugin.id)).toEqual(['fresh@mp']);
+      expect(result.current.marketplaceSources).toEqual({ mp: 'fresh-source' });
+    });
+  });
+
+  it('workspace.getFolders 初次失敗後，可由後續 fetchAll 重試恢復', async () => {
+    let workspaceShouldFail = true;
+
+    mockSendRequest.mockImplementation(async (request: { type: string }) => {
+      if (request.type === 'plugin.listAvailable') {
+        return {
+          installed: [],
+          available: [makeAvailable('alpha', 'mp')],
+          marketplaceSources: {},
+        } satisfies PluginListResponse;
+      }
+      if (request.type === 'workspace.getFolders') {
+        if (workspaceShouldFail) {
+          throw new Error('temporary host error');
+        }
+        return [{ name: 'workspace-a', path: '/workspace/a' }];
+      }
+      throw new Error(`unexpected request: ${request.type}`);
+    });
+
+    const { result } = renderHook(() => usePluginData());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.workspaceFolders).toEqual([]);
+
+    workspaceShouldFail = false;
+
+    await act(async () => {
+      await result.current.fetchAll(false);
+    });
+
+    await waitFor(() => {
+      expect(result.current.workspaceFolders).toEqual([{ name: 'workspace-a', path: '/workspace/a' }]);
+    });
+  });
 });
