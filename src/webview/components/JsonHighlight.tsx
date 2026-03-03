@@ -68,7 +68,7 @@ export function tokenizeJson(json: string): Token[] {
     // number
     if (ch === '-' || (ch >= '0' && ch <= '9')) {
       let num = '';
-      while (i < json.length && /[\d.eE+\-]/.test(json[i])) {
+      while (i < json.length && /[\d.eE+-]/.test(json[i])) {
         num += json[i];
         i++;
       }

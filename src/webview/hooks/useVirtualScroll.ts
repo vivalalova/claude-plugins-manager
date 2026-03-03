@@ -166,7 +166,6 @@ export function useVirtualScroll({
       paddingTop,
       paddingBottom,
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, containerRef, itemCount, overscan, scrollTick]);
 
   return {

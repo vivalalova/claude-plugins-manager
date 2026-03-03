@@ -6,7 +6,6 @@ import {
   isPluginEnabled,
   isEnabledInScope,
   isInstalledInScope,
-  getInstalledScopes,
   getEnabledScopes,
   hasPluginUpdate,
 } from '../filterUtils';

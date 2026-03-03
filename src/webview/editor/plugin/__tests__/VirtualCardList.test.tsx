@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import React from 'react'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { VirtualCardList, VIRTUAL_THRESHOLD } from '../VirtualCardList';

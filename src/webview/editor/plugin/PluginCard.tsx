@@ -114,7 +114,6 @@ export const PluginCard = React.memo(function PluginCard({
         {hasContents
           ? <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
           : <span className="card-expand-arrow-spacer" />}
-        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
         <div className="scope-chips" onClick={(e) => e.stopPropagation()}>
         <ScopeToggle
           label={t('bulk.scopeUser')}

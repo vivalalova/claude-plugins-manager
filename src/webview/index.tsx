@@ -1,4 +1,4 @@
-import React from 'react';
+import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles.css';
@@ -10,4 +10,4 @@ if (!rootEl) {
 
 const mode = rootEl.dataset.mode ?? 'sidebar';
 const locale = rootEl.dataset.locale ?? 'en';
-createRoot(rootEl).render(<App mode={mode} locale={locale} />);
+createRoot(rootEl).render(createElement(App, { mode, locale }));

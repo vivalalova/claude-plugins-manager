@@ -457,7 +457,8 @@ export class McpService {
   private parseMcpList(output: string): McpServer[] {
     const servers: McpServer[] = [];
     // 去除 ANSI escape codes
-    const cleaned = output.replace(/\x1b\[[0-9;]*m/g, '');
+    // eslint-disable-next-line no-control-regex -- ANSI escape sequence matcher
+    const cleaned = output.replace(new RegExp('\\u001b\\[[0-9;]*m', 'g'), '');
     const lines = cleaned.split('\n');
 
     for (const line of lines) {

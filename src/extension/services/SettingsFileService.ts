@@ -419,6 +419,7 @@ export class SettingsFileService {
     } catch (err: unknown) {
       throw new Error(
         `Invalid JSON in ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
       );
     }
   }

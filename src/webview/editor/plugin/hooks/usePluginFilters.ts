@@ -251,7 +251,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       if ((prev.assignments[marketplace] ?? 0) === sectionId) return prev;
       if (sectionId === 0) {
         // 移回預設：從 assignments 中刪除
-        const { [marketplace]: _, ...rest } = prev.assignments;
+        const rest = { ...prev.assignments };
+        delete rest[marketplace];
         // 若移除後某 section 已無 assignment，同步從 sectionOrder / sectionNames 清除
         const remainingIds = new Set(Object.values(rest));
         const sectionOrder = prev.sectionOrder?.filter((id) => remainingIds.has(id));
