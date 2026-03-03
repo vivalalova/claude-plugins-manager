@@ -40,10 +40,16 @@ describe('TranslateDialog', () => {
     expect(okBtn.disabled).toBe(true);
   });
 
-  it('email 有值但 lang 空 → OK 按鈕 disabled', () => {
+  it('email 有值 + lang 空（不翻譯）→ OK 可點', () => {
     renderWithI18n(<TranslateDialog {...defaultProps} draftEmail="a@b.com" draftLang="" />);
     const okBtn = screen.getByText('OK') as HTMLButtonElement;
-    expect(okBtn.disabled).toBe(true);
+    expect(okBtn.disabled).toBe(false);
+  });
+
+  it('email 有值 + lang="en" (English) → OK 可點', () => {
+    renderWithI18n(<TranslateDialog {...defaultProps} draftEmail="a@b.com" draftLang="en" />);
+    const okBtn = screen.getByText('OK') as HTMLButtonElement;
+    expect(okBtn.disabled).toBe(false);
   });
 
   it('email + lang 都有值 → OK 按鈕可點', () => {
@@ -85,8 +91,9 @@ describe('TranslateDialog', () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
-  it('TRANSLATE_LANGS 選項存在（如繁體中文）', () => {
+  it('TRANSLATE_LANGS 選項存在（English + 繁體中文）', () => {
     renderWithI18n(<TranslateDialog {...defaultProps} />);
+    expect(screen.getByText('English')).toBeTruthy();
     expect(screen.getByText('繁體中文')).toBeTruthy();
   });
 

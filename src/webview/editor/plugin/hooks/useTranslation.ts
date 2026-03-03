@@ -159,6 +159,11 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
 
     if (plugins.length > 0 && translateLang && translateEmail) {
       doTranslate(translateLang, translateEmail, plugins);
+    } else if (!translateLang) {
+      setTranslations({});
+      setQueuedTexts(new Set());
+      setActiveTexts(new Set());
+      setTranslateWarning(null);
     }
   // plugins/translateLang/translateEmail 已 encode 進 textsFingerprint，
   // 但 effect body 引用了它們，須列入 deps 以遵守 exhaustive-deps 規則。

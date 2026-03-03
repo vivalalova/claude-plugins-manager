@@ -173,6 +173,7 @@ export interface McpAddParams {
 
 /** 翻譯目標語言 allowlist（前後端共用） */
 export const TRANSLATE_LANGS: Record<string, string> = {
+  en: 'English',
   'zh-TW': '繁體中文',
   'zh-CN': '简体中文',
   ja: '日本語',

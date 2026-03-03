@@ -58,6 +58,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'translate.emailPlaceholder': 'your@email.com',
   'translate.emailHint': 'Email 會傳送給 MyMemory API 以提高每日配額。',
   'translate.languageLabel': '語言',
+  'translate.noTranslation': '原文（不翻譯）',
   'translate.cancel': '取消',
   'translate.confirm': '確定',
   // MarketplaceCard

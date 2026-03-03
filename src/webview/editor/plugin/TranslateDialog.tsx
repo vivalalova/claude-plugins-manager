@@ -80,7 +80,7 @@ export function TranslateDialog({
             value={draftLang}
             onChange={(e) => onLangChange(e.target.value)}
           >
-            <option value="">English</option>
+            <option value="">{t('translate.noTranslation')}</option>
             {Object.entries(TRANSLATE_LANGS).map(([code, label]) => (
               <option key={code} value={code}>{label}</option>
             ))}
@@ -91,7 +91,7 @@ export function TranslateDialog({
           <button
             className="btn btn-primary"
             onClick={onConfirm}
-            disabled={!draftEmail || !draftLang}
+            disabled={!draftEmail}
           >{t('translate.confirm')}</button>
         </div>
       </div>

@@ -56,6 +56,7 @@ export const en = {
   'translate.emailPlaceholder': 'your@email.com',
   'translate.emailHint': 'Email is sent to MyMemory API to increase daily quota.',
   'translate.languageLabel': 'Language',
+  'translate.noTranslation': 'Original (No Translation)',
   'translate.cancel': 'Cancel',
   'translate.confirm': 'OK',
   // MarketplaceCard

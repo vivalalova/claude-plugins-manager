@@ -58,6 +58,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'translate.emailPlaceholder': 'your@email.com',
   'translate.emailHint': 'メールアドレスは MyMemory API に送信され、1日のクォータが増加します。',
   'translate.languageLabel': '言語',
+  'translate.noTranslation': '原文（翻訳なし）',
   'translate.cancel': 'キャンセル',
   'translate.confirm': 'OK',
   // MarketplaceCard
