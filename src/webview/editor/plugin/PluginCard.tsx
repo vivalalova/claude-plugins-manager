@@ -60,14 +60,24 @@ export const PluginCard = React.memo(function PluginCard({
     if (target.closest('input, button, label')) return;
     if (hasContents) setExpanded((v) => !v);
   };
+  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input, button, label')) return;
+    if (!hasContents) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    setExpanded((v) => !v);
+  };
 
   return (
     <div
       className={`card${hasContents ? ' card--expandable' : ''}${hidden ? ' card--hidden' : ''}`}
       onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
       tabIndex={0}
       role="group"
       aria-label={plugin.name}
+      aria-expanded={hasContents ? expanded : undefined}
     >
       <div className="card-header">
         <div>
@@ -114,7 +124,11 @@ export const PluginCard = React.memo(function PluginCard({
         {hasContents
           ? <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
           : <span className="card-expand-arrow-spacer" />}
-        <div className="scope-chips" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="scope-chips"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
         <ScopeToggle
           label={t('bulk.scopeUser')}
           scope="user"

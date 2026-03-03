@@ -1,11 +1,8 @@
 import js from '@eslint/js';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-
-const sourceGlobals = {
-  ...globals.browser,
-  ...globals.node,
-};
 
 export default tseslint.config(
   {
@@ -14,21 +11,38 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/extension/**/*.{ts,tsx}'],
     languageOptions: {
-      globals: sourceGlobals,
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['src/webview/**/*.{ts,tsx}'],
+    ignores: ['src/webview/**/__tests__/**'],
+    plugins: {
+      'jsx-a11y': jsxA11y,
+      'react-hooks': reactHooks,
+    },
+    languageOptions: {
+      globals: globals.browser,
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
         },
       },
     },
+    rules: {
+      'jsx-a11y/click-events-have-key-events': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+    },
   },
   {
     files: ['src/**/__tests__/**/*.{ts,tsx}'],
     languageOptions: {
       globals: {
-        ...sourceGlobals,
+        ...globals.browser,
+        ...globals.node,
         ...globals.vitest,
       },
     },

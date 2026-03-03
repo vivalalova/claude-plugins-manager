@@ -50,6 +50,15 @@ describe('KeyboardHelpOverlay', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('在 overlay 背景按 Enter 會呼叫 onClose', () => {
+    const onClose = vi.fn();
+    const { container } = renderWithI18n(<KeyboardHelpOverlay onClose={onClose} />);
+
+    const overlay = container.querySelector('.confirm-overlay') as HTMLElement;
+    fireEvent.keyDown(overlay, { key: 'Enter' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('點擊 dialog 內部不呼叫 onClose', () => {
     const onClose = vi.fn();
     renderWithI18n(<KeyboardHelpOverlay onClose={onClose} />);

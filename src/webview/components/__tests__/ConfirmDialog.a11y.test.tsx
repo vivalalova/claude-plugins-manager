@@ -65,6 +65,22 @@ describe('ConfirmDialog accessibility', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('Enter 在 overlay 背景上會關閉 dialog', () => {
+    const { container } = renderWithI18n(
+      <ConfirmDialog
+        title="Test"
+        message="msg"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    );
+
+    const overlay = container.querySelector('.confirm-overlay') as HTMLElement;
+    fireEvent.keyDown(overlay, { key: 'Enter' });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
   it('Tab focus trap：最後元素 Tab → 回到第一個', () => {
     renderWithI18n(
       <ConfirmDialog

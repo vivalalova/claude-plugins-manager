@@ -132,9 +132,22 @@ export function AddMcpDialog({
   const canSubmit = mode === 'form'
     ? !adding && !!name.trim() && !!commandOrUrl.trim()
     : !adding && !!jsonText.trim();
+  const handleOverlayDismiss = (
+    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (e.target !== e.currentTarget) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    if ('preventDefault' in e) e.preventDefault();
+    onCancel();
+  };
 
   return (
-    <div className="confirm-overlay" onClick={onCancel}>
+    <div
+      className="confirm-overlay"
+      onClick={handleOverlayDismiss}
+      onKeyDown={handleOverlayDismiss}
+      tabIndex={0}
+    >
       <div
         ref={trapRef}
         className="confirm-dialog"
@@ -142,7 +155,6 @@ export function AddMcpDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         style={{ maxWidth: 500 }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="confirm-dialog-title" id={titleId}>
           {isEdit ? 'Edit MCP Server' : 'Add MCP Server'}

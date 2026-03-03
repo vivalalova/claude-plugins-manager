@@ -194,6 +194,10 @@ export function PluginPage(): React.ReactElement {
   const [editingName, setEditingName] = useState('');
   /** Enter / Esc 路徑標記，防止 onBlur 重複觸發或在取消時執行 rename */
   const editingCommitRef = useRef(false);
+  const startSectionRename = (sectionId: number) => {
+    setEditingName(getSectionName(sectionId, sectionNames, t('plugin.section.label', { n: sectionId })));
+    setEditingSectionId(sectionId);
+  };
 
   /** 渲染單一 marketplace section */
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
@@ -581,10 +585,14 @@ export function PluginPage(): React.ReactElement {
                 ) : (
                   <span
                     className="section-divider-label section-divider-label--clickable"
-                    onClick={() => {
-                      setEditingName(getSectionName(section.id, sectionNames, t('plugin.section.label', { n: section.id })));
-                      setEditingSectionId(section.id);
+                    onClick={() => startSectionRename(section.id)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      startSectionRename(section.id);
                     }}
+                    role="button"
+                    tabIndex={0}
                   >
                     {getSectionName(section.id, sectionNames, t('plugin.section.label', { n: section.id }))}
                   </span>

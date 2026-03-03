@@ -73,6 +73,14 @@ export function MarketplacePage(): React.ReactElement {
     setPreviewPlugins(null);
     setPreviewSource('');
   };
+  const handlePreviewOverlayDismiss = (
+    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (e.target !== e.currentTarget) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    if ('preventDefault' in e) e.preventDefault();
+    handleClosePreview();
+  };
 
   const handleConfirmAdd = async (): Promise<void> => {
     const source = previewSource;
@@ -285,12 +293,16 @@ export function MarketplacePage(): React.ReactElement {
       )}
 
       {previewPlugins && (
-        <div className="confirm-overlay" onClick={handleClosePreview}>
+        <div
+          className="confirm-overlay"
+          onClick={handlePreviewOverlayDismiss}
+          onKeyDown={handlePreviewOverlayDismiss}
+          tabIndex={0}
+        >
           <div
             className="confirm-dialog confirm-dialog--preview"
             role="dialog"
             aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="confirm-dialog-title">
               Marketplace Preview — {previewPlugins.length} plugin{previewPlugins.length !== 1 ? 's' : ''}

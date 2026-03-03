@@ -456,6 +456,27 @@ describe('PluginCard', () => {
     expect(container.querySelector('.badge-update .scope-spinner')).toBeTruthy();
   });
 
+  it('卡片聚焦後按 Enter → 展開內容', () => {
+    const plugin = createPlugin({
+      contents: {
+        commands: [{ name: 'cmd', description: 'Command description' }],
+        skills: [],
+        agents: [],
+        mcpServers: [],
+        hooks: false,
+      },
+    });
+
+    renderWithI18n(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    const card = screen.getByRole('group');
+    fireEvent.keyDown(card, { key: 'Enter' });
+
+    expect(screen.getByText('Command description')).toBeTruthy();
+  });
+
 
   describe('隱藏按鈕', () => {
     it('onToggleHidden 傳入 → 顯示 Hide 按鈕', () => {

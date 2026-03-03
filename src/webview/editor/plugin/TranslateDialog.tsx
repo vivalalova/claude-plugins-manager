@@ -33,11 +33,21 @@ export function TranslateDialog({
 }: TranslateDialogProps): React.ReactElement {
   const { t } = useI18n();
   const emailHintId = useId();
+  const handleOverlayDismiss = (
+    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (e.target !== e.currentTarget) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    if ('preventDefault' in e) e.preventDefault();
+    onCancel();
+  };
 
   return (
     <div
       className="confirm-overlay"
-      onClick={onCancel}
+      onClick={handleOverlayDismiss}
+      onKeyDown={handleOverlayDismiss}
+      tabIndex={0}
     >
       <div
         ref={trapRef}
@@ -45,7 +55,6 @@ export function TranslateDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="confirm-dialog-title" id={titleId}>{t('translate.title')}</div>
         <div className="form-row">

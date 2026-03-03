@@ -127,6 +127,8 @@ export function useVirtualScroll({
   }, []);
 
   const computed = useMemo(() => {
+    const version = scrollTick;
+    void version;
     if (!enabled) {
       return { virtualRange: null, paddingTop: 0, paddingBottom: 0 };
     }

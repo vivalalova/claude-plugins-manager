@@ -25,16 +25,28 @@ export function ConfirmDialog({
   const { t } = useI18n();
   const titleId = useId();
   const trapRef = useFocusTrap(onCancel);
+  const handleOverlayDismiss = (
+    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (e.target !== e.currentTarget) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    if ('preventDefault' in e) e.preventDefault();
+    onCancel();
+  };
 
   return (
-    <div className="confirm-overlay" onClick={onCancel}>
+    <div
+      className="confirm-overlay"
+      onClick={handleOverlayDismiss}
+      onKeyDown={handleOverlayDismiss}
+      tabIndex={0}
+    >
       <div
         ref={trapRef}
         className="confirm-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="confirm-dialog-title" id={titleId}>{title}</div>
         <div className="confirm-dialog-message">{message}</div>

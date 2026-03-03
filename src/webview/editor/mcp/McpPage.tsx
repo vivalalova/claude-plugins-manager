@@ -307,7 +307,19 @@ export function McpPage(): React.ReactElement {
       )}
 
       {detailText && (
-        <div className="confirm-overlay" onClick={() => setDetailText(null)}>
+        <div
+          className="confirm-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDetailText(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return;
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            setDetailText(null);
+          }}
+          tabIndex={0}
+        >
           <div
             ref={detailTrapRef}
             className="confirm-dialog"
@@ -315,7 +327,6 @@ export function McpPage(): React.ReactElement {
             aria-modal="true"
             aria-labelledby={detailTitleId}
             style={{ maxWidth: 600, maxHeight: '80vh', overflow: 'auto' }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="confirm-dialog-title" id={detailTitleId}>Server Detail</div>
             {isValidJson(detailText) ? (

@@ -14,6 +14,14 @@ interface KeyboardHelpOverlayProps {
 export function KeyboardHelpOverlay({ onClose }: KeyboardHelpOverlayProps): React.ReactElement {
   const { t } = useI18n();
   const trapRef = useFocusTrap(onClose);
+  const handleOverlayDismiss = (
+    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+  ): void => {
+    if (e.target !== e.currentTarget) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    if ('preventDefault' in e) e.preventDefault();
+    onClose();
+  };
 
   const shortcuts = [
     { key: '/', description: t('keyboard.focusSearch') },
@@ -25,14 +33,18 @@ export function KeyboardHelpOverlay({ onClose }: KeyboardHelpOverlayProps): Reac
   ];
 
   return (
-    <div className="confirm-overlay" onClick={onClose}>
+    <div
+      className="confirm-overlay"
+      onClick={handleOverlayDismiss}
+      onKeyDown={handleOverlayDismiss}
+      tabIndex={0}
+    >
       <div
         ref={trapRef}
         className="confirm-dialog keyboard-help"
         role="dialog"
         aria-modal="true"
         aria-labelledby="keyboard-help-title"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="confirm-dialog-title" id="keyboard-help-title">{t('keyboard.title')}</div>
         <dl className="keyboard-help-list">
