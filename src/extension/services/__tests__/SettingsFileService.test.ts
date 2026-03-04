@@ -697,6 +697,44 @@ describe('SettingsFileService', () => {
       expect(kmCalls).toHaveLength(1);
     });
 
+    it('.git entry 不影響 lastUpdated 計算', async () => {
+      const gitMtime = new Date('2026-03-04T03:35:00Z').getTime();
+      const fileMtime = new Date('2026-03-03T03:55:00Z').getTime();
+
+      mockReadFile.mockImplementation((path: string) => {
+        if (path.includes('known_marketplaces.json')) {
+          return Promise.resolve(JSON.stringify({
+            'test-mp': { installLocation: '/mp/test-mp' },
+          }));
+        }
+        if (path.includes('marketplace.json')) {
+          return Promise.resolve(JSON.stringify({
+            name: 'test-mp',
+            plugins: [{ name: 'p1', description: 'desc', source: './' }],
+          }));
+        }
+        if (path.includes('plugin.json')) return Promise.reject(enoentError());
+        return Promise.reject(enoentError());
+      });
+      mockReaddir.mockImplementation((path: string) => {
+        if (!path.includes('.claude-plugin')) {
+          return Promise.resolve(['.git', 'skills', 'README.md']);
+        }
+        return Promise.reject(enoentError());
+      });
+      mockStat.mockImplementation((path: string) => {
+        if (path.includes('hooks.json')) return Promise.reject(enoentError());
+        // .git 的 mtime 比較新，但不應被採用
+        if (path.endsWith('.git')) return Promise.resolve({ mtime: new Date(gitMtime), mtimeMs: gitMtime });
+        return Promise.resolve({ mtime: new Date(fileMtime), mtimeMs: fileMtime });
+      });
+
+      const result = await svc.scanAvailablePlugins();
+      expect(result).toHaveLength(1);
+      // lastUpdated 應為非 .git 檔案的 mtime，而非 .git 的 mtime
+      expect(result[0].lastUpdated).toBe(new Date(fileMtime).toISOString());
+    });
+
     it('新實例首次呼叫必掃描', async () => {
       setupMarketplace();
 

@@ -276,7 +276,13 @@ export class PluginService {
       args.push('--scope', scope);
     }
     const cwd = scope && scope !== 'user' ? this.getProjectPath(scope) : undefined;
-    await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
+    try {
+      await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
+    } catch (error) {
+      // CLI 失敗仍更新 timestamp，避免 hasPluginUpdate 永久誤判（如 already up to date）
+      await this.settings.updateInstallEntryTimestamp(plugin, scope);
+      throw error;
+    }
     await this.settings.updateInstallEntryTimestamp(plugin, scope);
   }
 

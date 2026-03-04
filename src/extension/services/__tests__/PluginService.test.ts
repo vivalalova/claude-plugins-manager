@@ -598,6 +598,12 @@ describe('PluginService', () => {
       );
       expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', undefined);
     });
+
+    it('CLI 失敗仍更新 timestamp 後 re-throw', async () => {
+      cli.exec.mockRejectedValueOnce(new Error('already up to date'));
+      await expect(svc.update('my-plugin', 'user')).rejects.toThrow('already up to date');
+      expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', 'user');
+    });
   });
 
   describe('exportScript', () => {

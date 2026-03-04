@@ -214,8 +214,10 @@ export class SettingsFileService {
                 ]);
                 try {
                   const entries = await readdir(pluginDir);
+                  // .git mtime 每次 git pull 都會更新，排除以避免 hasPluginUpdate 誤判
+                  const contentEntries = entries.filter((e) => e !== '.git');
                   const stats = await Promise.all(
-                    entries.map((entry) =>
+                    contentEntries.map((entry) =>
                       stat(join(pluginDir, entry)).catch((err: unknown) => {
                         if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
                         return null;
