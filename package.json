@@ -2,7 +2,7 @@
   "name": "claude-plugins-manager",
   "displayName": "Claude Plugins Manager",
   "description": "Manage Claude Code Marketplace, Plugin, and MCP Server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "lova",
   "license": "MIT",
   "icon": "resources/icon.png",
@@ -79,8 +79,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
     "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
-    "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-0.1.0.vsix --force",
+    "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-*.vsix --force",
     "uninstall:ext": "code --uninstall-extension lova.claude-plugins-manager",
+    "publish": "npx vsce publish --no-dependencies",
     "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
