@@ -115,6 +115,16 @@ describe('CSS Theme Audit', () => {
     expect(hiddenCardRule).not.toContain('filter');
   });
 
+  it('plugin item hover 不改變 card 背景色', () => {
+    const cardHoverRule = extractRuleBody(stripped, '.card:hover');
+
+    expect(cardHoverRule).toBeNull();
+  });
+
+  it('沒有 body.vscode-light 覆寫 card hover 樣式', () => {
+    expect(css).not.toMatch(/body\.vscode-light\s+\.card(?:(?:\.card--failed|\.card--needs-auth)?)?:hover/);
+  });
+
   it('local scope badge 使用較深的 warning 前景色，避免 light theme 過淡', () => {
     const localBadgeRule = extractRuleBody(stripped, '.scope-badge--local');
 

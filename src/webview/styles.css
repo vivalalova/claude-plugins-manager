@@ -635,10 +635,6 @@ body {
   border-bottom: none;
 }
 
-.card:hover {
-  background: var(--vscode-list-hoverBackground);
-}
-
 .card-header {
   display: flex;
   align-items: center;
@@ -1444,16 +1440,6 @@ body.vscode-light .card.card--failed {
 }
 body.vscode-light .card.card--needs-auth {
   box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9800), 0 1px 3px color-mix(in srgb, black 6%, transparent);
-}
-
-body.vscode-light .card:hover {
-  box-shadow: 0 2px 6px color-mix(in srgb, black 10%, transparent);
-}
-body.vscode-light .card.card--failed:hover {
-  box-shadow: inset 3px 0 0 var(--vscode-testing-iconFailed, #f44336), 0 2px 6px color-mix(in srgb, black 10%, transparent);
-}
-body.vscode-light .card.card--needs-auth:hover {
-  box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9800), 0 2px 6px color-mix(in srgb, black 10%, transparent);
 }
 
 /* Section toggle */
