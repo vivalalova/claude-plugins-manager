@@ -686,7 +686,8 @@ body {
 }
 
 .card--hidden {
-  opacity: 0.16;
+  opacity: 0.8;
+  animation: none;
 }
 
 .card-header-right {

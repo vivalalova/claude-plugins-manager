@@ -1606,7 +1606,7 @@ describe('PluginPage — 核心流程', () => {
   });
 
   describe('Plugin 隱藏功能', () => {
-    it('點擊 Hide 按鈕 → plugin 消失；點「Show hidden」→ plugin 以半透明出現', async () => {
+    it('點擊 Hide 按鈕 → non-virtual list 的 plugin 消失；點「Show hidden」→ plugin 以半透明出現', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
         if (req.type === 'plugin.listAvailable') {
@@ -1624,6 +1624,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.getByText('alpha')).toBeTruthy();
         expect(screen.getByText('beta')).toBeTruthy();
       });
+      expect(document.querySelector('.card-list--virtual')).toBeNull();
 
       // 點擊 alpha 的 Hide 按鈕
       const hideButtons = screen.getAllByText('Hide');

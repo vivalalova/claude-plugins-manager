@@ -105,7 +105,7 @@ describe('CSS Theme Audit', () => {
     const opacityValue = hiddenCardRule?.match(/opacity\s*:\s*([0-9.]+)/)?.[1];
 
     expect(opacityValue).toBeTruthy();
-    expect(Number(opacityValue)).toBeLessThanOrEqual(0.18);
+    expect(Number(opacityValue)).toBe(0.8);
   });
 
   it('hidden plugin card 不改底色，只用整張卡片變淡', () => {
@@ -113,6 +113,12 @@ describe('CSS Theme Audit', () => {
 
     expect(hiddenCardRule).not.toContain('background');
     expect(hiddenCardRule).not.toContain('filter');
+  });
+
+  it('hidden plugin card 會停用進場動畫，避免 opacity 被動畫覆蓋', () => {
+    const hiddenCardRule = extractRuleBody(stripped, '.card--hidden');
+
+    expect(hiddenCardRule).toContain('animation: none');
   });
 
   it('plugin item hover 不改變 card 背景色', () => {
