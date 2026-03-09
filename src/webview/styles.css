@@ -690,7 +690,7 @@ body {
 }
 
 .card--hidden {
-  opacity: 0.5;
+  opacity: 0.16;
 }
 
 .card-header-right {
@@ -744,8 +744,8 @@ body {
 }
 
 .scope-badge--local {
-  --scope-badge-color: var(--vscode-charts-orange, #ff9800);
-  background: color-mix(in srgb, var(--scope-badge-color) 15%, transparent);
+  --scope-badge-color: var(--vscode-editorWarning-foreground, var(--vscode-charts-orange, #ff9800));
+  background: color-mix(in srgb, var(--scope-badge-color) 18%, transparent);
   color: var(--scope-badge-color);
 }
 

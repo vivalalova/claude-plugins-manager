@@ -27,6 +27,13 @@ function extractDeclarations(src: string): Array<{ line: number; prop: string; v
   return results;
 }
 
+/** 取出單一 selector 的 rule body */
+function extractRuleBody(src: string, selector: string): string | null {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = src.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`));
+  return match?.[1] ?? null;
+}
+
 /** 色彩相關 CSS properties */
 const COLOR_PROPS = new Set([
   'color', 'background', 'background-color', 'border-color',
@@ -91,5 +98,27 @@ describe('CSS Theme Audit', () => {
 
   it('沒有 body.vscode-light 覆寫 JSON token 顏色', () => {
     expect(css).not.toMatch(/body\.vscode-light\s+\.json-token/);
+  });
+
+  it('hidden plugin card 的透明度明顯低於一般卡片', () => {
+    const hiddenCardRule = extractRuleBody(stripped, '.card--hidden');
+    const opacityValue = hiddenCardRule?.match(/opacity\s*:\s*([0-9.]+)/)?.[1];
+
+    expect(opacityValue).toBeTruthy();
+    expect(Number(opacityValue)).toBeLessThanOrEqual(0.18);
+  });
+
+  it('hidden plugin card 不改底色，只用整張卡片變淡', () => {
+    const hiddenCardRule = extractRuleBody(stripped, '.card--hidden');
+
+    expect(hiddenCardRule).not.toContain('background');
+    expect(hiddenCardRule).not.toContain('filter');
+  });
+
+  it('local scope badge 使用較深的 warning 前景色，避免 light theme 過淡', () => {
+    const localBadgeRule = extractRuleBody(stripped, '.scope-badge--local');
+
+    expect(localBadgeRule).toContain('--vscode-editorWarning-foreground');
+    expect(localBadgeRule).toContain('background: color-mix');
   });
 });
