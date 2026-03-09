@@ -4,7 +4,19 @@
   "description": "Manage Claude Code Marketplace, Plugin, and MCP Server",
   "version": "0.1.0",
   "publisher": "lova",
+  "license": "MIT",
   "icon": "resources/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vivalalova/claude-plugins-manager"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "plugin",
+    "marketplace",
+    "mcp"
+  ],
   "engines": {
     "vscode": "^1.85.0",
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
@@ -12,6 +24,10 @@
   "categories": [
     "Other"
   ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "main": "./dist/extension/extension.js",
   "activationEvents": [],
   "contributes": {
@@ -62,7 +78,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
-    "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links --allow-missing-repository",
+    "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
     "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-0.1.0.vsix --force",
     "uninstall:ext": "code --uninstall-extension lova.claude-plugins-manager",
     "vscode:prepublish": "npm run build"
