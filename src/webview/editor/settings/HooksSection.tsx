@@ -163,7 +163,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
   }, []);
 
   const handleExplain = async (hookContent: string, eventType: string): Promise<void> => {
-    const key = `${hookContent}:${eventType}`;
+    const key = `${hookContent}:${eventType}:${locale}`;
     if (explanations.has(key)) return;
     setExplaining((prev) => new Set([...prev, key]));
     try {
@@ -285,8 +285,8 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                           explainLabel={t('settings.hooks.explain')}
                           explainingLabel={t('settings.hooks.explaining')}
                           onExplain={handleExplain}
-                          explanation={explanations.get(`${getHookContent(hook)}:${eventType}`) ?? null}
-                          isExplaining={explaining.has(`${getHookContent(hook)}:${eventType}`)}
+                          explanation={explanations.get(`${getHookContent(hook)}:${eventType}:${locale}`) ?? null}
+                          isExplaining={explaining.has(`${getHookContent(hook)}:${eventType}:${locale}`)}
                         />
                       ))}
                     </div>

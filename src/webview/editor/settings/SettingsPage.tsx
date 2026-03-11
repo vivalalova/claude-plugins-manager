@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import React, { useCallback, useEffect, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
