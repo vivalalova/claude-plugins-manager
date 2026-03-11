@@ -214,6 +214,8 @@ export function PermissionsSection({
 
   const perms = settings.permissions ?? {};
   const additionalDirs: string[] = perms.additionalDirectories ?? [];
+  const enabledMcpjsonServers: string[] = settings.enabledMcpjsonServers ?? [];
+  const disabledMcpjsonServers: string[] = settings.disabledMcpjsonServers ?? [];
   const currentMode = perms.defaultMode ?? '';
   const isUnknownMode = currentMode !== '' && !KNOWN_DEFAULT_MODES.includes(currentMode as typeof KNOWN_DEFAULT_MODES[number]);
 
@@ -353,6 +355,38 @@ export function PermissionsSection({
         settingKey="additionalDirectories"
         onSave={async (_key, value) => {
           await updatePermissions({ ...perms, additionalDirectories: value as string[] });
+        }}
+      />
+
+      {/* enabledMcpjsonServers */}
+      <TagInput
+        label={t('settings.permissions.enabledMcpjsonServers.label')}
+        description={t('settings.permissions.enabledMcpjsonServers.description')}
+        scope={scope}
+        tags={enabledMcpjsonServers}
+        emptyPlaceholder={t('settings.permissions.enabledMcpjsonServers.empty')}
+        inputPlaceholder={t('settings.permissions.enabledMcpjsonServers.placeholder')}
+        addLabel={t('settings.permissions.enabledMcpjsonServers.add')}
+        duplicateError={t('settings.permissions.enabledMcpjsonServers.duplicate')}
+        settingKey="enabledMcpjsonServers"
+        onSave={async (_key, value) => {
+          await onSave('enabledMcpjsonServers', value);
+        }}
+      />
+
+      {/* disabledMcpjsonServers */}
+      <TagInput
+        label={t('settings.permissions.disabledMcpjsonServers.label')}
+        description={t('settings.permissions.disabledMcpjsonServers.description')}
+        scope={scope}
+        tags={disabledMcpjsonServers}
+        emptyPlaceholder={t('settings.permissions.disabledMcpjsonServers.empty')}
+        inputPlaceholder={t('settings.permissions.disabledMcpjsonServers.placeholder')}
+        addLabel={t('settings.permissions.disabledMcpjsonServers.add')}
+        duplicateError={t('settings.permissions.disabledMcpjsonServers.duplicate')}
+        settingKey="disabledMcpjsonServers"
+        onSave={async (_key, value) => {
+          await onSave('disabledMcpjsonServers', value);
         }}
       />
 

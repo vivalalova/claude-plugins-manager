@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { PermissionsSection } from '../PermissionsSection';
 import { ToastProvider } from '../../../components/Toast';
@@ -48,6 +48,16 @@ describe('PermissionsSection — 渲染', () => {
     await waitFor(() => expect(screen.getByText('Additional Directories')).toBeTruthy());
   });
 
+  it('顯示 Enabled MCP JSON Servers label', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Enabled MCP JSON Servers')).toBeTruthy());
+  });
+
+  it('顯示 Disabled MCP JSON Servers label', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Disabled MCP JSON Servers')).toBeTruthy());
+  });
+
   it('additionalDirectories 空 → 顯示 empty placeholder', async () => {
     renderSection({});
     await waitFor(() =>
@@ -71,8 +81,9 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     renderSection({ permissions: { additionalDirectories: ['~/docs'] } }, onSave);
 
     await waitFor(() => screen.getByPlaceholderText('e.g. ~/projects'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. ~/projects'), { target: { value: '~/projects' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const addDirInput = screen.getByPlaceholderText('e.g. ~/projects');
+    fireEvent.change(addDirInput, { target: { value: '~/projects' } });
+    fireEvent.click(within(addDirInput.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('permissions', {
@@ -86,8 +97,9 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     renderSection({ permissions: { allow: ['Bash'], additionalDirectories: [] } }, onSave);
 
     await waitFor(() => screen.getByPlaceholderText('e.g. ~/projects'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. ~/projects'), { target: { value: '~/data' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const addDirInput2 = screen.getByPlaceholderText('e.g. ~/projects');
+    fireEvent.change(addDirInput2, { target: { value: '~/data' } });
+    fireEvent.click(within(addDirInput2.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('permissions', {
@@ -112,15 +124,107 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
   });
 
   it('重複目錄 → 顯示錯誤，不呼叫 onSave', async () => {
+
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { additionalDirectories: ['~/docs'] } }, onSave);
 
     await waitFor(() => screen.getByPlaceholderText('e.g. ~/projects'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. ~/projects'), { target: { value: '~/docs' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const addDirInput3 = screen.getByPlaceholderText('e.g. ~/projects');
+    fireEvent.change(addDirInput3, { target: { value: '~/docs' } });
+    fireEvent.click(within(addDirInput3.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
       expect(screen.getByText('Directory already added')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enabledMcpjsonServers 互動
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — enabledMcpjsonServers 互動', () => {
+  it('enabledMcpjsonServers=[] 新增 "memory" → onSave("enabledMcpjsonServers", ["memory"])', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. memory'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. memory'), { target: { value: 'memory' } });
+    fireEvent.keyDown(screen.getByPlaceholderText('e.g. memory'), { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('enabledMcpjsonServers', ['memory']);
+    });
+  });
+
+  it("enabledMcpjsonServers=['memory'] 刪除 'memory' → onSave('enabledMcpjsonServers', [])", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enabledMcpjsonServers: ['memory'] }, onSave);
+
+    await waitFor(() => screen.getByRole('button', { name: 'Remove memory' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove memory' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('enabledMcpjsonServers', []);
+    });
+  });
+
+  it('重複項目 → 顯示錯誤，不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enabledMcpjsonServers: ['memory'] }, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. memory'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. memory'), { target: { value: 'memory' } });
+    fireEvent.keyDown(screen.getByPlaceholderText('e.g. memory'), { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Server already in list')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// disabledMcpjsonServers 互動
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — disabledMcpjsonServers 互動', () => {
+  it("disabledMcpjsonServers=['fs'] 刪除 'fs' → onSave('disabledMcpjsonServers', [])", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ disabledMcpjsonServers: ['fs'] }, onSave);
+
+    await waitFor(() => screen.getByRole('button', { name: 'Remove fs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove fs' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('disabledMcpjsonServers', []);
+    });
+  });
+
+  it('disabledMcpjsonServers=[] 新增 "filesystem" → onSave("disabledMcpjsonServers", ["filesystem"])', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. filesystem'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. filesystem'), { target: { value: 'filesystem' } });
+    fireEvent.keyDown(screen.getByPlaceholderText('e.g. filesystem'), { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('disabledMcpjsonServers', ['filesystem']);
+    });
+  });
+
+  it('重複項目 → 顯示錯誤，不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ disabledMcpjsonServers: ['fs'] }, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. filesystem'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. filesystem'), { target: { value: 'fs' } });
+    fireEvent.keyDown(screen.getByPlaceholderText('e.g. filesystem'), { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Server already in list')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
     });
   });

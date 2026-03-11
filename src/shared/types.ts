@@ -191,6 +191,8 @@ export interface ClaudeSettings {
   language?: string;
   availableModels?: string[];
   enableAllProjectMcpServers?: boolean;
+  enabledMcpjsonServers?: string[];
+  disabledMcpjsonServers?: string[];
   includeGitInstructions?: boolean;
   respectGitignore?: boolean;
   outputStyle?: 'auto' | 'stream-json';
