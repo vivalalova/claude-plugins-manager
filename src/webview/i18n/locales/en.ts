@@ -56,6 +56,12 @@ export const en = {
   'settings.env.invalidKey': 'Key must contain only A-Z, 0-9, _',
   'settings.env.emptyState': 'No environment variables defined',
   'settings.env.toggleReveal': 'Toggle visibility',
+  // Hooks section
+  'settings.hooks.disableAll': 'Disable All Hooks',
+  'settings.hooks.openInEditor': 'Open in JSON Editor',
+  'settings.hooks.empty': 'No hooks configured',
+  'settings.hooks.emptyAction': 'Open JSON Editor to add hooks',
+  'settings.hooks.timeout': 'timeout',
   // PluginPage
   'plugin.page.title': 'Plugins Manager',
   'plugin.page.updateAll': 'Update All',

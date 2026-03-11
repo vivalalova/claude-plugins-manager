@@ -58,6 +58,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.invalidKey': '變數名稱只能包含 A-Z、0-9、_',
   'settings.env.emptyState': '尚未定義環境變數',
   'settings.env.toggleReveal': '切換顯示',
+  // Hooks section
+  'settings.hooks.disableAll': '停用所有 Hooks',
+  'settings.hooks.openInEditor': '在 JSON 編輯器中開啟',
+  'settings.hooks.empty': '尚未設定 Hooks',
+  'settings.hooks.emptyAction': '開啟 JSON 編輯器以新增 Hooks',
+  'settings.hooks.timeout': 'timeout',
   // PluginPage
   'plugin.page.title': '外掛管理員',
   'plugin.page.updateAll': '全部更新',

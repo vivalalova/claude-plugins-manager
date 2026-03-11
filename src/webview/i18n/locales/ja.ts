@@ -167,4 +167,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.invalidKey': 'キーは A-Z、0-9、_ のみ使用可能',
   'settings.env.emptyState': '環境変数が定義されていません',
   'settings.env.toggleReveal': '表示を切り替え',
+  // Hooks section
+  'settings.hooks.disableAll': 'すべての Hook を無効化',
+  'settings.hooks.openInEditor': 'JSON エディターで開く',
+  'settings.hooks.empty': 'Hook が設定されていません',
+  'settings.hooks.emptyAction': 'JSON エディターを開いて Hook を追加',
+  'settings.hooks.timeout': 'タイムアウト',
 };
