@@ -1,7 +1,7 @@
 import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, TagInput, TextSetting } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './components/SettingControls';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -128,6 +128,22 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         notSetLabel={t('settings.general.autoUpdatesChannel.notSet')}
         unknownTemplate={t('settings.general.autoUpdatesChannel.unknown')}
         settingKey="autoUpdatesChannel"
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <NumberSetting
+        label={t('settings.general.cleanupPeriodDays.label')}
+        description={t('settings.general.cleanupPeriodDays.description')}
+        value={settings.cleanupPeriodDays}
+        placeholder={t('settings.general.cleanupPeriodDays.placeholder')}
+        saveLabel={t('settings.general.cleanupPeriodDays.save')}
+        clearLabel={t('settings.general.cleanupPeriodDays.clear')}
+        settingKey="cleanupPeriodDays"
+        scope={scope}
+        min={0}
+        step={1}
+        minError={t('settings.general.cleanupPeriodDays.minError')}
         onSave={onSave}
         onDelete={onDelete}
       />

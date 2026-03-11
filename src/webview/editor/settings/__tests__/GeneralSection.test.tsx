@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { GeneralSection } from '../GeneralSection';
 import { ToastProvider } from '../../../components/Toast';
@@ -404,8 +404,9 @@ describe('GeneralSection — TextSetting 互動', () => {
     renderSection({}, onSave);
 
     await waitFor(() => screen.getByPlaceholderText('e.g. zh-TW'));
+    const langField = screen.getByPlaceholderText('e.g. zh-TW').closest('.settings-field') as HTMLElement;
     fireEvent.change(screen.getByPlaceholderText('e.g. zh-TW'), { target: { value: '台灣繁體中文' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(within(langField).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('language', '台灣繁體中文');
@@ -414,15 +415,19 @@ describe('GeneralSection — TextSetting 互動', () => {
 
   it('language 已設定時顯示 Clear 按鈕', async () => {
     renderSection({ language: 'zh-TW' });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy());
+    await waitFor(() => {
+      const langField = screen.getByPlaceholderText('e.g. zh-TW').closest('.settings-field') as HTMLElement;
+      expect(within(langField).getByRole('button', { name: 'Clear' })).toBeTruthy();
+    });
   });
 
   it('點擊 Clear → 呼叫 onDelete("language")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ language: 'zh-TW' }, vi.fn(), onDelete);
 
-    await waitFor(() => screen.getByRole('button', { name: 'Clear' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => screen.getByPlaceholderText('e.g. zh-TW'));
+    const langField = screen.getByPlaceholderText('e.g. zh-TW').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(langField).getByRole('button', { name: 'Clear' }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('language');
@@ -434,8 +439,9 @@ describe('GeneralSection — TextSetting 互動', () => {
     renderSection({ language: 'zh-TW' }, vi.fn(), onDelete);
 
     await waitFor(() => screen.getByPlaceholderText('e.g. zh-TW'));
+    const langField = screen.getByPlaceholderText('e.g. zh-TW').closest('.settings-field') as HTMLElement;
     fireEvent.change(screen.getByPlaceholderText('e.g. zh-TW'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(within(langField).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('language');
@@ -587,6 +593,81 @@ describe('GeneralSection — TagInput 互動', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('availableModels', ['claude-haiku-4-5-20251001']);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NumberSetting 互動
+// ---------------------------------------------------------------------------
+
+describe('GeneralSection — NumberSetting 互動', () => {
+  it('顯示 Cleanup Period Days 欄位', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Cleanup Period Days')).toBeTruthy());
+  });
+
+  it('cleanupPeriodDays 未設定 → input 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText('30') as HTMLInputElement;
+      expect(input.value).toBe('');
+    });
+  });
+
+  it('cleanupPeriodDays 未設定, 輸入 60 並儲存 → onSave("cleanupPeriodDays", 60)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('30'));
+    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '60' } });
+    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('cleanupPeriodDays', 60);
+    });
+  });
+
+  it('cleanupPeriodDays=30, 清除 → onDelete("cleanupPeriodDays")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ cleanupPeriodDays: 30 }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText('30'));
+    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Clear' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('cleanupPeriodDays');
+    });
+  });
+
+  it('cleanupPeriodDays < 0 → save 按鈕 disabled', async () => {
+    renderSection({});
+
+    await waitFor(() => screen.getByPlaceholderText('30'));
+    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '-1' } });
+
+    await waitFor(() => {
+      expect((within(cleanupField).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+  });
+
+  it('cleanupPeriodDays=0（停用清理）→ input 顯示 0，onSave("cleanupPeriodDays", 0)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ cleanupPeriodDays: 0 }, onSave);
+
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText('30') as HTMLInputElement;
+      expect(input.value).toBe('0');
+    });
+
+    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('cleanupPeriodDays', 0);
     });
   });
 });

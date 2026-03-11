@@ -408,7 +408,7 @@ export function NumberSetting({
     : aboveMax
       ? (maxError ?? `Must be at most ${max}`)
       : null;
-  const saveDisabled = saving || belowMin || aboveMax;
+  const saveDisabled = saving || belowMin || aboveMax || (!isEmpty && isNaN(parsedValue));
 
   const handleSave = async (): Promise<void> => {
     if (saveDisabled) return;
