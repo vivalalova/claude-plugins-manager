@@ -48,6 +48,7 @@ describe('AdvancedSection — 渲染', () => {
     'Skip WebFetch Preflight',
     'Attribution',
     'Status Line',
+    'File Suggestion Command',
     'Plans Directory',
     'API Key Helper',
     'OTEL Headers Helper',
@@ -458,5 +459,177 @@ describe('AdvancedSection — statusLine 物件編輯器', () => {
   it('statusLine={command:"x", padding:0} → padding input 顯示 "0"', () => {
     renderSection({ statusLine: { type: 'command', command: 'x', padding: 0 } });
     expect((screen.getByPlaceholderText(PAD_PLACEHOLDER) as HTMLInputElement).value).toBe('0');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fileSuggestion 物件編輯器
+// ---------------------------------------------------------------------------
+
+const FILE_SUG_PLACEHOLDER = 'e.g. bash ~/suggest.sh';
+
+describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
+  it('fileSuggestion 未設定 → command input 為空', () => {
+    renderSection({});
+    expect((screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('fileSuggestion={type:"command", command:"bash ~/suggest.sh"} → input 顯示值', () => {
+    renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } });
+    expect((screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER) as HTMLInputElement).value).toBe('bash ~/suggest.sh');
+  });
+
+  it('fileSuggestion 未設定 → Clear 按鈕不顯示', () => {
+    renderSection({});
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+
+  it('fileSuggestion 有值 → Clear 按鈕顯示', () => {
+    renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } });
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    expect(within(field).getByRole('button', { name: 'Clear' })).toBeTruthy();
+  });
+
+  it('未設定，輸入 command 並儲存 → onSave("fileSuggestion", { type:"command", command:"bash ~/suggest.sh" })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER), { target: { value: 'bash ~/suggest.sh' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fileSuggestion', { type: 'command', command: 'bash ~/suggest.sh' });
+    });
+  });
+
+  it('有值時點 Clear → onDelete("fileSuggestion")，onSave 不呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } }, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('fileSuggestion');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('command 清空後按 Save → onDelete("fileSuggestion")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } }, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER), { target: { value: '' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('fileSuggestion');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  // 邊界測試
+  it('command 只有空白字元 → onDelete("fileSuggestion")，onSave 不呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER), { target: { value: '   \t\n  ' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('fileSuggestion');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it("command 含單引號/雙引號/反斜線 → onSave 保留完整原始字串", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const rawCommand = `bash -c 'echo "hello"' \\ path/to/script`;
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER), { target: { value: rawCommand } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fileSuggestion', { type: 'command', command: rawCommand });
+    });
+  });
+
+  it('command 含 unicode 及 emoji → onSave 保留完整原始字串', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const unicodeCommand = '~/腳本/建議.sh 🚀 --flag=值';
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER), { target: { value: unicodeCommand } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fileSuggestion', { type: 'command', command: unicodeCommand });
+    });
+  });
+
+  it('command 超長字串（1000+ 字元）→ onSave 完整保留', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const longCommand = 'bash ' + 'a'.repeat(1000) + '.sh';
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER), { target: { value: longCommand } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fileSuggestion', { type: 'command', command: longCommand });
+    });
+  });
+
+  it('連續多次 change 後只按一次 Save → onSave 只呼叫一次，值為最後輸入', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER);
+    const field = input.closest('.settings-field') as HTMLElement;
+
+    fireEvent.change(input, { target: { value: 'first' } });
+    fireEvent.change(input, { target: { value: 'second' } });
+    fireEvent.change(input, { target: { value: 'bash ~/final.sh' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith('fileSuggestion', { type: 'command', command: 'bash ~/final.sh' });
+    });
+  });
+
+  it('有值時連續快速點兩次 Clear → onDelete 只呼叫一次（saving 防護）', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } }, vi.fn(), onDelete);
+
+    const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    const clearButton = within(field).getByRole('button', { name: 'Clear' });
+
+    fireEvent.click(clearButton);
+    fireEvent.click(clearButton);
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledTimes(1);
+      expect(onDelete).toHaveBeenCalledWith('fileSuggestion');
+    });
+  });
+
+  it('fileSuggestion={type:"command", command:""} → input 為空，Clear 按鈕不顯示', () => {
+    renderSection({ fileSuggestion: { type: 'command', command: '' } });
+    const input = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER) as HTMLInputElement;
+    expect(input.value).toBe('');
+    const field = input.closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
   });
 });

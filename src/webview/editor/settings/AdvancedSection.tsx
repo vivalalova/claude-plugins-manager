@@ -210,6 +210,95 @@ function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProp
 }
 
 // ---------------------------------------------------------------------------
+// FileSuggestionEditor
+// ---------------------------------------------------------------------------
+
+interface FileSuggestionEditorProps {
+  fileSuggestion: ClaudeSettings['fileSuggestion'];
+  onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+}
+
+function FileSuggestionEditor({ fileSuggestion, onSave, onDelete }: FileSuggestionEditorProps): React.ReactElement {
+  const { t } = useI18n();
+  const { addToast } = useToast();
+  const [command, setCommand] = useState(fileSuggestion?.command ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setCommand(fileSuggestion?.command ?? '');
+  }, [fileSuggestion?.command]);
+
+  const handleSave = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const trimmed = command.trim();
+      if (!trimmed) {
+        await onDelete('fileSuggestion');
+      } else {
+        await onSave('fileSuggestion', { type: 'command', command: trimmed });
+      }
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      await onDelete('fileSuggestion');
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label">{t('settings.advanced.fileSuggestion.label')}</label>
+      <p className="settings-field-description">{t('settings.advanced.fileSuggestion.description')}</p>
+      <div className="settings-model-row">
+        <label className="settings-label" htmlFor="fileSuggestion-command">
+          {t('settings.advanced.fileSuggestion.command.label')}
+        </label>
+        <input
+          id="fileSuggestion-command"
+          className="input"
+          type="text"
+          value={command}
+          onChange={(e) => setCommand(e.target.value)}
+          placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
+          disabled={saving}
+        />
+      </div>
+      <div className="settings-actions">
+        <button
+          className="btn btn-primary"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          type="button"
+        >
+          {t('settings.advanced.fileSuggestion.save')}
+        </button>
+        {fileSuggestion?.command && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleDelete()}
+            disabled={saving}
+            type="button"
+          >
+            {t('settings.advanced.fileSuggestion.clear')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AdvancedSection
 // ---------------------------------------------------------------------------
 
@@ -307,6 +396,12 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
 
       <StatusLineEditor
         statusLine={settings.statusLine}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <FileSuggestionEditor
+        fileSuggestion={settings.fileSuggestion}
         onSave={onSave}
         onDelete={onDelete}
       />

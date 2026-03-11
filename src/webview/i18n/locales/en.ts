@@ -203,6 +203,12 @@ export const en = {
   'settings.advanced.statusLine.padding.placeholder': 'e.g. 1',
   'settings.advanced.statusLine.save': 'Save',
   'settings.advanced.statusLine.clear': 'Clear',
+  'settings.advanced.fileSuggestion.label': 'File Suggestion Command',
+  'settings.advanced.fileSuggestion.description': 'Custom command for @ file autocomplete suggestions',
+  'settings.advanced.fileSuggestion.command.label': 'Command',
+  'settings.advanced.fileSuggestion.command.placeholder': 'e.g. bash ~/suggest.sh',
+  'settings.advanced.fileSuggestion.save': 'Save',
+  'settings.advanced.fileSuggestion.clear': 'Clear',
   'settings.advanced.skipWebFetchPreflight.label': 'Skip WebFetch Preflight',
   'settings.advanced.skipWebFetchPreflight.description': 'Skip the WebFetch blocklist preflight check (enterprise use)',
   // PluginPage

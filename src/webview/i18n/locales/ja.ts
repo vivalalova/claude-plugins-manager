@@ -314,6 +314,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.statusLine.padding.placeholder': '例: 1',
   'settings.advanced.statusLine.save': '保存',
   'settings.advanced.statusLine.clear': 'クリア',
+  'settings.advanced.fileSuggestion.label': 'ファイル提案コマンド',
+  'settings.advanced.fileSuggestion.description': '@ファイル自動補完の提案に使用するカスタムコマンド',
+  'settings.advanced.fileSuggestion.command.label': 'コマンド',
+  'settings.advanced.fileSuggestion.command.placeholder': '例: bash ~/suggest.sh',
+  'settings.advanced.fileSuggestion.save': '保存',
+  'settings.advanced.fileSuggestion.clear': 'クリア',
   'settings.advanced.skipWebFetchPreflight.label': 'WebFetch プリフライトをスキップ',
   'settings.advanced.skipWebFetchPreflight.description': 'WebFetch ブロックリストのプリフライトチェックをスキップします（エンタープライズ向け）',
 };

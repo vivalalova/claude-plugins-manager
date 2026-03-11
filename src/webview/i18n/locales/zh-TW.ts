@@ -205,6 +205,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.statusLine.padding.placeholder': '例：1',
   'settings.advanced.statusLine.save': '儲存',
   'settings.advanced.statusLine.clear': '清除',
+  'settings.advanced.fileSuggestion.label': '檔案建議命令',
+  'settings.advanced.fileSuggestion.description': '自訂 @ 檔案自動完成建議的命令',
+  'settings.advanced.fileSuggestion.command.label': '命令',
+  'settings.advanced.fileSuggestion.command.placeholder': '例：bash ~/suggest.sh',
+  'settings.advanced.fileSuggestion.save': '儲存',
+  'settings.advanced.fileSuggestion.clear': '清除',
   'settings.advanced.skipWebFetchPreflight.label': '略過 WebFetch 預檢',
   'settings.advanced.skipWebFetchPreflight.description': '略過 WebFetch 封鎖清單的預檢查（企業用途）',
   // PluginPage

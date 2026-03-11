@@ -211,6 +211,7 @@ export interface ClaudeSettings {
   awsCredentialExport?: string;
   awsAuthRefresh?: string;
   statusLine?: { type: 'command'; command: string; padding?: number };
+  fileSuggestion?: { type: 'command'; command: string };
   skipWebFetchPreflight?: boolean;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;
