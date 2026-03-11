@@ -49,7 +49,7 @@ function getHookDetail(hook: HookCommand, timeoutLabel: string): string | null {
 interface HookItemProps {
   hook: HookCommand;
   timeoutLabel: string;
-  isFilePath: boolean;
+  filePath: string | null;
   onOpenFile: (path: string) => Promise<void>;
   openingPath: string | null;
   explainLabel: string;
@@ -59,11 +59,10 @@ interface HookItemProps {
   isExplaining: boolean;
 }
 
-function HookItem({ hook, timeoutLabel, isFilePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
+function HookItem({ hook, timeoutLabel, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
   const label = getHookLabel(hook);
   const detail = getHookDetail(hook, timeoutLabel);
   const fullCmd = getHookContent(hook);
-  const filePath = hook.type === 'command' ? extractFilePath(hook.command) : null;
   const isOpening = filePath !== null && openingPath === filePath;
 
   return (
@@ -72,7 +71,7 @@ function HookItem({ hook, timeoutLabel, isFilePath, onOpenFile, openingPath, exp
         <span className="hooks-hook-type">{hook.type}</span>
         <span className="hooks-hook-label">{label}</span>
         {detail && <span className="hooks-hook-detail">{detail}</span>}
-        {isFilePath && filePath && (
+        {filePath && (
           <button
             className="btn btn-icon"
             title="Open file"
@@ -144,14 +143,16 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
       setExistingPaths(new Set());
       return;
     }
+    let cancelled = false;
     void (async () => {
       try {
         const existing = await sendRequest<string[]>({ type: 'hooks.checkFilePaths', paths: uniquePaths });
-        setExistingPaths(new Set(existing));
+        if (!cancelled) setExistingPaths(new Set(existing));
       } catch {
-        setExistingPaths(new Set());
+        if (!cancelled) setExistingPaths(new Set());
       }
     })();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.hooks]);
 
@@ -274,7 +275,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                           key={hIdx}
                           hook={hook}
                           timeoutLabel={t('settings.hooks.timeout')}
-                          isFilePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '')}
+                          filePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null}
                           onOpenFile={handleOpenFile}
                           openingPath={openingPath}
                           explainLabel={t('settings.hooks.explain')}
