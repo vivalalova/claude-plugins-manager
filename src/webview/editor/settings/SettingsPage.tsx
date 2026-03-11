@@ -82,11 +82,15 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
 
   const handleSave = async (): Promise<void> => {
     const modelToSave = showCustom ? customInput.trim() : selectValue;
-    if (!modelToSave) return;
     setSaving(true);
     try {
-      await onSave('model', modelToSave);
-      addToast('Model saved', 'success');
+      if (!modelToSave) {
+        await onDelete('model');
+        addToast('Model cleared', 'success');
+      } else {
+        await onSave('model', modelToSave);
+        addToast('Model saved', 'success');
+      }
     } catch (e) {
       addToast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -165,7 +169,7 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
         <button
           className="btn btn-primary"
           onClick={handleSave}
-          disabled={saving || (!selectValue && !customInput.trim())}
+          disabled={saving || (!selectValue && !customInput.trim() && !currentModel)}
         >
           {t('settings.model.save')}
         </button>
@@ -182,7 +186,7 @@ export function SettingsPage(): React.ReactElement {
   const { t } = useI18n();
 
   const [scope, setScope] = useState<PluginScope>('user');
-  const [activeNav, setActiveNav] = useState<SettingsNavItem>('model');
+  const [activeNav, setActiveNav] = useState<SettingsNavItem>('general');
   const [settings, setSettings] = useState<ClaudeSettings>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -237,11 +241,11 @@ export function SettingsPage(): React.ReactElement {
   };
 
   const navItems: { id: SettingsNavItem; label: string }[] = [
+    { id: 'general', label: t('settings.nav.general') },
     { id: 'model', label: t('settings.nav.model') },
     { id: 'permissions', label: t('settings.nav.permissions') },
     { id: 'env', label: t('settings.nav.env') },
     { id: 'hooks', label: t('settings.nav.hooks') },
-    { id: 'general', label: t('settings.nav.general') },
   ];
 
   return (
