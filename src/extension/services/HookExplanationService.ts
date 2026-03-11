@@ -31,7 +31,7 @@ export class HookExplanationService {
 
     const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${hookContent}`;
     const explanation = await this.cli.exec(
-      ['--model', 'sonnet', '--dangerously-skip-permissions', '--print', prompt],
+      ['--model', 'sonnet', '--print', prompt],
       { timeout: 120_000 },
     );
 
@@ -54,7 +54,7 @@ export class HookExplanationService {
   }
 
   private cacheKey(hookContent: string, eventType: string, locale: string): string {
-    return `${hookContent}:${eventType}:${locale}`;
+    return JSON.stringify([hookContent, eventType, locale]);
   }
 
   private async readCache(): Promise<CacheFile> {

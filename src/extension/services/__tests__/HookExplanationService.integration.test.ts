@@ -78,12 +78,13 @@ describe('HookExplanationService — integration', () => {
     // 驗證 cache 已寫入
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    expect(cache['/guard.sh arg:PreToolUse:en'].explanation).toBe(result.explanation);
+    const key = JSON.stringify(['/guard.sh arg', 'PreToolUse', 'en']);
+    expect(cache[key].explanation).toBe(result.explanation);
   });
 
   it('cache hit（locale 相同）→ 不呼叫 CLI → fromCache: true', async () => {
     await writeCache(cachePath, {
-      '/guard.sh:PreToolUse:zh-TW': {
+      [JSON.stringify(['/guard.sh', 'PreToolUse', 'zh-TW'])]: {
         explanation: '這個 hook 執行守護腳本。',
         locale: 'zh-TW',
         createdAt: new Date().toISOString(),
@@ -99,7 +100,7 @@ describe('HookExplanationService — integration', () => {
 
   it('locale 不同 → cache miss → 重新呼叫 CLI', async () => {
     await writeCache(cachePath, {
-      '/guard.sh:PreToolUse:en': {
+      [JSON.stringify(['/guard.sh', 'PreToolUse', 'en'])]: {
         explanation: 'English explanation.',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -156,5 +157,19 @@ describe('HookExplanationService — integration', () => {
 
     const r2 = await service.explain(content, 'PreToolUse', 'en');
     expect(r2.fromCache).toBe(true);
+  });
+
+  it('hookContent 含冒號 → 不與其他 key 碰撞', async () => {
+    // "a:PreToolUse" + "en" vs "a" + "PreToolUse:en" 若用冒號拼接會產生相同字串
+    (cli.exec as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce('explanation A')
+      .mockResolvedValueOnce('explanation B');
+
+    const r1 = await service.explain('a:PreToolUse', 'en', 'en');
+    const r2 = await service.explain('a', 'PreToolUse:en', 'en');
+
+    expect(r1.explanation).toBe('explanation A');
+    expect(r2.explanation).toBe('explanation B');
+    expect(cli.exec).toHaveBeenCalledTimes(2);
   });
 });
