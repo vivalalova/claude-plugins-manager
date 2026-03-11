@@ -184,7 +184,7 @@ export type HookCommand =
  */
 export interface ClaudeSettings {
   model?: string;
-  permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; defaultMode?: string };
+  permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; defaultMode?: string; additionalDirectories?: string[] };
   env?: Record<string, string>;
   hooks?: Record<string, Array<{ matcher?: string; hooks: HookCommand[] }>>;
   effortLevel?: 'high' | 'medium' | 'low';

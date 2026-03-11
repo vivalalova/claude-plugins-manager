@@ -172,6 +172,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.unknownMode': '現在の値: {value} ⚠️',
   'settings.permissions.bypassConfirmTitle': '権限バイパスの確認',
   'settings.permissions.bypassConfirmMessage': 'すべての権限チェックをバイパスします。本当に続けますか？',
+  'settings.permissions.additionalDirectories.label': '追加ディレクトリ',
+  'settings.permissions.additionalDirectories.description': 'ワークスペースルート以外のディレクトリへの Claude アクセスを許可',
+  'settings.permissions.additionalDirectories.placeholder': '例: ~/projects',
+  'settings.permissions.additionalDirectories.add': '追加',
+  'settings.permissions.additionalDirectories.empty': '追加ディレクトリが設定されていません',
+  'settings.permissions.additionalDirectories.duplicate': 'ディレクトリはすでに追加済みです',
   // Env section
   'settings.env.add': '追加',
   'settings.env.edit': '編集',

@@ -3,6 +3,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
+import { TagInput } from './components/SettingControls';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -212,6 +213,7 @@ export function PermissionsSection({
   }, [scope]);
 
   const perms = settings.permissions ?? {};
+  const additionalDirs: string[] = perms.additionalDirectories ?? [];
   const currentMode = perms.defaultMode ?? '';
   const isUnknownMode = currentMode !== '' && !KNOWN_DEFAULT_MODES.includes(currentMode as typeof KNOWN_DEFAULT_MODES[number]);
 
@@ -336,6 +338,22 @@ export function PermissionsSection({
         listRules={listRules}
         onAdd={(rule) => void handleAddRule(rule)}
         disabled={saving}
+      />
+
+      {/* additionalDirectories */}
+      <TagInput
+        label={t('settings.permissions.additionalDirectories.label')}
+        description={t('settings.permissions.additionalDirectories.description')}
+        scope={scope}
+        tags={additionalDirs}
+        emptyPlaceholder={t('settings.permissions.additionalDirectories.empty')}
+        inputPlaceholder={t('settings.permissions.additionalDirectories.placeholder')}
+        addLabel={t('settings.permissions.additionalDirectories.add')}
+        duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
+        settingKey="additionalDirectories"
+        onSave={async (_key, value) => {
+          await updatePermissions({ ...perms, additionalDirectories: value as string[] });
+        }}
       />
 
       {/* bypassPermissions confirm */}

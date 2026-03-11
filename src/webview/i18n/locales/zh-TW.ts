@@ -63,6 +63,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.unknownMode': '目前值：{value} ⚠️',
   'settings.permissions.bypassConfirmTitle': '停用權限確認',
   'settings.permissions.bypassConfirmMessage': '這將停用所有權限檢查。確定繼續嗎？',
+  'settings.permissions.additionalDirectories.label': '額外目錄',
+  'settings.permissions.additionalDirectories.description': '授予 Claude 存取工作區根目錄以外的目錄',
+  'settings.permissions.additionalDirectories.placeholder': '例：~/projects',
+  'settings.permissions.additionalDirectories.add': '新增',
+  'settings.permissions.additionalDirectories.empty': '尚未設定額外目錄',
+  'settings.permissions.additionalDirectories.duplicate': '目錄已存在',
   // Env section
   'settings.env.add': '新增',
   'settings.env.edit': '編輯',

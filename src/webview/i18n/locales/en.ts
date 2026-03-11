@@ -61,6 +61,12 @@ export const en = {
   'settings.permissions.unknownMode': 'Current value: {value} ⚠️',
   'settings.permissions.bypassConfirmTitle': 'Bypass Permissions',
   'settings.permissions.bypassConfirmMessage': 'This will bypass all permission checks. Are you sure?',
+  'settings.permissions.additionalDirectories.label': 'Additional Directories',
+  'settings.permissions.additionalDirectories.description': 'Grant Claude access to directories outside the workspace root',
+  'settings.permissions.additionalDirectories.placeholder': 'e.g. ~/projects',
+  'settings.permissions.additionalDirectories.add': 'Add',
+  'settings.permissions.additionalDirectories.empty': 'No additional directories configured',
+  'settings.permissions.additionalDirectories.duplicate': 'Directory already added',
   // Env section
   'settings.env.add': 'Add',
   'settings.env.edit': 'Edit',
