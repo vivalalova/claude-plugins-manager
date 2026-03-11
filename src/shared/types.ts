@@ -201,6 +201,7 @@ export interface ClaudeSettings {
   spinnerTipsEnabled?: boolean;
   terminalProgressBarEnabled?: boolean;
   prefersReducedMotion?: boolean;
+  teammateMode?: 'auto' | 'inline' | 'tmux' | 'iterm2';
 }
 
 /** 翻譯目標語言 allowlist（前後端共用） */

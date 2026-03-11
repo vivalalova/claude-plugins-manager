@@ -126,3 +126,54 @@ describe('DisplaySection — 驗收條件', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// teammateMode EnumDropdown
+// ---------------------------------------------------------------------------
+
+describe('DisplaySection — teammateMode dropdown', () => {
+  it('顯示 Teammate Mode dropdown', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Teammate Mode')).toBeTruthy());
+  });
+
+  it('teammateMode 未設定 → select value 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Teammate Mode' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+  });
+
+  it('teammateMode 未設定, 選擇 tmux → onSave("teammateMode", "tmux")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Teammate Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Teammate Mode' }), { target: { value: 'tmux' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('teammateMode', 'tmux');
+    });
+  });
+
+  it('teammateMode="inline", 選擇空值 → onDelete("teammateMode")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ teammateMode: 'inline' }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Teammate Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Teammate Mode' }), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('teammateMode');
+    });
+  });
+
+  it('teammateMode="iterm2" → select 顯示 iterm2', async () => {
+    renderSection({ teammateMode: 'iterm2' });
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Teammate Mode' }) as HTMLSelectElement;
+      expect(select.value).toBe('iterm2');
+    });
+  });
+});
