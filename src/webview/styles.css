@@ -2164,3 +2164,10 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.settings-field-description {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #6b7280);
+  margin: 2px 0 6px;
+  line-height: 1.4;
+}

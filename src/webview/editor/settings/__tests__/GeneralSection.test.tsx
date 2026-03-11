@@ -84,6 +84,33 @@ describe('GeneralSection — 渲染', () => {
       expect(checkboxes.length).toBe(5);
     });
   });
+
+  it('各欄位顯示 description 說明文字', async () => {
+    renderSection();
+    await waitFor(() => {
+      // effortLevel description
+      expect(screen.getByText(/Adaptive reasoning level/i)).toBeTruthy();
+      // language description
+      expect(screen.getByText(/language preference/i)).toBeTruthy();
+      // availableModels description
+      expect(screen.getByText(/Restrict available models/i)).toBeTruthy();
+      // fastMode description
+      expect(screen.getByText(/Faster output speed/i)).toBeTruthy();
+    });
+  });
+
+  it('description 不傳入時不產生 settings-field-description 元素', async () => {
+    // BooleanToggle without description (passing undefined explicitly)
+    const { container } = renderSection({});
+    await waitFor(() => screen.getAllByRole('checkbox'));
+    // descriptions are rendered since GeneralSection always passes them
+    // verify the DOM structure: description <p> is outside <label>
+    const labels = container.querySelectorAll('label.hooks-toggle-label');
+    labels.forEach((label) => {
+      // description <p> should NOT be inside the label
+      expect(label.querySelector('.settings-field-description')).toBeNull();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

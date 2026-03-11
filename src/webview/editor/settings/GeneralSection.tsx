@@ -16,13 +16,14 @@ const KNOWN_OUTPUT_STYLES = ['auto', 'stream-json'] as const;
 
 interface BooleanToggleProps {
   label: string;
+  description?: string;
   value: boolean | undefined;
   settingKey: string;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-function BooleanToggle({ label, value, settingKey, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+function BooleanToggle({ label, description, value, settingKey, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { addToast } = useToast();
   const [saving, setSaving] = useState(false);
   const checked = value ?? false;
@@ -53,6 +54,7 @@ function BooleanToggle({ label, value, settingKey, onSave, onDelete }: BooleanTo
         />
         {label}
       </label>
+      {description && <p className="settings-field-description">{description}</p>}
     </div>
   );
 }
@@ -63,6 +65,7 @@ function BooleanToggle({ label, value, settingKey, onSave, onDelete }: BooleanTo
 
 interface EnumDropdownProps {
   label: string;
+  description?: string;
   value: string | undefined;
   knownValues: readonly string[];
   knownLabels: Record<string, string>;
@@ -75,6 +78,7 @@ interface EnumDropdownProps {
 
 function EnumDropdown({
   label,
+  description,
   value,
   knownValues,
   knownLabels,
@@ -107,25 +111,28 @@ function EnumDropdown({
   };
 
   return (
-    <div className="general-field-row">
-      <label className="settings-label" htmlFor={settingKey}>{label}</label>
-      <select
-        id={settingKey}
-        className="select"
-        value={selectValue}
-        onChange={(e) => void handleChange(e.target.value)}
-        disabled={saving}
-      >
-        <option value="">{notSetLabel}</option>
-        {isUnknown && (
-          <option value="__unknown__" disabled>
-            {unknownTemplate.replace('{value}', value!)}
-          </option>
-        )}
-        {knownValues.map((v) => (
-          <option key={v} value={v}>{knownLabels[v] ?? v}</option>
-        ))}
-      </select>
+    <div className="settings-field">
+      <div className="general-field-row">
+        <label className="settings-label" htmlFor={settingKey}>{label}</label>
+        <select
+          id={settingKey}
+          className="select"
+          value={selectValue}
+          onChange={(e) => void handleChange(e.target.value)}
+          disabled={saving}
+        >
+          <option value="">{notSetLabel}</option>
+          {isUnknown && (
+            <option value="__unknown__" disabled>
+              {unknownTemplate.replace('{value}', value!)}
+            </option>
+          )}
+          {knownValues.map((v) => (
+            <option key={v} value={v}>{knownLabels[v] ?? v}</option>
+          ))}
+        </select>
+      </div>
+      {description && <p className="settings-field-description">{description}</p>}
     </div>
   );
 }
@@ -136,6 +143,7 @@ function EnumDropdown({
 
 interface TextSettingProps {
   label: string;
+  description?: string;
   value: string | undefined;
   placeholder: string;
   saveLabel: string;
@@ -148,6 +156,7 @@ interface TextSettingProps {
 
 function TextSetting({
   label,
+  description,
   value,
   placeholder,
   saveLabel,
@@ -196,6 +205,7 @@ function TextSetting({
   return (
     <div className="settings-field">
       <label className="settings-label" htmlFor={settingKey}>{label}</label>
+      {description && <p className="settings-field-description">{description}</p>}
       <div className="settings-model-row">
         <input
           id={settingKey}
@@ -237,6 +247,7 @@ function TextSetting({
 
 interface TagInputProps {
   label: string;
+  description?: string;
   scope: PluginScope;
   tags: string[];
   emptyPlaceholder: string;
@@ -249,6 +260,7 @@ interface TagInputProps {
 
 function TagInput({
   label,
+  description,
   scope,
   tags,
   emptyPlaceholder,
@@ -305,6 +317,7 @@ function TagInput({
   return (
     <div className="settings-field">
       <label className="settings-label">{label}</label>
+      {description && <p className="settings-field-description">{description}</p>}
       <div className="general-tag-list">
         {tags.length === 0 ? (
           <span className="perm-empty">{emptyPlaceholder}</span>
@@ -374,12 +387,12 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
     'stream-json': t('settings.general.outputStyle.streamJson'),
   };
 
-  const booleanFields: { key: keyof ClaudeSettings; label: string }[] = [
-    { key: 'enableAllProjectMcpServers', label: t('settings.general.enableAllProjectMcpServers.label') },
-    { key: 'includeGitInstructions', label: t('settings.general.includeGitInstructions.label') },
-    { key: 'respectGitignore', label: t('settings.general.respectGitignore.label') },
-    { key: 'fastMode', label: t('settings.general.fastMode.label') },
-    { key: 'alwaysThinkingEnabled', label: t('settings.general.alwaysThinkingEnabled.label') },
+  const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
+    { key: 'enableAllProjectMcpServers', label: t('settings.general.enableAllProjectMcpServers.label'), description: t('settings.general.enableAllProjectMcpServers.description') },
+    { key: 'includeGitInstructions', label: t('settings.general.includeGitInstructions.label'), description: t('settings.general.includeGitInstructions.description') },
+    { key: 'respectGitignore', label: t('settings.general.respectGitignore.label'), description: t('settings.general.respectGitignore.description') },
+    { key: 'fastMode', label: t('settings.general.fastMode.label'), description: t('settings.general.fastMode.description') },
+    { key: 'alwaysThinkingEnabled', label: t('settings.general.alwaysThinkingEnabled.label'), description: t('settings.general.alwaysThinkingEnabled.description') },
   ];
 
   return (
@@ -388,6 +401,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
 
       <EnumDropdown
         label={t('settings.general.effortLevel.label')}
+        description={t('settings.general.effortLevel.description')}
         value={settings.effortLevel}
         knownValues={KNOWN_EFFORT_LEVELS}
         knownLabels={effortLabels}
@@ -400,6 +414,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
 
       <TextSetting
         label={t('settings.general.language.label')}
+        description={t('settings.general.language.description')}
         value={settings.language}
         placeholder={t('settings.general.language.placeholder')}
         saveLabel={t('settings.general.language.save')}
@@ -412,6 +427,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
 
       <TagInput
         label={t('settings.general.availableModels.label')}
+        description={t('settings.general.availableModels.description')}
         scope={scope}
         tags={settings.availableModels ?? []}
         emptyPlaceholder={t('settings.general.availableModels.empty')}
@@ -422,10 +438,11 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         onSave={onSave}
       />
 
-      {booleanFields.map(({ key, label }) => (
+      {booleanFields.map(({ key, label, description }) => (
         <BooleanToggle
           key={key}
           label={label}
+          description={description}
           value={settings[key] as boolean | undefined}
           settingKey={key}
           onSave={onSave}
@@ -436,6 +453,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
       <EnumDropdown
         label={t('settings.general.outputStyle.label')}
         value={settings.outputStyle}
+        description={t('settings.general.outputStyle.description')}
         knownValues={KNOWN_OUTPUT_STYLES}
         knownLabels={outputLabels}
         notSetLabel={t('settings.general.outputStyle.notSet')}
