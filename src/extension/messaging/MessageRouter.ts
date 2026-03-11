@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import type { MarketplaceService } from '../services/MarketplaceService';
 import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
@@ -128,6 +130,25 @@ export class MessageRouter {
         return this.settings.setSetting(message.scope, message.key, message.value);
       case 'settings.delete':
         return this.settings.deleteSetting(message.scope, message.key);
+      case 'hooks.checkFilePaths': {
+        const home = os.homedir();
+        const expandPath = (p: string): string =>
+          p.startsWith('~/') ? home + p.slice(1) : p;
+        return message.paths.filter((p) => {
+          const expanded = expandPath(p);
+          return (p.startsWith('/') || p.startsWith('~/')) && fs.existsSync(expanded);
+        });
+      }
+
+      case 'hooks.openFile': {
+        const home = os.homedir();
+        const resolved = message.path.startsWith('~/')
+          ? home + message.path.slice(1)
+          : message.path;
+        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
+        return;
+      }
+
       case 'settings.openInEditor': {
         const filePath = this.settings.getSettingsPath(message.scope);
         const uri = vscode.Uri.file(filePath);

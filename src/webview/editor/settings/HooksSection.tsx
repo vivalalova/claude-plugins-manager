@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
@@ -9,9 +9,15 @@ import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/t
 // ---------------------------------------------------------------------------
 
 const MAX_CMD_LEN = 60;
+const FILE_PATH_RE = /^(?:\/|~\/)/;
 
 function truncate(s: string): string {
   return s.length > MAX_CMD_LEN ? `${s.slice(0, MAX_CMD_LEN)}…` : s;
+}
+
+function extractFilePath(command: string): string | null {
+  const firstToken = command.split(' ')[0];
+  return FILE_PATH_RE.test(firstToken) ? firstToken : null;
 }
 
 function getHookLabel(hook: HookCommand): string {
@@ -34,19 +40,40 @@ function getHookDetail(hook: HookCommand, timeoutLabel: string): string | null {
 // HookItem
 // ---------------------------------------------------------------------------
 
-function HookItem({ hook, timeoutLabel }: { hook: HookCommand; timeoutLabel: string }): React.ReactElement {
+interface HookItemProps {
+  hook: HookCommand;
+  timeoutLabel: string;
+  isFilePath: boolean;
+  onOpenFile: (path: string) => Promise<void>;
+  openingPath: string | null;
+}
+
+function HookItem({ hook, timeoutLabel, isFilePath, onOpenFile, openingPath }: HookItemProps): React.ReactElement {
   const label = getHookLabel(hook);
   const detail = getHookDetail(hook, timeoutLabel);
   const fullCmd =
     hook.type === 'command' ? hook.command :
     hook.type === 'http'    ? hook.url :
     (hook as { prompt: string }).prompt;
+  const filePath = hook.type === 'command' ? extractFilePath(hook.command) : null;
+  const isOpening = filePath !== null && openingPath === filePath;
 
   return (
     <div className="hooks-hook-item" title={fullCmd}>
       <span className="hooks-hook-type">{hook.type}</span>
       <span className="hooks-hook-label">{label}</span>
       {detail && <span className="hooks-hook-detail">{detail}</span>}
+      {isFilePath && filePath && (
+        <button
+          className="btn btn-icon"
+          title="Open file"
+          type="button"
+          disabled={isOpening}
+          onClick={() => void onOpenFile(filePath)}
+        >
+          {isOpening ? '⏳' : '📂'}
+        </button>
+      )}
     </div>
   );
 }
@@ -67,10 +94,51 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
   const { addToast } = useToast();
   const [toggling, setToggling] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [existingPaths, setExistingPaths] = useState<ReadonlySet<string>>(new Set());
+  const [openingPath, setOpeningPath] = useState<string | null>(null);
 
   const hooksData = settings.hooks ?? {};
   const eventTypes = Object.keys(hooksData);
   const disableAllHooks = settings.disableAllHooks ?? false;
+
+  useEffect(() => {
+    const allPaths: string[] = [];
+    for (const matchers of Object.values(hooksData)) {
+      for (const group of matchers) {
+        for (const hook of group.hooks) {
+          if (hook.type === 'command') {
+            const p = extractFilePath(hook.command);
+            if (p) allPaths.push(p);
+          }
+        }
+      }
+    }
+    const uniquePaths = Array.from(new Set(allPaths));
+    if (uniquePaths.length === 0) {
+      setExistingPaths(new Set());
+      return;
+    }
+    void (async () => {
+      try {
+        const existing = await sendRequest<string[]>({ type: 'hooks.checkFilePaths', paths: uniquePaths });
+        setExistingPaths(new Set(existing));
+      } catch {
+        setExistingPaths(new Set());
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.hooks]);
+
+  const handleOpenFile = async (filePath: string): Promise<void> => {
+    setOpeningPath(filePath);
+    try {
+      await sendRequest({ type: 'hooks.openFile', path: filePath });
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setOpeningPath(null);
+    }
+  };
 
   const handleToggleDisable = async (): Promise<void> => {
     setToggling(true);
@@ -154,6 +222,9 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                           key={hIdx}
                           hook={hook}
                           timeoutLabel={t('settings.hooks.timeout')}
+                          isFilePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '')}
+                          onOpenFile={handleOpenFile}
+                          openingPath={openingPath}
                         />
                       ))}
                     </div>

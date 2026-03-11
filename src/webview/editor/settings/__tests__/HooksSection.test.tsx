@@ -278,3 +278,124 @@ describe('HooksSection — openInEditor button', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// open file button
+// ---------------------------------------------------------------------------
+
+describe('HooksSection — open file button', () => {
+  it('command = 絕對路徑且存在 → 顯示開啟按鈕', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; paths?: string[] }) => {
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve(['/guard.sh']);
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Open file')).toBeTruthy();
+    });
+  });
+
+  it('command = 非路徑 pattern → 不顯示按鈕，不送 checkFilePaths', async () => {
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo hello' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('echo hello'));
+    expect(screen.queryByTitle('Open file')).toBeNull();
+    expect(mockSendRequest).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'hooks.checkFilePaths' }));
+  });
+
+  it('command = 路徑但不存在 → 不顯示按鈕', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve([]);
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '/not/exist.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('/not/exist.sh'));
+    expect(screen.queryByTitle('Open file')).toBeNull();
+  });
+
+  it('prompt type hook → 不顯示按鈕', async () => {
+    renderSection({
+      hooks: {
+        Stop: [{ matcher: '', hooks: [{ type: 'prompt', prompt: '/some/prompt.md' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('/some/prompt.md'));
+    expect(screen.queryByTitle('Open file')).toBeNull();
+  });
+
+  it('http type hook → 不顯示按鈕', async () => {
+    renderSection({
+      hooks: {
+        Stop: [{ matcher: '', hooks: [{ type: 'http', url: 'https://api.example.com' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('https://api.example.com'));
+    expect(screen.queryByTitle('Open file')).toBeNull();
+  });
+
+  it('agent type hook → 不顯示按鈕', async () => {
+    renderSection({
+      hooks: {
+        Stop: [{ matcher: '', hooks: [{ type: 'agent', prompt: '/some/agent-prompt.md' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('/some/agent-prompt.md'));
+    expect(screen.queryByTitle('Open file')).toBeNull();
+  });
+
+  it('點擊開啟按鈕 → 送 hooks.openFile 請求', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; paths?: string[] }) => {
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve(['~/scripts/run.sh']);
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '~/scripts/run.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByTitle('Open file'));
+    fireEvent.click(screen.getByTitle('Open file'));
+
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledWith({ type: 'hooks.openFile', path: '~/scripts/run.sh' });
+    });
+  });
+
+  it('hooks.openFile 失敗 → 顯示 error toast', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve(['/guard.sh']);
+      if (msg.type === 'hooks.openFile') return Promise.reject(new Error('open failed'));
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByTitle('Open file'));
+    fireEvent.click(screen.getByTitle('Open file'));
+
+    await waitFor(() => {
+      expect(screen.getByText('open failed')).toBeTruthy();
+    });
+  });
+});
