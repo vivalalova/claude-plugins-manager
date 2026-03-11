@@ -177,14 +177,47 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊非 model nav（如 Env）→ 顯示 coming soon 文字', async () => {
+  it('點擊非 model/permissions/env nav（如 Hooks）→ 顯示 coming soon 文字', async () => {
+    renderPage();
+
+    await waitFor(() => screen.getByText('Hooks'));
+    fireEvent.click(screen.getByText('Hooks').closest('button')!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Coming soon/i)).toBeTruthy();
+    });
+  });
+
+  it('點擊 Env nav → 顯示 Env 區塊（empty state）', async () => {
     renderPage();
 
     await waitFor(() => screen.getByText('Env'));
     fireEvent.click(screen.getByText('Env').closest('button')!);
 
     await waitFor(() => {
-      expect(screen.getByText(/Coming soon/i)).toBeTruthy();
+      expect(screen.getByText('No environment variables defined')).toBeTruthy();
+    });
+  });
+
+  it('Env 區塊顯示已存在的 env vars', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get') return Promise.resolve({
+        env: { MY_VAR: 'hello', API_URL: 'https://api.example.com' },
+      });
+      return Promise.resolve(null);
+    });
+
+    renderPage();
+
+    await waitFor(() => screen.getByText('Env'));
+    fireEvent.click(screen.getByText('Env').closest('button')!);
+
+    await waitFor(() => {
+      expect(screen.getByText('MY_VAR')).toBeTruthy();
+      expect(screen.getByText('hello')).toBeTruthy();
+      expect(screen.getByText('API_URL')).toBeTruthy();
+      expect(screen.getByText('https://api.example.com')).toBeTruthy();
     });
   });
 

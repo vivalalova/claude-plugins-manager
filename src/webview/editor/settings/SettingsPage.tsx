@@ -5,6 +5,7 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import { PermissionsSection } from './PermissionsSection';
+import { EnvSection } from './EnvSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -313,7 +314,14 @@ export function SettingsPage(): React.ReactElement {
                   onSave={handleSave}
                 />
               )}
-              {activeNav !== 'model' && activeNav !== 'permissions' && <ComingSoonSection />}
+              {activeNav === 'env' && (
+                <EnvSection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                />
+              )}
+              {activeNav !== 'model' && activeNav !== 'permissions' && activeNav !== 'env' && <ComingSoonSection />}
             </>
           )}
         </div>
