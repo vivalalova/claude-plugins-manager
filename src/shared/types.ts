@@ -197,6 +197,7 @@ export interface ClaudeSettings {
   fastMode?: boolean;
   fastModePerSessionOptIn?: boolean;
   autoMemoryEnabled?: boolean;
+  autoUpdatesChannel?: 'stable' | 'latest';
   alwaysThinkingEnabled?: boolean;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;

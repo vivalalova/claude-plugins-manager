@@ -2,6 +2,8 @@ node_modules/
 dist/
 *.vsix
 .DS_Store
-.claude/
 .vscode/
 package-lock.json
+.claude/looping/.hook-debug.log
+.claude/looping/.looping_active_*
+.claude/settings-lova.json

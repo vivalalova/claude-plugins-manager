@@ -9,6 +9,7 @@ import { BooleanToggle, EnumDropdown, TagInput, TextSetting } from './components
 
 const KNOWN_EFFORT_LEVELS = ['high', 'medium', 'low'] as const;
 const KNOWN_OUTPUT_STYLES = ['auto', 'stream-json'] as const;
+const KNOWN_AUTO_UPDATES_CHANNELS = ['stable', 'latest'] as const;
 
 // ---------------------------------------------------------------------------
 // GeneralSection
@@ -33,6 +34,11 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
   const outputLabels: Record<string, string> = {
     auto: t('settings.general.outputStyle.auto'),
     'stream-json': t('settings.general.outputStyle.streamJson'),
+  };
+
+  const autoUpdatesChannelLabels: Record<string, string> = {
+    stable: t('settings.general.autoUpdatesChannel.stable'),
+    latest: t('settings.general.autoUpdatesChannel.latest'),
   };
 
   const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
@@ -109,6 +115,19 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         notSetLabel={t('settings.general.outputStyle.notSet')}
         unknownTemplate={t('settings.general.outputStyle.unknown')}
         settingKey="outputStyle"
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <EnumDropdown
+        label={t('settings.general.autoUpdatesChannel.label')}
+        description={t('settings.general.autoUpdatesChannel.description')}
+        value={settings.autoUpdatesChannel}
+        knownValues={KNOWN_AUTO_UPDATES_CHANNELS}
+        knownLabels={autoUpdatesChannelLabels}
+        notSetLabel={t('settings.general.autoUpdatesChannel.notSet')}
+        unknownTemplate={t('settings.general.autoUpdatesChannel.unknown')}
+        settingKey="autoUpdatesChannel"
         onSave={onSave}
         onDelete={onDelete}
       />

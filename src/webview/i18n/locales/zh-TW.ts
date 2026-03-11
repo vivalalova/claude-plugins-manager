@@ -121,6 +121,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.general.fastModePerSessionOptIn.description': '每次新 session 需重新確認才啟用快速模式，不跨 session 持續（有助於控制成本）',
   'settings.general.autoMemoryEnabled.label': '自動記憶',
   'settings.general.autoMemoryEnabled.description': '自動儲存並在各 session 間重新呼叫對話記憶',
+  'settings.general.autoUpdatesChannel.label': '自動更新頻道',
+  'settings.general.autoUpdatesChannel.description': 'Claude CLI 自動更新使用的頻道',
+  'settings.general.autoUpdatesChannel.notSet': '— 未設定 —',
+  'settings.general.autoUpdatesChannel.unknown': '目前值：{value} ⚠️',
+  'settings.general.autoUpdatesChannel.stable': '穩定版',
+  'settings.general.autoUpdatesChannel.latest': '最新版',
   'settings.general.alwaysThinkingEnabled.label': '永遠開啟深度思考',
   'settings.general.alwaysThinkingEnabled.description': '永遠啟用深度思考（extended thinking），不受其他設定影響',
   // PluginPage

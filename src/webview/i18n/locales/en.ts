@@ -119,6 +119,12 @@ export const en = {
   'settings.general.fastModePerSessionOptIn.description': 'Require opt-in for fast mode each new session instead of persisting across sessions (helps control costs)',
   'settings.general.autoMemoryEnabled.label': 'Auto Memory',
   'settings.general.autoMemoryEnabled.description': 'Automatically save and recall conversation memory across sessions',
+  'settings.general.autoUpdatesChannel.label': 'Auto Updates Channel',
+  'settings.general.autoUpdatesChannel.description': 'Channel for automatic Claude CLI updates',
+  'settings.general.autoUpdatesChannel.notSet': '— not set —',
+  'settings.general.autoUpdatesChannel.unknown': 'Current value: {value} ⚠️',
+  'settings.general.autoUpdatesChannel.stable': 'Stable',
+  'settings.general.autoUpdatesChannel.latest': 'Latest',
   'settings.general.alwaysThinkingEnabled.label': 'Always Thinking Enabled',
   'settings.general.alwaysThinkingEnabled.description': 'Always enable extended thinking regardless of other settings',
   // PluginPage

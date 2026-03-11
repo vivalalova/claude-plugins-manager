@@ -230,6 +230,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.general.fastModePerSessionOptIn.description': '新しいセッションごとにファストモードのオプトインを要求（コスト管理に役立つ）',
   'settings.general.autoMemoryEnabled.label': '自動メモリ',
   'settings.general.autoMemoryEnabled.description': 'セッション間で会話メモリを自動保存・呼び出し',
+  'settings.general.autoUpdatesChannel.label': '自動更新チャンネル',
+  'settings.general.autoUpdatesChannel.description': 'Claude CLI の自動更新チャンネル',
+  'settings.general.autoUpdatesChannel.notSet': '— 未設定 —',
+  'settings.general.autoUpdatesChannel.unknown': '現在の値：{value} ⚠️',
+  'settings.general.autoUpdatesChannel.stable': '安定版',
+  'settings.general.autoUpdatesChannel.latest': '最新版',
   'settings.general.alwaysThinkingEnabled.label': '常に深い思考を有効化',
   'settings.general.alwaysThinkingEnabled.description': '他の設定に関わらず、常に深い思考（extended thinking）を有効化',
 };

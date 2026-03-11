@@ -312,6 +312,70 @@ describe('GeneralSection — EnumDropdown 互動', () => {
       expect(onSave).toHaveBeenCalledWith('outputStyle', 'stream-json');
     });
   });
+
+  it('顯示 Auto Updates Channel dropdown', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Auto Updates Channel')).toBeTruthy());
+  });
+
+  it('autoUpdatesChannel 未設定 → select value 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Auto Updates Channel' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+  });
+
+  it('autoUpdatesChannel 未設定, 選擇 stable → onSave("autoUpdatesChannel", "stable")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Auto Updates Channel' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Auto Updates Channel' }), { target: { value: 'stable' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoUpdatesChannel', 'stable');
+    });
+  });
+
+  it('autoUpdatesChannel="latest", 選空值 → onDelete("autoUpdatesChannel")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ autoUpdatesChannel: 'latest' }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Auto Updates Channel' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Auto Updates Channel' }), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('autoUpdatesChannel');
+    });
+  });
+
+  it('autoUpdatesChannel="stable" → select 顯示 stable', async () => {
+    renderSection({ autoUpdatesChannel: 'stable' });
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Auto Updates Channel' }) as HTMLSelectElement;
+      expect(select.value).toBe('stable');
+    });
+  });
+
+  it('autoUpdatesChannel 未設定, 選擇 latest → onSave("autoUpdatesChannel", "latest")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Auto Updates Channel' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Auto Updates Channel' }), { target: { value: 'latest' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoUpdatesChannel', 'latest');
+    });
+  });
+
+  it('未知 autoUpdatesChannel → 顯示 ⚠️ option', async () => {
+    renderSection({ autoUpdatesChannel: 'beta' as any });
+    await waitFor(() => {
+      expect(screen.getByText(/Current value: beta/)).toBeTruthy();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
