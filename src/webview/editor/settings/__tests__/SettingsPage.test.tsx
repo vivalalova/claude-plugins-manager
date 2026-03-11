@@ -177,14 +177,37 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊非 model/permissions/env nav（如 Hooks）→ 顯示 coming soon 文字', async () => {
+  it('點擊非 model/permissions/env/hooks nav（如 General）→ 顯示 coming soon 文字', async () => {
+    renderPage();
+
+    await waitFor(() => screen.getByText('General'));
+    fireEvent.click(screen.getByText('General').closest('button')!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Coming soon/i)).toBeTruthy();
+    });
+  });
+
+  it('點擊 Hooks nav → 顯示 Hooks 區塊（empty state）', async () => {
     renderPage();
 
     await waitFor(() => screen.getByText('Hooks'));
     fireEvent.click(screen.getByText('Hooks').closest('button')!);
 
     await waitFor(() => {
-      expect(screen.getByText(/Coming soon/i)).toBeTruthy();
+      expect(screen.getByText('No hooks configured')).toBeTruthy();
+    });
+  });
+
+  it('Hooks 區塊顯示 disableAllHooks toggle', async () => {
+    renderPage();
+
+    await waitFor(() => screen.getByText('Hooks'));
+    fireEvent.click(screen.getByText('Hooks').closest('button')!);
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox')).toBeTruthy();
+      expect(screen.getByText('Disable All Hooks')).toBeTruthy();
     });
   });
 

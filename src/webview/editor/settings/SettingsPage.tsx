@@ -6,6 +6,7 @@ import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import { PermissionsSection } from './PermissionsSection';
 import { EnvSection } from './EnvSection';
+import { HooksSection } from './HooksSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -321,7 +322,15 @@ export function SettingsPage(): React.ReactElement {
                   onSave={handleSave}
                 />
               )}
-              {activeNav !== 'model' && activeNav !== 'permissions' && activeNav !== 'env' && <ComingSoonSection />}
+              {activeNav === 'hooks' && (
+                <HooksSection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                />
+              )}
+              {activeNav !== 'model' && activeNav !== 'permissions' && activeNav !== 'env' && activeNav !== 'hooks' && <ComingSoonSection />}
             </>
           )}
         </div>
