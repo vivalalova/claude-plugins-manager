@@ -112,27 +112,25 @@ function EnumDropdown({
 
   return (
     <div className="settings-field">
-      <div className="general-field-row">
-        <label className="settings-label" htmlFor={settingKey}>{label}</label>
-        <select
-          id={settingKey}
-          className="select"
-          value={selectValue}
-          onChange={(e) => void handleChange(e.target.value)}
-          disabled={saving}
-        >
-          <option value="">{notSetLabel}</option>
-          {isUnknown && (
-            <option value="__unknown__" disabled>
-              {unknownTemplate.replace('{value}', value!)}
-            </option>
-          )}
-          {knownValues.map((v) => (
-            <option key={v} value={v}>{knownLabels[v] ?? v}</option>
-          ))}
-        </select>
-      </div>
+      <label className="settings-label" htmlFor={settingKey}>{label}</label>
       {description && <p className="settings-field-description">{description}</p>}
+      <select
+        id={settingKey}
+        className="select"
+        value={selectValue}
+        onChange={(e) => void handleChange(e.target.value)}
+        disabled={saving}
+      >
+        <option value="">{notSetLabel}</option>
+        {isUnknown && (
+          <option value="__unknown__" disabled>
+            {unknownTemplate.replace('{value}', value!)}
+          </option>
+        )}
+        {knownValues.map((v) => (
+          <option key={v} value={v}>{knownLabels[v] ?? v}</option>
+        ))}
+      </select>
     </div>
   );
 }

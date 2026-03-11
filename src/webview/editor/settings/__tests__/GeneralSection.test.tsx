@@ -99,15 +99,11 @@ describe('GeneralSection — 渲染', () => {
     });
   });
 
-  it('description 不傳入時不產生 settings-field-description 元素', async () => {
-    // BooleanToggle without description (passing undefined explicitly)
+  it('description <p> 在 label 外部（不是 label 的子元素）', async () => {
     const { container } = renderSection({});
     await waitFor(() => screen.getAllByRole('checkbox'));
-    // descriptions are rendered since GeneralSection always passes them
-    // verify the DOM structure: description <p> is outside <label>
     const labels = container.querySelectorAll('label.hooks-toggle-label');
     labels.forEach((label) => {
-      // description <p> should NOT be inside the label
       expect(label.querySelector('.settings-field-description')).toBeNull();
     });
   });

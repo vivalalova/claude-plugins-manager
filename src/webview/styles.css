@@ -2143,13 +2143,6 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 
 /* ---- General Section ---- */
 
-.general-field-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
 .general-tag-list {
   display: flex;
   flex-wrap: wrap;
@@ -2168,6 +2161,6 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 .settings-field-description {
   font-size: 11px;
   color: var(--vscode-descriptionForeground, #6b7280);
-  margin: 2px 0 6px;
+  margin: 0;
   line-height: 1.4;
 }
