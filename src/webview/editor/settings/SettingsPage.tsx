@@ -4,6 +4,7 @@ import { sendRequest, onPushMessage } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
+import { PermissionsSection } from './PermissionsSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -305,7 +306,14 @@ export function SettingsPage(): React.ReactElement {
                   onDelete={handleDelete}
                 />
               )}
-              {activeNav !== 'model' && <ComingSoonSection />}
+              {activeNav === 'permissions' && (
+                <PermissionsSection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                />
+              )}
+              {activeNav !== 'model' && activeNav !== 'permissions' && <ComingSoonSection />}
             </>
           )}
         </div>

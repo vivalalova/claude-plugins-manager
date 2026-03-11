@@ -202,3 +202,69 @@ describe('SettingsFileService.getSettings / setSetting / deleteSetting（integra
     expect(content.env).toEqual(env);
   });
 });
+
+describe('SettingsFileService — permissions 讀寫（integration）', () => {
+  let svc: SettingsFileService;
+  let workspaceDir: string;
+  let permTestIdx = 0;
+
+  const userSettingsPath = () => join(SUITE_HOME, '.claude', 'settings.json');
+  const projectSettingsPath = () => join(workspaceDir, '.claude', 'settings.json');
+
+  beforeEach(async () => {
+    permTestIdx++;
+    workspaceDir = join(SUITE_TMP, `ws-perms-${permTestIdx}`);
+    mkdirSync(workspaceDir, { recursive: true });
+
+    workspace.workspaceFolders = [
+      { uri: { fsPath: workspaceDir }, name: 'test', index: 0 },
+    ] as any;
+
+    await writeFile(userSettingsPath(), JSON.stringify({}) + '\n');
+
+    svc = new SettingsFileService();
+  });
+
+  it('setSetting permissions → getSettings 正確回傳', async () => {
+    const perms = { allow: ['Bash(git:*)'], deny: ['WebFetch'], ask: [], defaultMode: 'ask' };
+    await svc.setSetting('user', 'permissions', perms);
+
+    const content = await svc.getSettings('user');
+    expect(content.permissions).toEqual(perms);
+  });
+
+  it('刪除規則後 allow 空陣列保留（不刪 permissions key）', async () => {
+    await svc.setSetting('user', 'permissions', { allow: ['WebSearch'], deny: [], ask: [] });
+
+    // 模擬 UI 刪除最後一條規則 → 寫入空陣列
+    await svc.setSetting('user', 'permissions', { allow: [], deny: [], ask: [] });
+
+    const content = JSON.parse(await readFile(userSettingsPath(), 'utf-8'));
+    expect(content.permissions).toBeDefined();
+    expect(content.permissions.allow).toEqual([]);
+  });
+
+  it('project scope permissions 讀寫，自動建立 .claude/ 目錄', async () => {
+    const perms = { allow: ['Bash(npm run:*)'], deny: [], ask: [] };
+    await svc.setSetting('project', 'permissions', perms);
+
+    const content = JSON.parse(await readFile(projectSettingsPath(), 'utf-8'));
+    expect(content.permissions).toEqual(perms);
+  });
+
+  it('未知 defaultMode 寫入後讀回保持原值', async () => {
+    await svc.setSetting('user', 'permissions', { defaultMode: 'strict' });
+
+    const content = await svc.getSettings('user');
+    expect((content.permissions as any)?.defaultMode).toBe('strict');
+  });
+
+  it('permissions 讀寫不影響同 scope 其他欄位', async () => {
+    await svc.setSetting('user', 'model', 'claude-opus-4-6');
+    await svc.setSetting('user', 'permissions', { allow: ['WebSearch'], deny: [], ask: [] });
+
+    const content = await svc.getSettings('user');
+    expect(content.model).toBe('claude-opus-4-6');
+    expect((content.permissions as any)?.allow).toEqual(['WebSearch']);
+  });
+});

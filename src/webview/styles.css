@@ -1883,3 +1883,76 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   font-size: 13px;
   color: var(--vscode-descriptionForeground);
 }
+
+/* ---- Permissions Section ---- */
+
+.perm-defaultmode-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0 12px;
+}
+
+.perm-sub-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.perm-rule-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+
+.perm-rule-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 12px;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.perm-rule-tag-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 1px;
+}
+
+.perm-rule-tag-delete:hover {
+  opacity: 1;
+}
+
+.perm-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.perm-format-select {
+  min-width: 180px;
+}
+
+.perm-add-error {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
+}
+
+.perm-empty {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
