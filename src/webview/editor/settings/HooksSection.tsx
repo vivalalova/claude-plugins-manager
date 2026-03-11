@@ -48,18 +48,19 @@ function getHookDetail(hook: HookCommand, timeoutLabel: string): string | null {
 
 interface HookItemProps {
   hook: HookCommand;
+  eventType: string;
   timeoutLabel: string;
   filePath: string | null;
   onOpenFile: (path: string) => Promise<void>;
   openingPath: string | null;
   explainLabel: string;
   explainingLabel: string;
-  onExplain: (hookContent: string) => Promise<void>;
+  onExplain: (hookContent: string, eventType: string) => Promise<void>;
   explanation: string | null;
   isExplaining: boolean;
 }
 
-function HookItem({ hook, timeoutLabel, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
+function HookItem({ hook, eventType, timeoutLabel, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
   const label = getHookLabel(hook);
   const detail = getHookDetail(hook, timeoutLabel);
   const fullCmd = getHookContent(hook);
@@ -86,7 +87,7 @@ function HookItem({ hook, timeoutLabel, filePath, onOpenFile, openingPath, expla
           className="btn btn-secondary btn-sm"
           type="button"
           disabled={isExplaining}
-          onClick={() => void onExplain(fullCmd)}
+          onClick={() => void onExplain(fullCmd, eventType)}
         >
           {isExplaining ? explainingLabel : explainLabel}
         </button>
@@ -161,22 +162,24 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     void sendRequest({ type: 'hooks.cleanExpiredExplanations' }).catch(() => {});
   }, []);
 
-  const handleExplain = async (hookContent: string): Promise<void> => {
-    if (explanations.has(hookContent)) return;
-    setExplaining((prev) => new Set([...prev, hookContent]));
+  const handleExplain = async (hookContent: string, eventType: string): Promise<void> => {
+    const key = `${hookContent}:${eventType}`;
+    if (explanations.has(key)) return;
+    setExplaining((prev) => new Set([...prev, key]));
     try {
       const { explanation } = await sendRequest<{ explanation: string; fromCache: boolean }>({
         type: 'hooks.explain',
         hookContent,
+        eventType,
         locale,
       });
-      setExplanations((prev) => new Map([...prev, [hookContent, explanation]]));
+      setExplanations((prev) => new Map([...prev, [key, explanation]]));
     } catch {
       addToast(t('settings.hooks.explanationError'), 'error');
     } finally {
       setExplaining((prev) => {
         const next = new Set(prev);
-        next.delete(hookContent);
+        next.delete(key);
         return next;
       });
     }
@@ -274,6 +277,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                         <HookItem
                           key={hIdx}
                           hook={hook}
+                          eventType={eventType}
                           timeoutLabel={t('settings.hooks.timeout')}
                           filePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null}
                           onOpenFile={handleOpenFile}
@@ -281,8 +285,8 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                           explainLabel={t('settings.hooks.explain')}
                           explainingLabel={t('settings.hooks.explaining')}
                           onExplain={handleExplain}
-                          explanation={explanations.get(getHookContent(hook)) ?? null}
-                          isExplaining={explaining.has(getHookContent(hook))}
+                          explanation={explanations.get(`${getHookContent(hook)}:${eventType}`) ?? null}
+                          isExplaining={explaining.has(`${getHookContent(hook)}:${eventType}`)}
                         />
                       ))}
                     </div>

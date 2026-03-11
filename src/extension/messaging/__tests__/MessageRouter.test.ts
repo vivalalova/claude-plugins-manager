@@ -188,11 +188,11 @@ describe('MessageRouter', () => {
       services.hookExplanation.explain.mockResolvedValue(mockResult);
 
       await router.handle(
-        { type: 'hooks.explain', requestId: 'he1', hookContent: '/guard.sh', locale: 'zh-TW' } as RequestMessage,
+        { type: 'hooks.explain', requestId: 'he1', hookContent: '/guard.sh', eventType: 'PreToolUse', locale: 'zh-TW' } as RequestMessage,
         post,
       );
 
-      expect(services.hookExplanation.explain).toHaveBeenCalledWith('/guard.sh', 'zh-TW');
+      expect(services.hookExplanation.explain).toHaveBeenCalledWith('/guard.sh', 'PreToolUse', 'zh-TW');
       expect(posted).toEqual([{ type: 'response', requestId: 'he1', data: mockResult }]);
     });
 

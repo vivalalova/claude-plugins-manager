@@ -21,16 +21,16 @@ type CacheFile = Record<string, CacheEntry>;
 export class HookExplanationService {
   constructor(private readonly cli: CliService) {}
 
-  async explain(hookContent: string, locale: string): Promise<{ explanation: string; fromCache: boolean }> {
+  async explain(hookContent: string, eventType: string, locale: string): Promise<{ explanation: string; fromCache: boolean }> {
     const cache = await this.readCache();
-    const key = this.cacheKey(hookContent, locale);
+    const key = this.cacheKey(hookContent, eventType, locale);
 
     if (cache[key]) {
       return { explanation: cache[key].explanation, fromCache: true };
     }
 
-    const prompt = `請用 ${locale} 解釋這個 hook 的用途，簡短兩句話：\n${hookContent}`;
-    const explanation = await this.cli.exec(['--model', 'claude-sonnet-4-6', '--setting-sources', '', '--print', prompt]);
+    const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${hookContent}`;
+    const explanation = await this.cli.exec(['--model', 'sonnet', '--setting-sources', '', '--print', prompt]);
 
     cache[key] = { explanation, locale, createdAt: new Date().toISOString() };
     await this.writeCache(cache);
@@ -50,8 +50,8 @@ export class HookExplanationService {
     await this.writeCache(cleaned);
   }
 
-  private cacheKey(hookContent: string, locale: string): string {
-    return `${hookContent}:${locale}`;
+  private cacheKey(hookContent: string, eventType: string, locale: string): string {
+    return `${hookContent}:${eventType}:${locale}`;
   }
 
   private async readCache(): Promise<CacheFile> {

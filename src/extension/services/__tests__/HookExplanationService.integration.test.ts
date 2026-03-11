@@ -69,7 +69,7 @@ describe('HookExplanationService — integration', () => {
   });
 
   it('cache miss → 呼叫 CLI → 寫入 cache → fromCache: false', async () => {
-    const result = await service.explain('/guard.sh arg', 'en');
+    const result = await service.explain('/guard.sh arg', 'PreToolUse', 'en');
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(result.fromCache).toBe(false);
@@ -78,19 +78,19 @@ describe('HookExplanationService — integration', () => {
     // 驗證 cache 已寫入
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    expect(cache['/guard.sh arg:en'].explanation).toBe(result.explanation);
+    expect(cache['/guard.sh arg:PreToolUse:en'].explanation).toBe(result.explanation);
   });
 
   it('cache hit（locale 相同）→ 不呼叫 CLI → fromCache: true', async () => {
     await writeCache(cachePath, {
-      '/guard.sh:zh-TW': {
+      '/guard.sh:PreToolUse:zh-TW': {
         explanation: '這個 hook 執行守護腳本。',
         locale: 'zh-TW',
         createdAt: new Date().toISOString(),
       },
     });
 
-    const result = await service.explain('/guard.sh', 'zh-TW');
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'zh-TW');
 
     expect(cli.exec).not.toHaveBeenCalled();
     expect(result.fromCache).toBe(true);
@@ -99,7 +99,7 @@ describe('HookExplanationService — integration', () => {
 
   it('locale 不同 → cache miss → 重新呼叫 CLI', async () => {
     await writeCache(cachePath, {
-      '/guard.sh:en': {
+      '/guard.sh:PreToolUse:en': {
         explanation: 'English explanation.',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -107,7 +107,7 @@ describe('HookExplanationService — integration', () => {
     });
     (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('中文解釋。');
 
-    const result = await service.explain('/guard.sh', 'zh-TW');
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'zh-TW');
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(result.fromCache).toBe(false);
@@ -132,7 +132,7 @@ describe('HookExplanationService — integration', () => {
   });
 
   it('cache 檔案不存在 → readCache 回傳空物件，不拋錯', async () => {
-    const result = await service.explain('/new-hook.sh', 'en');
+    const result = await service.explain('/new-hook.sh', 'PreToolUse', 'en');
     expect(result.fromCache).toBe(false);
     expect(cli.exec).toHaveBeenCalledOnce();
   });
@@ -140,21 +140,21 @@ describe('HookExplanationService — integration', () => {
   it('CLI 失敗 → 拋錯，不寫入 cache', async () => {
     (cli.exec as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('CLI failed'));
 
-    await expect(service.explain('/bad.sh', 'en')).rejects.toThrow('CLI failed');
+    await expect(service.explain('/bad.sh', 'PreToolUse', 'en')).rejects.toThrow('CLI failed');
 
     // cache 檔案不應建立
     const { access } = await import('fs/promises');
     await expect(access(cachePath)).rejects.toThrow();
   });
 
-  it('hookContent 含冒號 → key 仍能正確配對（只分離最後一個冒號）', async () => {
+  it('hookContent 含冒號 → key 仍能正確配對', async () => {
     const content = 'cmd --flag key:value';
     (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('colon test');
 
-    const r1 = await service.explain(content, 'en');
+    const r1 = await service.explain(content, 'PreToolUse', 'en');
     expect(r1.fromCache).toBe(false);
 
-    const r2 = await service.explain(content, 'en');
+    const r2 = await service.explain(content, 'PreToolUse', 'en');
     expect(r2.fromCache).toBe(true);
   });
 });

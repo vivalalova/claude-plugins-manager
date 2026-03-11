@@ -143,7 +143,7 @@ export class MessageRouter {
       }
 
       case 'hooks.explain':
-        return this.hookExplanation.explain(message.hookContent, message.locale);
+        return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale);
 
       case 'hooks.cleanExpiredExplanations':
         this.hookExplanation.cleanExpired().catch((e: unknown) =>
