@@ -227,6 +227,7 @@ export interface ClaudeSettings {
       allowLocalBinding?: boolean;
     };
   };
+  companyAnnouncements?: string[];
   skipWebFetchPreflight?: boolean;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;

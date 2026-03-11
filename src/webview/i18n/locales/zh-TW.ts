@@ -236,6 +236,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.sandbox.clear': '清除',
   'settings.advanced.sandbox.invalidJson': 'JSON 格式錯誤：{error}',
   'settings.advanced.sandbox.invalidObject': '值必須是 JSON 物件（非陣列或純量值）',
+  'settings.advanced.companyAnnouncements.label': '公司公告',
+  'settings.advanced.companyAnnouncements.description': 'Claude Code 啟動時顯示給使用者的公告訊息',
+  'settings.advanced.companyAnnouncements.placeholder': '例：歡迎使用我們的 Claude Code！',
+  'settings.advanced.companyAnnouncements.add': '新增',
+  'settings.advanced.companyAnnouncements.empty': '尚無公告',
+  'settings.advanced.companyAnnouncements.duplicate': '公告已在清單中',
   'settings.advanced.skipWebFetchPreflight.label': '略過 WebFetch 預檢',
   'settings.advanced.skipWebFetchPreflight.description': '略過 WebFetch 封鎖清單的預檢查（企業用途）',
   // PluginPage

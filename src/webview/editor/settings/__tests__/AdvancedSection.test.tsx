@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
+import { I18nProvider } from '../../../i18n/I18nContext';
 import { AdvancedSection } from '../AdvancedSection';
 import { ToastProvider } from '../../../components/Toast';
 
@@ -55,6 +56,7 @@ describe('AdvancedSection — 渲染', () => {
     'AWS Credential Export',
     'AWS Auth Refresh',
     'Sandbox',
+    'Company Announcements',
   ])('顯示 %s 欄位', (label) => {
     renderSection();
     expect(screen.getByText(label)).toBeTruthy();
@@ -795,5 +797,193 @@ describe('AdvancedSection — SandboxEditor Clear', () => {
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('sandbox');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CompanyAnnouncementsEditor
+// ---------------------------------------------------------------------------
+
+const CA_PLACEHOLDER = 'e.g. Welcome to our Claude Code setup!';
+
+const getAnnouncementField = async () => {
+  await waitFor(() => screen.getByPlaceholderText(CA_PLACEHOLDER));
+  const ta = screen.getByPlaceholderText(CA_PLACEHOLDER);
+  return ta.closest('.settings-field') as HTMLElement;
+};
+
+describe('AdvancedSection — CompanyAnnouncementsEditor 渲染', () => {
+  it('companyAnnouncements 未設定 → 顯示 "Company Announcements" label', async () => {
+    renderSection({});
+    await waitFor(() => expect(screen.getByText('Company Announcements')).toBeTruthy());
+  });
+
+  it('companyAnnouncements=[] → 顯示 empty placeholder', async () => {
+    renderSection({ companyAnnouncements: [] });
+    const field = await getAnnouncementField();
+    await waitFor(() => expect(within(field).getByText('No announcements configured')).toBeTruthy());
+  });
+
+  it("companyAnnouncements=['Hello'] → 顯示含值的 textarea", async () => {
+    renderSection({ companyAnnouncements: ['Hello'] });
+    const field = await getAnnouncementField();
+    await waitFor(() => {
+      const textareas = within(field).getAllByRole('textbox') as HTMLTextAreaElement[];
+      expect(textareas.some((ta) => ta.value === 'Hello')).toBeTruthy();
+    });
+  });
+
+  it("companyAnnouncements=['A','B'] → 顯示兩則公告", async () => {
+    renderSection({ companyAnnouncements: ['A', 'B'] });
+    const field = await getAnnouncementField();
+    await waitFor(() => {
+      const textareas = within(field).getAllByRole('textbox') as HTMLTextAreaElement[];
+      // 兩則公告 readOnly + 一則輸入列 = 3 個 textarea
+      const readOnly = textareas.filter((ta) => ta.readOnly);
+      expect(readOnly).toHaveLength(2);
+    });
+  });
+
+  it("companyAnnouncements=['Hello'] → 顯示刪除按鈕", async () => {
+    renderSection({ companyAnnouncements: ['Hello'] });
+    const field = await getAnnouncementField();
+    await waitFor(() =>
+      expect(within(field).getByRole('button', { name: 'Remove "Hello"' })).toBeTruthy(),
+    );
+  });
+
+  it('Add 按鈕 disabled when inputValue is empty', async () => {
+    renderSection({});
+    const field = await getAnnouncementField();
+    await waitFor(() => {
+      const addBtn = within(field).getByRole('button', { name: 'Add' });
+      expect((addBtn as HTMLButtonElement).disabled).toBeTruthy();
+    });
+  });
+});
+
+describe('AdvancedSection — CompanyAnnouncementsEditor 新增', () => {
+  it("輸入 'Welcome!' 並點 Add → onSave('companyAnnouncements', ['Welcome!'])", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    const field = await getAnnouncementField();
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER);
+    fireEvent.change(inputTa, { target: { value: 'Welcome!' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('companyAnnouncements', ['Welcome!']));
+  });
+
+  it("companyAnnouncements=['Hello'], 輸入 'World' → onSave(['Hello', 'World'])", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ companyAnnouncements: ['Hello'] }, onSave);
+    const field = await getAnnouncementField();
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER);
+    fireEvent.change(inputTa, { target: { value: 'World' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('companyAnnouncements', ['Hello', 'World']));
+  });
+
+  it('輸入空白 → onSave 不呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    const field = await getAnnouncementField();
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER);
+    fireEvent.change(inputTa, { target: { value: '   ' } });
+    // Add 按鈕仍 disabled，但直接驗證 onSave 不呼叫
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(onSave).not.toHaveBeenCalled());
+  });
+});
+
+describe('AdvancedSection — CompanyAnnouncementsEditor 刪除', () => {
+  it("['Hello', 'World'], 刪除 'Hello' → onSave(['World'])", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ companyAnnouncements: ['Hello', 'World'] }, onSave);
+    const field = await getAnnouncementField();
+    await waitFor(() => within(field).getByRole('button', { name: 'Remove "Hello"' }));
+    fireEvent.click(within(field).getByRole('button', { name: 'Remove "Hello"' }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith('companyAnnouncements', ['World']),
+    );
+  });
+
+  it("['Hello'], 刪除 'Hello' → onSave([])", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ companyAnnouncements: ['Hello'] }, onSave, onDelete);
+    const field = await getAnnouncementField();
+    await waitFor(() => within(field).getByRole('button', { name: 'Remove "Hello"' }));
+    fireEvent.click(within(field).getByRole('button', { name: 'Remove "Hello"' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('companyAnnouncements', []);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('AdvancedSection — CompanyAnnouncementsEditor 重複驗證', () => {
+  it("companyAnnouncements=['Hello'], 輸入 'Hello' → 顯示 error，onSave 不呼叫", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ companyAnnouncements: ['Hello'] }, onSave);
+    const field = await getAnnouncementField();
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER);
+    fireEvent.change(inputTa, { target: { value: 'Hello' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => {
+      expect(within(field).getByRole('alert')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('error 後修改輸入 → error 清除', async () => {
+    renderSection({ companyAnnouncements: ['Hello'] });
+    const field = await getAnnouncementField();
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER);
+    fireEvent.change(inputTa, { target: { value: 'Hello' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => within(field).getByRole('alert'));
+    fireEvent.change(inputTa, { target: { value: 'Other' } });
+    await waitFor(() => expect(within(field).queryByRole('alert')).toBeNull());
+  });
+
+  it('重複錯誤後，輸入合法值並新增成功 → error 清除', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ companyAnnouncements: ['Hello'] }, onSave);
+    const field = await getAnnouncementField();
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER);
+    // 觸發重複錯誤
+    fireEvent.change(inputTa, { target: { value: 'Hello' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => within(field).getByRole('alert'));
+    // 輸入合法值並新增成功
+    fireEvent.change(inputTa, { target: { value: 'World' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('companyAnnouncements', ['Hello', 'World']);
+      expect(within(field).queryByRole('alert')).toBeNull();
+    });
+  });
+});
+
+describe('AdvancedSection — CompanyAnnouncementsEditor scope 切換', () => {
+  it('輸入文字後切換 scope → 輸入列清空', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderWithI18n(
+      <ToastProvider>
+        <AdvancedSection scope="user" settings={{} as any} onSave={onSave} onDelete={onDelete} />
+      </ToastProvider>,
+    );
+    const inputTa = screen.getByPlaceholderText(CA_PLACEHOLDER) as HTMLTextAreaElement;
+    fireEvent.change(inputTa, { target: { value: 'Hello' } });
+    expect(inputTa.value).toBe('Hello');
+    rerender(
+      <I18nProvider locale="en">
+        <ToastProvider>
+          <AdvancedSection scope="project" settings={{} as any} onSave={onSave} onDelete={onDelete} />
+        </ToastProvider>
+      </I18nProvider>,
+    );
+    await waitFor(() => expect(inputTa.value).toBe(''));
   });
 });

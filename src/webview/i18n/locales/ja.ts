@@ -345,6 +345,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.sandbox.clear': 'クリア',
   'settings.advanced.sandbox.invalidJson': 'JSON 形式エラー: {error}',
   'settings.advanced.sandbox.invalidObject': '値は JSON オブジェクトである必要があります（配列やプリミティブ値は不可）',
+  'settings.advanced.companyAnnouncements.label': '会社アナウンス',
+  'settings.advanced.companyAnnouncements.description': 'Claude Code 起動時にユーザーに表示されるメッセージ',
+  'settings.advanced.companyAnnouncements.placeholder': '例: Claude Codeへようこそ！',
+  'settings.advanced.companyAnnouncements.add': '追加',
+  'settings.advanced.companyAnnouncements.empty': '公告が設定されていません',
+  'settings.advanced.companyAnnouncements.duplicate': 'アナウンスはすでにリストにあります',
   'settings.advanced.skipWebFetchPreflight.label': 'WebFetch プリフライトをスキップ',
   'settings.advanced.skipWebFetchPreflight.description': 'WebFetch ブロックリストのプリフライトチェックをスキップします（エンタープライズ向け）',
 };

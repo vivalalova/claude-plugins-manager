@@ -234,6 +234,12 @@ export const en = {
   'settings.advanced.sandbox.clear': 'Clear',
   'settings.advanced.sandbox.invalidJson': 'Invalid JSON: {error}',
   'settings.advanced.sandbox.invalidObject': 'Value must be a JSON object (not an array or primitive)',
+  'settings.advanced.companyAnnouncements.label': 'Company Announcements',
+  'settings.advanced.companyAnnouncements.description': 'Messages displayed to users at Claude Code startup',
+  'settings.advanced.companyAnnouncements.placeholder': 'e.g. Welcome to our Claude Code setup!',
+  'settings.advanced.companyAnnouncements.add': 'Add',
+  'settings.advanced.companyAnnouncements.empty': 'No announcements configured',
+  'settings.advanced.companyAnnouncements.duplicate': 'Announcement already in list',
   'settings.advanced.skipWebFetchPreflight.label': 'Skip WebFetch Preflight',
   'settings.advanced.skipWebFetchPreflight.description': 'Skip the WebFetch blocklist preflight check (enterprise use)',
   // PluginPage
