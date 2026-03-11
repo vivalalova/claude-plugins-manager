@@ -38,10 +38,14 @@ afterEach(() => {
 // 渲染
 // ---------------------------------------------------------------------------
 
+const COMMIT_PLACEHOLDER = 'e.g. Co-Authored-By: Claude <noreply@anthropic.com>';
+const PR_PLACEHOLDER = 'e.g. 🤖 Generated with Claude';
+
 describe('AdvancedSection — 渲染', () => {
   it.each([
     'Force Login Method',
     'Force Login Org UUID',
+    'Attribution',
     'Plans Directory',
     'API Key Helper',
     'OTEL Headers Helper',
@@ -204,6 +208,66 @@ describe('AdvancedSection — TextSetting 互動', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('awsAuthRefresh', './refresh.sh');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Attribution compound editor
+// ---------------------------------------------------------------------------
+
+describe('AdvancedSection — attribution 物件編輯器', () => {
+  it('attribution 未設定 → commit/pr inputs 為空', () => {
+    renderSection({});
+    expect((screen.getByPlaceholderText(COMMIT_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+    expect((screen.getByPlaceholderText(PR_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('attribution={commit: "Co-Authored-By: Claude"} → commit input 顯示值', () => {
+    renderSection({ attribution: { commit: 'Co-Authored-By: Claude' } });
+    expect((screen.getByPlaceholderText(COMMIT_PLACEHOLDER) as HTMLInputElement).value).toBe('Co-Authored-By: Claude');
+    expect((screen.getByPlaceholderText(PR_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('輸入 commit 並儲存 → onSave("attribution", { commit })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const attrField = screen.getByPlaceholderText(COMMIT_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(COMMIT_PLACEHOLDER), { target: { value: 'Co-Authored-By: Claude' } });
+    fireEvent.click(within(attrField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('attribution', { commit: 'Co-Authored-By: Claude' });
+    });
+  });
+
+  it('attribution={commit: "x", pr: "y"} 清空 pr 並儲存 → onSave("attribution", { commit: "x" })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ attribution: { commit: 'x', pr: 'y' } }, onSave);
+
+    const attrField = screen.getByPlaceholderText(COMMIT_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(PR_PLACEHOLDER), { target: { value: '' } });
+    fireEvent.click(within(attrField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('attribution', { commit: 'x' });
+    });
+  });
+
+  it('兩個欄位都清空並儲存 → onDelete("attribution")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ attribution: { commit: 'x', pr: 'y' } }, onSave, onDelete);
+
+    const attrField = screen.getByPlaceholderText(COMMIT_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(COMMIT_PLACEHOLDER), { target: { value: '' } });
+    fireEvent.change(screen.getByPlaceholderText(PR_PLACEHOLDER), { target: { value: '' } });
+    fireEvent.click(within(attrField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('attribution');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

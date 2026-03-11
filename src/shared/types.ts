@@ -202,6 +202,7 @@ export interface ClaudeSettings {
   alwaysThinkingEnabled?: boolean;
   forceLoginMethod?: 'claudeai' | 'console';
   forceLoginOrgUUID?: string;
+  attribution?: { commit?: string; pr?: string };
   plansDirectory?: string;
   apiKeyHelper?: string;
   otelHeadersHelper?: string;

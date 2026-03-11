@@ -1,13 +1,101 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { EnumDropdown, TextSetting } from './components/SettingControls';
+import { useToast } from '../../components/Toast';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const KNOWN_FORCE_LOGIN_METHODS = ['claudeai', 'console'] as const satisfies readonly (NonNullable<ClaudeSettings['forceLoginMethod']>)[];
+
+// ---------------------------------------------------------------------------
+// AttributionEditor
+// ---------------------------------------------------------------------------
+
+interface AttributionEditorProps {
+  attribution: ClaudeSettings['attribution'];
+  onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+}
+
+function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorProps): React.ReactElement {
+  const { t } = useI18n();
+  const { addToast } = useToast();
+  const [commit, setCommit] = useState(attribution?.commit ?? '');
+  const [pr, setPr] = useState(attribution?.pr ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setCommit(attribution?.commit ?? '');
+    setPr(attribution?.pr ?? '');
+  }, [attribution?.commit, attribution?.pr]);
+
+  const handleSave = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const obj: { commit?: string; pr?: string } = {};
+      if (commit.trim()) obj.commit = commit.trim();
+      if (pr.trim()) obj.pr = pr.trim();
+
+      if (Object.keys(obj).length === 0) {
+        await onDelete('attribution');
+      } else {
+        await onSave('attribution', obj);
+      }
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label">{t('settings.advanced.attribution.label')}</label>
+      <p className="settings-field-description">{t('settings.advanced.attribution.description')}</p>
+      <div className="settings-model-row">
+        <label className="settings-label" htmlFor="attribution-commit">
+          {t('settings.advanced.attribution.commit.label')}
+        </label>
+        <input
+          id="attribution-commit"
+          className="input"
+          type="text"
+          value={commit}
+          onChange={(e) => setCommit(e.target.value)}
+          placeholder={t('settings.advanced.attribution.commit.placeholder')}
+          disabled={saving}
+        />
+      </div>
+      <div className="settings-model-row">
+        <label className="settings-label" htmlFor="attribution-pr">
+          {t('settings.advanced.attribution.pr.label')}
+        </label>
+        <input
+          id="attribution-pr"
+          className="input"
+          type="text"
+          value={pr}
+          onChange={(e) => setPr(e.target.value)}
+          placeholder={t('settings.advanced.attribution.pr.placeholder')}
+          disabled={saving}
+        />
+      </div>
+      <div className="settings-actions">
+        <button
+          className="btn btn-primary"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          type="button"
+        >
+          {t('settings.advanced.attribution.save')}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // AdvancedSection
@@ -95,6 +183,12 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
         notSetLabel={t('settings.advanced.forceLoginMethod.notSet')}
         unknownTemplate={t('settings.advanced.forceLoginMethod.unknown')}
         settingKey="forceLoginMethod"
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <AttributionEditor
+        attribution={settings.attribution}
         onSave={onSave}
         onDelete={onDelete}
       />
