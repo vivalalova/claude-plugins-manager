@@ -2140,3 +2140,27 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   font-style: italic;
   margin: 0;
 }
+
+/* ---- General Section ---- */
+
+.general-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.general-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+  min-height: 24px;
+}
+
+.general-tag-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

@@ -177,14 +177,16 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊非 model/permissions/env/hooks nav（如 General）→ 顯示 coming soon 文字', async () => {
+  it('點擊 General nav → 顯示 General 區塊（Effort Level / Language / Fast Mode）', async () => {
     renderPage();
 
     await waitFor(() => screen.getByText('General'));
     fireEvent.click(screen.getByText('General').closest('button')!);
 
     await waitFor(() => {
-      expect(screen.getByText(/Coming soon/i)).toBeTruthy();
+      expect(screen.getByText('Effort Level')).toBeTruthy();
+      expect(screen.getByText('Language')).toBeTruthy();
+      expect(screen.getByText('Fast Mode')).toBeTruthy();
     });
   });
 

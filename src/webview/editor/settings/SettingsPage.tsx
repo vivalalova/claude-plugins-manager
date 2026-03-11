@@ -7,6 +7,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { PermissionsSection } from './PermissionsSection';
 import { EnvSection } from './EnvSection';
 import { HooksSection } from './HooksSection';
+import { GeneralSection } from './GeneralSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -174,19 +175,6 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
 }
 
 // ---------------------------------------------------------------------------
-// ComingSoonSection
-// ---------------------------------------------------------------------------
-
-function ComingSoonSection(): React.ReactElement {
-  const { t } = useI18n();
-  return (
-    <div className="settings-section">
-      <p className="settings-coming-soon">{t('settings.comingSoon')}</p>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // SettingsPage
 // ---------------------------------------------------------------------------
 
@@ -330,7 +318,14 @@ export function SettingsPage(): React.ReactElement {
                   onDelete={handleDelete}
                 />
               )}
-              {activeNav !== 'model' && activeNav !== 'permissions' && activeNav !== 'env' && activeNav !== 'hooks' && <ComingSoonSection />}
+              {activeNav === 'general' && (
+                <GeneralSection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                />
+              )}
             </>
           )}
         </div>
