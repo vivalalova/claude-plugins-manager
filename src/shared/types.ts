@@ -200,6 +200,8 @@ export interface ClaudeSettings {
   autoUpdatesChannel?: 'stable' | 'latest';
   cleanupPeriodDays?: number;
   alwaysThinkingEnabled?: boolean;
+  forceLoginMethod?: 'claudeai' | 'console';
+  forceLoginOrgUUID?: string;
   plansDirectory?: string;
   apiKeyHelper?: string;
   otelHeadersHelper?: string;

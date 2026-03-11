@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { TextSetting } from './components/SettingControls';
+import { EnumDropdown, TextSetting } from './components/SettingControls';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const KNOWN_FORCE_LOGIN_METHODS = ['claudeai', 'console'] as const satisfies readonly (NonNullable<ClaudeSettings['forceLoginMethod']>)[];
+
+// ---------------------------------------------------------------------------
+// AdvancedSection
+// ---------------------------------------------------------------------------
 
 interface AdvancedSectionProps {
   scope: PluginScope;
@@ -13,7 +23,23 @@ interface AdvancedSectionProps {
 export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
   const { t } = useI18n();
 
+  const forceLoginMethodLabels = useMemo<Record<string, string>>(
+    () => ({
+      claudeai: t('settings.advanced.forceLoginMethod.claudeai'),
+      console: t('settings.advanced.forceLoginMethod.console'),
+    }),
+    [t],
+  );
+
   const textFields: { key: keyof ClaudeSettings; label: string; description: string; placeholder: string; saveLabel: string; clearLabel: string }[] = [
+    {
+      key: 'forceLoginOrgUUID',
+      label: t('settings.advanced.forceLoginOrgUUID.label'),
+      description: t('settings.advanced.forceLoginOrgUUID.description'),
+      placeholder: t('settings.advanced.forceLoginOrgUUID.placeholder'),
+      saveLabel: t('settings.advanced.forceLoginOrgUUID.save'),
+      clearLabel: t('settings.advanced.forceLoginOrgUUID.clear'),
+    },
     {
       key: 'plansDirectory',
       label: t('settings.advanced.plansDirectory.label'),
@@ -59,6 +85,19 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.advanced')}</h3>
+
+      <EnumDropdown
+        label={t('settings.advanced.forceLoginMethod.label')}
+        description={t('settings.advanced.forceLoginMethod.description')}
+        value={settings.forceLoginMethod}
+        knownValues={KNOWN_FORCE_LOGIN_METHODS}
+        knownLabels={forceLoginMethodLabels}
+        notSetLabel={t('settings.advanced.forceLoginMethod.notSet')}
+        unknownTemplate={t('settings.advanced.forceLoginMethod.unknown')}
+        settingKey="forceLoginMethod"
+        onSave={onSave}
+        onDelete={onDelete}
+      />
 
       {textFields.map(({ key, label, description, placeholder, saveLabel, clearLabel }) => (
         <TextSetting

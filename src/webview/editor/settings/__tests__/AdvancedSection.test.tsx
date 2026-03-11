@@ -40,6 +40,8 @@ afterEach(() => {
 
 describe('AdvancedSection — 渲染', () => {
   it.each([
+    'Force Login Method',
+    'Force Login Org UUID',
     'Plans Directory',
     'API Key Helper',
     'OTEL Headers Helper',
@@ -60,6 +62,86 @@ describe('AdvancedSection — 渲染', () => {
     renderSection({});
     const field = screen.getByPlaceholderText('e.g. ./plans').closest('.settings-field') as HTMLElement;
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// EnumDropdown 互動 — forceLoginMethod
+// ---------------------------------------------------------------------------
+
+describe('AdvancedSection — forceLoginMethod EnumDropdown', () => {
+  it('forceLoginMethod 未設定 → select value 為空', () => {
+    renderSection({});
+    const select = screen.getByRole('combobox', { name: 'Force Login Method' }) as HTMLSelectElement;
+    expect(select.value).toBe('');
+  });
+
+  it('forceLoginMethod 未設定, 選擇 claudeai → onSave("forceLoginMethod", "claudeai")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Force Login Method' }), { target: { value: 'claudeai' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('forceLoginMethod', 'claudeai');
+    });
+  });
+
+  it('forceLoginMethod="console", 選擇空值 → onDelete("forceLoginMethod")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ forceLoginMethod: 'console' }, vi.fn(), onDelete);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Force Login Method' }), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('forceLoginMethod');
+    });
+  });
+
+  it('forceLoginMethod="console" → select 顯示 console', () => {
+    renderSection({ forceLoginMethod: 'console' });
+    const select = screen.getByRole('combobox', { name: 'Force Login Method' }) as HTMLSelectElement;
+    expect(select.value).toBe('console');
+  });
+
+  it('forceLoginMethod 為未知值 → select 選到 __unknown__ 且顯示警告文字', () => {
+    renderSection({ forceLoginMethod: 'sso' as any });
+    const select = screen.getByRole('combobox', { name: 'Force Login Method' }) as HTMLSelectElement;
+    expect(select.value).toBe('__unknown__');
+    expect(screen.getByText('Current value: sso ⚠️')).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TextSetting 互動 — forceLoginOrgUUID
+// ---------------------------------------------------------------------------
+
+describe('AdvancedSection — forceLoginOrgUUID TextSetting', () => {
+  it('forceLoginOrgUUID 未設定, 輸入 UUID 並儲存 → onSave("forceLoginOrgUUID", "uuid")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'));
+    const field = screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'), { target: { value: 'abc-123' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('forceLoginOrgUUID', 'abc-123');
+    });
+  });
+
+  it('forceLoginOrgUUID 有值, 清除 → onDelete("forceLoginOrgUUID")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ forceLoginOrgUUID: 'existing-uuid' }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'));
+    const field = screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('forceLoginOrgUUID');
+    });
   });
 });
 
