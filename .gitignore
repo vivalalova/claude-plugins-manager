@@ -7,3 +7,4 @@ package-lock.json
 .claude/looping/.hook-debug.log
 .claude/looping/.looping_active_*
 .claude/settings-lova.json
+.claude/settings.local.json
