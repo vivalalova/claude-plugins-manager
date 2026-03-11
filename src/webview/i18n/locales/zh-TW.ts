@@ -20,6 +20,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.nav.env': '環境變數',
   'settings.nav.hooks': 'Hooks',
   'settings.nav.general': '一般',
+  'settings.nav.display': '顯示',
+  'settings.nav.advanced': '進階',
   'settings.model.label': '使用模型',
   'settings.model.placeholder': '未設定（使用預設）',
   'settings.model.custom': '自訂...',

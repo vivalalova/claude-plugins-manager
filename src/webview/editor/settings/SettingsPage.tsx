@@ -8,6 +8,8 @@ import { PermissionsSection } from './PermissionsSection';
 import { EnvSection } from './EnvSection';
 import { HooksSection } from './HooksSection';
 import { GeneralSection } from './GeneralSection';
+import { DisplaySection } from './DisplaySection';
+import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -22,7 +24,7 @@ const KNOWN_MODELS = [
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 
-type SettingsNavItem = 'model' | 'permissions' | 'env' | 'hooks' | 'general';
+type SettingsNavItem = 'model' | 'permissions' | 'env' | 'hooks' | 'general' | 'display' | 'advanced';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -242,10 +244,12 @@ export function SettingsPage(): React.ReactElement {
 
   const navItems: { id: SettingsNavItem; label: string }[] = [
     { id: 'general', label: t('settings.nav.general') },
+    { id: 'display', label: t('settings.nav.display') },
     { id: 'model', label: t('settings.nav.model') },
     { id: 'permissions', label: t('settings.nav.permissions') },
     { id: 'env', label: t('settings.nav.env') },
     { id: 'hooks', label: t('settings.nav.hooks') },
+    { id: 'advanced', label: t('settings.nav.advanced') },
   ];
 
   return (
@@ -324,6 +328,22 @@ export function SettingsPage(): React.ReactElement {
               )}
               {activeNav === 'general' && (
                 <GeneralSection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                />
+              )}
+              {activeNav === 'display' && (
+                <DisplaySection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                />
+              )}
+              {activeNav === 'advanced' && (
+                <AdvancedSection
                   scope={scope}
                   settings={settings}
                   onSave={handleSave}

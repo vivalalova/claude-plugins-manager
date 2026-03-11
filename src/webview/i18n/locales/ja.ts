@@ -129,6 +129,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.nav.env': '環境変数',
   'settings.nav.hooks': 'Hooks',
   'settings.nav.general': '一般',
+  'settings.nav.display': '表示',
+  'settings.nav.advanced': '詳細設定',
   'settings.model.label': 'モデル',
   'settings.model.placeholder': '未設定（デフォルトを使用）',
   'settings.model.custom': 'カスタム...',

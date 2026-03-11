@@ -64,6 +64,44 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('左側 nav 恰好 7 個 items，順序為 General, Display, Model, Permissions, Env, Hooks, Advanced', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      const nav = screen.getByRole('navigation');
+      const navButtons = nav.querySelectorAll('button');
+      expect(navButtons.length).toBe(7);
+      const labels = Array.from(navButtons).map((b) => b.textContent);
+      expect(labels).toEqual(['General', 'Display', 'Model', 'Permissions', 'Env', 'Hooks', 'Advanced']);
+    });
+  });
+
+  it('點擊 Display nav → 顯示 Display section title', async () => {
+    renderPage();
+
+    await waitFor(() => screen.getByRole('navigation'));
+    const nav = screen.getByRole('navigation');
+    const displayBtn = Array.from(nav.querySelectorAll('button')).find((b) => b.textContent === 'Display')!;
+    fireEvent.click(displayBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Display' })).toBeTruthy();
+    });
+  });
+
+  it('點擊 Advanced nav → 顯示 Advanced section title', async () => {
+    renderPage();
+
+    await waitFor(() => screen.getByRole('navigation'));
+    const nav = screen.getByRole('navigation');
+    const advancedBtn = Array.from(nav.querySelectorAll('button')).find((b) => b.textContent === 'Advanced')!;
+    fireEvent.click(advancedBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Advanced' })).toBeTruthy();
+    });
+  });
+
   it('預設顯示 General 區塊', async () => {
     renderPage();
 

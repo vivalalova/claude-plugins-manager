@@ -18,6 +18,8 @@ export const en = {
   'settings.nav.env': 'Env',
   'settings.nav.hooks': 'Hooks',
   'settings.nav.general': 'General',
+  'settings.nav.display': 'Display',
+  'settings.nav.advanced': 'Advanced',
   'settings.model.label': 'Model',
   'settings.model.placeholder': 'Not set (use default)',
   'settings.model.custom': 'Custom...',
