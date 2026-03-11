@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import type { MarketplaceService } from '../services/MarketplaceService';
 import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
@@ -134,7 +135,7 @@ export class MessageRouter {
           await vscode.workspace.fs.stat(uri);
         } catch {
           // 檔案不存在 → 先確保父目錄存在，再建立含 $schema + hooks 的初始檔案
-          const parentUri = vscode.Uri.file(require('path').dirname(filePath));
+          const parentUri = vscode.Uri.file(path.dirname(filePath));
           await vscode.workspace.fs.createDirectory(parentUri);
           const initial = JSON.stringify({
             $schema: 'https://json.schemastore.org/claude-code-settings.json',

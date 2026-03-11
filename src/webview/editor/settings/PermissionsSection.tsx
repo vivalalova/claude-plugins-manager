@@ -252,7 +252,9 @@ export function PermissionsSection({
     }
     if (mode === '') {
       // Remove the key entirely instead of writing empty string
-      const { defaultMode: _, ...rest } = perms;
+      const rest = Object.fromEntries(
+        Object.entries(perms).filter(([k]) => k !== 'defaultMode')
+      ) as typeof perms;
       void updatePermissions(rest);
       return;
     }
