@@ -66,6 +66,10 @@ export function activate(context: vscode.ExtensionContext): void {
         editorManager.openPanel('mcp');
       },
     ),
+    vscode.commands.registerCommand(
+      COMMANDS.openSettings,
+      () => editorManager.openPanel('settings'),
+    ),
     workspaceFolderDisposable,
     { dispose: () => editorManager.dispose() },
     { dispose: () => sidebarProvider.dispose() },

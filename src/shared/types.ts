@@ -171,6 +171,34 @@ export interface McpAddParams {
   headers?: string[];
 }
 
+/** Hook command discriminated union（四種 hook type） */
+export type HookCommand =
+  | { type: 'command'; command: string; timeout?: number; async?: boolean }
+  | { type: 'prompt'; prompt: string; model?: string; timeout?: number }
+  | { type: 'agent'; prompt: string; model?: string; timeout?: number }
+  | { type: 'http'; url: string; headers?: Record<string, string>; timeout?: number };
+
+/**
+ * Claude Code settings.json 結構。
+ * enabledPlugins 由 PluginService 專屬管理，不在此列。
+ */
+export interface ClaudeSettings {
+  model?: string;
+  permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; defaultMode?: string };
+  env?: Record<string, string>;
+  hooks?: Record<string, Array<{ matcher?: string; hooks: HookCommand[] }>>;
+  effortLevel?: 'high' | 'medium' | 'low';
+  language?: string;
+  availableModels?: string[];
+  enableAllProjectMcpServers?: boolean;
+  includeGitInstructions?: boolean;
+  respectGitignore?: boolean;
+  outputStyle?: 'auto' | 'stream-json';
+  fastMode?: boolean;
+  alwaysThinkingEnabled?: boolean;
+  disableAllHooks?: boolean;
+}
+
 /** 翻譯目標語言 allowlist（前後端共用） */
 export const TRANSLATE_LANGS: Record<string, string> = {
   en: 'English',

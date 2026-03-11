@@ -22,6 +22,8 @@ export type {
   McpServer,
   McpAddParams,
   MergedPlugin,
+  HookCommand,
+  ClaudeSettings,
 } from '../shared/types';
 
 /** CLI 執行錯誤（僅 extension 使用） */

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MarketplacePage } from './marketplace/MarketplacePage';
 import { PluginPage } from './plugin/PluginPage';
 import { McpPage } from './mcp/McpPage';
+import { SettingsPage } from './settings/SettingsPage';
 
 interface EditorAppProps {
   mode: string;
@@ -28,6 +29,8 @@ export function EditorApp({ mode: initialMode }: EditorAppProps): React.ReactEle
       return <PluginPage />;
     case 'mcp':
       return <McpPage />;
+    case 'settings':
+      return <SettingsPage />;
     default:
       return <div className="error-banner">Unknown mode: {mode}</div>;
   }

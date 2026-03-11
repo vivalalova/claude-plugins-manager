@@ -36,6 +36,7 @@ function createManager() {
   const fileWatcherService = {
     onPluginFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     onMarketplaceFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
+    onSettingsFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
   };
   const router = {
     handle: vi.fn(),

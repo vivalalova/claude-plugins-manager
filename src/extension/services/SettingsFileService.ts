@@ -50,6 +50,40 @@ export class SettingsFileService {
     }
   }
 
+  /**
+   * 讀取指定 scope 的 settings.json，回傳 raw JSON object。
+   * 不做跨 scope 合併；檔案不存在回傳 {}。
+   */
+  async getSettings(scope: PluginScope): Promise<Record<string, unknown>> {
+    return this.readJson<Record<string, unknown>>(this.getSettingsPath(scope));
+  }
+
+  /**
+   * 設定指定 scope 的單一 key（read-modify-write）。
+   * 使用 raw object 保留 $schema 等額外欄位；project/local scope 自動 mkdir。
+   */
+  async setSetting(scope: PluginScope, key: string, value: unknown): Promise<void> {
+    const path = this.getSettingsPath(scope);
+    const settings = await this.readJson<Record<string, unknown>>(path);
+    settings[key] = value;
+    if (scope !== 'user') {
+      await mkdir(dirname(path), { recursive: true });
+    }
+    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+  }
+
+  /**
+   * 刪除指定 scope 的頂層 key（read-modify-write）。
+   * 檔案不存在（ENOENT）則 no-op；readJson 已處理 ENOENT 回傳 {}。
+   */
+  async deleteSetting(scope: PluginScope, key: string): Promise<void> {
+    const path = this.getSettingsPath(scope);
+    const settings = await this.readJson<Record<string, unknown>>(path);
+    if (!(key in settings)) return;
+    delete settings[key];
+    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+  }
+
   /** 讀取指定 settings 檔的 enabledPlugins */
   async readEnabledPlugins(scope: PluginScope): Promise<EnabledPluginsMap> {
     const settings = await this.readJson<Record<string, unknown>>(
