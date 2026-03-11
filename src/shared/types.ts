@@ -200,6 +200,11 @@ export interface ClaudeSettings {
   autoUpdatesChannel?: 'stable' | 'latest';
   cleanupPeriodDays?: number;
   alwaysThinkingEnabled?: boolean;
+  plansDirectory?: string;
+  apiKeyHelper?: string;
+  otelHeadersHelper?: string;
+  awsCredentialExport?: string;
+  awsAuthRefresh?: string;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;
   spinnerTipsEnabled?: boolean;
