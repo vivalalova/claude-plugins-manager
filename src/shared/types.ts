@@ -216,6 +216,8 @@ export interface ClaudeSettings {
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;
   spinnerTipsEnabled?: boolean;
+  spinnerVerbs?: { mode: 'append' | 'replace'; verbs: string[] };
+  spinnerTipsOverride?: { tips: string[]; excludeDefault?: boolean };
   terminalProgressBarEnabled?: boolean;
   prefersReducedMotion?: boolean;
   teammateMode?: 'auto' | 'inline' | 'tmux' | 'iterm2';
