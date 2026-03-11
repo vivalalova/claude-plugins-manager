@@ -45,6 +45,7 @@ describe('AdvancedSection — 渲染', () => {
   it.each([
     'Force Login Method',
     'Force Login Org UUID',
+    'Skip WebFetch Preflight',
     'Attribution',
     'Plans Directory',
     'API Key Helper',
@@ -66,6 +67,55 @@ describe('AdvancedSection — 渲染', () => {
     renderSection({});
     const field = screen.getByPlaceholderText('e.g. ./plans').closest('.settings-field') as HTMLElement;
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BooleanToggle — skipWebFetchPreflight
+// ---------------------------------------------------------------------------
+
+describe('AdvancedSection — skipWebFetchPreflight toggle', () => {
+  it('skipWebFetchPreflight 未設定 → checkbox 未勾選', () => {
+    renderSection({});
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('skipWebFetchPreflight=false → checkbox 未勾選', () => {
+    renderSection({ skipWebFetchPreflight: false });
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('skipWebFetchPreflight=true → checkbox 勾選', () => {
+    renderSection({ skipWebFetchPreflight: true });
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it('skipWebFetchPreflight 未設定, toggle on → onSave("skipWebFetchPreflight", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('skipWebFetchPreflight', true);
+    });
+  });
+
+  it('skipWebFetchPreflight=true, toggle off → onDelete("skipWebFetchPreflight"), onSave 不呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ skipWebFetchPreflight: true }, onSave, onDelete);
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('skipWebFetchPreflight');
+      expect(onSave).not.toHaveBeenCalled();
+    });
   });
 });
 

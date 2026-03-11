@@ -197,6 +197,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.awsAuthRefresh.placeholder': '例：./scripts/aws-auth-refresh.sh',
   'settings.advanced.awsAuthRefresh.save': '儲存',
   'settings.advanced.awsAuthRefresh.clear': '清除',
+  'settings.advanced.skipWebFetchPreflight.label': '略過 WebFetch 預檢',
+  'settings.advanced.skipWebFetchPreflight.description': '略過 WebFetch 封鎖清單的預檢查（企業用途）',
   // PluginPage
   'plugin.page.title': '外掛管理員',
   'plugin.page.updateAll': '全部更新',

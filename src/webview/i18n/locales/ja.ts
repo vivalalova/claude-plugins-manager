@@ -306,4 +306,6 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.awsAuthRefresh.placeholder': '例: ./scripts/aws-auth-refresh.sh',
   'settings.advanced.awsAuthRefresh.save': '保存',
   'settings.advanced.awsAuthRefresh.clear': 'クリア',
+  'settings.advanced.skipWebFetchPreflight.label': 'WebFetch プリフライトをスキップ',
+  'settings.advanced.skipWebFetchPreflight.description': 'WebFetch ブロックリストのプリフライトチェックをスキップします（エンタープライズ向け）',
 };

@@ -195,6 +195,8 @@ export const en = {
   'settings.advanced.awsAuthRefresh.placeholder': 'e.g. ./scripts/aws-auth-refresh.sh',
   'settings.advanced.awsAuthRefresh.save': 'Save',
   'settings.advanced.awsAuthRefresh.clear': 'Clear',
+  'settings.advanced.skipWebFetchPreflight.label': 'Skip WebFetch Preflight',
+  'settings.advanced.skipWebFetchPreflight.description': 'Skip the WebFetch blocklist preflight check (enterprise use)',
   // PluginPage
   'plugin.page.title': 'Plugins Manager',
   'plugin.page.updateAll': 'Update All',

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { EnumDropdown, TextSetting } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, TextSetting } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
 
 // ---------------------------------------------------------------------------
@@ -208,6 +208,15 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
           onDelete={onDelete}
         />
       ))}
+
+      <BooleanToggle
+        label={t('settings.advanced.skipWebFetchPreflight.label')}
+        description={t('settings.advanced.skipWebFetchPreflight.description')}
+        value={settings.skipWebFetchPreflight}
+        settingKey="skipWebFetchPreflight"
+        onSave={onSave}
+        onDelete={onDelete}
+      />
     </div>
   );
 }
