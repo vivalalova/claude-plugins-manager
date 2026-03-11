@@ -64,11 +64,11 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('預設顯示 Model 區塊', async () => {
+  it('預設顯示 General 區塊', async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('combobox')).toBeTruthy();
+      expect(screen.getByText('Effort Level')).toBeTruthy();
     });
   });
 
@@ -107,9 +107,13 @@ describe('SettingsPage', () => {
 
     renderPage();
 
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+
     await waitFor(() => {
-      const select = screen.getByRole('combobox') as HTMLSelectElement;
-      expect(select.value).toBe('claude-opus-4-6');
+      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'));
+      expect(modelSelect?.value).toBe('claude-opus-4-6');
     });
   });
 
@@ -132,8 +136,13 @@ describe('SettingsPage', () => {
   it('選擇 model 並點擊 Save → sendRequest settings.set', async () => {
     renderPage();
 
-    await waitFor(() => screen.getByRole('combobox'));
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'claude-sonnet-4-6' } });
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+
+    await waitFor(() => screen.getAllByRole('combobox'));
+    const modelSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
+      .find((s) => s.className.includes('settings-model-select'))!;
+    fireEvent.change(modelSelect, { target: { value: 'claude-sonnet-4-6' } });
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
@@ -161,6 +170,9 @@ describe('SettingsPage', () => {
 
     renderPage();
 
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+
     await waitFor(() => screen.getByText('Clear'));
     fireEvent.click(screen.getByText('Clear'));
 
@@ -177,11 +189,8 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊 General nav → 顯示 General 區塊（Effort Level / Language / Fast Mode）', async () => {
+  it('預設顯示 General 區塊（Effort Level / Language / Fast Mode）', async () => {
     renderPage();
-
-    await waitFor(() => screen.getByText('General'));
-    fireEvent.click(screen.getByText('General').closest('button')!);
 
     await waitFor(() => {
       expect(screen.getByText('Effort Level')).toBeTruthy();
@@ -562,7 +571,7 @@ describe('SettingsPage', () => {
     });
 
     renderPage();
-    await waitFor(() => screen.getByRole('combobox'));
+    await waitFor(() => screen.getAllByRole('combobox'));
 
     const beforeCount = mockSendRequest.mock.calls.filter(
       (c: any[]) => c[0]?.type === 'settings.get',
