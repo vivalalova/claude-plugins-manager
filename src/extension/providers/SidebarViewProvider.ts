@@ -35,6 +35,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
       this.fileWatcherService.onPluginFilesChanged(() => {
         this.postMessage({ type: 'plugin.refresh' });
       }),
+      // settings.json 也包含 enabledPlugins，需同步推送 plugin.refresh
+      this.fileWatcherService.onSettingsFilesChanged(() => {
+        this.postMessage({ type: 'plugin.refresh' });
+      }),
       this.fileWatcherService.onMarketplaceFilesChanged(() => {
         this.postMessage({ type: 'marketplace.refresh' });
       }),

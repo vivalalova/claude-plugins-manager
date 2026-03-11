@@ -49,6 +49,7 @@ describe('SidebarViewProvider', () => {
     const router = { handle: vi.fn() };
     const fileWatcherService = {
       onPluginFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
+      onSettingsFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
       onMarketplaceFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     };
     const provider = new SidebarViewProvider(
@@ -88,6 +89,7 @@ describe('SidebarViewProvider', () => {
     };
     const fileWatcherService = {
       onPluginFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
+      onSettingsFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
       onMarketplaceFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     };
     const provider = new SidebarViewProvider(
@@ -114,10 +116,15 @@ describe('SidebarViewProvider', () => {
   it('push events 會轉發到目前的 sidebar webview，dispose 後停止轉發', () => {
     const mcpEmitter = new EventEmitter<unknown[]>();
     let onPluginFilesChanged: (() => void) | undefined;
+    let onSettingsFilesChanged: (() => void) | undefined;
     let onMarketplaceFilesChanged: (() => void) | undefined;
     const fileWatcherService = {
       onPluginFilesChanged: vi.fn((handler: () => void) => {
         onPluginFilesChanged = handler;
+        return { dispose: vi.fn() };
+      }),
+      onSettingsFilesChanged: vi.fn((handler: () => void) => {
+        onSettingsFilesChanged = handler;
         return { dispose: vi.fn() };
       }),
       onMarketplaceFilesChanged: vi.fn((handler: () => void) => {
@@ -138,6 +145,7 @@ describe('SidebarViewProvider', () => {
 
     mcpEmitter.fire([{ name: 'server-a' }]);
     onPluginFilesChanged?.();
+    onSettingsFilesChanged?.();
     onMarketplaceFilesChanged?.();
 
     expect(webviewView.webview.postMessage).toHaveBeenNthCalledWith(1, {
@@ -148,19 +156,23 @@ describe('SidebarViewProvider', () => {
       type: 'plugin.refresh',
     });
     expect(webviewView.webview.postMessage).toHaveBeenNthCalledWith(3, {
+      type: 'plugin.refresh',
+    });
+    expect(webviewView.webview.postMessage).toHaveBeenNthCalledWith(4, {
       type: 'marketplace.refresh',
     });
 
     dispose();
     mcpEmitter.fire([{ name: 'server-b' }]);
 
-    expect(webviewView.webview.postMessage).toHaveBeenCalledTimes(3);
+    expect(webviewView.webview.postMessage).toHaveBeenCalledTimes(4);
   });
 
   it('dispose 會釋放 constructor 建立的 push subscriptions', () => {
     const mcpEmitter = new EventEmitter<unknown[]>();
     const mcpDispose = vi.fn();
     const pluginDispose = vi.fn();
+    const settingsDispose = vi.fn();
     const marketplaceDispose = vi.fn();
     const provider = new SidebarViewProvider(
       Uri.file('/extension') as never,
@@ -173,6 +185,7 @@ describe('SidebarViewProvider', () => {
       } as never,
       {
         onPluginFilesChanged: vi.fn(() => ({ dispose: pluginDispose })),
+        onSettingsFilesChanged: vi.fn(() => ({ dispose: settingsDispose })),
         onMarketplaceFilesChanged: vi.fn(() => ({ dispose: marketplaceDispose })),
       } as never,
     );
@@ -181,6 +194,7 @@ describe('SidebarViewProvider', () => {
 
     expect(mcpDispose).toHaveBeenCalledTimes(1);
     expect(pluginDispose).toHaveBeenCalledTimes(1);
+    expect(settingsDispose).toHaveBeenCalledTimes(1);
     expect(marketplaceDispose).toHaveBeenCalledTimes(1);
     void mcpEmitter;
   });
