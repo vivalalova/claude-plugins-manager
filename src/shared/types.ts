@@ -195,6 +195,8 @@ export interface ClaudeSettings {
   respectGitignore?: boolean;
   outputStyle?: 'auto' | 'stream-json';
   fastMode?: boolean;
+  fastModePerSessionOptIn?: boolean;
+  autoMemoryEnabled?: boolean;
   alwaysThinkingEnabled?: boolean;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;

@@ -117,6 +117,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.general.outputStyle.description': '輸出格式。auto = 自動判斷；stream-json = 串流 JSON',
   'settings.general.fastMode.label': '快速模式',
   'settings.general.fastMode.description': '使用相同模型的快速輸出模式，回應速度更快',
+  'settings.general.fastModePerSessionOptIn.label': '快速模式每次 Session 確認',
+  'settings.general.fastModePerSessionOptIn.description': '每次新 session 需重新確認才啟用快速模式，不跨 session 持續（有助於控制成本）',
+  'settings.general.autoMemoryEnabled.label': '自動記憶',
+  'settings.general.autoMemoryEnabled.description': '自動儲存並在各 session 間重新呼叫對話記憶',
   'settings.general.alwaysThinkingEnabled.label': '永遠開啟深度思考',
   'settings.general.alwaysThinkingEnabled.description': '永遠啟用深度思考（extended thinking），不受其他設定影響',
   // PluginPage

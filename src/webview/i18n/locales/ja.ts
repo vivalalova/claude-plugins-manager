@@ -226,6 +226,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.general.outputStyle.description': '出力形式。auto = 自動判定、stream-json = ストリーミング JSON',
   'settings.general.fastMode.label': 'ファストモード',
   'settings.general.fastMode.description': '同じモデルを使用した高速出力モード',
+  'settings.general.fastModePerSessionOptIn.label': 'セッションごとのファストモード確認',
+  'settings.general.fastModePerSessionOptIn.description': '新しいセッションごとにファストモードのオプトインを要求（コスト管理に役立つ）',
+  'settings.general.autoMemoryEnabled.label': '自動メモリ',
+  'settings.general.autoMemoryEnabled.description': 'セッション間で会話メモリを自動保存・呼び出し',
   'settings.general.alwaysThinkingEnabled.label': '常に深い思考を有効化',
   'settings.general.alwaysThinkingEnabled.description': '他の設定に関わらず、常に深い思考（extended thinking）を有効化',
 };

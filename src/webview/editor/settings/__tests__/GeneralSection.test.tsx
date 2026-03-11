@@ -77,11 +77,14 @@ describe('GeneralSection — 渲染', () => {
     await waitFor(() => expect(screen.getByText('claude-sonnet-4-6')).toBeTruthy());
   });
 
-  it('所有 boolean toggle 都有 checkbox', async () => {
+  it('所有必要 boolean toggle 都有 checkbox（語義斷言）', async () => {
     renderSection();
     await waitFor(() => {
-      const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(5);
+      expect(screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Fast Mode' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Always Thinking Enabled' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Auto Memory' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' })).toBeTruthy();
     });
   });
 
@@ -182,6 +185,58 @@ describe('GeneralSection — BooleanToggle 互動', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', true);
+    });
+  });
+
+  it('autoMemoryEnabled=true, toggle off → onDelete("autoMemoryEnabled")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ autoMemoryEnabled: true }, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Auto Memory' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auto Memory' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('autoMemoryEnabled');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('fastModePerSessionOptIn 未設定, toggle on → onSave("fastModePerSessionOptIn", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fastModePerSessionOptIn', true);
+    });
+  });
+
+  it('autoMemoryEnabled 未設定, toggle on → onSave("autoMemoryEnabled", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Auto Memory' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auto Memory' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoMemoryEnabled', true);
+    });
+  });
+
+  it('fastModePerSessionOptIn=true, toggle off → onDelete("fastModePerSessionOptIn")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fastModePerSessionOptIn: true }, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('fastModePerSessionOptIn');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

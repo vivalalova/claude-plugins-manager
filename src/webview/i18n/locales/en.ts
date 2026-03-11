@@ -115,6 +115,10 @@ export const en = {
   'settings.general.outputStyle.description': 'Output format: auto = default, stream-json = streaming JSON',
   'settings.general.fastMode.label': 'Fast Mode',
   'settings.general.fastMode.description': 'Faster output speed using the same model',
+  'settings.general.fastModePerSessionOptIn.label': 'Fast Mode Per-Session Opt-In',
+  'settings.general.fastModePerSessionOptIn.description': 'Require opt-in for fast mode each new session instead of persisting across sessions (helps control costs)',
+  'settings.general.autoMemoryEnabled.label': 'Auto Memory',
+  'settings.general.autoMemoryEnabled.description': 'Automatically save and recall conversation memory across sessions',
   'settings.general.alwaysThinkingEnabled.label': 'Always Thinking Enabled',
   'settings.general.alwaysThinkingEnabled.description': 'Always enable extended thinking regardless of other settings',
   // PluginPage
