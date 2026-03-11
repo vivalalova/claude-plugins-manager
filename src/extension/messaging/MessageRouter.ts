@@ -7,6 +7,7 @@ import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
 import type { TranslationService } from '../services/TranslationService';
 import type { SettingsFileService } from '../services/SettingsFileService';
+import type { HookExplanationService } from '../services/HookExplanationService';
 import type { RequestMessage, ResponseMessage } from './protocol';
 
 type PostFn = (msg: ResponseMessage) => void;
@@ -22,6 +23,7 @@ export class MessageRouter {
     private readonly mcp: McpService,
     private readonly translation: TranslationService,
     private readonly settings: SettingsFileService,
+    private readonly hookExplanation: HookExplanationService,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -139,6 +141,15 @@ export class MessageRouter {
           return (p.startsWith('/') || p.startsWith('~/')) && fs.existsSync(expanded);
         });
       }
+
+      case 'hooks.explain':
+        return this.hookExplanation.explain(message.hookContent, message.locale);
+
+      case 'hooks.cleanExpiredExplanations':
+        this.hookExplanation.cleanExpired().catch((e: unknown) =>
+          console.error('[MessageRouter] cleanExpired failed:', e),
+        );
+        return;
 
       case 'hooks.openFile': {
         const home = os.homedir();

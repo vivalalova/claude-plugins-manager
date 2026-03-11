@@ -399,3 +399,110 @@ describe('HooksSection — open file button', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// explain button
+// ---------------------------------------------------------------------------
+
+describe('HooksSection — explain button', () => {
+  it('點擊解釋按鈕 → 送 hooks.explain → 顯示解釋文字', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: '這是安全守衛腳本。', fromCache: false });
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      expect(screen.getByText('這是安全守衛腳本。')).toBeTruthy();
+    });
+    expect(mockSendRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'hooks.explain', hookContent: '/guard.sh' }),
+    );
+  });
+
+  it('hooks.explain 呼叫時帶正確 locale', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: 'ok', fromCache: false });
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'hooks.explain', locale: expect.any(String) }),
+      );
+    });
+  });
+
+  it('解釋過的 hook → 再次點擊不重送 request（UI 快取）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: '快取中的解釋。', fromCache: true });
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+    await waitFor(() => screen.getByText('快取中的解釋。'));
+
+    // 再按一次
+    fireEvent.click(screen.getByText('Explain'));
+    await waitFor(() => expect(screen.getByText('快取中的解釋。')).toBeTruthy());
+
+    // hooks.explain 只呼叫一次
+    expect(
+      mockSendRequest.mock.calls.filter((c: unknown[]) => (c[0] as { type: string }).type === 'hooks.explain'),
+    ).toHaveLength(1);
+  });
+
+  it('hooks.explain 失敗 → 顯示 error toast', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') return Promise.reject(new Error('AI unavailable'));
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to get explanation')).toBeTruthy();
+    });
+  });
+
+  it('mount 時送 hooks.cleanExpiredExplanations', async () => {
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'hooks.cleanExpiredExplanations' }),
+      );
+    });
+  });
+});

@@ -15,6 +15,12 @@ function truncate(s: string): string {
   return s.length > MAX_CMD_LEN ? `${s.slice(0, MAX_CMD_LEN)}…` : s;
 }
 
+function getHookContent(hook: HookCommand): string {
+  return hook.type === 'command' ? hook.command :
+         hook.type === 'http'    ? hook.url :
+         (hook as { prompt: string }).prompt;
+}
+
 function extractFilePath(command: string): string | null {
   const firstToken = command.split(' ')[0];
   return FILE_PATH_RE.test(firstToken) ? firstToken : null;
@@ -46,33 +52,51 @@ interface HookItemProps {
   isFilePath: boolean;
   onOpenFile: (path: string) => Promise<void>;
   openingPath: string | null;
+  explainLabel: string;
+  explainingLabel: string;
+  onExplain: (hookContent: string) => Promise<void>;
+  explanation: string | null;
+  isExplaining: boolean;
 }
 
-function HookItem({ hook, timeoutLabel, isFilePath, onOpenFile, openingPath }: HookItemProps): React.ReactElement {
+function HookItem({ hook, timeoutLabel, isFilePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
   const label = getHookLabel(hook);
   const detail = getHookDetail(hook, timeoutLabel);
-  const fullCmd =
-    hook.type === 'command' ? hook.command :
-    hook.type === 'http'    ? hook.url :
-    (hook as { prompt: string }).prompt;
+  const fullCmd = getHookContent(hook);
   const filePath = hook.type === 'command' ? extractFilePath(hook.command) : null;
   const isOpening = filePath !== null && openingPath === filePath;
 
   return (
-    <div className="hooks-hook-item" title={fullCmd}>
-      <span className="hooks-hook-type">{hook.type}</span>
-      <span className="hooks-hook-label">{label}</span>
-      {detail && <span className="hooks-hook-detail">{detail}</span>}
-      {isFilePath && filePath && (
+    <div className="hooks-hook-item-wrapper">
+      <div className="hooks-hook-item" title={fullCmd}>
+        <span className="hooks-hook-type">{hook.type}</span>
+        <span className="hooks-hook-label">{label}</span>
+        {detail && <span className="hooks-hook-detail">{detail}</span>}
+        {isFilePath && filePath && (
+          <button
+            className="btn btn-icon"
+            title="Open file"
+            type="button"
+            disabled={isOpening}
+            onClick={() => void onOpenFile(filePath)}
+          >
+            {isOpening ? '⏳' : '📂'}
+          </button>
+        )}
         <button
-          className="btn btn-icon"
-          title="Open file"
+          className="btn btn-secondary btn-sm"
           type="button"
-          disabled={isOpening}
-          onClick={() => void onOpenFile(filePath)}
+          disabled={isExplaining}
+          onClick={() => void onExplain(fullCmd)}
         >
-          {isOpening ? '⏳' : '📂'}
+          {isExplaining ? explainingLabel : explainLabel}
         </button>
+      </div>
+      {explanation && (
+        <details className="hooks-explanation" open>
+          <summary className="hooks-explanation-summary">AI</summary>
+          <p className="hooks-explanation-body">{explanation}</p>
+        </details>
       )}
     </div>
   );
@@ -90,12 +114,14 @@ interface HooksSectionProps {
 }
 
 export function HooksSection({ scope, settings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { addToast } = useToast();
   const [toggling, setToggling] = useState(false);
   const [opening, setOpening] = useState(false);
   const [existingPaths, setExistingPaths] = useState<ReadonlySet<string>>(new Set());
   const [openingPath, setOpeningPath] = useState<string | null>(null);
+  const [explanations, setExplanations] = useState<Map<string, string>>(new Map());
+  const [explaining, setExplaining] = useState<ReadonlySet<string>>(new Set());
 
   const hooksData = settings.hooks ?? {};
   const eventTypes = Object.keys(hooksData);
@@ -128,6 +154,32 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.hooks]);
+
+  // mount 時觸發過期快取清理（fire-and-forget）
+  useEffect(() => {
+    void sendRequest({ type: 'hooks.cleanExpiredExplanations' }).catch(() => {});
+  }, []);
+
+  const handleExplain = async (hookContent: string): Promise<void> => {
+    if (explanations.has(hookContent)) return;
+    setExplaining((prev) => new Set([...prev, hookContent]));
+    try {
+      const { explanation } = await sendRequest<{ explanation: string; fromCache: boolean }>({
+        type: 'hooks.explain',
+        hookContent,
+        locale,
+      });
+      setExplanations((prev) => new Map([...prev, [hookContent, explanation]]));
+    } catch {
+      addToast(t('settings.hooks.explanationError'), 'error');
+    } finally {
+      setExplaining((prev) => {
+        const next = new Set(prev);
+        next.delete(hookContent);
+        return next;
+      });
+    }
+  };
 
   const handleOpenFile = async (filePath: string): Promise<void> => {
     setOpeningPath(filePath);
@@ -225,6 +277,11 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                           isFilePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '')}
                           onOpenFile={handleOpenFile}
                           openingPath={openingPath}
+                          explainLabel={t('settings.hooks.explain')}
+                          explainingLabel={t('settings.hooks.explaining')}
+                          onExplain={handleExplain}
+                          explanation={explanations.get(getHookContent(hook)) ?? null}
+                          isExplaining={explaining.has(getHookContent(hook))}
                         />
                       ))}
                     </div>

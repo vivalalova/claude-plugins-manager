@@ -61,6 +61,9 @@ export const en = {
   'settings.hooks.empty': 'No hooks configured',
   'settings.hooks.emptyAction': 'Open JSON Editor to add hooks',
   'settings.hooks.timeout': 'timeout',
+  'settings.hooks.explain': 'Explain',
+  'settings.hooks.explaining': 'Explaining...',
+  'settings.hooks.explanationError': 'Failed to get explanation',
   // General section
   'settings.general.effortLevel.label': 'Effort Level',
   'settings.general.effortLevel.notSet': '— not set —',

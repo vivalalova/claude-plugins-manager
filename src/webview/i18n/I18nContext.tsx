@@ -15,6 +15,7 @@ const LOCALE_MAP: Record<string, Overrides> = {
 
 interface I18nContextValue {
   t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
+  locale: string;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -34,7 +35,7 @@ export function I18nProvider({ locale, children }: I18nProviderProps): React.Rea
       return template.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
     }
 
-    return { t };
+    return { t, locale };
   }, [locale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

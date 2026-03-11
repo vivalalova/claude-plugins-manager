@@ -41,7 +41,9 @@ export type RequestMessage =
   | { type: 'settings.delete'; requestId: string; scope: PluginScope; key: string }
   | { type: 'settings.openInEditor'; requestId: string; scope: PluginScope }
   | { type: 'hooks.checkFilePaths'; requestId: string; paths: string[] }
-  | { type: 'hooks.openFile'; requestId: string; path: string };
+  | { type: 'hooks.openFile'; requestId: string; path: string }
+  | { type: 'hooks.explain'; requestId: string; hookContent: string; locale: string }
+  | { type: 'hooks.cleanExpiredExplanations'; requestId: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Response）

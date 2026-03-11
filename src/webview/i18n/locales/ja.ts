@@ -172,6 +172,9 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.empty': 'Hook が設定されていません',
   'settings.hooks.emptyAction': 'JSON エディターを開いて Hook を追加',
   'settings.hooks.timeout': 'タイムアウト',
+  'settings.hooks.explain': '解説',
+  'settings.hooks.explaining': '解説中…',
+  'settings.hooks.explanationError': '解説の取得に失敗しました',
   // General section
   'settings.general.effortLevel.label': '思考レベル',
   'settings.general.effortLevel.notSet': '— 未設定 —',
