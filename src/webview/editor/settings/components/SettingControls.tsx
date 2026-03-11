@@ -351,3 +351,132 @@ export function TagInput({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// NumberSetting
+// ---------------------------------------------------------------------------
+
+export interface NumberSettingProps {
+  label: string;
+  description?: string;
+  value: number | undefined;
+  placeholder: string;
+  saveLabel: string;
+  clearLabel: string;
+  settingKey: string;
+  scope: PluginScope;
+  min?: number;
+  max?: number;
+  step?: number;
+  minError?: string;
+  maxError?: string;
+  onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+}
+
+export function NumberSetting({
+  label,
+  description,
+  value,
+  placeholder,
+  saveLabel,
+  clearLabel,
+  settingKey,
+  scope,
+  min,
+  max,
+  step,
+  minError,
+  maxError,
+  onSave,
+  onDelete,
+}: NumberSettingProps): React.ReactElement {
+  const { addToast } = useToast();
+  const [inputValue, setInputValue] = useState(value !== undefined ? String(value) : '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setInputValue(value !== undefined ? String(value) : '');
+  }, [scope, value]);
+
+  const parsedValue = Number(inputValue);
+  const isEmpty = inputValue === '';
+  const belowMin = !isEmpty && !isNaN(parsedValue) && min !== undefined && parsedValue < min;
+  const aboveMax = !isEmpty && !isNaN(parsedValue) && max !== undefined && parsedValue > max;
+  const validationError = belowMin
+    ? (minError ?? `Must be at least ${min}`)
+    : aboveMax
+      ? (maxError ?? `Must be at most ${max}`)
+      : null;
+  const saveDisabled = saving || belowMin || aboveMax;
+
+  const handleSave = async (): Promise<void> => {
+    if (saveDisabled) return;
+    setSaving(true);
+    try {
+      if (isEmpty) {
+        await onDelete(settingKey);
+      } else {
+        await onSave(settingKey, parsedValue);
+      }
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      await onDelete(settingKey);
+      setInputValue('');
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label" htmlFor={settingKey}>{label}</label>
+      {description && <p className="settings-field-description">{description}</p>}
+      <div className="settings-model-row">
+        <input
+          id={settingKey}
+          className="input"
+          type="number"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder={placeholder}
+          min={min}
+          max={max}
+          step={step}
+          disabled={saving}
+        />
+        {value !== undefined && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+          >
+            {clearLabel}
+          </button>
+        )}
+      </div>
+      {validationError && <span className="perm-add-error" role="alert">{validationError}</span>}
+      <div className="settings-actions">
+        <button
+          className="btn btn-primary"
+          onClick={() => void handleSave()}
+          disabled={saveDisabled}
+          type="button"
+        >
+          {saveLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
