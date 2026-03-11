@@ -46,6 +46,18 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.unknownMode': '目前值：{value} ⚠️',
   'settings.permissions.bypassConfirmTitle': '停用權限確認',
   'settings.permissions.bypassConfirmMessage': '這將停用所有權限檢查。確定繼續嗎？',
+  // Env section
+  'settings.env.add': '新增',
+  'settings.env.edit': '編輯',
+  'settings.env.delete': '刪除',
+  'settings.env.confirm': '確認',
+  'settings.env.cancel': '取消',
+  'settings.env.keyPlaceholder': 'VARIABLE_NAME',
+  'settings.env.valuePlaceholder': '值',
+  'settings.env.duplicateKey': '變數名稱已存在',
+  'settings.env.invalidKey': '變數名稱只能包含 A-Z、0-9、_',
+  'settings.env.emptyState': '尚未定義環境變數',
+  'settings.env.toggleReveal': '切換顯示',
   // PluginPage
   'plugin.page.title': '外掛管理員',
   'plugin.page.updateAll': '全部更新',

@@ -1956,3 +1956,78 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   color: var(--vscode-descriptionForeground);
   font-style: italic;
 }
+
+/* ---- Env Section ---- */
+
+.env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.env-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, rgba(128,128,128,0.15));
+}
+
+.env-key {
+  flex: 0 0 200px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  word-break: break-all;
+}
+
+.env-value {
+  flex: 1;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  word-break: break-all;
+}
+
+.env-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.env-inline-edit {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.env-inline-edit .input {
+  flex: 1;
+}
+
+.env-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.env-add-form .input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.env-add-error {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
+}
+
+.env-empty {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}

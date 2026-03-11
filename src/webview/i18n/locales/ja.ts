@@ -155,4 +155,16 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.unknownMode': '現在の値: {value} ⚠️',
   'settings.permissions.bypassConfirmTitle': '権限バイパスの確認',
   'settings.permissions.bypassConfirmMessage': 'すべての権限チェックをバイパスします。本当に続けますか？',
+  // Env section
+  'settings.env.add': '追加',
+  'settings.env.edit': '編集',
+  'settings.env.delete': '削除',
+  'settings.env.confirm': '確認',
+  'settings.env.cancel': 'キャンセル',
+  'settings.env.keyPlaceholder': 'VARIABLE_NAME',
+  'settings.env.valuePlaceholder': '値',
+  'settings.env.duplicateKey': 'キーが既に存在します',
+  'settings.env.invalidKey': 'キーは A-Z、0-9、_ のみ使用可能',
+  'settings.env.emptyState': '環境変数が定義されていません',
+  'settings.env.toggleReveal': '表示を切り替え',
 };

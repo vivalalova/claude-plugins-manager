@@ -44,6 +44,18 @@ export const en = {
   'settings.permissions.unknownMode': 'Current value: {value} ⚠️',
   'settings.permissions.bypassConfirmTitle': 'Bypass Permissions',
   'settings.permissions.bypassConfirmMessage': 'This will bypass all permission checks. Are you sure?',
+  // Env section
+  'settings.env.add': 'Add',
+  'settings.env.edit': 'Edit',
+  'settings.env.delete': 'Delete',
+  'settings.env.confirm': 'Confirm',
+  'settings.env.cancel': 'Cancel',
+  'settings.env.keyPlaceholder': 'VARIABLE_NAME',
+  'settings.env.valuePlaceholder': 'value',
+  'settings.env.duplicateKey': 'Key already exists',
+  'settings.env.invalidKey': 'Key must contain only A-Z, 0-9, _',
+  'settings.env.emptyState': 'No environment variables defined',
+  'settings.env.toggleReveal': 'Toggle visibility',
   // PluginPage
   'plugin.page.title': 'Plugins Manager',
   'plugin.page.updateAll': 'Update All',
