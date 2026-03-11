@@ -172,7 +172,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
         hookContent,
         eventType,
         locale,
-      });
+      }, 120_000);
       setExplanations((prev) => new Map([...prev, [key, explanation]]));
     } catch {
       addToast(t('settings.hooks.explanationError'), 'error');

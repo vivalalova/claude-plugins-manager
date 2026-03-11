@@ -424,6 +424,7 @@ describe('HooksSection — explain button', () => {
     });
     expect(mockSendRequest).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'hooks.explain', hookContent: '/guard.sh' }),
+      120000,
     );
   });
 
@@ -444,6 +445,7 @@ describe('HooksSection — explain button', () => {
     await waitFor(() => {
       expect(mockSendRequest).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'hooks.explain', locale: expect.any(String) }),
+        120000,
       );
     });
   });
