@@ -47,6 +47,7 @@ describe('AdvancedSection — 渲染', () => {
     'Force Login Org UUID',
     'Skip WebFetch Preflight',
     'Attribution',
+    'Status Line',
     'Plans Directory',
     'API Key Helper',
     'OTEL Headers Helper',
@@ -319,5 +320,143 @@ describe('AdvancedSection — attribution 物件編輯器', () => {
       expect(onDelete).toHaveBeenCalledWith('attribution');
       expect(onSave).not.toHaveBeenCalled();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// statusLine 物件編輯器
+// ---------------------------------------------------------------------------
+
+const CMD_PLACEHOLDER = 'e.g. date +%H:%M';
+const PAD_PLACEHOLDER = 'e.g. 1';
+
+describe('AdvancedSection — statusLine 物件編輯器', () => {
+  it('statusLine 未設定 → command/padding inputs 為空', () => {
+    renderSection({});
+    expect((screen.getByPlaceholderText(CMD_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+    expect((screen.getByPlaceholderText(PAD_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('statusLine={command:"date"} → command input 顯示值，padding 為空', () => {
+    renderSection({ statusLine: { type: 'command', command: 'date' } });
+    expect((screen.getByPlaceholderText(CMD_PLACEHOLDER) as HTMLInputElement).value).toBe('date');
+    expect((screen.getByPlaceholderText(PAD_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('statusLine={command:"date", padding:2} → 兩個 input 都顯示值', () => {
+    renderSection({ statusLine: { type: 'command', command: 'date', padding: 2 } });
+    expect((screen.getByPlaceholderText(CMD_PLACEHOLDER) as HTMLInputElement).value).toBe('date');
+    expect((screen.getByPlaceholderText(PAD_PLACEHOLDER) as HTMLInputElement).value).toBe('2');
+  });
+
+  it('未設定，只輸入 command 並 Save → onSave("statusLine", { type:"command", command:"date +%H:%M" }) 無 padding', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(CMD_PLACEHOLDER), { target: { value: 'date +%H:%M' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('statusLine', { type: 'command', command: 'date +%H:%M' });
+      expect((onSave.mock.calls[0][1] as Record<string, unknown>)).not.toHaveProperty('padding');
+    });
+  });
+
+  it('輸入 command + padding=2 並 Save → onSave("statusLine", { type:"command", command:"...", padding:2 })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(CMD_PLACEHOLDER), { target: { value: 'date +%H:%M' } });
+    fireEvent.change(screen.getByPlaceholderText(PAD_PLACEHOLDER), { target: { value: '2' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('statusLine', { type: 'command', command: 'date +%H:%M', padding: 2 });
+    });
+  });
+
+  it('statusLine 有值，點 Clear → onDelete("statusLine")，onSave 不呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ statusLine: { type: 'command', command: 'date' } }, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('statusLine');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('padding 清空後 Save → onSave value 無 padding key', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ statusLine: { type: 'command', command: 'date', padding: 3 } }, onSave);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(PAD_PLACEHOLDER), { target: { value: '' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('statusLine', { type: 'command', command: 'date' });
+      expect((onSave.mock.calls[0][1] as Record<string, unknown>)).not.toHaveProperty('padding');
+    });
+  });
+
+  it('statusLine 未設定時 Clear 按鈕不顯示', () => {
+    renderSection({});
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+
+  it('padding=0 → onSave 含 padding: 0', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(CMD_PLACEHOLDER), { target: { value: 'date' } });
+    fireEvent.change(screen.getByPlaceholderText(PAD_PLACEHOLDER), { target: { value: '0' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('statusLine', { type: 'command', command: 'date', padding: 0 });
+    });
+  });
+
+  it('command 清空後按 Save → onDelete("statusLine")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ statusLine: { type: 'command', command: 'date' } }, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(CMD_PLACEHOLDER), { target: { value: '' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('statusLine');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('command 只有空白字元 → onDelete("statusLine")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(CMD_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(CMD_PLACEHOLDER), { target: { value: '   ' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('statusLine');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('statusLine={command:"x", padding:0} → padding input 顯示 "0"', () => {
+    renderSection({ statusLine: { type: 'command', command: 'x', padding: 0 } });
+    expect((screen.getByPlaceholderText(PAD_PLACEHOLDER) as HTMLInputElement).value).toBe('0');
   });
 });

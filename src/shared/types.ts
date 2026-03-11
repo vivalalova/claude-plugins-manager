@@ -210,6 +210,7 @@ export interface ClaudeSettings {
   otelHeadersHelper?: string;
   awsCredentialExport?: string;
   awsAuthRefresh?: string;
+  statusLine?: { type: 'command'; command: string; padding?: number };
   skipWebFetchPreflight?: boolean;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;
