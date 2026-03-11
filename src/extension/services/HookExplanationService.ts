@@ -30,7 +30,7 @@ export class HookExplanationService {
     }
 
     const prompt = `請用 ${locale} 解釋這個 hook 的用途，簡短兩句話：\n${hookContent}`;
-    const explanation = await this.cli.exec(['--model', 'claude-sonnet-4-6', '--print', prompt]);
+    const explanation = await this.cli.exec(['--model', 'claude-sonnet-4-6', '--setting-sources', '', '--print', prompt]);
 
     cache[key] = { explanation, locale, createdAt: new Date().toISOString() };
     await this.writeCache(cache);
