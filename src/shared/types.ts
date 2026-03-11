@@ -212,6 +212,21 @@ export interface ClaudeSettings {
   awsAuthRefresh?: string;
   statusLine?: { type: 'command'; command: string; padding?: number };
   fileSuggestion?: { type: 'command'; command: string };
+  sandbox?: {
+    enabled?: boolean;
+    autoAllowBashIfSandboxed?: boolean;
+    excludedCommands?: string[];
+    filesystem?: {
+      allowWrite?: string[];
+      denyWrite?: string[];
+      denyRead?: string[];
+    };
+    network?: {
+      allowedDomains?: string[];
+      allowUnixSockets?: string[];
+      allowLocalBinding?: boolean;
+    };
+  };
   skipWebFetchPreflight?: boolean;
   disableAllHooks?: boolean;
   showTurnDuration?: boolean;

@@ -338,6 +338,13 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.fileSuggestion.command.placeholder': '例: bash ~/suggest.sh',
   'settings.advanced.fileSuggestion.save': '保存',
   'settings.advanced.fileSuggestion.clear': 'クリア',
+  'settings.advanced.sandbox.label': 'サンドボックス',
+  'settings.advanced.sandbox.description': 'bash コマンドの OS レベルサンドボックスを設定（ファイルシステム・ネットワーク制限）',
+  'settings.advanced.sandbox.placeholder': '例: { "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }',
+  'settings.advanced.sandbox.save': '保存',
+  'settings.advanced.sandbox.clear': 'クリア',
+  'settings.advanced.sandbox.invalidJson': 'JSON 形式エラー: {error}',
+  'settings.advanced.sandbox.invalidObject': '値は JSON オブジェクトである必要があります（配列やプリミティブ値は不可）',
   'settings.advanced.skipWebFetchPreflight.label': 'WebFetch プリフライトをスキップ',
   'settings.advanced.skipWebFetchPreflight.description': 'WebFetch ブロックリストのプリフライトチェックをスキップします（エンタープライズ向け）',
 };

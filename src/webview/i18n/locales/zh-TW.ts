@@ -229,6 +229,13 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.fileSuggestion.command.placeholder': '例：bash ~/suggest.sh',
   'settings.advanced.fileSuggestion.save': '儲存',
   'settings.advanced.fileSuggestion.clear': '清除',
+  'settings.advanced.sandbox.label': 'Sandbox',
+  'settings.advanced.sandbox.description': '設定 bash 指令的 OS 層級沙箱（檔案系統與網路限制）',
+  'settings.advanced.sandbox.placeholder': '例：{ "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }',
+  'settings.advanced.sandbox.save': '儲存',
+  'settings.advanced.sandbox.clear': '清除',
+  'settings.advanced.sandbox.invalidJson': 'JSON 格式錯誤：{error}',
+  'settings.advanced.sandbox.invalidObject': '值必須是 JSON 物件（非陣列或純量值）',
   'settings.advanced.skipWebFetchPreflight.label': '略過 WebFetch 預檢',
   'settings.advanced.skipWebFetchPreflight.description': '略過 WebFetch 封鎖清單的預檢查（企業用途）',
   // PluginPage

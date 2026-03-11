@@ -54,6 +54,7 @@ describe('AdvancedSection — 渲染', () => {
     'OTEL Headers Helper',
     'AWS Credential Export',
     'AWS Auth Refresh',
+    'Sandbox',
   ])('顯示 %s 欄位', (label) => {
     renderSection();
     expect(screen.getByText(label)).toBeTruthy();
@@ -631,5 +632,168 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
     expect(input.value).toBe('');
     const field = input.closest('.settings-field') as HTMLElement;
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SandboxEditor
+// ---------------------------------------------------------------------------
+
+const SANDBOX_PLACEHOLDER = 'e.g. { "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }';
+
+describe('AdvancedSection — SandboxEditor 渲染', () => {
+  it('sandbox 未設定 → textarea 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
+      expect(ta.value).toBe('');
+    });
+  });
+
+  it('sandbox 有值 → textarea 顯示格式化 JSON', async () => {
+    const sb = { enabled: true, filesystem: { allowWrite: ['/tmp'] } };
+    renderSection({ sandbox: sb });
+    await waitFor(() => {
+      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
+      expect(ta.value).toBe(JSON.stringify(sb, null, 2));
+    });
+  });
+
+  it('sandbox 未設定 → Clear 按鈕不顯示', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+      const field = ta.closest('.settings-field') as HTMLElement;
+      expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+    });
+  });
+
+  it('sandbox 有值 → Clear 按鈕顯示', async () => {
+    renderSection({ sandbox: { enabled: true } });
+    await waitFor(() => {
+      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+      const field = ta.closest('.settings-field') as HTMLElement;
+      expect(within(field).getByRole('button', { name: 'Clear' })).toBeTruthy();
+    });
+  });
+});
+
+describe('AdvancedSection — SandboxEditor Save 行為', () => {
+  it('textarea 為空, 按 Save → onDelete("sandbox")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('sandbox');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('輸入有效 JSON object, 按 Save → onSave("sandbox", parsedObject)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    const json = '{"enabled":true}';
+    fireEvent.change(ta, { target: { value: json } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', { enabled: true });
+    });
+  });
+
+  it('輸入只有空白, 按 Save → onDelete("sandbox")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ sandbox: { enabled: true } }, onSave, onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '   ' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('sandbox');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('AdvancedSection — SandboxEditor 驗證', () => {
+  it('輸入非法 JSON, 按 Save → 顯示 error, onSave/onDelete 不呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '{invalid}' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(within(field).getByRole('alert')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('輸入合法 JSON 但為 array, 按 Save → 顯示 invalidObject error', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '[1,2,3]' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      const alert = within(field).getByRole('alert');
+      expect(alert.textContent).toContain('JSON object');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('error 顯示後, 修改 textarea → error 清除', async () => {
+    renderSection({});
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.change(ta, { target: { value: '{bad' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(within(field).queryByRole('alert')).toBeTruthy());
+
+    fireEvent.change(ta, { target: { value: '{}' } });
+    await waitFor(() => expect(within(field).queryByRole('alert')).toBeNull());
+  });
+});
+
+describe('AdvancedSection — SandboxEditor Clear', () => {
+  it('sandbox 有值, 按 Clear → onDelete("sandbox")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ sandbox: { enabled: true } }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('sandbox');
+    });
   });
 });

@@ -227,6 +227,13 @@ export const en = {
   'settings.advanced.fileSuggestion.command.placeholder': 'e.g. bash ~/suggest.sh',
   'settings.advanced.fileSuggestion.save': 'Save',
   'settings.advanced.fileSuggestion.clear': 'Clear',
+  'settings.advanced.sandbox.label': 'Sandbox',
+  'settings.advanced.sandbox.description': 'Configure OS-level sandbox for bash commands (filesystem & network restrictions)',
+  'settings.advanced.sandbox.placeholder': 'e.g. { "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }',
+  'settings.advanced.sandbox.save': 'Save',
+  'settings.advanced.sandbox.clear': 'Clear',
+  'settings.advanced.sandbox.invalidJson': 'Invalid JSON: {error}',
+  'settings.advanced.sandbox.invalidObject': 'Value must be a JSON object (not an array or primitive)',
   'settings.advanced.skipWebFetchPreflight.label': 'Skip WebFetch Preflight',
   'settings.advanced.skipWebFetchPreflight.description': 'Skip the WebFetch blocklist preflight check (enterprise use)',
   // PluginPage
