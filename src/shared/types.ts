@@ -197,6 +197,10 @@ export interface ClaudeSettings {
   fastMode?: boolean;
   alwaysThinkingEnabled?: boolean;
   disableAllHooks?: boolean;
+  showTurnDuration?: boolean;
+  spinnerTipsEnabled?: boolean;
+  terminalProgressBarEnabled?: boolean;
+  prefersReducedMotion?: boolean;
 }
 
 /** 翻譯目標語言 allowlist（前後端共用） */
