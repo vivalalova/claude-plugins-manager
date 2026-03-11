@@ -42,6 +42,11 @@ npm run watch              # concurrently watch extension + webview
 | `~/.claude/plugins/installed_plugins.json`  | 安裝登錄（所有 scope）                   |
 | `~/.claude/plugins/known_marketplaces.json` | marketplace 來源                         |
 
+## 設定頁參數參考
+
+實作設定頁新功能前，先查官方文件確認支援的參數：
+https://code.claude.com/docs/en/settings
+
 ## 已知陷阱
 
 - `claude plugin install` 會**自動 enable**，後續再呼叫 `enable` 會 exit 1
