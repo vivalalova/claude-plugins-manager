@@ -20,7 +20,7 @@ function formatSettingKeyHint(settingKey: string, defaultValue?: unknown): strin
     return `(${settingKey})`;
   }
 
-  return `(${settingKey}:${String(defaultValue)})`;
+  return `(${settingKey}: ${String(defaultValue)})`;
 }
 
 export function SettingLabelText({ label, settingKey, defaultValue }: SettingLabelTextProps): React.ReactElement {

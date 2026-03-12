@@ -72,7 +72,7 @@ describe('AdvancedSection — 渲染', () => {
       expect(screen.getByText('(fileSuggestion)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(sandbox)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(companyAnnouncements)').classList.contains('settings-key-hint')).toBe(true);
-      expect(screen.getByText('(plansDirectory:~/.claude/plans)')).toBeTruthy();
+      expect(screen.getByText('(plansDirectory: ~/.claude/plans)')).toBeTruthy();
       expect(screen.getByText('(apiKeyHelper)')).toBeTruthy();
       expect(screen.getByText('(skipWebFetchPreflight)')).toBeTruthy();
     });

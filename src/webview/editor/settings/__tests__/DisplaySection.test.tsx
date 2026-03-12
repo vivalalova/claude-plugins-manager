@@ -54,11 +54,11 @@ describe('DisplaySection — 渲染', () => {
     renderSection();
 
     await waitFor(() => {
-      expect(screen.getByText('(teammateMode:auto)')).toBeTruthy();
-      expect(screen.getByText('(showTurnDuration:true)')).toBeTruthy();
-      expect(screen.getByText('(spinnerTipsEnabled:true)')).toBeTruthy();
-      expect(screen.getByText('(terminalProgressBarEnabled:true)')).toBeTruthy();
-      expect(screen.getByText('(prefersReducedMotion:false)')).toBeTruthy();
+      expect(screen.getByText('(teammateMode: auto)')).toBeTruthy();
+      expect(screen.getByText('(showTurnDuration: true)')).toBeTruthy();
+      expect(screen.getByText('(spinnerTipsEnabled: true)')).toBeTruthy();
+      expect(screen.getByText('(terminalProgressBarEnabled: true)')).toBeTruthy();
+      expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
     });

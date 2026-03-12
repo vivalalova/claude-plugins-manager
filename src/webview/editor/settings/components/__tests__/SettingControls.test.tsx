@@ -13,7 +13,7 @@ afterEach(() => {
 describe('SettingLabelText', () => {
   it('primitive defaultValue → 顯示 key 與值', () => {
     render(<SettingLabelText label="Fast Mode" settingKey="fastMode" defaultValue={false} />);
-    expect(screen.getByText('(fastMode:false)')).toBeTruthy();
+    expect(screen.getByText('(fastMode: false)')).toBeTruthy();
   });
 
   it('defaultValue 未提供 → 只顯示 key', () => {

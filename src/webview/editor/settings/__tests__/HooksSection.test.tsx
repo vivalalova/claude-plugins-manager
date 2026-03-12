@@ -460,6 +460,36 @@ describe('HooksSection — explain button', () => {
     });
   });
 
+  it('解釋請求進行中 → 按鈕顯示 Explaining... 並 disabled', async () => {
+    let resolveExplain!: (value: { explanation: string; fromCache: boolean }) => void;
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return new Promise((resolve) => { resolveExplain = resolve as typeof resolveExplain; });
+      }
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      const button = screen.getByRole('button', { name: 'Explaining...' }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+    });
+
+    resolveExplain({ explanation: 'done', fromCache: false });
+
+    await waitFor(() => {
+      expect(screen.getByText('done')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Explain' })).toBeTruthy();
+    });
+  });
+
   it('解釋過的 hook → 再次點擊不重送 request（UI 快取）', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: '快取中的解釋。', fromCache: true });

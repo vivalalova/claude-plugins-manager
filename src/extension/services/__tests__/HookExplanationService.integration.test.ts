@@ -72,6 +72,10 @@ describe('HookExplanationService — integration', () => {
     const result = await service.explain('/guard.sh arg', 'PreToolUse', 'en');
 
     expect(cli.exec).toHaveBeenCalledOnce();
+    expect(cli.exec).toHaveBeenCalledWith(
+      ['--model', 'sonnet', '--print', expect.stringContaining('PreToolUse')],
+      { timeout: 120_000 },
+    );
     expect(result.fromCache).toBe(false);
     expect(result.explanation).toBe('This hook runs a security guard script before each tool call.');
 
@@ -144,6 +148,15 @@ describe('HookExplanationService — integration', () => {
     await expect(service.explain('/bad.sh', 'PreToolUse', 'en')).rejects.toThrow('CLI failed');
 
     // cache 檔案不應建立
+    const { access } = await import('fs/promises');
+    await expect(access(cachePath)).rejects.toThrow();
+  });
+
+  it('CLI 回空字串 → 拋錯，不寫入空白 cache', async () => {
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('   \n  ');
+
+    await expect(service.explain('/blank.sh', 'PreToolUse', 'en')).rejects.toThrow('Hook explanation was empty');
+
     const { access } = await import('fs/promises');
     await expect(access(cachePath)).rejects.toThrow();
   });

@@ -49,13 +49,13 @@ describe('GeneralSection — 渲染', () => {
     renderSection();
 
     await waitFor(() => {
-      expect(screen.getByText('(effortLevel:high)')).toBeTruthy();
+      expect(screen.getByText('(effortLevel: high)')).toBeTruthy();
       expect(screen.getByText('(language)')).toBeTruthy();
       expect(screen.getByText('(availableModels)')).toBeTruthy();
-      expect(screen.getByText('(includeGitInstructions:true)')).toBeTruthy();
-      expect(screen.getByText('(fastMode:false)')).toBeTruthy();
-      expect(screen.getByText('(cleanupPeriodDays:30)')).toBeTruthy();
-      expect(screen.getByText('(autoUpdatesChannel:latest)')).toBeTruthy();
+      expect(screen.getByText('(includeGitInstructions: true)')).toBeTruthy();
+      expect(screen.getByText('(fastMode: false)')).toBeTruthy();
+      expect(screen.getByText('(cleanupPeriodDays: 30)')).toBeTruthy();
+      expect(screen.getByText('(autoUpdatesChannel: latest)')).toBeTruthy();
     });
   });
 
