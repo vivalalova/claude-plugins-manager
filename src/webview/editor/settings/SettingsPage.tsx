@@ -255,9 +255,9 @@ export function SettingsPage(): React.ReactElement {
   ];
 
   return (
-    <div className="page-container settings-page">
+    <div className="page-container settings-page settings-page--fixed-shell">
       {/* Scope tabs */}
-      <div className="settings-scope-tabs">
+      <div className="settings-scope-tabs settings-scope-tabs--fixed">
         {SCOPES.map((s) => {
           const disabled = s !== 'user' && !hasWorkspace;
           return (
@@ -274,9 +274,9 @@ export function SettingsPage(): React.ReactElement {
         })}
       </div>
 
-      <div className="settings-body">
+      <div className="settings-body settings-body--fixed-shell">
         {/* Left nav */}
-        <nav className="settings-nav">
+        <nav className="settings-nav settings-nav--fixed">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -289,7 +289,7 @@ export function SettingsPage(): React.ReactElement {
         </nav>
 
         {/* Content */}
-        <div className="settings-content">
+        <div className="settings-content settings-content--scrollable">
           {loading && (
             <p className="settings-loading">{t('settings.loading')}</p>
           )}

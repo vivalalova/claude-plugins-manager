@@ -420,6 +420,141 @@ export function TagInput({
 }
 
 // ---------------------------------------------------------------------------
+// TagListSetting
+// ---------------------------------------------------------------------------
+
+export interface TagListSettingProps {
+  label: string;
+  description?: string;
+  scope: PluginScope;
+  resetTrigger?: unknown;
+  items: string[];
+  emptyPlaceholder: string;
+  inputPlaceholder: string;
+  addLabel: string;
+  duplicateError: string;
+  clearLabel?: string;
+  settingKey: string;
+  disabled?: boolean;
+  showClear?: boolean;
+  beforeList?: React.ReactNode;
+  afterInput?: React.ReactNode;
+  onAddItem: (item: string) => void;
+  onDeleteItem: (item: string) => void;
+  onClear?: () => void;
+}
+
+export function TagListSetting({
+  label,
+  description,
+  scope,
+  resetTrigger,
+  items,
+  emptyPlaceholder,
+  inputPlaceholder,
+  addLabel,
+  duplicateError,
+  clearLabel,
+  settingKey,
+  disabled = false,
+  showClear = false,
+  beforeList,
+  afterInput,
+  onAddItem,
+  onDeleteItem,
+  onClear,
+}: TagListSettingProps): React.ReactElement {
+  const [inputValue, setInputValue] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setInputValue('');
+    setError('');
+  }, [scope, resetTrigger]);
+
+  const handleAdd = (): void => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    if (items.includes(trimmed)) {
+      setError(duplicateError);
+      return;
+    }
+
+    setError('');
+    setInputValue('');
+    onAddItem(trimmed);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Enter') handleAdd();
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label">
+        <SettingLabelText label={label} settingKey={settingKey} />
+      </label>
+      {description && <p className="settings-field-description">{description}</p>}
+      {beforeList}
+      <div className="general-tag-list">
+        {items.length === 0 ? (
+          <span className="perm-empty">{emptyPlaceholder}</span>
+        ) : (
+          items.map((item) => (
+            <span key={item} className="perm-rule-tag">
+              {item}
+              <button
+                className="perm-rule-tag-delete"
+                onClick={() => onDeleteItem(item)}
+                aria-label={`Remove ${item}`}
+                type="button"
+                disabled={disabled}
+              >
+                ×
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+      <div className="general-tag-add-row">
+        <input
+          className="input"
+          type="text"
+          value={inputValue}
+          onChange={(e) => { setInputValue(e.target.value); setError(''); }}
+          onKeyDown={handleKeyDown}
+          placeholder={inputPlaceholder}
+          disabled={disabled}
+        />
+        <button
+          className="btn btn-primary"
+          onClick={handleAdd}
+          disabled={disabled || !inputValue.trim()}
+          type="button"
+          aria-label={addLabel}
+        >
+          {addLabel}
+        </button>
+        {error && <span className="perm-add-error" role="alert">{error}</span>}
+      </div>
+      {afterInput}
+      {showClear && onClear && clearLabel && (
+        <div className="settings-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={onClear}
+            disabled={disabled}
+            type="button"
+          >
+            {clearLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // NumberSetting
 // ---------------------------------------------------------------------------
 

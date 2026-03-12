@@ -92,6 +92,24 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('只有右側內容區是 scroll container，scope tabs 與左側 nav 保持固定 shell', async () => {
+    const { container } = renderPage();
+
+    await waitFor(() => screen.getByRole('navigation'));
+
+    const settingsPage = container.querySelector('.settings-page');
+    const scopeTabs = container.querySelector('.settings-scope-tabs');
+    const settingsBody = container.querySelector('.settings-body');
+    const settingsNav = container.querySelector('.settings-nav');
+    const settingsContent = container.querySelector('.settings-content');
+
+    expect(settingsPage?.classList.contains('settings-page--fixed-shell')).toBe(true);
+    expect(scopeTabs?.classList.contains('settings-scope-tabs--fixed')).toBe(true);
+    expect(settingsBody?.classList.contains('settings-body--fixed-shell')).toBe(true);
+    expect(settingsNav?.classList.contains('settings-nav--fixed')).toBe(true);
+    expect(settingsContent?.classList.contains('settings-content--scrollable')).toBe(true);
+  });
+
   it('點擊 Advanced nav → 顯示 Advanced section title', async () => {
     renderPage();
 

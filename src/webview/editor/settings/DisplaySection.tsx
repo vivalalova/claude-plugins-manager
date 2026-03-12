@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, SettingLabelText } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, TagListSetting } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
 
 const KNOWN_TEAMMATE_MODES = ['auto', 'inline', 'tmux', 'iterm2'] as const;
@@ -29,15 +29,11 @@ function SpinnerVerbsEditor({ scope, value, onSave, onDelete }: SpinnerVerbsEdit
   const { addToast } = useToast();
   const [mode, setMode] = useState<'append' | 'replace'>(value?.mode ?? 'append');
   const [verbs, setVerbs] = useState<string[]>(value?.verbs ?? []);
-  const [inputValue, setInputValue] = useState('');
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMode(value?.mode ?? 'append');
     setVerbs(value?.verbs ?? []);
-    setInputValue('');
-    setError('');
   }, [scope, value]);
 
   const save = async (newMode: 'append' | 'replace', newVerbs: string[]): Promise<void> => {
@@ -57,33 +53,11 @@ function SpinnerVerbsEditor({ scope, value, onSave, onDelete }: SpinnerVerbsEdit
     void save(m, verbs);
   };
 
-  const handleAdd = (): void => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    if (verbs.includes(trimmed)) {
-      setError(t('settings.display.spinnerVerbs.verbs.duplicate'));
-      return;
-    }
-    setError('');
-    const newVerbs = [...verbs, trimmed];
-    setVerbs(newVerbs);
-    setInputValue('');
-    void save(mode, newVerbs);
-  };
-
-  const handleDelete = (verb: string): void => {
-    const newVerbs = verbs.filter((v) => v !== verb);
-    setVerbs(newVerbs);
-    void save(mode, newVerbs);
-  };
-
   const handleClear = async (): Promise<void> => {
     setSaving(true);
     try {
       await onDelete('spinnerVerbs');
       setVerbs([]);
-      setInputValue('');
-      setError('');
     } catch (e) {
       addToast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -91,90 +65,51 @@ function SpinnerVerbsEditor({ scope, value, onSave, onDelete }: SpinnerVerbsEdit
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key === 'Enter') handleAdd();
-  };
-
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.display.spinnerVerbs.label')} settingKey="spinnerVerbs" />
-      </label>
-      <p className="settings-field-description">{t('settings.display.spinnerVerbs.description')}</p>
-
-      <div className="settings-model-row" style={{ marginBottom: '0.5rem' }}>
-        <label className="settings-label" htmlFor="spinnerVerbs-mode" style={{ marginBottom: 0 }}>
-          {t('settings.display.spinnerVerbs.mode.label')}
-        </label>
-        <select
-          id="spinnerVerbs-mode"
-          className="select"
-          value={mode}
-          onChange={(e) => handleModeChange(e.target.value)}
-          disabled={saving}
-          aria-label={t('settings.display.spinnerVerbs.mode.label')}
-        >
-          <option value="append">{t('settings.display.spinnerVerbs.mode.append')}</option>
-          <option value="replace">{t('settings.display.spinnerVerbs.mode.replace')}</option>
-        </select>
-      </div>
-
-      <div className="general-tag-list">
-        {verbs.length === 0 ? (
-          <span className="perm-empty">{t('settings.display.spinnerVerbs.verbs.empty')}</span>
-        ) : (
-          verbs.map((verb) => (
-            <span key={verb} className="perm-rule-tag">
-              {verb}
-              <button
-                className="perm-rule-tag-delete"
-                onClick={() => handleDelete(verb)}
-                aria-label={`Remove ${verb}`}
-                type="button"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </span>
-          ))
-        )}
-      </div>
-
-      <div className="general-tag-add-row">
-        <input
-          className="input"
-          type="text"
-          value={inputValue}
-          onChange={(e) => { setInputValue(e.target.value); setError(''); }}
-          onKeyDown={handleKeyDown}
-          placeholder={t('settings.display.spinnerVerbs.verbs.placeholder')}
-          disabled={saving}
-        />
-        <button
-          className="btn btn-primary"
-          onClick={handleAdd}
-          disabled={saving || !inputValue.trim()}
-          type="button"
-          aria-label={t('settings.display.spinnerVerbs.verbs.add')}
-        >
-          {t('settings.display.spinnerVerbs.verbs.add')}
-        </button>
-        {error && <span className="perm-add-error" role="alert">{error}</span>}
-      </div>
-
-      {(verbs.length > 0 || value) && (
-        <div className="settings-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
+    <TagListSetting
+      label={t('settings.display.spinnerVerbs.label')}
+      description={t('settings.display.spinnerVerbs.description')}
+      scope={scope}
+      resetTrigger={value}
+      items={verbs}
+      emptyPlaceholder={t('settings.display.spinnerVerbs.verbs.empty')}
+      inputPlaceholder={t('settings.display.spinnerVerbs.verbs.placeholder')}
+      addLabel={t('settings.display.spinnerVerbs.verbs.add')}
+      duplicateError={t('settings.display.spinnerVerbs.verbs.duplicate')}
+      clearLabel={t('settings.display.spinnerVerbs.clear')}
+      settingKey="spinnerVerbs"
+      disabled={saving}
+      showClear={verbs.length > 0 || value !== undefined}
+      beforeList={(
+        <div className="settings-model-row" style={{ marginBottom: '0.5rem' }}>
+          <label className="settings-label" htmlFor="spinnerVerbs-mode" style={{ marginBottom: 0 }}>
+            {t('settings.display.spinnerVerbs.mode.label')}
+          </label>
+          <select
+            id="spinnerVerbs-mode"
+            className="select"
+            value={mode}
+            onChange={(e) => handleModeChange(e.target.value)}
             disabled={saving}
-            type="button"
+            aria-label={t('settings.display.spinnerVerbs.mode.label')}
           >
-            {t('settings.display.spinnerVerbs.clear')}
-          </button>
+            <option value="append">{t('settings.display.spinnerVerbs.mode.append')}</option>
+            <option value="replace">{t('settings.display.spinnerVerbs.mode.replace')}</option>
+          </select>
         </div>
       )}
-    </div>
+      onAddItem={(verb) => {
+        const newVerbs = [...verbs, verb];
+        setVerbs(newVerbs);
+        void save(mode, newVerbs);
+      }}
+      onDeleteItem={(verb) => {
+        const newVerbs = verbs.filter((v) => v !== verb);
+        setVerbs(newVerbs);
+        void save(mode, newVerbs);
+      }}
+      onClear={() => void handleClear()}
+    />
   );
 }
 
@@ -194,15 +129,11 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
   const { addToast } = useToast();
   const [tips, setTips] = useState<string[]>(value?.tips ?? []);
   const [excludeDefault, setExcludeDefault] = useState<boolean>(value?.excludeDefault ?? false);
-  const [inputValue, setInputValue] = useState('');
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setTips(value?.tips ?? []);
     setExcludeDefault(value?.excludeDefault ?? false);
-    setInputValue('');
-    setError('');
   }, [scope, value]);
 
   const save = async (newTips: string[], newExcludeDefault: boolean): Promise<void> => {
@@ -214,26 +145,6 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleAdd = (): void => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    if (tips.includes(trimmed)) {
-      setError(t('settings.display.spinnerTipsOverride.tips.duplicate'));
-      return;
-    }
-    setError('');
-    const newTips = [...tips, trimmed];
-    setTips(newTips);
-    setInputValue('');
-    void save(newTips, excludeDefault);
-  };
-
-  const handleDelete = (tip: string): void => {
-    const newTips = tips.filter((item) => item !== tip);
-    setTips(newTips);
-    void save(newTips, excludeDefault);
   };
 
   const handleExcludeDefaultToggle = (): void => {
@@ -248,8 +159,6 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
       await onDelete('spinnerTipsOverride');
       setTips([]);
       setExcludeDefault(false);
-      setInputValue('');
-      setError('');
     } catch (e) {
       addToast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -257,83 +166,44 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key === 'Enter') handleAdd();
-  };
-
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.display.spinnerTipsOverride.label')} settingKey="spinnerTipsOverride" />
-      </label>
-      <p className="settings-field-description">{t('settings.display.spinnerTipsOverride.description')}</p>
-
-      <div className="general-tag-list">
-        {tips.length === 0 ? (
-          <span className="perm-empty">{t('settings.display.spinnerTipsOverride.tips.empty')}</span>
-        ) : (
-          tips.map((tip) => (
-            <span key={tip} className="perm-rule-tag">
-              {tip}
-              <button
-                className="perm-rule-tag-delete"
-                onClick={() => handleDelete(tip)}
-                aria-label={`Remove ${tip}`}
-                type="button"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </span>
-          ))
-        )}
-      </div>
-
-      <div className="general-tag-add-row">
-        <input
-          className="input"
-          type="text"
-          value={inputValue}
-          onChange={(e) => { setInputValue(e.target.value); setError(''); }}
-          onKeyDown={handleKeyDown}
-          placeholder={t('settings.display.spinnerTipsOverride.tips.placeholder')}
-          disabled={saving}
-        />
-        <button
-          className="btn btn-primary"
-          onClick={handleAdd}
-          disabled={saving || !inputValue.trim()}
-          type="button"
-          aria-label={t('settings.display.spinnerTipsOverride.tips.add')}
-        >
-          {t('settings.display.spinnerTipsOverride.tips.add')}
-        </button>
-        {error && <span className="perm-add-error" role="alert">{error}</span>}
-      </div>
-
-      <label className="hooks-toggle-label" style={{ marginTop: '0.5rem' }}>
-        <input
-          type="checkbox"
-          checked={excludeDefault}
-          onChange={() => handleExcludeDefaultToggle()}
-          disabled={saving}
-        />
-        {t('settings.display.spinnerTipsOverride.excludeDefault')}
-      </label>
-
-      {(tips.length > 0 || value) && (
-        <div className="settings-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
+    <TagListSetting
+      label={t('settings.display.spinnerTipsOverride.label')}
+      description={t('settings.display.spinnerTipsOverride.description')}
+      scope={scope}
+      resetTrigger={value}
+      items={tips}
+      emptyPlaceholder={t('settings.display.spinnerTipsOverride.tips.empty')}
+      inputPlaceholder={t('settings.display.spinnerTipsOverride.tips.placeholder')}
+      addLabel={t('settings.display.spinnerTipsOverride.tips.add')}
+      duplicateError={t('settings.display.spinnerTipsOverride.tips.duplicate')}
+      clearLabel={t('settings.display.spinnerTipsOverride.clear')}
+      settingKey="spinnerTipsOverride"
+      disabled={saving}
+      showClear={tips.length > 0 || value !== undefined}
+      afterInput={(
+        <label className="hooks-toggle-label" style={{ marginTop: '0.5rem' }}>
+          <input
+            type="checkbox"
+            checked={excludeDefault}
+            onChange={() => handleExcludeDefaultToggle()}
             disabled={saving}
-            type="button"
-          >
-            {t('settings.display.spinnerTipsOverride.clear')}
-          </button>
-        </div>
+          />
+          {t('settings.display.spinnerTipsOverride.excludeDefault')}
+        </label>
       )}
-    </div>
+      onAddItem={(tip) => {
+        const newTips = [...tips, tip];
+        setTips(newTips);
+        void save(newTips, excludeDefault);
+      }}
+      onDeleteItem={(tip) => {
+        const newTips = tips.filter((item) => item !== tip);
+        setTips(newTips);
+        void save(newTips, excludeDefault);
+      }}
+      onClear={() => void handleClear()}
+    />
   );
 }
 

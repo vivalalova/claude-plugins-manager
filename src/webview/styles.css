@@ -1734,11 +1734,21 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   gap: 0;
 }
 
+.settings-page--fixed-shell {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .settings-scope-tabs {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
   margin-bottom: 24px;
+}
+
+.settings-scope-tabs--fixed {
+  flex-shrink: 0;
 }
 
 .settings-scope-tab {
@@ -1774,6 +1784,12 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   min-height: 400px;
 }
 
+.settings-body--fixed-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .settings-nav {
   display: flex;
   flex-direction: column;
@@ -1783,6 +1799,10 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   padding-right: 0;
   gap: 2px;
   padding: 4px 0;
+}
+
+.settings-nav--fixed {
+  overflow: hidden;
 }
 
 .settings-nav-item {
@@ -1813,6 +1833,11 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 .settings-content {
   flex: 1;
   padding: 4px 28px;
+}
+
+.settings-content--scrollable {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .settings-section {

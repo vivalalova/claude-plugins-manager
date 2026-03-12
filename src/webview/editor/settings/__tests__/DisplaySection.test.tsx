@@ -7,6 +7,7 @@ import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/re
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { DisplaySection } from '../DisplaySection';
 import { ToastProvider } from '../../../components/Toast';
+import { I18nProvider } from '../../../i18n/I18nContext';
 
 vi.mock('../../../vscode', () => ({
   sendRequest: vi.fn().mockResolvedValue(undefined),
@@ -21,11 +22,12 @@ const renderSection = (
   settings: Record<string, unknown> = {},
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
+  scope: 'user' | 'project' | 'local' = 'user',
 ) =>
   renderWithI18n(
     <ToastProvider>
       <DisplaySection
-        scope="user"
+        scope={scope}
         settings={settings as any}
         onSave={onSave}
         onDelete={onDelete}
@@ -292,6 +294,31 @@ describe('DisplaySection — SpinnerVerbs 渲染', () => {
 });
 
 describe('DisplaySection — SpinnerVerbs 驗收', () => {
+  it('scope 切換時會丟棄未儲存輸入並同步新的 mode/verbs', () => {
+    const { rerender } = renderSection({ spinnerVerbs: { mode: 'append', verbs: ['Thinking'] } });
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. Thinking'), { target: { value: 'Unsaved' } });
+    expect((screen.getByPlaceholderText('e.g. Thinking') as HTMLInputElement).value).toBe('Unsaved');
+
+    rerender(
+      <I18nProvider>
+        <ToastProvider>
+          <DisplaySection
+            scope="project"
+            settings={{ spinnerVerbs: { mode: 'replace', verbs: ['Working'] } } as any}
+            onSave={vi.fn().mockResolvedValue(undefined)}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+          />
+        </ToastProvider>
+      </I18nProvider>,
+    );
+
+    expect((screen.getByPlaceholderText('e.g. Thinking') as HTMLInputElement).value).toBe('');
+    expect((screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement).value).toBe('replace');
+    expect(screen.getByText('Working')).toBeTruthy();
+    expect(screen.queryByText('Thinking')).toBeNull();
+  });
+
   it('新增 verb → onSave("spinnerVerbs", { mode, verbs })', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
@@ -315,6 +342,20 @@ describe('DisplaySection — SpinnerVerbs 驗收', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('spinnerVerbs', { mode: 'append', verbs: ['Working'] });
     });
+  });
+
+  it('刪除既有 verb 時保留未送出的草稿輸入', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ spinnerVerbs: { mode: 'append', verbs: ['Thinking', 'Working'] } }, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. Thinking'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Thinking'), { target: { value: 'Draft verb' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Thinking' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('spinnerVerbs', { mode: 'append', verbs: ['Working'] });
+    });
+    expect((screen.getByPlaceholderText('e.g. Thinking') as HTMLInputElement).value).toBe('Draft verb');
   });
 
   it('新增重複 verb → 顯示錯誤, onSave 不呼叫', async () => {
@@ -438,6 +479,20 @@ describe('DisplaySection — SpinnerTipsOverride 驗收', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('spinnerTipsOverride', { tips: ['World'], excludeDefault: false });
     });
+  });
+
+  it('刪除既有 tip 時保留未送出的草稿輸入', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ spinnerTipsOverride: { tips: ['Hello', 'World'] } }, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. Stay hydrated!'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Stay hydrated!'), { target: { value: 'Draft tip' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Hello' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('spinnerTipsOverride', { tips: ['World'], excludeDefault: false });
+    });
+    expect((screen.getByPlaceholderText('e.g. Stay hydrated!') as HTMLInputElement).value).toBe('Draft tip');
   });
 
   it('excludeDefault toggle → onSave with excludeDefault=true', async () => {
