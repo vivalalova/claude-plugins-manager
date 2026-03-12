@@ -106,7 +106,9 @@ export function McpPage(): React.ReactElement {
     const pluginProvided: McpServer[] = [];
     for (const server of servers) {
       if (server.plugin || server.fullName.startsWith('plugin:')) {
-        pluginProvided.push(server);
+        if (server.plugin?.enabled !== false) {
+          pluginProvided.push(server);
+        }
       } else {
         direct.push(server);
       }

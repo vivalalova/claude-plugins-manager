@@ -106,7 +106,8 @@ describe('McpPage — 核心流程', () => {
     expect(within(directSection).queryByText('search')).toBeNull();
 
     expect(within(pluginSection).getByText('context7')).toBeTruthy();
-    expect(within(pluginSection).getByText('search')).toBeTruthy();
+    // search plugin disabled → 不顯示
+    expect(within(pluginSection).queryByText('search')).toBeNull();
     expect(within(pluginSection).queryByText('filesystem')).toBeNull();
     expect(within(pluginSection).queryByText('github')).toBeNull();
 
@@ -334,14 +335,15 @@ describe('McpPage — 核心流程', () => {
 
     await waitFor(() => {
       expect(screen.getByText('context7')).toBeTruthy();
-      expect(screen.getByText('search')).toBeTruthy();
     });
+    // search plugin disabled → 不顯示
+    expect(screen.queryByText('search')).toBeNull();
 
     expect(screen.getByText('Provided by plugin context7@official')).toBeTruthy();
-    expect(screen.getByText('Provided by plugin search@official')).toBeTruthy();
+    expect(screen.queryByText('Provided by plugin search@official')).toBeNull();
     expect(screen.getByText('Enabled in Plugins')).toBeTruthy();
-    expect(screen.getByText('Disabled in Plugins')).toBeTruthy();
-    expect(screen.getAllByText('Manage from Plugins page')).toHaveLength(2);
+    expect(screen.queryByText('Disabled in Plugins')).toBeNull();
+    expect(screen.getAllByText('Manage from Plugins page')).toHaveLength(1);
     expect(screen.getAllByText('Edit')).toHaveLength(1);
     expect(screen.getAllByText('Remove')).toHaveLength(1);
   });

@@ -35,7 +35,15 @@ export type RequestMessage =
   | { type: 'openExternal'; requestId: string; url: string }
   | { type: 'sidebar.openCategory'; category: string }
   | { type: 'preferences.read'; requestId: string }
-  | { type: 'preferences.write'; requestId: string; key: string; value: unknown };
+  | { type: 'preferences.write'; requestId: string; key: string; value: unknown }
+  | { type: 'settings.get'; requestId: string; scope: PluginScope }
+  | { type: 'settings.set'; requestId: string; scope: PluginScope; key: string; value: unknown }
+  | { type: 'settings.delete'; requestId: string; scope: PluginScope; key: string }
+  | { type: 'settings.openInEditor'; requestId: string; scope: PluginScope }
+  | { type: 'hooks.checkFilePaths'; requestId: string; paths: string[] }
+  | { type: 'hooks.openFile'; requestId: string; path: string }
+  | { type: 'hooks.explain'; requestId: string; hookContent: string; eventType: string; locale: string }
+  | { type: 'hooks.cleanExpiredExplanations'; requestId: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Response）
@@ -47,7 +55,8 @@ export type ResponseMessage =
   | { type: 'mcp.statusUpdate'; servers: McpServer[] }
   | { type: 'mcp.pollUnavailable' }
   | { type: 'plugin.refresh' }
-  | { type: 'marketplace.refresh' };
+  | { type: 'marketplace.refresh' }
+  | { type: 'settings.refresh' };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Push，主動 broadcast，非 Request/Response 配對）

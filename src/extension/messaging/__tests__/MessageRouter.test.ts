@@ -5,18 +5,10 @@ import type { PluginService } from '../../services/PluginService';
 import type { McpService } from '../../services/McpService';
 import type { TranslationService } from '../../services/TranslationService';
 import type { SettingsFileService } from '../../services/SettingsFileService';
+import type { HookExplanationService } from '../../services/HookExplanationService';
 import type { RequestMessage, ResponseMessage } from '../protocol';
 
-function createMockServices(): {
-  marketplace: { [K in keyof MarketplaceService]: ReturnType<typeof vi.fn> };
-  plugin: { [K in keyof PluginService]: ReturnType<typeof vi.fn> };
-  mcp: { [K in keyof McpService]: ReturnType<typeof vi.fn> };
-  translation: Pick<TranslationService, 'translate'> & { translate: ReturnType<typeof vi.fn> };
-  settings: Pick<SettingsFileService, 'readPreferences' | 'writePreference'> & {
-    readPreferences: ReturnType<typeof vi.fn>;
-    writePreference: ReturnType<typeof vi.fn>;
-  };
-} {
+function createMockServices() {
   return {
     marketplace: {
       list: vi.fn().mockResolvedValue([]),
@@ -44,7 +36,7 @@ function createMockServices(): {
       startPolling: vi.fn(),
       stopPolling: vi.fn(),
       getCachedStatus: vi.fn().mockReturnValue([]),
-      onStatusChange: { event: vi.fn(), fire: vi.fn(), dispose: vi.fn() },
+      onStatusChange: vi.fn(),
     },
     translation: {
       translate: vi.fn().mockResolvedValue([]),
@@ -52,6 +44,10 @@ function createMockServices(): {
     settings: {
       readPreferences: vi.fn().mockResolvedValue({}),
       writePreference: vi.fn().mockResolvedValue(undefined),
+    },
+    hookExplanation: {
+      explain: vi.fn().mockResolvedValue({ explanation: 'test explanation', fromCache: false }),
+      cleanExpired: vi.fn().mockResolvedValue(undefined),
     },
   };
 }
@@ -69,6 +65,7 @@ describe('MessageRouter', () => {
       services.mcp as unknown as McpService,
       services.translation as unknown as TranslationService,
       services.settings as unknown as SettingsFileService,
+      services.hookExplanation as unknown as HookExplanationService,
     );
     posted = [];
   });
@@ -182,6 +179,31 @@ describe('MessageRouter', () => {
         post,
       );
       expect(posted).toEqual([]);
+    });
+  });
+
+  describe('hooks 路由', () => {
+    it('hooks.explain → 呼叫 hookExplanation.explain 並回傳結果', async () => {
+      const mockResult = { explanation: '這個 hook 執行安全檢查。', fromCache: false };
+      services.hookExplanation.explain.mockResolvedValue(mockResult);
+
+      await router.handle(
+        { type: 'hooks.explain', requestId: 'he1', hookContent: '/guard.sh', eventType: 'PreToolUse', locale: 'zh-TW' } as RequestMessage,
+        post,
+      );
+
+      expect(services.hookExplanation.explain).toHaveBeenCalledWith('/guard.sh', 'PreToolUse', 'zh-TW');
+      expect(posted).toEqual([{ type: 'response', requestId: 'he1', data: mockResult }]);
+    });
+
+    it('hooks.cleanExpiredExplanations → 呼叫 cleanExpired 並回傳 response', async () => {
+      await router.handle(
+        { type: 'hooks.cleanExpiredExplanations', requestId: 'he2' } as RequestMessage,
+        post,
+      );
+
+      // fire-and-forget: response 仍回傳，但不等待 cleanExpired 完成
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'he2' });
     });
   });
 

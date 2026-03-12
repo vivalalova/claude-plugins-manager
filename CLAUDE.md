@@ -42,6 +42,22 @@ npm run watch              # concurrently watch extension + webview
 | `~/.claude/plugins/installed_plugins.json`  | 安裝登錄（所有 scope）                   |
 | `~/.claude/plugins/known_marketplaces.json` | marketplace 來源                         |
 
+### Settings 頁面分區（`src/webview/editor/settings/`）
+
+| Section             | 元件檔案                 | 涵蓋欄位範圍                                                                                    |
+| ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
+| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、fastMode、autoMemoryEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays 等 |
+| DisplaySection      | `DisplaySection.tsx`     | teammateMode、showTurnDuration、spinnerTipsEnabled、spinnerVerbs、spinnerTipsOverride、terminalProgressBarEnabled、prefersReducedMotion |
+| AdvancedSection     | `AdvancedSection.tsx`    | forceLoginMethod、forceLoginOrgUUID、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
+| PermissionsSection  | `PermissionsSection.tsx` | permissions（allow/deny/ask/defaultMode/additionalDirectories）                                 |
+| EnvSection          | `EnvSection.tsx`         | env（key-value map）                                                                            |
+| HooksSection        | `HooksSection.tsx`       | hooks（四種 type）、disableAllHooks                                                             |
+
+## 設定頁參數參考
+
+實作設定頁新功能前，先查官方文件確認支援的參數：
+https://code.claude.com/docs/en/settings
+
 ## 已知陷阱
 
 - `claude plugin install` 會**自動 enable**，後續再呼叫 `enable` 會 exit 1
@@ -52,6 +68,10 @@ npm run watch              # concurrently watch extension + webview
 - Plugin contents 掃描：frontmatter 用簡易 regex 解析（非完整 YAML parser），足夠處理 `name`/`description`
 - `scanAvailablePlugins()` 會讀 `plugin.json`（description/version 優先於 marketplace.json）；`author` 欄位可能是 string 或 `{ name, email }` object
 - `handleUpdateAll` 只更新 **enabled** plugin 的 **enabled** scope；disabled 的 skip
+- `ClaudeSettings.sandbox` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
+- `spinnerVerbs` / `spinnerTipsOverride` clear 操作呼叫 `onDelete(key)`，非存空物件
+- `fileSuggestion` 儲存格式固定為 `{ type: 'command', command: string }`
+- `statusLine` 儲存格式固定為 `{ type: 'command'; command: string; padding?: number }`
 
 ## 測試
 

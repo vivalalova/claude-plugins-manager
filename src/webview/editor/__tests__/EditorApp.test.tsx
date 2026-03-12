@@ -17,6 +17,10 @@ vi.mock('../mcp/McpPage', () => ({
   McpPage: () => <div>mcp-page</div>,
 }));
 
+vi.mock('../settings/SettingsPage', () => ({
+  SettingsPage: () => <div>settings-page</div>,
+}));
+
 import { vi } from 'vitest';
 import { EditorApp } from '../EditorApp';
 

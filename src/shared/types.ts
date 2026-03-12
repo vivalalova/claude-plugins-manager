@@ -171,6 +171,114 @@ export interface McpAddParams {
   headers?: string[];
 }
 
+/** Hook command discriminated union（四種 hook type） */
+export type HookCommand =
+  | { type: 'command'; command: string; timeout?: number; async?: boolean }
+  | { type: 'prompt'; prompt: string; model?: string; timeout?: number }
+  | { type: 'agent'; prompt: string; model?: string; timeout?: number }
+  | { type: 'http'; url: string; headers?: Record<string, string>; timeout?: number };
+
+/**
+ * Claude Code settings.json 結構。
+ * enabledPlugins 由 PluginService 專屬管理，不在此列。
+ */
+export interface ClaudeSettings {
+  /** 使用的 Claude 模型 ID。對應 docs: model */
+  model?: string;
+  /** 工具呼叫的 allow/deny/ask 規則 + defaultMode + additionalDirectories。對應 docs: permissions */
+  permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; defaultMode?: string; additionalDirectories?: string[] };
+  /** 注入每次 session 的環境變數 key-value map。對應 docs: env */
+  env?: Record<string, string>;
+  /** lifecycle hooks（PreToolUse/PostToolUse/Stop 等）→ matcher + hook command array。對應 docs: hooks */
+  hooks?: Record<string, Array<{ matcher?: string; hooks: HookCommand[] }>>;
+  /** 思考深度，影響 token 用量。high=最多思考、medium=預設、low=最快。對應 docs: effortLevel */
+  effortLevel?: 'high' | 'medium' | 'low';
+  /** Claude 回應語言（如 "zh-TW"、"ja"）。對應 docs: language */
+  language?: string;
+  /** 限制可選用的模型清單；設定後 model 選項僅限此清單。對應 docs: availableModels */
+  availableModels?: string[];
+  /** 自動啟用 .mcp.json 中所有 project MCP server，不逐一詢問。對應 docs: enableAllProjectMcpServers */
+  enableAllProjectMcpServers?: boolean;
+  /** 允許自動啟用的 .mcp.json server 名稱清單（白名單）。對應 docs: enabledMcpjsonServers */
+  enabledMcpjsonServers?: string[];
+  /** 禁止自動啟用的 .mcp.json server 名稱清單（黑名單）。對應 docs: disabledMcpjsonServers */
+  disabledMcpjsonServers?: string[];
+  /** 是否在 system prompt 加入 git context（branch、diff 等）。對應 docs: includeGitInstructions */
+  includeGitInstructions?: boolean;
+  /** 是否遵守 .gitignore 過濾檔案建議。對應 docs: respectGitignore */
+  respectGitignore?: boolean;
+  /** auto = 自動選擇；stream-json = 強制 JSON streaming 格式。對應 docs: outputStyle */
+  outputStyle?: 'auto' | 'stream-json';
+  /** 啟用快速模式（使用相同模型加速輸出速度）。對應 docs: fastMode */
+  fastMode?: boolean;
+  /** 允許每個 session 個別 opt-in 快速模式。對應 docs: fastModePerSessionOptIn */
+  fastModePerSessionOptIn?: boolean;
+  /** 自動寫入 memory（CLAUDE.md）功能開關。對應 docs: autoMemoryEnabled */
+  autoMemoryEnabled?: boolean;
+  /** stable = 穩定版更新；latest = 最新版即時更新。對應 docs: autoUpdatesChannel */
+  autoUpdatesChannel?: 'stable' | 'latest';
+  /** 自動清理暫存檔案的週期（天數）。對應 docs: cleanupPeriodDays */
+  cleanupPeriodDays?: number;
+  /** 強制每次回應都啟用 extended thinking。對應 docs: alwaysThinkingEnabled */
+  alwaysThinkingEnabled?: boolean;
+  /** 強制指定登入方式：claudeai = Claude.ai 登入；console = Anthropic Console 登入。對應 docs: forceLoginMethod */
+  forceLoginMethod?: 'claudeai' | 'console';
+  /** 強制使用特定組織 UUID 登入（企業用途）。對應 docs: forceLoginOrgUUID */
+  forceLoginOrgUUID?: string;
+  /** commit/PR 的 attribution 格式設定（commit 訊息 footer、PR body template）。對應 docs: attribution */
+  attribution?: { commit?: string; pr?: string };
+  /** TodoWrite plans 的儲存目錄路徑。對應 docs: plansDirectory */
+  plansDirectory?: string;
+  /** 取得 API key 的 shell 指令（stdout 輸出即 API key）。對應 docs: apiKeyHelper */
+  apiKeyHelper?: string;
+  /** 取得 OpenTelemetry headers 的 shell 指令。對應 docs: otelHeadersHelper */
+  otelHeadersHelper?: string;
+  /** 匯出 AWS 認證的 shell 指令。對應 docs: awsCredentialExport */
+  awsCredentialExport?: string;
+  /** 刷新 AWS 認證的 shell 指令。對應 docs: awsAuthRefresh */
+  awsAuthRefresh?: string;
+  /** 終端機狀態列設定：type: 'command' + 自訂 shell 指令（輸出顯示在提示符旁）+ padding 字元數。對應 docs: statusLine */
+  statusLine?: { type: 'command'; command: string; padding?: number };
+  /** 自訂檔案建議來源：type: 'command' + shell 指令（stdout 為可選路徑清單）。對應 docs: fileSuggestion */
+  fileSuggestion?: { type: 'command'; command: string };
+  /** 沙箱設定：enabled/autoAllowBashIfSandboxed/excludedCommands + filesystem allow/deny + network 白名單。對應 docs: sandbox */
+  sandbox?: {
+    enabled?: boolean;
+    autoAllowBashIfSandboxed?: boolean;
+    excludedCommands?: string[];
+    filesystem?: {
+      allowWrite?: string[];
+      denyWrite?: string[];
+      denyRead?: string[];
+    };
+    network?: {
+      allowedDomains?: string[];
+      allowUnixSockets?: string[];
+      allowLocalBinding?: boolean;
+    };
+  };
+  /** 公司公告字串清單，顯示在 Claude Code 啟動時。對應 docs: companyAnnouncements */
+  companyAnnouncements?: string[];
+  /** 跳過 WebFetch 的 preflight 安全檢查（企業用途）。對應 docs: skipWebFetchPreflight */
+  skipWebFetchPreflight?: boolean;
+  /** 全域停用所有 hooks。對應 docs: disableAllHooks */
+  disableAllHooks?: boolean;
+  /** 顯示每次 turn 的耗時。對應 docs: showTurnDuration */
+  showTurnDuration?: boolean;
+  /** 載入 spinner 時顯示 tips 提示。對應 docs: spinnerTipsEnabled */
+  spinnerTipsEnabled?: boolean;
+  /** Spinner 動詞設定：mode = append（追加）或 replace（取代）+ verbs 清單。對應 docs: spinnerVerbs */
+  spinnerVerbs?: { mode: 'append' | 'replace'; verbs: string[] };
+  /** 覆蓋預設 spinner tips：自訂 tips 清單 + excludeDefault 是否排除內建 tips。對應 docs: spinnerTipsOverride */
+  spinnerTipsOverride?: { tips: string[]; excludeDefault?: boolean };
+  /** 顯示終端機進度條（file operations 等）。對應 docs: terminalProgressBarEnabled */
+  terminalProgressBarEnabled?: boolean;
+  /** 減少動畫（尊重系統 prefers-reduced-motion 設定）。對應 docs: prefersReducedMotion */
+  prefersReducedMotion?: boolean;
+  /** Claude Code 的 UI 呈現模式：auto/inline/tmux/iterm2。對應 docs: teammateMode */
+  teammateMode?: 'auto' | 'inline' | 'tmux' | 'iterm2';
+}
+
 /** 翻譯目標語言 allowlist（前後端共用） */
 export const TRANSLATE_LANGS: Record<string, string> = {
   en: 'English',

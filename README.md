@@ -14,6 +14,9 @@ Plugin, and MCP Server systems.
   (commands, skills, agents, MCP servers, hooks) with descriptions,
   GitHub link per plugin, description translation
 - **MCP Server**: View connection status, add/remove servers with scope support
+- **Settings**: Edit Claude Code settings.json across user/project/local scopes,
+  with sections for general behavior, display, permissions, environment variables,
+  hooks, and advanced integration options
 
 ## Install
 

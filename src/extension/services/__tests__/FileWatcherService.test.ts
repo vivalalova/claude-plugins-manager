@@ -40,10 +40,23 @@ describe('FileWatcherService', () => {
   });
 
   describe('plugin 檔案變更 → onPluginFilesChanged 事件', () => {
-    it('settings.json 變更後 debounce 觸發事件', async () => {
+    it('installed_plugins.json 變更觸發 plugin 事件', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
       svc.onPluginFilesChanged(handler);
+
+      // watcher 1 = ~/.claude/plugins/installed_plugins.json
+      mockFileWatchers[1].fireChange();
+      await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('settings 檔案變更 → onSettingsFilesChanged 事件', () => {
+    it('settings.json 變更後 debounce 觸發事件', async () => {
+      svc = new FileWatcherService();
+      const handler = vi.fn();
+      svc.onSettingsFilesChanged(handler);
 
       // watcher 0 = ~/.claude/settings.json
       mockFileWatchers[0].fireChange();
@@ -55,21 +68,10 @@ describe('FileWatcherService', () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    it('installed_plugins.json 變更也觸發 plugin 事件', async () => {
+    it('workspace settings.json 變更觸發 settings 事件', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
-
-      // watcher 1 = ~/.claude/plugins/installed_plugins.json
-      mockFileWatchers[1].fireChange();
-      await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
-      expect(handler).toHaveBeenCalledTimes(1);
-    });
-
-    it('workspace settings.json 變更觸發 plugin 事件', async () => {
-      svc = new FileWatcherService();
-      const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
+      svc.onSettingsFilesChanged(handler);
 
       // watcher 3 = workspace .claude/settings.json
       mockFileWatchers[3].fireChange();
@@ -77,10 +79,10 @@ describe('FileWatcherService', () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    it('workspace settings.local.json 變更觸發 plugin 事件', async () => {
+    it('workspace settings.local.json 變更觸發 settings 事件', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
+      svc.onSettingsFilesChanged(handler);
 
       // watcher 4 = workspace .claude/settings.local.json
       mockFileWatchers[4].fireChange();
@@ -141,11 +143,11 @@ describe('FileWatcherService', () => {
     it('debounce 時間內多次同分類變更只觸發一次', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
+      svc.onSettingsFilesChanged(handler);
 
-      // 連續觸發多個 plugin 相關檔案變更
+      // 連續觸發多個 settings 相關檔案變更（watcher[0] 和 watcher[3]）
       mockFileWatchers[0].fireChange(); // settings.json
-      mockFileWatchers[1].fireChange(); // installed_plugins.json
+      mockFileWatchers[3].fireChange(); // workspace settings.json
       mockFileWatchers[0].fireChange(); // settings.json again
 
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
@@ -154,23 +156,23 @@ describe('FileWatcherService', () => {
 
     it('不同分類的變更獨立 debounce', async () => {
       svc = new FileWatcherService();
-      const pluginHandler = vi.fn();
+      const settingsHandler = vi.fn();
       const marketplaceHandler = vi.fn();
-      svc.onPluginFilesChanged(pluginHandler);
+      svc.onSettingsFilesChanged(settingsHandler);
       svc.onMarketplaceFilesChanged(marketplaceHandler);
 
-      mockFileWatchers[0].fireChange(); // plugin category
+      mockFileWatchers[0].fireChange(); // settings category
       mockFileWatchers[2].fireChange(); // marketplace category
 
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
-      expect(pluginHandler).toHaveBeenCalledTimes(1);
+      expect(settingsHandler).toHaveBeenCalledTimes(1);
       expect(marketplaceHandler).toHaveBeenCalledTimes(1);
     });
 
     it('debounce 內再次觸發會重置計時器', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
+      svc.onSettingsFilesChanged(handler);
 
       mockFileWatchers[0].fireChange();
       await vi.advanceTimersByTimeAsync(300); // 300ms 後再觸發
@@ -185,20 +187,20 @@ describe('FileWatcherService', () => {
   });
 
   describe('create/delete 事件也觸發', () => {
-    it('onDidCreate 觸發事件', async () => {
+    it('onDidCreate 觸發事件（Settings 分類）', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
+      svc.onSettingsFilesChanged(handler);
 
       mockFileWatchers[0].fireCreate();
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    it('onDidDelete 觸發事件', async () => {
+    it('onDidDelete 觸發事件（Settings 分類）', async () => {
       svc = new FileWatcherService();
       const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
+      svc.onSettingsFilesChanged(handler);
 
       mockFileWatchers[0].fireDelete();
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
@@ -226,12 +228,11 @@ describe('FileWatcherService', () => {
       const totalWatchers = mockFileWatchers.length;
       expect(totalWatchers).toBe(14);
 
-      // 新的 workspace watcher 能觸發事件
-      const handler = vi.fn();
-      svc.onPluginFilesChanged(handler);
-      // 找最後一個 plugin workspace watcher（settings.local.json）
+      // 新的 workspace settings watcher 能觸發事件
       // 新 workspace watcher 順序：settings.json × 2, settings.local.json × 2, .mcp.json × 2
-      // 倒數第 3 = 第二個 project 的 settings.local.json
+      // 倒數第 3 = 第二個 project 的 settings.local.json（Settings 分類）
+      const handler = vi.fn();
+      svc.onSettingsFilesChanged(handler);
       mockFileWatchers[totalWatchers - 3].fireChange();
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
       expect(handler).toHaveBeenCalledTimes(1);

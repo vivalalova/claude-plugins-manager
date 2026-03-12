@@ -1,9 +1,13 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import type { MarketplaceService } from '../services/MarketplaceService';
 import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
 import type { TranslationService } from '../services/TranslationService';
 import type { SettingsFileService } from '../services/SettingsFileService';
+import type { HookExplanationService } from '../services/HookExplanationService';
 import type { RequestMessage, ResponseMessage } from './protocol';
 
 type PostFn = (msg: ResponseMessage) => void;
@@ -19,6 +23,7 @@ export class MessageRouter {
     private readonly mcp: McpService,
     private readonly translation: TranslationService,
     private readonly settings: SettingsFileService,
+    private readonly hookExplanation: HookExplanationService,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -119,6 +124,60 @@ export class MessageRouter {
         return this.settings.readPreferences();
       case 'preferences.write':
         return this.settings.writePreference(message.key, message.value);
+
+      // Settings（Claude Code settings.json）
+      case 'settings.get':
+        return this.settings.getSettings(message.scope);
+      case 'settings.set':
+        return this.settings.setSetting(message.scope, message.key, message.value);
+      case 'settings.delete':
+        return this.settings.deleteSetting(message.scope, message.key);
+      case 'hooks.checkFilePaths': {
+        const home = os.homedir();
+        const expandPath = (p: string): string =>
+          p.startsWith('~/') ? home + p.slice(1) : p;
+        return message.paths.filter((p) => {
+          const expanded = expandPath(p);
+          return (p.startsWith('/') || p.startsWith('~/')) && fs.existsSync(expanded);
+        });
+      }
+
+      case 'hooks.explain':
+        return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale);
+
+      case 'hooks.cleanExpiredExplanations':
+        this.hookExplanation.cleanExpired().catch((e: unknown) =>
+          console.error('[MessageRouter] cleanExpired failed:', e),
+        );
+        return;
+
+      case 'hooks.openFile': {
+        const home = os.homedir();
+        const resolved = message.path.startsWith('~/')
+          ? home + message.path.slice(1)
+          : message.path;
+        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
+        return;
+      }
+
+      case 'settings.openInEditor': {
+        const filePath = this.settings.getSettingsPath(message.scope);
+        const uri = vscode.Uri.file(filePath);
+        try {
+          await vscode.workspace.fs.stat(uri);
+        } catch {
+          // 檔案不存在 → 先確保父目錄存在，再建立含 $schema + hooks 的初始檔案
+          const parentUri = vscode.Uri.file(path.dirname(filePath));
+          await vscode.workspace.fs.createDirectory(parentUri);
+          const initial = JSON.stringify({
+            $schema: 'https://json.schemastore.org/claude-code-settings.json',
+            hooks: {},
+          }, null, 2) + '\n';
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(initial, 'utf-8'));
+        }
+        await vscode.window.showTextDocument(uri);
+        return;
+      }
 
       default:
         throw new Error(`Unknown message type: ${(message as { type: string }).type}`);

@@ -10,6 +10,7 @@ enum FileChangeCategory {
   Plugin = 'plugin',
   Marketplace = 'marketplace',
   Mcp = 'mcp',
+  Settings = 'settings',
 }
 
 /**
@@ -34,6 +35,10 @@ export class FileWatcherService implements vscode.Disposable {
   private readonly _onMcpFilesChanged = new vscode.EventEmitter<void>();
   readonly onMcpFilesChanged = this._onMcpFilesChanged.event;
 
+  /** Settings 相關檔案變更（settings.json、settings.local.json） */
+  private readonly _onSettingsFilesChanged = new vscode.EventEmitter<void>();
+  readonly onSettingsFilesChanged = this._onSettingsFilesChanged.event;
+
   constructor() {
     this.setupWatchers();
     this.disposables.push(
@@ -45,10 +50,10 @@ export class FileWatcherService implements vscode.Disposable {
   private setupWatchers(): void {
     const home = homedir();
 
-    // ~/.claude/settings.json → plugin refresh
+    // ~/.claude/settings.json → settings refresh
     this.watchFile(
       join(home, '.claude', 'settings.json'),
-      FileChangeCategory.Plugin,
+      FileChangeCategory.Settings,
     );
 
     // ~/.claude/plugins/installed_plugins.json → plugin refresh
@@ -63,11 +68,11 @@ export class FileWatcherService implements vscode.Disposable {
       FileChangeCategory.Marketplace,
     );
 
-    // workspace .claude/settings.json → plugin refresh
-    this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Plugin);
+    // workspace .claude/settings.json → settings refresh
+    this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Settings);
 
-    // workspace .claude/settings.local.json → plugin refresh
-    this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Plugin);
+    // workspace .claude/settings.local.json → settings refresh
+    this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Settings);
 
     // ~/.claude.json → MCP metadata refresh（user + local scope MCP servers）
     this.watchFile(
@@ -109,8 +114,8 @@ export class FileWatcherService implements vscode.Disposable {
     if (this.disposed) return;
     for (const d of this.workspaceWatchers) d.dispose();
     this.workspaceWatchers.length = 0;
-    this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Plugin);
-    this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Plugin);
+    this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Settings);
+    this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Settings);
     this.watchWorkspaceFile('.mcp.json', FileChangeCategory.Mcp);
   }
 
@@ -143,6 +148,8 @@ export class FileWatcherService implements vscode.Disposable {
           this._onPluginFilesChanged.fire();
         } else if (category === FileChangeCategory.Marketplace) {
           this._onMarketplaceFilesChanged.fire();
+        } else if (category === FileChangeCategory.Settings) {
+          this._onSettingsFilesChanged.fire();
         } else {
           this._onMcpFilesChanged.fire();
         }
@@ -159,6 +166,7 @@ export class FileWatcherService implements vscode.Disposable {
     this._onPluginFilesChanged.dispose();
     this._onMarketplaceFilesChanged.dispose();
     this._onMcpFilesChanged.dispose();
+    this._onSettingsFilesChanged.dispose();
     for (const d of this.disposables) d.dispose();
   }
 }
