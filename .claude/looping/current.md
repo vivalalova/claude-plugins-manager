@@ -1,56 +1,35 @@
 ---
-title: Extension Info 完整測試
+title: 更新文件
 created: 2026-03-13
-priority: high
-suggested_order: T01
-blockedBy: b03-info-page-ui
+priority: low
+suggested_order: Z99
+blockedBy: t01-extension-info-tests
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# Extension Info 完整測試
+# 更新文件
 
-補齊 Extension Info 功能的所有自動化測試。
+更新專案文件反映新增的 Extension Info 分頁。
 
-## 測試範圍
+## 異動範圍
 
-### 1. Integration test — ExtensionInfoService
-`src/extension/services/__tests__/ExtensionInfoService.integration.test.ts`
+1. **CLAUDE.md**：
+   - Services 表格加 `ExtensionInfoService` 行（資料來源、職責）
+   - 架構說明加 Info 頁面描述
+   - PanelCategory 說明加 `'info'`
 
-- 使用真實 CliService 執行 `claude --version`，驗證 `getInfo()` 回傳結構完整
-- 所有必填欄位非 undefined
-- `cliVersion` 為合法版本字串
-- Edge case：模擬 CLI 不存在時 `cliVersion` 為 null
-
-### 2. Unit test — MessageRouter 擴充
-`src/extension/messaging/__tests__/MessageRouter.test.ts`
-
-- `extension.getInfo` dispatch 呼叫 service 並回傳結果
-- `extension.revealPath` dispatch 呼叫 `revealFileInOS`
-- `extension.revealPath` 路徑不存在時回傳 error
-- `extension.clearCache` dispatch 清除目錄並回傳 `{ cleared: true }`
-
-### 3. Component test — InfoPage
-`src/webview/editor/info/__tests__/InfoPage.test.tsx`
-
-- mock `sendRequest`，驗證各區塊渲染
-- 按鈕 click 行為（Open、Clear Cache、repo link）
-- Loading 狀態（CLI 版本 lazy load）
-- Error 狀態（getInfo 失敗）
-
-### 4. EditorApp test 擴充
-- `mode='info'` 渲染 InfoPage 而非 error
+2. **README.md**（如有功能說明段落）：
+   - 加上 Extension Info 分頁功能描述
 
 ## User Stories
 
-- As a developer, I want automated tests for all Info page paths, so that future changes don't break functionality
+- As a developer or contributor, I want documentation to reflect the latest features, so that I can understand and maintain the codebase
 
 ## 驗收條件
 
-- Given 所有測試檔已撰寫，When 執行 `npm test`，Then 全部通過
-- Given ExtensionInfoService integration test，When CLI 存在，Then `cliVersion` 為非空字串
-- Given InfoPage component test，When mock `extension.getInfo` 回傳完整資料，Then 畫面顯示所有路徑列
-- Given InfoPage component test，When 點擊 Clear Cache 並確認，Then `extension.clearCache` request 被發送
-- Given EditorApp test，When `mode='info'`，Then 渲染 InfoPage
+- Given CLAUDE.md 已更新，When 開發者閱讀架構章節，Then 能看到 ExtensionInfoService 的職責說明
+- Given CLAUDE.md 已更新，When 搜尋 PanelCategory，Then 包含 `'info'`
+- Given 所有文件更新完成，When 執行 `npm run typecheck && npm test && npm run build`，Then 全部通過

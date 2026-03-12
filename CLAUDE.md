@@ -4,7 +4,7 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（765 tests）
+npm test                   # vitest run（1228 tests）
 npm run build              # esbuild 雙配置（extension + webview）
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
@@ -19,6 +19,7 @@ npm run watch              # concurrently watch extension + webview
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
 - **通訊**：Extension ↔ Webview 用 `postMessage` + `requestId` 配對
+- **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）
 
 ### Services
 
@@ -31,6 +32,7 @@ npm run watch              # concurrently watch extension + webview
 | McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢                                |
 | FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
 | TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯                              |
+| ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑供 InfoPage 顯示 |
 
 ### 設定檔結構
 
