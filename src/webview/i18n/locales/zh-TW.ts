@@ -121,6 +121,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.explaining': '解釋中…',
   'settings.hooks.explanationError': '取得解釋失敗',
   // General section
+  'settings.general.docsHint': '參數說明來源：',
+  'settings.general.docsLinkText': '官方文件',
   'settings.general.effortLevel.label': '思考強度',
   'settings.general.effortLevel.notSet': '— 未設定 —',
   'settings.general.effortLevel.high': '高',

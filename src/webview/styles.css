@@ -1834,6 +1834,12 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   gap: 8px;
 }
 
+.settings-subfield {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .settings-label {
   font-size: 12px;
   font-weight: 500;
@@ -2163,4 +2169,13 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   color: var(--vscode-descriptionForeground, #6b7280);
   margin: 0;
   line-height: 1.4;
+}
+
+.settings-docs-link {
+  color: var(--vscode-textLink-foreground, #3794ff);
+  text-decoration: none;
+}
+
+.settings-docs-link:hover {
+  text-decoration: underline;
 }

@@ -54,6 +54,12 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.general')}</h3>
+      <p className="settings-field-description">
+        {t('settings.general.docsHint')}
+        <a href="https://code.claude.com/docs/en/settings" target="_blank" rel="noreferrer" className="settings-docs-link">
+          {t('settings.general.docsLinkText')}
+        </a>
+      </p>
 
       <EnumDropdown
         label={t('settings.general.effortLevel.label')}

@@ -119,6 +119,8 @@ export const en = {
   'settings.hooks.explaining': 'Explaining...',
   'settings.hooks.explanationError': 'Failed to get explanation',
   // General section
+  'settings.general.docsHint': 'Reference: ',
+  'settings.general.docsLinkText': 'Official Docs',
   'settings.general.effortLevel.label': 'Effort Level',
   'settings.general.effortLevel.notSet': '— not set —',
   'settings.general.effortLevel.high': 'High',

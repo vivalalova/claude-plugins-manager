@@ -230,6 +230,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.explaining': '解説中…',
   'settings.hooks.explanationError': '解説の取得に失敗しました',
   // General section
+  'settings.general.docsHint': '参考: ',
+  'settings.general.docsLinkText': '公式ドキュメント',
   'settings.general.effortLevel.label': '思考レベル',
   'settings.general.effortLevel.notSet': '— 未設定 —',
   'settings.general.effortLevel.high': '高',
