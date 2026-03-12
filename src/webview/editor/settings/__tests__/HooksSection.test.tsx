@@ -457,6 +457,37 @@ describe('HooksSection — explain button', () => {
     );
   });
 
+  it('多行解釋 → 保留段落與條列排版', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return Promise.resolve({
+          explanation: '第一行\n第二行\n\n- 規則一\n- 規則二',
+          fromCache: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+    const { container } = renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      expect(container.querySelector('.hooks-explanation-body')).toBeTruthy();
+    });
+
+    const explanation = container.querySelector('.hooks-explanation-body');
+    expect(explanation?.querySelectorAll('.hooks-explanation-paragraph')).toHaveLength(1);
+    expect(explanation?.querySelectorAll('br')).toHaveLength(1);
+    expect(explanation?.querySelectorAll('li')).toHaveLength(2);
+    expect(explanation?.textContent).toContain('第一行');
+    expect(explanation?.textContent).toContain('規則一');
+  });
+
   it('hooks.explain 呼叫時帶正確 locale', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: 'ok', fromCache: false });

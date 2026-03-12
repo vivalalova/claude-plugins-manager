@@ -65,6 +65,26 @@ function getHookDetail(hook: HookCommand): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
+type ExplanationBlock =
+  | { type: 'text'; lines: string[] }
+  | { type: 'list'; items: string[] };
+
+function parseExplanation(explanation: string): ExplanationBlock[] {
+  return explanation
+    .trim()
+    .split(/\n\s*\n/)
+    .map((block) => block
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean))
+    .filter((lines) => lines.length > 0)
+    .map((lines) => (
+      lines.every((line) => /^[-*]\s+/.test(line))
+        ? { type: 'list', items: lines.map((line) => line.replace(/^[-*]\s+/, '')) }
+        : { type: 'text', lines }
+    ));
+}
+
 // ---------------------------------------------------------------------------
 // HookItem
 // ---------------------------------------------------------------------------
@@ -118,7 +138,26 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
       {explanation && (
         <details className="hooks-explanation" open>
           <summary className="hooks-explanation-summary">AI</summary>
-          <p className="hooks-explanation-body">{explanation}</p>
+          <div className="hooks-explanation-body">
+            {parseExplanation(explanation).map((block, blockIdx) => (
+              block.type === 'list' ? (
+                <ul key={`list-${blockIdx}`} className="hooks-explanation-list">
+                  {block.items.map((item, itemIdx) => (
+                    <li key={`item-${blockIdx}-${itemIdx}`}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p key={`text-${blockIdx}`} className="hooks-explanation-paragraph">
+                  {block.lines.map((line, lineIdx) => (
+                    <React.Fragment key={`line-${blockIdx}-${lineIdx}`}>
+                      {lineIdx > 0 && <br />}
+                      {line}
+                    </React.Fragment>
+                  ))}
+                </p>
+              )
+            ))}
+          </div>
         </details>
       )}
     </div>
