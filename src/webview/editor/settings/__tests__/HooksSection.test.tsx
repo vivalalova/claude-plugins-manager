@@ -322,6 +322,25 @@ describe('HooksSection — open file button', () => {
     expect(mockSendRequest).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'hooks.checkFilePaths' }));
   });
 
+  it('command = 被引號包住且含空格的路徑 → 仍顯示開啟按鈕', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; paths?: string[] }) => {
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve(['~/My Scripts/run.sh']);
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '"~/My Scripts/run.sh" --flag' }] }],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'hooks.checkFilePaths', paths: ['~/My Scripts/run.sh'] }),
+      );
+      expect(screen.getByTitle('Open file')).toBeTruthy();
+    });
+  });
+
   it('command = 路徑但不存在 → 不顯示按鈕', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.checkFilePaths') return Promise.resolve([]);

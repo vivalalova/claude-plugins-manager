@@ -24,9 +24,10 @@ export class HookExplanationService {
   async explain(hookContent: string, eventType: string, locale: string): Promise<{ explanation: string; fromCache: boolean }> {
     const cache = await this.readCache();
     const key = this.cacheKey(hookContent, eventType, locale);
+    const cachedEntry = cache[key];
 
-    if (cache[key]) {
-      return { explanation: cache[key].explanation, fromCache: true };
+    if (cachedEntry && this.isFresh(cachedEntry)) {
+      return { explanation: cachedEntry.explanation, fromCache: true };
     }
 
     const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${hookContent}`;
@@ -47,10 +48,9 @@ export class HookExplanationService {
 
   async cleanExpired(): Promise<void> {
     const cache = await this.readCache();
-    const now = Date.now();
     const cleaned: CacheFile = {};
     for (const [key, entry] of Object.entries(cache)) {
-      if (now - new Date(entry.createdAt).getTime() <= CACHE_TTL_MS) {
+      if (this.isFresh(entry)) {
         cleaned[key] = entry;
       }
     }
@@ -59,6 +59,10 @@ export class HookExplanationService {
 
   private cacheKey(hookContent: string, eventType: string, locale: string): string {
     return JSON.stringify([hookContent, eventType, locale]);
+  }
+
+  private isFresh(entry: CacheEntry): boolean {
+    return Date.now() - new Date(entry.createdAt).getTime() <= CACHE_TTL_MS;
   }
 
   private async readCache(): Promise<CacheFile> {

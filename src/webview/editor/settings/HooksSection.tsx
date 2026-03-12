@@ -11,6 +11,7 @@ import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/t
 const MAX_CMD_LEN = 60;
 const FILE_PATH_RE = /^(?:\/|~\/)/;
 const MAX_EXPLAIN_ERROR_LEN = 120;
+const LEADING_PATH_RE = /^(?:"([^"]+)"|'([^']+)'|(\S+))/;
 
 function truncate(s: string): string {
   return s.length > MAX_CMD_LEN ? `${s.slice(0, MAX_CMD_LEN)}…` : s;
@@ -44,7 +45,8 @@ function getHookContent(hook: HookCommand): string {
 }
 
 function extractFilePath(command: string): string | null {
-  const firstToken = command.split(' ')[0];
+  const match = command.trim().match(LEADING_PATH_RE);
+  const firstToken = match?.[1] ?? match?.[2] ?? match?.[3] ?? '';
   return FILE_PATH_RE.test(firstToken) ? firstToken : null;
 }
 

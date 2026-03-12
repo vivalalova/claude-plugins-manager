@@ -102,6 +102,28 @@ describe('HookExplanationService — integration', () => {
     expect(result.explanation).toBe('這個 hook 執行守護腳本。');
   });
 
+  it('cache entry 已過期 → 忽略舊值並重新呼叫 CLI', async () => {
+    await writeCache(cachePath, {
+      [JSON.stringify(['/guard.sh', 'PreToolUse', 'en'])]: {
+        explanation: 'stale explanation',
+        locale: 'en',
+        createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    });
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('fresh explanation');
+
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'en');
+
+    expect(cli.exec).toHaveBeenCalledOnce();
+    expect(result.fromCache).toBe(false);
+    expect(result.explanation).toBe('fresh explanation');
+
+    const { readFile } = await import('fs/promises');
+    const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
+    const key = JSON.stringify(['/guard.sh', 'PreToolUse', 'en']);
+    expect(cache[key].explanation).toBe('fresh explanation');
+  });
+
   it('locale 不同 → cache miss → 重新呼叫 CLI', async () => {
     await writeCache(cachePath, {
       [JSON.stringify(['/guard.sh', 'PreToolUse', 'en'])]: {
