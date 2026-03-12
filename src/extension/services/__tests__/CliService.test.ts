@@ -1,35 +1,69 @@
+import { EventEmitter } from 'events';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CliService } from '../CliService';
 import { CliError } from '../../types';
 
-/** 用 vi.hoisted 確保 mock 在 vi.mock hoist 時可用 */
-const { mockExecFile } = vi.hoisted(() => ({
-  mockExecFile: vi.fn(),
+const { mockSpawn } = vi.hoisted(() => ({
+  mockSpawn: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
-  execFile: mockExecFile,
+  spawn: mockSpawn,
 }));
 
 vi.mock('fs', () => ({
   existsSync: () => false,
 }));
 
-type Callback = (...args: unknown[]) => void;
+interface MockChild extends EventEmitter {
+  stdout: EventEmitter;
+  stderr: EventEmitter;
+  kill: ReturnType<typeof vi.fn>;
+  killed?: boolean;
+}
 
-/** helper：讓 mock execFile 呼叫 callback 成功 */
+function createMockChild(): MockChild {
+  const child = new EventEmitter() as MockChild;
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.killed = false;
+  child.kill = vi.fn(() => {
+    child.killed = true;
+    child.emit('close', 143, 'SIGTERM');
+    return true;
+  });
+  return child;
+}
+
 function mockSuccess(stdout: string): void {
-  mockExecFile.mockImplementation((...args: unknown[]) => {
-    const cb = args[args.length - 1] as Callback;
-    cb(null, { stdout });
+  mockSpawn.mockImplementation(() => {
+    const child = createMockChild();
+    queueMicrotask(() => {
+      child.stdout.emit('data', Buffer.from(stdout));
+      child.emit('close', 0, null);
+    });
+    return child;
   });
 }
 
-/** helper：讓 mock execFile 呼叫 callback 失敗 */
-function mockError(error: Record<string, unknown>): void {
-  mockExecFile.mockImplementation((...args: unknown[]) => {
-    const cb = args[args.length - 1] as Callback;
-    cb(error);
+function mockSpawnError(error: Record<string, unknown>): void {
+  mockSpawn.mockImplementation(() => {
+    const child = createMockChild();
+    queueMicrotask(() => {
+      child.emit('error', error);
+    });
+    return child;
+  });
+}
+
+function mockExitFailure(exitCode: number, stderr: string): void {
+  mockSpawn.mockImplementation(() => {
+    const child = createMockChild();
+    queueMicrotask(() => {
+      child.stderr.emit('data', Buffer.from(stderr));
+      child.emit('close', exitCode, null);
+    });
+    return child;
   });
 }
 
@@ -40,7 +74,6 @@ describe('CliService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cli = new CliService();
-    // mock sleep 讓重試不實際等待
     sleepSpy = vi.spyOn(cli as unknown as { sleep: (ms: number) => Promise<void> }, 'sleep')
       .mockResolvedValue(undefined);
   });
@@ -52,31 +85,39 @@ describe('CliService', () => {
       expect(result).toBe('hello world');
     });
 
-    it('ENOENT → 不重試，單次 exec 只呼叫 1 次 execFile', async () => {
-      mockError({ code: 'ENOENT', message: 'spawn ENOENT' });
+    it('ENOENT → 不重試，單次 exec 只呼叫 1 次 spawn', async () => {
+      mockSpawnError({ code: 'ENOENT', message: 'spawn ENOENT' });
       const error = await cli.exec(['mcp', 'list']).catch((e: unknown) => e);
       expect(error).toBeInstanceOf(CliError);
       expect((error as CliError).message).toContain('Claude CLI not found');
-      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
     });
 
-    it('非零 exit code → 不重試，單次 exec 只呼叫 1 次 execFile', async () => {
-      mockError({ exitCode: 1, stderr: 'something went wrong', message: 'failed' });
+    it('非零 exit code → 不重試，單次 exec 只呼叫 1 次 spawn', async () => {
+      mockExitFailure(1, 'something went wrong');
       const error = await cli.exec(['plugin', 'list']).catch((e: unknown) => e);
       expect(error).toBeInstanceOf(CliError);
       expect((error as CliError).message).toContain('something went wrong');
-      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
     });
 
-    it('傳遞 cwd options', async () => {
+    it('傳遞 cwd / stdio / env options', async () => {
+      process.env.CLAUDECODE = 'nested-session';
       mockSuccess('ok');
+
       await cli.exec(['mcp', 'list'], { cwd: '/my/project', timeout: 5000 });
-      expect(mockExecFile).toHaveBeenCalledWith(
+
+      expect(mockSpawn).toHaveBeenCalledWith(
         'claude',
         ['mcp', 'list'],
-        expect.objectContaining({ cwd: '/my/project' }),
-        expect.any(Function),
+        expect.objectContaining({
+          cwd: '/my/project',
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }),
       );
+      const options = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
+      expect(options.env.CLAUDECODE).toBeUndefined();
+      delete process.env.CLAUDECODE;
     });
   });
 
@@ -96,26 +137,25 @@ describe('CliService', () => {
 
   describe('withRetry — 自動重試 + 指數退避', () => {
     it('ETIMEDOUT → 重試 3 次後拋出 CliError（共 4 次呼叫）', async () => {
-      mockError({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
+      mockSpawnError({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
       await expect(cli.exec(['mcp', 'list'])).rejects.toThrow(CliError);
-      // 1 initial + 3 retries = 4 calls
-      expect(mockExecFile).toHaveBeenCalledTimes(4);
+      expect(mockSpawn).toHaveBeenCalledTimes(4);
     });
 
     it('ECONNRESET → 重試 3 次後拋出 CliError', async () => {
-      mockError({ code: 'ECONNRESET', message: 'connection reset' });
+      mockSpawnError({ code: 'ECONNRESET', message: 'connection reset' });
       await expect(cli.exec(['mcp', 'list'])).rejects.toThrow(CliError);
-      expect(mockExecFile).toHaveBeenCalledTimes(4);
+      expect(mockSpawn).toHaveBeenCalledTimes(4);
     });
 
     it('EAI_AGAIN → 重試 3 次後拋出 CliError', async () => {
-      mockError({ code: 'EAI_AGAIN', message: 'DNS lookup failed' });
+      mockSpawnError({ code: 'EAI_AGAIN', message: 'DNS lookup failed' });
       await expect(cli.exec(['mcp', 'list'])).rejects.toThrow(CliError);
-      expect(mockExecFile).toHaveBeenCalledTimes(4);
+      expect(mockSpawn).toHaveBeenCalledTimes(4);
     });
 
     it('指數退避：sleep 間隔為 1s → 2s → 4s', async () => {
-      mockError({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
+      mockSpawnError({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
       await expect(cli.exec(['mcp', 'list'])).rejects.toThrow(CliError);
       expect(sleepSpy).toHaveBeenCalledTimes(3);
       expect(sleepSpy).toHaveBeenNthCalledWith(1, 1000);
@@ -125,42 +165,45 @@ describe('CliService', () => {
 
     it('第一次 ETIMEDOUT，第二次成功 → 回傳結果（1 次重試）', async () => {
       let callCount = 0;
-      mockExecFile.mockImplementation((...args: unknown[]) => {
-        const cb = args[args.length - 1] as Callback;
-        callCount++;
-        if (callCount === 1) {
-          cb({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
-        } else {
-          cb(null, { stdout: 'recovered' });
-        }
+      mockSpawn.mockImplementation(() => {
+        const child = createMockChild();
+        queueMicrotask(() => {
+          callCount++;
+          if (callCount === 1) {
+            child.emit('error', { killed: true, code: 'ETIMEDOUT', message: 'timeout' });
+          } else {
+            child.stdout.emit('data', Buffer.from('recovered'));
+            child.emit('close', 0, null);
+          }
+        });
+        return child;
       });
 
       const result = await cli.exec(['mcp', 'list']);
       expect(result).toBe('recovered');
-      expect(mockExecFile).toHaveBeenCalledTimes(2);
+      expect(mockSpawn).toHaveBeenCalledTimes(2);
       expect(sleepSpy).toHaveBeenCalledTimes(1);
       expect(sleepSpy).toHaveBeenCalledWith(1000);
     });
 
     it('ENOENT 不重試（非暫時性錯誤）', async () => {
-      mockError({ code: 'ENOENT', message: 'spawn ENOENT' });
+      mockSpawnError({ code: 'ENOENT', message: 'spawn ENOENT' });
       await expect(cli.exec(['mcp', 'list'])).rejects.toThrow('Claude CLI not found');
-      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
       expect(sleepSpy).not.toHaveBeenCalled();
     });
 
     it('exit code 1 不重試（CLI 正常執行但回報錯誤）', async () => {
-      mockError({ exitCode: 1, stderr: 'plugin not found' });
+      mockExitFailure(1, 'plugin not found');
       await expect(cli.exec(['plugin', 'enable', 'foo'])).rejects.toThrow('plugin not found');
-      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
       expect(sleepSpy).not.toHaveBeenCalled();
     });
 
     it('總 timeout 不足以退避時停止重試', async () => {
-      mockError({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
-      // timeout=500ms，backoff=1000ms > remaining ~500ms → 不會重試
+      mockSpawnError({ killed: true, code: 'ETIMEDOUT', message: 'timeout' });
       await expect(cli.exec(['mcp', 'list'], { timeout: 500 })).rejects.toThrow(CliError);
-      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
     });
   });
 

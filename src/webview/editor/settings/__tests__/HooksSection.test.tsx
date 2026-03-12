@@ -518,9 +518,11 @@ describe('HooksSection — explain button', () => {
     ).toHaveLength(1);
   });
 
-  it('hooks.explain 失敗 → 顯示 error toast', async () => {
+  it('hooks.explain 失敗 → toast 顯示第一行短錯誤', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
-      if (msg.type === 'hooks.explain') return Promise.reject(new Error('AI unavailable'));
+      if (msg.type === 'hooks.explain') {
+        return Promise.reject(new Error('AI unavailable\nclaude --model sonnet --print very long command'));
+      }
       return Promise.resolve(undefined);
     });
     renderSection({
@@ -533,7 +535,51 @@ describe('HooksSection — explain button', () => {
     fireEvent.click(screen.getByText('Explain'));
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to get explanation')).toBeTruthy();
+      expect(screen.getByText('Failed to get explanation: AI unavailable')).toBeTruthy();
+    });
+    expect(screen.queryByText(/very long command/)).toBeNull();
+  });
+
+  it('hooks.explain timeout → toast 顯示精簡 timeout 原因', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return Promise.reject(new Error('CLI timeout after 120000ms: claude --model sonnet --print /guard.sh'));
+      }
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to get explanation: CLI timeout after 120000ms')).toBeTruthy();
+    });
+    expect(screen.queryByText(/claude --model sonnet/)).toBeNull();
+  });
+
+  it('hooks.explain 找不到 CLI → toast 顯示簡短 not found 原因', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return Promise.reject(new Error('Claude CLI not found. Ensure "claude" is installed and available in PATH.'));
+      }
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to get explanation: Claude CLI not found')).toBeTruthy();
     });
   });
 

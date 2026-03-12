@@ -10,9 +10,31 @@ import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/t
 
 const MAX_CMD_LEN = 60;
 const FILE_PATH_RE = /^(?:\/|~\/)/;
+const MAX_EXPLAIN_ERROR_LEN = 120;
 
 function truncate(s: string): string {
   return s.length > MAX_CMD_LEN ? `${s.slice(0, MAX_CMD_LEN)}…` : s;
+}
+
+function formatExplainError(baseMessage: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const firstLine = message.split(/\r?\n/, 1)[0]?.trim() ?? '';
+  if (!firstLine) return baseMessage;
+
+  const timeoutMatch = firstLine.match(/CLI timeout after \d+ms/);
+  if (timeoutMatch) {
+    return `${baseMessage}: ${timeoutMatch[0]}`;
+  }
+
+  if (firstLine.includes('Claude CLI not found')) {
+    return `${baseMessage}: Claude CLI not found`;
+  }
+
+  const shortReason = firstLine.length > MAX_EXPLAIN_ERROR_LEN
+    ? `${firstLine.slice(0, MAX_EXPLAIN_ERROR_LEN).trimEnd()}...`
+    : firstLine;
+
+  return `${baseMessage}: ${shortReason}`;
 }
 
 function getHookContent(hook: HookCommand): string {
@@ -173,8 +195,8 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
         locale,
       }, 120_000);
       setExplanations((prev) => new Map([...prev, [key, explanation]]));
-    } catch {
-      addToast(t('settings.hooks.explanationError'), 'error');
+    } catch (e) {
+      addToast(formatExplainError(t('settings.hooks.explanationError'), e), 'error');
     } finally {
       setExplaining((prev) => {
         const next = new Set(prev);
