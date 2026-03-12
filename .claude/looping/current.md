@@ -1,60 +1,56 @@
 ---
-title: InfoPage 完整 UI 元件
+title: Extension Info 完整測試
 created: 2026-03-13
 priority: high
-suggested_order: B03
-blockedBy: [b01-extension-info-service, b02-reveal-path-clear-cache]
+suggested_order: T01
+blockedBy: b03-info-page-ui
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# InfoPage 完整 UI 元件
+# Extension Info 完整測試
 
-新增 `src/webview/editor/info/InfoPage.tsx`，消費 `extension.getInfo` 回傳資料，渲染完整的 Extension Info 頁面。
+補齊 Extension Info 功能的所有自動化測試。
 
-## 頁面區塊
+## 測試範圍
 
-### 1. Extension 基本資訊
-- 名稱、版本、publisher
-- Repo link（可點擊，走 `openExternal`）
+### 1. Integration test — ExtensionInfoService
+`src/extension/services/__tests__/ExtensionInfoService.integration.test.ts`
 
-### 2. CLI 資訊
-- CLI 路徑
-- CLI 版本（lazy load：先顯示 spinner，取得後更新；取得失敗顯示 "Not found"）
+- 使用真實 CliService 執行 `claude --version`，驗證 `getInfo()` 回傳結構完整
+- 所有必填欄位非 undefined
+- `cliVersion` 為合法版本字串
+- Edge case：模擬 CLI 不存在時 `cliVersion` 為 null
 
-### 3. 路徑一覽表
-每列一個路徑 + 「Open」按鈕（呼叫 `extension.revealPath`）：
-- Cache 目錄（額外有「Clear Cache」按鈕，帶 confirm dialog，呼叫 `extension.clearCache`）
-- Plugins 目錄
-- installed_plugins.json
-- known_marketplaces.json
-- Extension 安裝路徑
-- Preferences 檔案路徑
+### 2. Unit test — MessageRouter 擴充
+`src/extension/messaging/__tests__/MessageRouter.test.ts`
 
-### 4. 風格
-- 遵循既有 VSCode theme CSS variables
-- 與 SettingsPage 的卡片式版面一致
-- CSS 放 `src/webview/editor/info/InfoPage.css`
+- `extension.getInfo` dispatch 呼叫 service 並回傳結果
+- `extension.revealPath` dispatch 呼叫 `revealFileInOS`
+- `extension.revealPath` 路徑不存在時回傳 error
+- `extension.clearCache` dispatch 清除目錄並回傳 `{ cleared: true }`
 
-### 5. i18n
-- 翻譯 key 前綴 `info.*`
-- 新增到 en/zh-TW/ja 三個 locale 檔
+### 3. Component test — InfoPage
+`src/webview/editor/info/__tests__/InfoPage.test.tsx`
+
+- mock `sendRequest`，驗證各區塊渲染
+- 按鈕 click 行為（Open、Clear Cache、repo link）
+- Loading 狀態（CLI 版本 lazy load）
+- Error 狀態（getInfo 失敗）
+
+### 4. EditorApp test 擴充
+- `mode='info'` 渲染 InfoPage 而非 error
 
 ## User Stories
 
-- As a user, I want to see all extension and CLI version info on one page, so that I can verify my setup at a glance
-- As a user, I want to open any config directory with a button click, so that I can inspect or edit files directly
-- As a user, I want to clear cache with confirmation, so that I don't accidentally delete data
+- As a developer, I want automated tests for all Info page paths, so that future changes don't break functionality
 
 ## 驗收條件
 
-- Given InfoPage 已載入，When `extension.getInfo` 回傳成功，Then 顯示 extension 名稱、版本、publisher
-- Given CLI 版本尚未取得，When InfoPage 初始渲染，Then CLI 版本區域顯示 loading spinner
-- Given CLI 版本取得完成，When 資料更新，Then spinner 消失，顯示版本字串
-- Given CLI 未安裝，When `cliVersion` 為 null，Then 顯示 "Not found" 或類似提示
-- Given 使用者點擊某路徑的 Open 按鈕，When 按鈕被點擊，Then 發送 `extension.revealPath` 帶正確路徑
-- Given 使用者點擊 Clear Cache，When confirm dialog 確認，Then 發送 `extension.clearCache`，成功後顯示 toast
-- Given 使用者點擊 repo link，When 點擊，Then 走 `openExternal` 開啟瀏覽器
-- Given `npm run typecheck && npm run build`，When 執行，Then 通過
+- Given 所有測試檔已撰寫，When 執行 `npm test`，Then 全部通過
+- Given ExtensionInfoService integration test，When CLI 存在，Then `cliVersion` 為非空字串
+- Given InfoPage component test，When mock `extension.getInfo` 回傳完整資料，Then 畫面顯示所有路徑列
+- Given InfoPage component test，When 點擊 Clear Cache 並確認，Then `extension.clearCache` request 被發送
+- Given EditorApp test，When `mode='info'`，Then 渲染 InfoPage

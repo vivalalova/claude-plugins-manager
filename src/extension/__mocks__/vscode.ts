@@ -94,6 +94,7 @@ export const window = {
 
 export const commands = {
   registerCommand: vi.fn(),
+  executeCommand: vi.fn().mockResolvedValue(undefined),
 };
 
 export const ViewColumn = {

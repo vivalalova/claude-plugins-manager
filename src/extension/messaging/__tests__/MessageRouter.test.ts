@@ -211,6 +211,57 @@ describe('MessageRouter', () => {
     });
   });
 
+  describe('extension 路由', () => {
+    it('extension.getInfo → 呼叫 extensionInfo.getInfo 並回傳結果', async () => {
+      const mockInfo = { extensionVersion: '0.1.2', cliPath: '/usr/local/bin/claude', cliVersion: '1.0.0' };
+      services.extensionInfo.getInfo.mockResolvedValue(mockInfo);
+
+      await router.handle(
+        { type: 'extension.getInfo', requestId: 'ei1' } as RequestMessage,
+        post,
+      );
+
+      expect(services.extensionInfo.getInfo).toHaveBeenCalled();
+      expect(posted).toEqual([{ type: 'response', requestId: 'ei1', data: mockInfo }]);
+    });
+
+    it('extension.revealPath → 展開 ~/ 後呼叫 revealFileInOS command', async () => {
+      const vscode = await import('vscode');
+      const os = await import('os');
+      const home = os.homedir();
+
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp1', path: '~/.claude/plugins' } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'revealFileInOS',
+        expect.objectContaining({ fsPath: home + '/.claude/plugins' }),
+      );
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'rp1' });
+    });
+
+    it('extension.revealPath → 路徑不存在時回傳 error', async () => {
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp2', path: '/nonexistent/path/that/does/not/exist' } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'rp2' });
+      expect((posted[0] as { error: string }).error).toContain('Path does not exist');
+    });
+
+    it('extension.clearCache → 回傳 { cleared: true }', async () => {
+      await router.handle(
+        { type: 'extension.clearCache', requestId: 'cc1' } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'cc1', data: { cleared: true } });
+    });
+  });
+
   describe('preferences 路由', () => {
     it('preferences.read → 回傳所有偏好設定', async () => {
       const mockPrefs = { 'plugin.sort': 'lastUpdated', 'plugin.filter.enabled': true };
