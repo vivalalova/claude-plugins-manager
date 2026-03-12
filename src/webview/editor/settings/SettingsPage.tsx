@@ -213,6 +213,15 @@ export function SettingsPage(): React.ReactElement {
     }
   }, []);
 
+  const refreshSettings = useCallback(async (targetScope: PluginScope) => {
+    try {
+      const data = await sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope });
+      setSettings(data);
+    } catch {
+      // silent — 外部變更 refresh 失敗不影響使用
+    }
+  }, []);
+
   useEffect(() => {
     fetchSettings(scope);
   }, [scope, fetchSettings]);
@@ -221,20 +230,24 @@ export function SettingsPage(): React.ReactElement {
   useEffect(() => {
     return onPushMessage((msg) => {
       if (msg.type === 'settings.refresh') {
-        fetchSettings(scope);
+        refreshSettings(scope);
       }
     });
-  }, [scope, fetchSettings]);
+  }, [scope, refreshSettings]);
 
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
-    await fetchSettings(scope);
-  }, [scope, fetchSettings]);
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }, [scope]);
 
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
-    await fetchSettings(scope);
-  }, [scope, fetchSettings]);
+    setSettings((prev) => {
+      const next = { ...prev };
+      delete (next as Record<string, unknown>)[key];
+      return next;
+    });
+  }, [scope]);
 
   const handleScopeClick = (s: PluginScope): void => {
     if (s !== 'user' && !hasWorkspace) return;

@@ -171,13 +171,18 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('選擇 model 並點擊 Save → sendRequest settings.set', async () => {
+  it('選擇 model 並點擊 Save → sendRequest settings.set，不觸發 settings.get', async () => {
     renderPage();
 
     await waitFor(() => screen.getByText('Model'));
     fireEvent.click(screen.getByText('Model').closest('button')!);
 
     await waitFor(() => screen.getAllByRole('combobox'));
+
+    const getCountBefore = mockSendRequest.mock.calls.filter(
+      (c: any[]) => c[0]?.type === 'settings.get',
+    ).length;
+
     const modelSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
       .find((s) => s.className.includes('settings-model-select'))!;
     fireEvent.change(modelSelect, { target: { value: 'claude-sonnet-4-6' } });
@@ -195,9 +200,15 @@ describe('SettingsPage', () => {
         value: 'claude-sonnet-4-6',
       });
     });
+
+    // optimistic update：save 後不觸發 settings.get
+    const getCountAfter = mockSendRequest.mock.calls.filter(
+      (c: any[]) => c[0]?.type === 'settings.get',
+    ).length;
+    expect(getCountAfter).toBe(getCountBefore);
   });
 
-  it('model 已設定時顯示 Clear 按鈕，點擊後 sendRequest settings.delete', async () => {
+  it('model 已設定時顯示 Clear 按鈕，點擊後 sendRequest settings.delete，不觸發 settings.get', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ model: 'claude-sonnet-4-6' });
@@ -212,6 +223,11 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Model').closest('button')!);
 
     await waitFor(() => screen.getByText('Clear'));
+
+    const getCountBefore = mockSendRequest.mock.calls.filter(
+      (c: any[]) => c[0]?.type === 'settings.get',
+    ).length;
+
     fireEvent.click(screen.getByText('Clear'));
 
     await waitFor(() => {
@@ -225,6 +241,38 @@ describe('SettingsPage', () => {
         key: 'model',
       });
     });
+
+    // optimistic update：delete 後不觸發 settings.get
+    const getCountAfter = mockSendRequest.mock.calls.filter(
+      (c: any[]) => c[0]?.type === 'settings.get',
+    ).length;
+    expect(getCountAfter).toBe(getCountBefore);
+  });
+
+  it('handleSave optimistic update：save 後 UI 立即反映新值，settings.get mock 回舊值也不影響', async () => {
+    // settings.get 永遠回傳 {} (model 未設定)，但 save 後 UI 應顯示 optimistic value
+    renderPage();
+
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+
+    await waitFor(() => screen.getAllByRole('combobox'));
+    const modelSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
+      .find((s) => s.className.includes('settings-model-select'))!;
+    fireEvent.change(modelSelect, { target: { value: 'claude-sonnet-4-6' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      const setCalls = mockSendRequest.mock.calls.filter(
+        (c: any[]) => c[0]?.type === 'settings.set',
+      );
+      expect(setCalls.length).toBe(1);
+    });
+
+    // optimistic update 後 select 應保持 claude-sonnet-4-6（不被 mock 的 {} 覆蓋）
+    const updatedSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
+      .find((s) => s.className.includes('settings-model-select'))!;
+    expect(updatedSelect.value).toBe('claude-sonnet-4-6');
   });
 
   it('預設顯示 General 區塊（Effort Level / Language / Fast Mode）', async () => {
