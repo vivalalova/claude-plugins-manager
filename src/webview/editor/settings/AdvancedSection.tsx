@@ -55,7 +55,7 @@ function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorP
     <div className="settings-field">
       <label className="settings-label">{t('settings.advanced.attribution.label')}</label>
       <p className="settings-field-description">{t('settings.advanced.attribution.description')}</p>
-      <div className="settings-model-row">
+      <div className="settings-subfield">
         <label className="settings-label" htmlFor="attribution-commit">
           {t('settings.advanced.attribution.commit.label')}
         </label>
@@ -69,7 +69,7 @@ function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorP
           disabled={saving}
         />
       </div>
-      <div className="settings-model-row">
+      <div className="settings-subfield">
         <label className="settings-label" htmlFor="attribution-pr">
           {t('settings.advanced.attribution.pr.label')}
         </label>
@@ -155,7 +155,7 @@ function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProp
     <div className="settings-field">
       <label className="settings-label">{t('settings.advanced.statusLine.label')}</label>
       <p className="settings-field-description">{t('settings.advanced.statusLine.description')}</p>
-      <div className="settings-model-row">
+      <div className="settings-subfield">
         <label className="settings-label" htmlFor="statusLine-command">
           {t('settings.advanced.statusLine.command.label')}
         </label>
@@ -169,7 +169,7 @@ function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProp
           disabled={saving}
         />
       </div>
-      <div className="settings-model-row">
+      <div className="settings-subfield">
         <label className="settings-label" htmlFor="statusLine-padding">
           {t('settings.advanced.statusLine.padding.label')}
         </label>
@@ -260,7 +260,7 @@ function FileSuggestionEditor({ fileSuggestion, onSave, onDelete }: FileSuggesti
     <div className="settings-field">
       <label className="settings-label">{t('settings.advanced.fileSuggestion.label')}</label>
       <p className="settings-field-description">{t('settings.advanced.fileSuggestion.description')}</p>
-      <div className="settings-model-row">
+      <div className="settings-subfield">
         <label className="settings-label" htmlFor="fileSuggestion-command">
           {t('settings.advanced.fileSuggestion.command.label')}
         </label>
