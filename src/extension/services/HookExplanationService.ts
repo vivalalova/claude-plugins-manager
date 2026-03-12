@@ -1,10 +1,12 @@
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, stat } from 'fs/promises';
 import { join } from 'path';
+import { homedir } from 'os';
+import { createHash } from 'crypto';
 import type { CliService } from './CliService';
 import { PLUGINS_CACHE_DIR } from '../constants';
 
 const CACHE_PATH = join(PLUGINS_CACHE_DIR, 'hook-explanations.json');
-const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const CACHE_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 180 days
 
 interface CacheEntry {
   explanation: string;
@@ -16,14 +18,14 @@ type CacheFile = Record<string, CacheEntry>;
 
 /**
  * Hook 內容 AI 解釋 service。
- * 以 hookContent + locale 為 key 持久化快取至 ~/.claude/plugins/cache/hook-explanations.json。
+ * 以 filePath:mtime:locale（或 hash:0:locale）為 key 持久化快取至 ~/.claude/plugins/cache/hook-explanations.json。
  */
 export class HookExplanationService {
   constructor(private readonly cli: CliService) {}
 
-  async explain(hookContent: string, eventType: string, locale: string): Promise<{ explanation: string; fromCache: boolean }> {
+  async explain(hookContent: string, eventType: string, locale: string, filePath?: string): Promise<{ explanation: string; fromCache: boolean }> {
     const cache = await this.readCache();
-    const key = this.cacheKey(hookContent, eventType, locale);
+    const key = await this.cacheKey(hookContent, locale, filePath);
     const cachedEntry = cache[key];
 
     if (cachedEntry && this.isFresh(cachedEntry)) {
@@ -57,8 +59,20 @@ export class HookExplanationService {
     await this.writeCache(cleaned);
   }
 
-  private cacheKey(hookContent: string, eventType: string, locale: string): string {
-    return JSON.stringify([hookContent, eventType, locale]);
+  private async cacheKey(hookContent: string, locale: string, filePath?: string): Promise<string> {
+    if (filePath) {
+      const resolved = filePath.startsWith('~/')
+        ? join(homedir(), filePath.slice(2))
+        : filePath;
+      try {
+        const { mtimeMs } = await stat(resolved);
+        return `${resolved}:${mtimeMs}:${locale}`;
+      } catch {
+        // file not accessible, fall through to hash
+      }
+    }
+    const hash = createHash('sha256').update(hookContent).digest('hex').slice(0, 8);
+    return `${hash}:0:${locale}`;
   }
 
   private isFresh(entry: CacheEntry): boolean {

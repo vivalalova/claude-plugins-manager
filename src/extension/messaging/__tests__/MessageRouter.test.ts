@@ -192,7 +192,7 @@ describe('MessageRouter', () => {
         post,
       );
 
-      expect(services.hookExplanation.explain).toHaveBeenCalledWith('/guard.sh', 'PreToolUse', 'zh-TW');
+      expect(services.hookExplanation.explain).toHaveBeenCalledWith('/guard.sh', 'PreToolUse', 'zh-TW', undefined);
       expect(posted).toEqual([{ type: 'response', requestId: 'he1', data: mockResult }]);
     });
 

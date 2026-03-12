@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, stat } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { createHash } from 'crypto';
 import { HookExplanationService } from '../HookExplanationService';
 import type { CliService } from '../CliService';
 
@@ -18,6 +19,10 @@ async function writeCache(cachePath: string, data: Record<string, unknown>): Pro
   await writeFile(cachePath, JSON.stringify(data), 'utf-8');
 }
 
+function hashContent(content: string): string {
+  return createHash('sha256').update(content).digest('hex').slice(0, 8);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -32,14 +37,8 @@ describe('HookExplanationService — integration', () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'hook-explain-test-'));
     cachePath = join(tmpDir, 'hook-explanations.json');
 
-    // Patch CACHE_PATH via module-level constant override is not possible;
-    // instead we test the public behaviour using the real path fallback.
-    // For integration tests we create the service with a mocked CliService
-    // and spy on fs operations via the real tmpDir.
     cli = makeCli();
 
-    // Override the cache path used by the service by monkey-patching the
-    // private readCache / writeCache via the prototype (only in tests).
     service = new HookExplanationService(cli as CliService);
     // Redirect to tmpDir by overriding private methods
     const svc = service as unknown as {
@@ -68,8 +67,12 @@ describe('HookExplanationService — integration', () => {
     vi.clearAllMocks();
   });
 
-  it('cache miss → 呼叫 CLI → 寫入 cache → fromCache: false', async () => {
-    const result = await service.explain('/guard.sh arg', 'PreToolUse', 'en');
+  it('cache miss（有 filePath）→ 呼叫 CLI → 寫入 filePath:mtime:locale key', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    await writeFile(hookFile, '#!/bin/bash\necho "guard"', 'utf-8');
+    const { mtimeMs } = await stat(hookFile);
+
+    const result = await service.explain('/guard.sh arg', 'PreToolUse', 'en', hookFile);
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(cli.exec).toHaveBeenCalledWith(
@@ -79,54 +82,77 @@ describe('HookExplanationService — integration', () => {
     expect(result.fromCache).toBe(false);
     expect(result.explanation).toBe('This hook runs a security guard script before each tool call.');
 
-    // 驗證 cache 已寫入
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    const key = JSON.stringify(['/guard.sh arg', 'PreToolUse', 'en']);
-    expect(cache[key].explanation).toBe(result.explanation);
+    const expectedKey = `${hookFile}:${mtimeMs}:en`;
+    expect(cache[expectedKey]).toBeDefined();
+    expect(cache[expectedKey].explanation).toBe(result.explanation);
   });
 
-  it('cache hit（locale 相同）→ 不呼叫 CLI → fromCache: true', async () => {
+  it('cache miss（無 filePath）→ 使用 hash:0:locale key', async () => {
+    const content = 'echo "inline hook"';
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('inline explanation');
+
+    const result = await service.explain(content, 'PreToolUse', 'en');
+
+    expect(result.fromCache).toBe(false);
+
+    const { readFile } = await import('fs/promises');
+    const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
+    const expectedKey = `${hashContent(content)}:0:en`;
+    expect(cache[expectedKey]).toBeDefined();
+    expect(cache[expectedKey].explanation).toBe('inline explanation');
+  });
+
+  it('cache hit（filePath + mtime 相同）→ 不呼叫 CLI → fromCache: true', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
+    const { mtimeMs } = await stat(hookFile);
+
     await writeCache(cachePath, {
-      [JSON.stringify(['/guard.sh', 'PreToolUse', 'zh-TW'])]: {
+      [`${hookFile}:${mtimeMs}:zh-TW`]: {
         explanation: '這個 hook 執行守護腳本。',
         locale: 'zh-TW',
         createdAt: new Date().toISOString(),
       },
     });
 
-    const result = await service.explain('/guard.sh', 'PreToolUse', 'zh-TW');
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'zh-TW', hookFile);
 
     expect(cli.exec).not.toHaveBeenCalled();
     expect(result.fromCache).toBe(true);
     expect(result.explanation).toBe('這個 hook 執行守護腳本。');
   });
 
-  it('cache entry 已過期 → 忽略舊值並重新呼叫 CLI', async () => {
+  it('檔案 mtime 改變 → cache miss → 重新呼叫 CLI', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
+    const oldMtime = 1710000000000; // hardcoded old mtime, differs from real mtime
+
     await writeCache(cachePath, {
-      [JSON.stringify(['/guard.sh', 'PreToolUse', 'en'])]: {
-        explanation: 'stale explanation',
+      [`${hookFile}:${oldMtime}:en`]: {
+        explanation: 'old explanation',
         locale: 'en',
-        createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
       },
     });
-    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('fresh explanation');
 
-    const result = await service.explain('/guard.sh', 'PreToolUse', 'en');
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('fresh explanation after mtime change');
+
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'en', hookFile);
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(result.fromCache).toBe(false);
-    expect(result.explanation).toBe('fresh explanation');
-
-    const { readFile } = await import('fs/promises');
-    const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    const key = JSON.stringify(['/guard.sh', 'PreToolUse', 'en']);
-    expect(cache[key].explanation).toBe('fresh explanation');
+    expect(result.explanation).toBe('fresh explanation after mtime change');
   });
 
   it('locale 不同 → cache miss → 重新呼叫 CLI', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
+    const { mtimeMs } = await stat(hookFile);
+
     await writeCache(cachePath, {
-      [JSON.stringify(['/guard.sh', 'PreToolUse', 'en'])]: {
+      [`${hookFile}:${mtimeMs}:en`]: {
         explanation: 'English explanation.',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -134,15 +160,76 @@ describe('HookExplanationService — integration', () => {
     });
     (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('中文解釋。');
 
-    const result = await service.explain('/guard.sh', 'PreToolUse', 'zh-TW');
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'zh-TW', hookFile);
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(result.fromCache).toBe(false);
     expect(result.explanation).toBe('中文解釋。');
   });
 
-  it('cleanExpired → 超過 30 天的 entry 被清除，未過期的保留', async () => {
-    const thirtyOneDaysAgo = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+  it('filePath 指向不存在的檔案 → fallback hash key', async () => {
+    const nonExistentFile = join(tmpDir, 'nonexistent.sh');
+    const content = '/nonexistent.sh --arg';
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('hash fallback explanation');
+
+    const result = await service.explain(content, 'PreToolUse', 'en', nonExistentFile);
+
+    expect(result.fromCache).toBe(false);
+
+    const { readFile } = await import('fs/promises');
+    const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
+    const expectedKey = `${hashContent(content)}:0:en`;
+    expect(cache[expectedKey]).toBeDefined();
+  });
+
+  it('cache entry 已過期 → 忽略舊值並重新呼叫 CLI', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
+    const { mtimeMs } = await stat(hookFile);
+
+    await writeCache(cachePath, {
+      [`${hookFile}:${mtimeMs}:en`]: {
+        explanation: 'stale explanation',
+        locale: 'en',
+        createdAt: new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    });
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('fresh explanation');
+
+    const result = await service.explain('/guard.sh', 'PreToolUse', 'en', hookFile);
+
+    expect(cli.exec).toHaveBeenCalledOnce();
+    expect(result.fromCache).toBe(false);
+    expect(result.explanation).toBe('fresh explanation');
+  });
+
+  it('無 filePath 連續呼叫 → 第二次 fromCache: true', async () => {
+    const content = 'cmd --flag key:value';
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('colon test');
+
+    const r1 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r1.fromCache).toBe(false);
+
+    const r2 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r2.fromCache).toBe(true);
+    expect(cli.exec).toHaveBeenCalledOnce();
+  });
+
+  it('不同 hookContent（無 filePath）→ hash 不衝突，各自呼叫 CLI', async () => {
+    (cli.exec as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce('explanation A')
+      .mockResolvedValueOnce('explanation B');
+
+    const r1 = await service.explain('command-a', 'PreToolUse', 'en');
+    const r2 = await service.explain('command-b', 'PreToolUse', 'en');
+
+    expect(r1.explanation).toBe('explanation A');
+    expect(r2.explanation).toBe('explanation B');
+    expect(cli.exec).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleanExpired → 超過 180 天的 entry 被清除，未過期的保留', async () => {
+    const thirtyOneDaysAgo = new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString();
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     await writeCache(cachePath, {
@@ -169,7 +256,6 @@ describe('HookExplanationService — integration', () => {
 
     await expect(service.explain('/bad.sh', 'PreToolUse', 'en')).rejects.toThrow('CLI failed');
 
-    // cache 檔案不應建立
     const { access } = await import('fs/promises');
     await expect(access(cachePath)).rejects.toThrow();
   });
@@ -181,30 +267,5 @@ describe('HookExplanationService — integration', () => {
 
     const { access } = await import('fs/promises');
     await expect(access(cachePath)).rejects.toThrow();
-  });
-
-  it('hookContent 含冒號 → key 仍能正確配對', async () => {
-    const content = 'cmd --flag key:value';
-    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('colon test');
-
-    const r1 = await service.explain(content, 'PreToolUse', 'en');
-    expect(r1.fromCache).toBe(false);
-
-    const r2 = await service.explain(content, 'PreToolUse', 'en');
-    expect(r2.fromCache).toBe(true);
-  });
-
-  it('hookContent 含冒號 → 不與其他 key 碰撞', async () => {
-    // "a:PreToolUse" + "en" vs "a" + "PreToolUse:en" 若用冒號拼接會產生相同字串
-    (cli.exec as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce('explanation A')
-      .mockResolvedValueOnce('explanation B');
-
-    const r1 = await service.explain('a:PreToolUse', 'en', 'en');
-    const r2 = await service.explain('a', 'PreToolUse:en', 'en');
-
-    expect(r1.explanation).toBe('explanation A');
-    expect(r2.explanation).toBe('explanation B');
-    expect(cli.exec).toHaveBeenCalledTimes(2);
   });
 });
