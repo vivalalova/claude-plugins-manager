@@ -58,6 +58,8 @@ npm run watch              # concurrently watch extension + webview
 實作設定頁新功能前，先查官方文件確認支援的參數：
 https://code.claude.com/docs/en/settings
 
+同步 docs 變更回 repo 前，先讀 [.agents/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.agents/skills/sync-settings-options/SKILL.md)
+
 ## 已知陷阱
 
 - `claude plugin install` 會**自動 enable**，後續再呼叫 `enable` 會 exit 1
@@ -89,3 +91,4 @@ https://code.claude.com/docs/en/settings
 | 程式碼變更後 | review        |
 | Git 操作     | git           |
 | 前端頁面檢查 | agent-browser |
+| Claude settings docs 同步 | sync-settings-options（repo-local） |

@@ -36,3 +36,7 @@
 - 哪些風險仍未驗證
 
 缺任何一項，不得使用「已完成」「已修好」「可以安裝」這類結論句。
+
+## Repo-local Skills
+
+- Claude settings docs 同步：先讀 [.agents/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.agents/skills/sync-settings-options/SKILL.md)
