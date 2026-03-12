@@ -1,9 +1,9 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
-import { homedir } from 'os';
+import { join } from 'path';
 import type { CliService } from './CliService';
+import { PLUGINS_CACHE_DIR } from '../constants';
 
-const CACHE_PATH = join(homedir(), '.claude', 'plugins', 'cache', 'hook-explanations.json');
+const CACHE_PATH = join(PLUGINS_CACHE_DIR, 'hook-explanations.json');
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 interface CacheEntry {
@@ -76,7 +76,7 @@ export class HookExplanationService {
   }
 
   private async writeCache(cache: CacheFile): Promise<void> {
-    await mkdir(dirname(CACHE_PATH), { recursive: true });
+    await mkdir(PLUGINS_CACHE_DIR, { recursive: true });
     await writeFile(CACHE_PATH, JSON.stringify(cache, null, 2), 'utf-8');
   }
 }

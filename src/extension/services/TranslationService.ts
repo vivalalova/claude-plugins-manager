@@ -1,12 +1,12 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import { createHash } from 'crypto';
 import https from 'https';
 import { TRANSLATE_LANGS } from '../../shared/types';
+import { PLUGINS_CACHE_DIR } from '../constants';
 
 /** 翻譯 cache 目錄 */
-const CACHE_DIR = join(homedir(), '.claude', 'plugins', '.cache');
+const CACHE_DIR = PLUGINS_CACHE_DIR;
 
 /** MyMemory API timeout（毫秒） */
 const API_TIMEOUT_MS = 15_000;
