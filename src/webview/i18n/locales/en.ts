@@ -114,7 +114,6 @@ export const en = {
   'settings.hooks.openInEditor': 'Open in JSON Editor',
   'settings.hooks.empty': 'No hooks configured',
   'settings.hooks.emptyAction': 'Open JSON Editor to add hooks',
-  'settings.hooks.timeout': 'timeout',
   'settings.hooks.explain': 'Explain',
   'settings.hooks.explaining': 'Explaining...',
   'settings.hooks.explanationError': 'Failed to get explanation',

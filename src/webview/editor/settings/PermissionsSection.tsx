@@ -3,7 +3,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { TagInput } from './components/SettingControls';
+import { SettingLabelText, TagInput } from './components/SettingControls';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -286,7 +286,9 @@ export function PermissionsSection({
 
       {/* defaultMode */}
       <div className="perm-defaultmode-row">
-        <label className="settings-label">{t('settings.permissions.defaultMode')}</label>
+        <label className="settings-label">
+          <SettingLabelText label={t('settings.permissions.defaultMode')} settingKey="defaultMode" />
+        </label>
         <select
           className="select"
           value={isUnknownMode ? '__unknown__' : currentMode}

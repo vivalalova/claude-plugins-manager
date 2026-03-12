@@ -116,7 +116,6 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.openInEditor': '在 JSON 編輯器中開啟',
   'settings.hooks.empty': '尚未設定 Hooks',
   'settings.hooks.emptyAction': '開啟 JSON 編輯器以新增 Hooks',
-  'settings.hooks.timeout': 'timeout',
   'settings.hooks.explain': '解釋',
   'settings.hooks.explaining': '解釋中…',
   'settings.hooks.explanationError': '取得解釋失敗',

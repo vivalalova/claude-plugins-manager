@@ -9,6 +9,7 @@ import { HooksSection } from './HooksSection';
 import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
+import { SettingLabelText } from './components/SettingControls';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -125,7 +126,9 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
       )}
 
       <div className="settings-field">
-        <label className="settings-label">{t('settings.model.label')}</label>
+        <label className="settings-label">
+          <SettingLabelText label={t('settings.model.label')} settingKey="model" />
+        </label>
         <div className="settings-model-row">
           <select
             className="select settings-model-select"

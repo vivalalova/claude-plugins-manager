@@ -123,6 +123,40 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('Display 區塊刪除既有 spinner verb 後，optimistic update 不會清空未送出的草稿', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get') return Promise.resolve({
+        spinnerVerbs: { mode: 'append', verbs: ['Thinking', 'Working'] },
+      });
+      if (msg.type === 'settings.set') return Promise.resolve(undefined);
+      if (msg.type === 'settings.delete') return Promise.resolve(undefined);
+      return Promise.resolve(null);
+    });
+
+    renderPage();
+
+    await waitFor(() => screen.getByRole('navigation'));
+    fireEvent.click(screen.getByText('Display').closest('button')!);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. Thinking'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Thinking'), { target: { value: 'Draft verb' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Thinking' }));
+
+    await waitFor(() => {
+      const setCalls = getCalls('settings.set');
+      expect(setCalls.some((call) => (
+        call[0]?.key === 'spinnerVerbs'
+        && call[0]?.value?.mode === 'append'
+        && Array.isArray(call[0]?.value?.verbs)
+        && call[0].value.verbs.length === 1
+        && call[0].value.verbs[0] === 'Working'
+      ))).toBe(true);
+    });
+
+    expect((screen.getByPlaceholderText('e.g. Thinking') as HTMLInputElement).value).toBe('Draft verb');
+  });
+
   it('預設顯示 General 區塊', async () => {
     renderPage();
 
@@ -173,6 +207,17 @@ describe('SettingsPage', () => {
       const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
       const modelSelect = selects.find((s) => s.className.includes('settings-model-select'));
       expect(modelSelect?.value).toBe('claude-opus-4-6');
+    });
+  });
+
+  it('Model 區塊顯示 setting key hint', async () => {
+    renderPage();
+
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+
+    await waitFor(() => {
+      expect(screen.getByText('(model)')).toBeTruthy();
     });
   });
 
