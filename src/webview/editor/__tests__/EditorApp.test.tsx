@@ -2,8 +2,18 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
+
+vi.mock('../../vscode', () => ({
+  sendRequest: vi.fn().mockResolvedValue({}),
+  onPushMessage: vi.fn(() => () => {}),
+  getViewState: vi.fn(),
+  setViewState: vi.fn(),
+  setGlobalState: vi.fn().mockResolvedValue(undefined),
+  initGlobalState: vi.fn().mockResolvedValue({}),
+  postMessage: vi.fn(),
+}));
 
 vi.mock('../marketplace/MarketplacePage', () => ({
   MarketplacePage: () => <div>marketplace-page</div>,
@@ -21,7 +31,10 @@ vi.mock('../settings/SettingsPage', () => ({
   SettingsPage: () => <div>settings-page</div>,
 }));
 
-import { vi } from 'vitest';
+vi.mock('../info/InfoPage', () => ({
+  InfoPage: () => <div>info-page</div>,
+}));
+
 import { EditorApp } from '../EditorApp';
 
 describe('EditorApp', () => {
@@ -61,6 +74,12 @@ describe('EditorApp', () => {
 
     expect(screen.getByText('plugin-page')).toBeTruthy();
     expect(screen.queryByText('mcp-page')).toBeNull();
+  });
+
+  it('初始 mode 為 info 時顯示 InfoPage', () => {
+    render(<EditorApp mode="info" />);
+
+    expect(screen.getByText('info-page')).toBeTruthy();
   });
 
   it('未知 mode 顯示錯誤訊息', () => {

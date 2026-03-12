@@ -1,0 +1,122 @@
+.info-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.info-section {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-radius: 6px;
+  padding: 16px 20px;
+  gap: 12px;
+}
+
+.info-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-field {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.info-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.info-field-value {
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  word-break: break-all;
+}
+
+.info-field-value--muted {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.info-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  text-decoration: underline;
+  word-break: break-all;
+  text-align: left;
+}
+
+.info-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+}
+
+.info-path-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.info-path-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+}
+
+.info-path-row:last-child {
+  border-bottom: none;
+}
+
+.info-path-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.info-path-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+}
+
+.info-path-value {
+  font-size: 12px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-foreground);
+  word-break: break-all;
+}
+
+.info-path-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.info-path-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.info-status {
+  padding: 24px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+}
+
+.info-status--error {
+  color: var(--vscode-errorForeground);
+}
