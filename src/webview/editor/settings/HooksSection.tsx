@@ -85,9 +85,10 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
           className="btn btn-secondary btn-sm"
           type="button"
           disabled={isExplaining}
+          aria-label={isExplaining ? explainingLabel : explainLabel}
           onClick={() => void onExplain(fullCmd, eventType)}
         >
-          {isExplaining ? explainingLabel : explainLabel}
+          {isExplaining ? <span className="scope-spinner hooks-explain-spinner" aria-hidden="true" /> : explainLabel}
         </button>
       </div>
       {explanation && (

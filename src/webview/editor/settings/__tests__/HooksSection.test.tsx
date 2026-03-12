@@ -460,7 +460,7 @@ describe('HooksSection — explain button', () => {
     });
   });
 
-  it('解釋請求進行中 → 按鈕顯示 Explaining... 並 disabled', async () => {
+  it('解釋請求進行中 → 按鈕顯示 spinner 並 disabled', async () => {
     let resolveExplain!: (value: { explanation: string; fromCache: boolean }) => void;
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.explain') {
@@ -480,7 +480,10 @@ describe('HooksSection — explain button', () => {
     await waitFor(() => {
       const button = screen.getByRole('button', { name: 'Explaining...' }) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
+      expect(button.querySelector('.hooks-explain-spinner')).toBeTruthy();
     });
+
+    expect(screen.queryByText('Explaining...')).toBeNull();
 
     resolveExplain({ explanation: 'done', fromCache: false });
 

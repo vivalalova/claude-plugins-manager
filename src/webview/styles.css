@@ -2169,6 +2169,10 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   color: var(--vscode-descriptionForeground);
 }
 
+.hooks-explain-spinner {
+  margin: 0 auto;
+}
+
 .hooks-empty {
   display: flex;
   flex-direction: column;
