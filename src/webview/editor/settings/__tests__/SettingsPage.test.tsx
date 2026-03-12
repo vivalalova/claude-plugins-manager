@@ -650,11 +650,11 @@ describe('SettingsPage', () => {
   });
 
   it('settings.refresh push message → 重新 fetch', async () => {
-    let pushHandler: ((msg: { type: string }) => void) | null = null;
-    mockOnPushMessage.mockImplementation((handler: (msg: { type: string }) => void) => {
-      pushHandler = handler;
+    const capture: { fn: ((msg: { type: string }) => void) | null } = { fn: null };
+    mockOnPushMessage.mockImplementation(((h: (msg: { type: string }) => void) => {
+      capture.fn = h;
       return () => {};
-    });
+    }) as () => () => void);
 
     renderPage();
     await waitFor(() => screen.getAllByRole('combobox'));
@@ -664,7 +664,7 @@ describe('SettingsPage', () => {
     ).length;
 
     // 觸發 push message
-    pushHandler?.({ type: 'settings.refresh' });
+    capture.fn?.({ type: 'settings.refresh' });
 
     await waitFor(() => {
       const afterCount = mockSendRequest.mock.calls.filter(
