@@ -107,6 +107,7 @@ describe('SettingsPage', () => {
     expect(scopeTabs?.classList.contains('settings-scope-tabs--fixed')).toBe(true);
     expect(settingsBody?.classList.contains('settings-body--fixed-shell')).toBe(true);
     expect(settingsNav?.classList.contains('settings-nav--fixed')).toBe(true);
+    expect(settingsNav?.classList.contains('settings-nav--compact')).toBe(true);
     expect(settingsContent?.classList.contains('settings-content--scrollable')).toBe(true);
   });
 

@@ -1793,7 +1793,6 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 .settings-nav {
   display: flex;
   flex-direction: column;
-  width: 160px;
   flex-shrink: 0;
   border-right: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
   padding-right: 0;
@@ -1805,8 +1804,12 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   overflow: hidden;
 }
 
+.settings-nav--compact {
+  width: 136px;
+}
+
 .settings-nav-item {
-  padding: 8px 16px;
+  padding: 8px 12px;
   font-size: 13px;
   background: none;
   border: none;

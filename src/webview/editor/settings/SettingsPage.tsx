@@ -279,7 +279,7 @@ export function SettingsPage(): React.ReactElement {
 
       <div className="settings-body settings-body--fixed-shell">
         {/* Left nav */}
-        <nav className="settings-nav settings-nav--fixed">
+        <nav className="settings-nav settings-nav--fixed settings-nav--compact">
           {navItems.map((item) => (
             <button
               key={item.id}
