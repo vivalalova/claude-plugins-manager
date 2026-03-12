@@ -97,7 +97,7 @@ interface HookItemProps {
   openingPath: string | null;
   explainLabel: string;
   explainingLabel: string;
-  onExplain: (hookContent: string, eventType: string) => Promise<void>;
+  onExplain: (hookContent: string, eventType: string, filePath: string | null) => Promise<void>;
   explanation: string | null;
   isExplaining: boolean;
 }
@@ -130,7 +130,7 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
           type="button"
           disabled={isExplaining}
           aria-label={isExplaining ? explainingLabel : explainLabel}
-          onClick={() => void onExplain(fullCmd, eventType)}
+          onClick={() => void onExplain(fullCmd, eventType, filePath)}
         >
           {isExplaining ? <span className="scope-spinner hooks-explain-spinner" aria-hidden="true" /> : explainLabel}
         </button>
@@ -224,8 +224,8 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     void sendRequest({ type: 'hooks.cleanExpiredExplanations' }).catch(() => {});
   }, []);
 
-  const handleExplain = async (hookContent: string, eventType: string): Promise<void> => {
-    const key = `${hookContent}:${eventType}:${locale}`;
+  const handleExplain = async (hookContent: string, eventType: string, filePath: string | null): Promise<void> => {
+    const key = `${filePath ?? hookContent}:${locale}`;
     if (explanations.has(key)) return;
     setExplaining((prev) => new Set([...prev, key]));
     try {
@@ -234,6 +234,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
         hookContent,
         eventType,
         locale,
+        filePath: filePath ?? undefined,
       }, 120_000);
       setExplanations((prev) => new Map([...prev, [key, explanation]]));
     } catch (e) {
@@ -335,21 +336,25 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                       {matcherGroup.matcher || '*'}
                     </span>
                     <div className="hooks-hook-list">
-                      {matcherGroup.hooks.map((hook, hIdx) => (
-                        <HookItem
-                          key={hIdx}
-                          hook={hook}
-                          eventType={eventType}
-                          filePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null}
-                          onOpenFile={handleOpenFile}
-                          openingPath={openingPath}
-                          explainLabel={t('settings.hooks.explain')}
-                          explainingLabel={t('settings.hooks.explaining')}
-                          onExplain={handleExplain}
-                          explanation={explanations.get(`${getHookContent(hook)}:${eventType}:${locale}`) ?? null}
-                          isExplaining={explaining.has(`${getHookContent(hook)}:${eventType}:${locale}`)}
-                        />
-                      ))}
+                      {matcherGroup.hooks.map((hook, hIdx) => {
+                        const fp = hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null;
+                        const uiKey = `${fp ?? getHookContent(hook)}:${locale}`;
+                        return (
+                          <HookItem
+                            key={hIdx}
+                            hook={hook}
+                            eventType={eventType}
+                            filePath={fp}
+                            onOpenFile={handleOpenFile}
+                            openingPath={openingPath}
+                            explainLabel={t('settings.hooks.explain')}
+                            explainingLabel={t('settings.hooks.explaining')}
+                            onExplain={handleExplain}
+                            explanation={explanations.get(uiKey) ?? null}
+                            isExplaining={explaining.has(uiKey)}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
