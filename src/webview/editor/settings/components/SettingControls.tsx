@@ -3,6 +3,37 @@ import { useToast } from '../../../components/Toast';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 
+interface SettingLabelTextProps {
+  label: string;
+  settingKey: string;
+  defaultValue?: unknown;
+}
+
+function formatSettingKeyHint(settingKey: string, defaultValue?: unknown): string {
+  if (
+    defaultValue === '' ||
+    defaultValue === undefined ||
+    defaultValue === null ||
+    Array.isArray(defaultValue) ||
+    typeof defaultValue === 'object'
+  ) {
+    return `(${settingKey})`;
+  }
+
+  return `(${settingKey}:${String(defaultValue)})`;
+}
+
+export function SettingLabelText({ label, settingKey, defaultValue }: SettingLabelTextProps): React.ReactElement {
+  return (
+    <>
+      <span>{label}</span>
+      <span className="settings-key-hint" aria-hidden="true">
+        {formatSettingKeyHint(settingKey, defaultValue)}
+      </span>
+    </>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // BooleanToggle
 // ---------------------------------------------------------------------------
@@ -17,11 +48,11 @@ export interface BooleanToggleProps {
   onDelete: (key: string) => Promise<void>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, defaultValue = false, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { addToast } = useToast();
   const { t } = useI18n();
   const [saving, setSaving] = useState(false);
-  const checked = value ?? defaultValue;
+  const checked = value ?? defaultValue ?? false;
   const resetLabel = t('settings.common.reset');
 
   const handleChange = async (): Promise<void> => {
@@ -56,7 +87,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
             onChange={() => void handleChange()}
             disabled={saving}
           />
-          {label}
+          <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
         </label>
         {value !== undefined && (
           <button
@@ -88,6 +119,7 @@ export interface EnumDropdownProps {
   notSetLabel: string;
   unknownTemplate: string;
   settingKey: string;
+  defaultValue?: unknown;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -101,6 +133,7 @@ export function EnumDropdown({
   notSetLabel,
   unknownTemplate,
   settingKey,
+  defaultValue,
   onSave,
   onDelete,
 }: EnumDropdownProps): React.ReactElement {
@@ -128,7 +161,9 @@ export function EnumDropdown({
 
   return (
     <div className="settings-field">
-      <label className="settings-label" htmlFor={settingKey}>{label}</label>
+      <label className="settings-label" htmlFor={settingKey}>
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+      </label>
       {description && <p className="settings-field-description">{description}</p>}
       <select
         id={settingKey}
@@ -163,6 +198,7 @@ export interface TextSettingProps {
   saveLabel: string;
   clearLabel: string;
   settingKey: string;
+  defaultValue?: unknown;
   scope: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
@@ -176,6 +212,7 @@ export function TextSetting({
   saveLabel,
   clearLabel,
   settingKey,
+  defaultValue,
   scope,
   onSave,
   onDelete,
@@ -218,7 +255,9 @@ export function TextSetting({
 
   return (
     <div className="settings-field">
-      <label className="settings-label" htmlFor={settingKey}>{label}</label>
+      <label className="settings-label" htmlFor={settingKey}>
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+      </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="settings-model-row">
         <input
@@ -269,6 +308,7 @@ export interface TagInputProps {
   addLabel: string;
   duplicateError: string;
   settingKey: string;
+  defaultValue?: unknown;
   onSave: (key: string, value: unknown) => Promise<void>;
 }
 
@@ -282,6 +322,7 @@ export function TagInput({
   addLabel,
   duplicateError,
   settingKey,
+  defaultValue,
   onSave,
 }: TagInputProps): React.ReactElement {
   const { addToast } = useToast();
@@ -330,7 +371,9 @@ export function TagInput({
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{label}</label>
+      <label className="settings-label">
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+      </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="general-tag-list">
         {tags.length === 0 ? (
@@ -394,6 +437,7 @@ export interface NumberSettingProps {
   step?: number;
   minError?: string;
   maxError?: string;
+  defaultValue?: unknown;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -412,6 +456,7 @@ export function NumberSetting({
   step,
   minError,
   maxError,
+  defaultValue,
   onSave,
   onDelete,
 }: NumberSettingProps): React.ReactElement {
@@ -464,7 +509,9 @@ export function NumberSetting({
 
   return (
     <div className="settings-field">
-      <label className="settings-label" htmlFor={settingKey}>{label}</label>
+      <label className="settings-label" htmlFor={settingKey}>
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+      </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="settings-model-row">
         <input

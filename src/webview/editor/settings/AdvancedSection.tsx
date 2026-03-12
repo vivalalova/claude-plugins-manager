@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, TextSetting } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, SettingLabelText, TextSetting } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,9 @@ function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorP
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{t('settings.advanced.attribution.label')}</label>
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.advanced.attribution.label')} settingKey="attribution" />
+      </label>
       <p className="settings-field-description">{t('settings.advanced.attribution.description')}</p>
       <div className="settings-subfield">
         <label className="settings-label" htmlFor="attribution-commit">
@@ -153,7 +155,9 @@ function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProp
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{t('settings.advanced.statusLine.label')}</label>
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.advanced.statusLine.label')} settingKey="statusLine" />
+      </label>
       <p className="settings-field-description">{t('settings.advanced.statusLine.description')}</p>
       <div className="settings-subfield">
         <label className="settings-label" htmlFor="statusLine-command">
@@ -258,7 +262,9 @@ function FileSuggestionEditor({ fileSuggestion, onSave, onDelete }: FileSuggesti
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{t('settings.advanced.fileSuggestion.label')}</label>
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.advanced.fileSuggestion.label')} settingKey="fileSuggestion" />
+      </label>
       <p className="settings-field-description">{t('settings.advanced.fileSuggestion.description')}</p>
       <div className="settings-subfield">
         <label className="settings-label" htmlFor="fileSuggestion-command">
@@ -368,7 +374,9 @@ function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps): React
 
   return (
     <div className="settings-field">
-      <label className="settings-label" htmlFor="sandbox-json">{t('settings.advanced.sandbox.label')}</label>
+      <label className="settings-label" htmlFor="sandbox-json">
+        <SettingLabelText label={t('settings.advanced.sandbox.label')} settingKey="sandbox" />
+      </label>
       <p className="settings-field-description">{t('settings.advanced.sandbox.description')}</p>
       <textarea
         id="sandbox-json"
@@ -459,7 +467,9 @@ function CompanyAnnouncementsEditor({ scope, announcements, onSave }: CompanyAnn
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{t('settings.advanced.companyAnnouncements.label')}</label>
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.advanced.companyAnnouncements.label')} settingKey="companyAnnouncements" />
+      </label>
       <p className="settings-field-description">{t('settings.advanced.companyAnnouncements.description')}</p>
       <div className="general-tag-list">
         {announcements.length === 0 ? (
@@ -639,6 +649,8 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
           saveLabel={saveLabel}
           clearLabel={clearLabel}
           settingKey={key}
+          // Defaults mirror Claude Code's published settings schema.
+          defaultValue={key === 'plansDirectory' ? '~/.claude/plans' : undefined}
           scope={scope}
           onSave={onSave}
           onDelete={onDelete}

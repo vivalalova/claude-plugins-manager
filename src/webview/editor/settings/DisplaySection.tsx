@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, SettingLabelText } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
 
 const KNOWN_TEAMMATE_MODES = ['auto', 'inline', 'tmux', 'iterm2'] as const;
@@ -97,7 +97,9 @@ function SpinnerVerbsEditor({ scope, value, onSave, onDelete }: SpinnerVerbsEdit
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{t('settings.display.spinnerVerbs.label')}</label>
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.display.spinnerVerbs.label')} settingKey="spinnerVerbs" />
+      </label>
       <p className="settings-field-description">{t('settings.display.spinnerVerbs.description')}</p>
 
       <div className="settings-model-row" style={{ marginBottom: '0.5rem' }}>
@@ -261,7 +263,9 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 
   return (
     <div className="settings-field">
-      <label className="settings-label">{t('settings.display.spinnerTipsOverride.label')}</label>
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.display.spinnerTipsOverride.label')} settingKey="spinnerTipsOverride" />
+      </label>
       <p className="settings-field-description">{t('settings.display.spinnerTipsOverride.description')}</p>
 
       <div className="general-tag-list">
@@ -340,6 +344,7 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
   const { t } = useI18n();
 
+  // Defaults mirror Claude Code's published settings schema.
   const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
     { key: 'showTurnDuration', label: t('settings.display.showTurnDuration.label'), description: t('settings.display.showTurnDuration.description') },
     { key: 'spinnerTipsEnabled', label: t('settings.display.spinnerTipsEnabled.label'), description: t('settings.display.spinnerTipsEnabled.description') },
@@ -367,6 +372,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
         notSetLabel={t('settings.display.teammateMode.notSet')}
         unknownTemplate={t('settings.display.teammateMode.unknown')}
         settingKey="teammateMode"
+        defaultValue="auto"
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -378,6 +384,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
           description={description}
           value={settings[key] as boolean | undefined}
           settingKey={key}
+          defaultValue={key === 'prefersReducedMotion' ? false : true}
           onSave={onSave}
           onDelete={onDelete}
         />

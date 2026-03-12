@@ -43,6 +43,16 @@ describe('PermissionsSection — 渲染', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Permissions' })).toBeTruthy());
   });
 
+  it('TagInput 類型欄位顯示 key hint 但不顯示陣列預設值', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect(screen.getByText('(additionalDirectories)')).toBeTruthy();
+      expect(screen.getByText('(enabledMcpjsonServers)')).toBeTruthy();
+      expect(screen.getByText('(disabledMcpjsonServers)')).toBeTruthy();
+    });
+  });
+
   it('顯示 Additional Directories label', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText('Additional Directories')).toBeTruthy());

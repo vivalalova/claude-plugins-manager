@@ -48,6 +48,20 @@ describe('DisplaySection — 渲染', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Display' })).toBeTruthy());
   });
 
+  it('共用欄位與自寫 editor 顯示 key hint，只有可確認 defaultValue 的欄位顯示預設值', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect(screen.getByText('(teammateMode:auto)')).toBeTruthy();
+      expect(screen.getByText('(showTurnDuration:true)')).toBeTruthy();
+      expect(screen.getByText('(spinnerTipsEnabled:true)')).toBeTruthy();
+      expect(screen.getByText('(terminalProgressBarEnabled:true)')).toBeTruthy();
+      expect(screen.getByText('(prefersReducedMotion:false)')).toBeTruthy();
+      expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
+    });
+  });
+
   it('顯示 5 個 checkbox（4 boolean toggle + excludeDefault）', async () => {
     renderSection();
     await waitFor(() => {
@@ -82,15 +96,15 @@ describe('DisplaySection — 渲染', () => {
 // ---------------------------------------------------------------------------
 
 describe('DisplaySection — 驗收條件', () => {
-  it('showTurnDuration 未設定 → checkbox unchecked', async () => {
+  it('showTurnDuration 未設定 → checkbox checked（反映預設值 true）', async () => {
     renderSection({});
     await waitFor(() => {
       const cb = screen.getByRole('checkbox', { name: 'Show Turn Duration' }) as HTMLInputElement;
-      expect(cb.checked).toBe(false);
+      expect(cb.checked).toBe(true);
     });
   });
 
-  it('showTurnDuration 未設定, 點擊 → onSave("showTurnDuration", true)', async () => {
+  it('showTurnDuration 未設定, 點擊 → onSave("showTurnDuration", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave, onDelete);
@@ -99,7 +113,7 @@ describe('DisplaySection — 驗收條件', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show Turn Duration' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('showTurnDuration', true);
+      expect(onSave).toHaveBeenCalledWith('showTurnDuration', false);
       expect(onDelete).not.toHaveBeenCalled();
     });
   });
@@ -109,6 +123,46 @@ describe('DisplaySection — 驗收條件', () => {
     await waitFor(() => {
       const cb = screen.getByRole('checkbox', { name: 'Reduce Motion' }) as HTMLInputElement;
       expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('spinnerTipsEnabled 未設定 → checkbox checked（反映預設值 true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Spinner Tips' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('spinnerTipsEnabled 未設定, 點擊 → onSave("spinnerTipsEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Spinner Tips' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Spinner Tips' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('spinnerTipsEnabled', false);
+    });
+  });
+
+  it('terminalProgressBarEnabled 未設定 → checkbox checked（反映預設值 true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Terminal Progress Bar' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('terminalProgressBarEnabled 未設定, 點擊 → onSave("terminalProgressBarEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Terminal Progress Bar' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Terminal Progress Bar' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('terminalProgressBarEnabled', false);
     });
   });
 

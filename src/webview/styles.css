@@ -1847,6 +1847,12 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   opacity: 0.85;
 }
 
+.settings-key-hint {
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground);
+  margin-left: 4px;
+}
+
 .settings-toggle-row {
   display: flex;
   gap: 8px;

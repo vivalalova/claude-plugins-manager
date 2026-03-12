@@ -51,6 +51,15 @@ describe('HooksSection — 渲染', () => {
     });
   });
 
+  it('HooksSection 不顯示 settings key hint', async () => {
+    const { container } = renderSection({});
+
+    await waitFor(() => {
+      expect(screen.getByText('No hooks configured')).toBeTruthy();
+      expect(container.querySelector('.settings-key-hint')).toBeNull();
+    });
+  });
+
   it('有 hooks → 顯示 event type 標題', async () => {
     renderSection({
       hooks: {

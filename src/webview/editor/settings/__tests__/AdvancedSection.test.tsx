@@ -62,6 +62,22 @@ describe('AdvancedSection — 渲染', () => {
     expect(screen.getByText(label)).toBeTruthy();
   });
 
+  it('共用欄位與自寫 editor 顯示 key hint，只有已知預設值的欄位顯示預設值', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect(screen.getByText('(forceLoginMethod)')).toBeTruthy();
+      expect(screen.getByText('(attribution)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(statusLine)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(fileSuggestion)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(sandbox)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(companyAnnouncements)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(plansDirectory:~/.claude/plans)')).toBeTruthy();
+      expect(screen.getByText('(apiKeyHelper)')).toBeTruthy();
+      expect(screen.getByText('(skipWebFetchPreflight)')).toBeTruthy();
+    });
+  });
+
   it('apiKeyHelper 有值時顯示值於 input', () => {
     renderSection({ apiKeyHelper: './get-key.sh' });
     const input = screen.getByPlaceholderText('e.g. ./scripts/get-api-key.sh') as HTMLInputElement;

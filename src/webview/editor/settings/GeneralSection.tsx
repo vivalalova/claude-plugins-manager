@@ -41,13 +41,14 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
     latest: t('settings.general.autoUpdatesChannel.latest'),
   };
 
+  // Defaults mirror Claude Code's published settings schema.
   const booleanFields: { key: keyof ClaudeSettings; label: string; description: string; defaultValue?: boolean }[] = [
     { key: 'enableAllProjectMcpServers', label: t('settings.general.enableAllProjectMcpServers.label'), description: t('settings.general.enableAllProjectMcpServers.description') },
     { key: 'includeGitInstructions', label: t('settings.general.includeGitInstructions.label'), description: t('settings.general.includeGitInstructions.description'), defaultValue: true },
     { key: 'respectGitignore', label: t('settings.general.respectGitignore.label'), description: t('settings.general.respectGitignore.description'), defaultValue: true },
-    { key: 'fastMode', label: t('settings.general.fastMode.label'), description: t('settings.general.fastMode.description') },
-    { key: 'fastModePerSessionOptIn', label: t('settings.general.fastModePerSessionOptIn.label'), description: t('settings.general.fastModePerSessionOptIn.description') },
-    { key: 'autoMemoryEnabled', label: t('settings.general.autoMemoryEnabled.label'), description: t('settings.general.autoMemoryEnabled.description') },
+    { key: 'fastMode', label: t('settings.general.fastMode.label'), description: t('settings.general.fastMode.description'), defaultValue: false },
+    { key: 'fastModePerSessionOptIn', label: t('settings.general.fastModePerSessionOptIn.label'), description: t('settings.general.fastModePerSessionOptIn.description'), defaultValue: false },
+    { key: 'autoMemoryEnabled', label: t('settings.general.autoMemoryEnabled.label'), description: t('settings.general.autoMemoryEnabled.description'), defaultValue: true },
     { key: 'alwaysThinkingEnabled', label: t('settings.general.alwaysThinkingEnabled.label'), description: t('settings.general.alwaysThinkingEnabled.description') },
   ];
 
@@ -70,6 +71,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         notSetLabel={t('settings.general.effortLevel.notSet')}
         unknownTemplate={t('settings.general.effortLevel.unknown')}
         settingKey="effortLevel"
+        defaultValue="high"
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -135,6 +137,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         notSetLabel={t('settings.general.autoUpdatesChannel.notSet')}
         unknownTemplate={t('settings.general.autoUpdatesChannel.unknown')}
         settingKey="autoUpdatesChannel"
+        defaultValue="latest"
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -147,6 +150,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         saveLabel={t('settings.general.cleanupPeriodDays.save')}
         clearLabel={t('settings.general.cleanupPeriodDays.clear')}
         settingKey="cleanupPeriodDays"
+        defaultValue={30}
         scope={scope}
         min={0}
         step={1}

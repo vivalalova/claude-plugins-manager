@@ -74,6 +74,15 @@ describe('EnvSection — 渲染', () => {
     });
   });
 
+  it('EnvSection 不顯示 settings key hint', async () => {
+    const { container } = renderEnvSection({});
+
+    await waitFor(() => {
+      expect(screen.getByText('No environment variables defined')).toBeTruthy();
+      expect(container.querySelector('.settings-key-hint')).toBeNull();
+    });
+  });
+
   it('有 env vars 顯示 key/value rows', async () => {
     renderEnvSection({ env: { MY_VAR: 'hello', ANOTHER: 'world' } });
 

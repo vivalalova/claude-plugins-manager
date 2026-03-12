@@ -45,6 +45,20 @@ describe('GeneralSection — 渲染', () => {
     await waitFor(() => expect(screen.getByText('Effort Level')).toBeTruthy());
   });
 
+  it('共用設定欄位顯示 key hint，僅已提供 defaultValue 的欄位顯示預設值', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect(screen.getByText('(effortLevel:high)')).toBeTruthy();
+      expect(screen.getByText('(language)')).toBeTruthy();
+      expect(screen.getByText('(availableModels)')).toBeTruthy();
+      expect(screen.getByText('(includeGitInstructions:true)')).toBeTruthy();
+      expect(screen.getByText('(fastMode:false)')).toBeTruthy();
+      expect(screen.getByText('(cleanupPeriodDays:30)')).toBeTruthy();
+      expect(screen.getByText('(autoUpdatesChannel:latest)')).toBeTruthy();
+    });
+  });
+
   it('顯示 Language 欄位', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText('Language')).toBeTruthy());
@@ -214,7 +228,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
   });
 
-  it('autoMemoryEnabled 未設定, toggle on → onSave("autoMemoryEnabled", true)', async () => {
+  it('autoMemoryEnabled 未設定, toggle off 預設值 → onSave("autoMemoryEnabled", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -222,7 +236,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Auto Memory' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('autoMemoryEnabled', true);
+      expect(onSave).toHaveBeenCalledWith('autoMemoryEnabled', false);
     });
   });
 
