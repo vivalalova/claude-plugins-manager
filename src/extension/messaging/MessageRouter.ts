@@ -10,6 +10,7 @@ import type { SettingsFileService } from '../services/SettingsFileService';
 import type { HookExplanationService } from '../services/HookExplanationService';
 import type { ExtensionInfoService } from '../services/ExtensionInfoService';
 import type { RequestMessage, ResponseMessage } from './protocol';
+import { PLUGINS_CACHE_DIR } from '../constants';
 
 type PostFn = (msg: ResponseMessage) => void;
 
@@ -165,11 +166,24 @@ export class MessageRouter {
       case 'extension.getInfo':
         return this.extensionInfo.getInfo();
 
-      case 'extension.revealPath':
-        return {};
+      case 'extension.revealPath': {
+        const home = os.homedir();
+        const resolved = message.path.startsWith('~/')
+          ? home + message.path.slice(1)
+          : message.path;
+        if (!fs.existsSync(resolved)) {
+          throw new Error(`Path does not exist: ${resolved}`);
+        }
+        await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(resolved));
+        return;
+      }
 
-      case 'extension.clearCache':
-        return {};
+      case 'extension.clearCache': {
+        const { rm, mkdir: mkdirAsync } = await import('fs/promises');
+        await rm(PLUGINS_CACHE_DIR, { recursive: true, force: true });
+        await mkdirAsync(PLUGINS_CACHE_DIR, { recursive: true });
+        return { cleared: true, path: PLUGINS_CACHE_DIR };
+      }
 
       case 'settings.openInEditor': {
         const filePath = this.settings.getSettingsPath(message.scope);
