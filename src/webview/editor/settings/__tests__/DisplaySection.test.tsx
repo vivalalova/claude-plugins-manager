@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { DisplaySection } from '../DisplaySection';
 import { ToastProvider } from '../../../components/Toast';
@@ -112,7 +112,7 @@ describe('DisplaySection — 驗收條件', () => {
     });
   });
 
-  it('prefersReducedMotion=true, 點擊 → onDelete("prefersReducedMotion")', async () => {
+  it('prefersReducedMotion=true, 點擊 → onSave("prefersReducedMotion", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ prefersReducedMotion: true }, onSave, onDelete);
@@ -121,8 +121,30 @@ describe('DisplaySection — 驗收條件', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Reduce Motion' }));
 
     await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('prefersReducedMotion', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('prefersReducedMotion 未設定 → 無 Reset 按鈕', async () => {
+    renderSection({});
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Reduce Motion' }));
+    const field = screen.getByRole('checkbox', { name: 'Reduce Motion' }).closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: /Reset/ })).toBeNull();
+  });
+
+  it('prefersReducedMotion=true → Reset 按鈕顯示，點擊 → onDelete("prefersReducedMotion")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ prefersReducedMotion: true }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Reduce Motion' }));
+    const field = screen.getByRole('checkbox', { name: 'Reduce Motion' }).closest('.settings-field') as HTMLElement;
+    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
+    expect(resetBtn).toBeTruthy();
+    fireEvent.click(resetBtn);
+
+    await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('prefersReducedMotion');
-      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

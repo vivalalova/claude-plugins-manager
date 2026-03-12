@@ -111,15 +111,33 @@ describe('AdvancedSection — skipWebFetchPreflight toggle', () => {
     });
   });
 
-  it('skipWebFetchPreflight=true, toggle off → onDelete("skipWebFetchPreflight"), onSave 不呼叫', async () => {
+  it('skipWebFetchPreflight=true, toggle off → onSave("skipWebFetchPreflight", false), onDelete 不呼叫', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ skipWebFetchPreflight: true }, onSave, onDelete);
     const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('checkbox'));
     await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('skipWebFetchPreflight', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('skipWebFetchPreflight 未設定 → 無 Reset 按鈕', () => {
+    renderSection({});
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: /Reset/ })).toBeNull();
+  });
+
+  it('skipWebFetchPreflight=true → Reset 按鈕顯示，點擊 → onDelete("skipWebFetchPreflight")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ skipWebFetchPreflight: true }, vi.fn(), onDelete);
+    const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
+    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
+    expect(resetBtn).toBeTruthy();
+    fireEvent.click(resetBtn);
+    await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('skipWebFetchPreflight');
-      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

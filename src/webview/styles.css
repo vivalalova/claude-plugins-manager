@@ -1847,6 +1847,12 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   opacity: 0.85;
 }
 
+.settings-toggle-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .settings-model-row {
   display: flex;
   gap: 8px;

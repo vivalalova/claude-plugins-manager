@@ -173,6 +173,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.general.autoUpdatesChannel.latest': '最新版',
   'settings.general.alwaysThinkingEnabled.label': '永遠開啟深度思考',
   'settings.general.alwaysThinkingEnabled.description': '永遠啟用深度思考（extended thinking），不受其他設定影響',
+  // Common
+  'settings.common.reset': '重設',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制登入方式',
   'settings.advanced.forceLoginMethod.description': '強制 Claude 使用特定登入方式',

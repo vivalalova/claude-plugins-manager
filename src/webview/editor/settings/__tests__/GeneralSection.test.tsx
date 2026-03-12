@@ -147,7 +147,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
   });
 
-  it('toggle on→off → 呼叫 onDelete("fastMode")', async () => {
+  it('toggle on→off → 呼叫 onSave("fastMode", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ fastMode: true }, onSave, onDelete);
@@ -156,8 +156,8 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Fast Mode' }));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('fastMode');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('fastMode', false);
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 
@@ -188,7 +188,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
   });
 
-  it('autoMemoryEnabled=true, toggle off → onDelete("autoMemoryEnabled")', async () => {
+  it('autoMemoryEnabled=true, toggle off → onSave("autoMemoryEnabled", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ autoMemoryEnabled: true }, onSave, onDelete);
@@ -197,8 +197,8 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Auto Memory' }));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('autoMemoryEnabled');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('autoMemoryEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 
@@ -226,7 +226,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
   });
 
-  it('fastModePerSessionOptIn=true, toggle off → onDelete("fastModePerSessionOptIn")', async () => {
+  it('fastModePerSessionOptIn=true, toggle off → onSave("fastModePerSessionOptIn", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ fastModePerSessionOptIn: true }, onSave, onDelete);
@@ -235,8 +235,51 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' }));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('fastModePerSessionOptIn');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('fastModePerSessionOptIn', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BooleanToggle Reset 按鈕
+// ---------------------------------------------------------------------------
+
+describe('GeneralSection — BooleanToggle Reset 按鈕', () => {
+  it('fastMode 未設定 → 無 Reset 按鈕', async () => {
+    renderSection({});
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode' }));
+    const field = screen.getByRole('checkbox', { name: 'Fast Mode' }).closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: /Reset/ })).toBeNull();
+  });
+
+  it('fastMode=true → Reset 按鈕顯示，點擊 → onDelete("fastMode")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fastMode: true }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode' }));
+    const field = screen.getByRole('checkbox', { name: 'Fast Mode' }).closest('.settings-field') as HTMLElement;
+    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
+    expect(resetBtn).toBeTruthy();
+    fireEvent.click(resetBtn);
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('fastMode');
+    });
+  });
+
+  it('fastMode=false → Reset 按鈕顯示，點擊 → onDelete("fastMode")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fastMode: false }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode' }));
+    const field = screen.getByRole('checkbox', { name: 'Fast Mode' }).closest('.settings-field') as HTMLElement;
+    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
+    expect(resetBtn).toBeTruthy();
+    fireEvent.click(resetBtn);
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('fastMode');
     });
   });
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useToast } from '../../../components/Toast';
+import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -11,23 +12,33 @@ export interface BooleanToggleProps {
   description?: string;
   value: boolean | undefined;
   settingKey: string;
+  defaultValue?: boolean;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue = false, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
-  const checked = value ?? false;
+  const checked = value ?? defaultValue;
+  const resetLabel = t('settings.common.reset');
 
   const handleChange = async (): Promise<void> => {
     setSaving(true);
     try {
-      if (checked) {
-        await onDelete(settingKey);
-      } else {
-        await onSave(settingKey, true);
-      }
+      await onSave(settingKey, !checked);
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      await onDelete(settingKey);
     } catch (e) {
       addToast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -37,15 +48,28 @@ export function BooleanToggle({ label, description, value, settingKey, onSave, o
 
   return (
     <div className="settings-field">
-      <label className="hooks-toggle-label">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={() => void handleChange()}
-          disabled={saving}
-        />
-        {label}
-      </label>
+      <div className="settings-toggle-row">
+        <label className="hooks-toggle-label">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => void handleChange()}
+            disabled={saving}
+          />
+          {label}
+        </label>
+        {value !== undefined && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleReset()}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
+          </button>
+        )}
+      </div>
       {description && <p className="settings-field-description">{description}</p>}
     </div>
   );

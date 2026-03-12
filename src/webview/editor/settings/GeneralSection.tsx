@@ -41,10 +41,10 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
     latest: t('settings.general.autoUpdatesChannel.latest'),
   };
 
-  const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
+  const booleanFields: { key: keyof ClaudeSettings; label: string; description: string; defaultValue?: boolean }[] = [
     { key: 'enableAllProjectMcpServers', label: t('settings.general.enableAllProjectMcpServers.label'), description: t('settings.general.enableAllProjectMcpServers.description') },
-    { key: 'includeGitInstructions', label: t('settings.general.includeGitInstructions.label'), description: t('settings.general.includeGitInstructions.description') },
-    { key: 'respectGitignore', label: t('settings.general.respectGitignore.label'), description: t('settings.general.respectGitignore.description') },
+    { key: 'includeGitInstructions', label: t('settings.general.includeGitInstructions.label'), description: t('settings.general.includeGitInstructions.description'), defaultValue: true },
+    { key: 'respectGitignore', label: t('settings.general.respectGitignore.label'), description: t('settings.general.respectGitignore.description'), defaultValue: true },
     { key: 'fastMode', label: t('settings.general.fastMode.label'), description: t('settings.general.fastMode.description') },
     { key: 'fastModePerSessionOptIn', label: t('settings.general.fastModePerSessionOptIn.label'), description: t('settings.general.fastModePerSessionOptIn.description') },
     { key: 'autoMemoryEnabled', label: t('settings.general.autoMemoryEnabled.label'), description: t('settings.general.autoMemoryEnabled.description') },
@@ -100,13 +100,14 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         onSave={onSave}
       />
 
-      {booleanFields.map(({ key, label, description }) => (
+      {booleanFields.map(({ key, label, description, defaultValue }) => (
         <BooleanToggle
           key={key}
           label={label}
           description={description}
           value={settings[key] as boolean | undefined}
           settingKey={key}
+          defaultValue={defaultValue}
           onSave={onSave}
           onDelete={onDelete}
         />

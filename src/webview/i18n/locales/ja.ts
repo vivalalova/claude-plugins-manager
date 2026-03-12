@@ -282,6 +282,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.general.autoUpdatesChannel.latest': '最新版',
   'settings.general.alwaysThinkingEnabled.label': '常に深い思考を有効化',
   'settings.general.alwaysThinkingEnabled.description': '他の設定に関わらず、常に深い思考（extended thinking）を有効化',
+  // Common
+  'settings.common.reset': 'リセット',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制ログイン方法',
   'settings.advanced.forceLoginMethod.description': 'Claude の特定のログイン方法を強制',

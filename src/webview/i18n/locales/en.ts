@@ -171,6 +171,8 @@ export const en = {
   'settings.general.autoUpdatesChannel.latest': 'Latest',
   'settings.general.alwaysThinkingEnabled.label': 'Always Thinking Enabled',
   'settings.general.alwaysThinkingEnabled.description': 'Always enable extended thinking regardless of other settings',
+  // Common
+  'settings.common.reset': 'Reset',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': 'Force Login Method',
   'settings.advanced.forceLoginMethod.description': 'Force a specific login method for Claude',
