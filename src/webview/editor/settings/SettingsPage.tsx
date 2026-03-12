@@ -200,25 +200,16 @@ export function SettingsPage(): React.ReactElement {
       .catch(() => setHasWorkspace(false));
   }, []);
 
-  const fetchSettings = useCallback(async (targetScope: PluginScope) => {
-    setLoading(true);
-    setError(null);
+  const fetchSettings = useCallback(async (targetScope: PluginScope, silent = false) => {
+    if (!silent) { setLoading(true); setError(null); }
     try {
       const data = await sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope });
       setSettings(data);
+      setError(null); // 成功即清錯，不論 silent（避免舊 error banner 殘留）
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!silent) setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const refreshSettings = useCallback(async (targetScope: PluginScope) => {
-    try {
-      const data = await sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope });
-      setSettings(data);
-    } catch {
-      // silent — 外部變更 refresh 失敗不影響使用
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -230,10 +221,10 @@ export function SettingsPage(): React.ReactElement {
   useEffect(() => {
     return onPushMessage((msg) => {
       if (msg.type === 'settings.refresh') {
-        refreshSettings(scope);
+        fetchSettings(scope, true);
       }
     });
-  }, [scope, refreshSettings]);
+  }, [scope, fetchSettings]);
 
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
@@ -243,9 +234,8 @@ export function SettingsPage(): React.ReactElement {
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
     setSettings((prev) => {
-      const next = { ...prev };
-      delete (next as Record<string, unknown>)[key];
-      return next;
+      const { [key]: _, ...rest } = prev as Record<string, unknown>;
+      return rest as ClaudeSettings;
     });
   }, [scope]);
 

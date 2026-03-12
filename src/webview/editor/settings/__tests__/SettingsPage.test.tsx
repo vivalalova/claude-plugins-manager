@@ -26,6 +26,9 @@ import { ToastProvider } from '../../../components/Toast';
 
 const renderPage = () => renderWithI18n(<ToastProvider><SettingsPage /></ToastProvider>);
 
+const getCalls = (type: string): any[][] =>
+  mockSendRequest.mock.calls.filter((c: any[]) => c[0]?.type === type);
+
 describe('SettingsPage', () => {
   beforeEach(() => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
@@ -162,12 +165,10 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Project').closest('button')!);
 
     await waitFor(() => {
-      const settingsGetCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.get',
-      );
+      const settingsGetCalls = getCalls('settings.get');
       // user scope + project scope = 2 calls
       expect(settingsGetCalls.length).toBeGreaterThanOrEqual(2);
-      expect(settingsGetCalls.some((c: any[]) => c[0]?.scope === 'project')).toBe(true);
+      expect(settingsGetCalls.some((c) => c[0]?.scope === 'project')).toBe(true);
     });
   });
 
@@ -179,9 +180,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getAllByRole('combobox'));
 
-    const getCountBefore = mockSendRequest.mock.calls.filter(
-      (c: any[]) => c[0]?.type === 'settings.get',
-    ).length;
+    const getCountBefore = getCalls('settings.get').length;
 
     const modelSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
       .find((s) => s.className.includes('settings-model-select'))!;
@@ -189,9 +188,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       expect(setCalls[0][0]).toMatchObject({
         type: 'settings.set',
@@ -202,9 +199,7 @@ describe('SettingsPage', () => {
     });
 
     // optimistic update：save 後不觸發 settings.get
-    const getCountAfter = mockSendRequest.mock.calls.filter(
-      (c: any[]) => c[0]?.type === 'settings.get',
-    ).length;
+    const getCountAfter = getCalls('settings.get').length;
     expect(getCountAfter).toBe(getCountBefore);
   });
 
@@ -224,16 +219,12 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getByText('Clear'));
 
-    const getCountBefore = mockSendRequest.mock.calls.filter(
-      (c: any[]) => c[0]?.type === 'settings.get',
-    ).length;
+    const getCountBefore = getCalls('settings.get').length;
 
     fireEvent.click(screen.getByText('Clear'));
 
     await waitFor(() => {
-      const deleteCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.delete',
-      );
+      const deleteCalls = getCalls('settings.delete');
       expect(deleteCalls.length).toBe(1);
       expect(deleteCalls[0][0]).toMatchObject({
         type: 'settings.delete',
@@ -243,9 +234,7 @@ describe('SettingsPage', () => {
     });
 
     // optimistic update：delete 後不觸發 settings.get
-    const getCountAfter = mockSendRequest.mock.calls.filter(
-      (c: any[]) => c[0]?.type === 'settings.get',
-    ).length;
+    const getCountAfter = getCalls('settings.get').length;
     expect(getCountAfter).toBe(getCountBefore);
   });
 
@@ -263,10 +252,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
-      expect(setCalls.length).toBe(1);
+      expect(getCalls('settings.set').length).toBe(1);
     });
 
     // optimistic update 後 select 應保持 claude-sonnet-4-6（不被 mock 的 {} 覆蓋）
@@ -416,9 +402,7 @@ describe('SettingsPage', () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       const { value } = setCalls[0][0];
       expect(value.allow).toEqual(['WebSearch']);
@@ -444,9 +428,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByLabelText('Remove rule WebSearch'));
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       expect(setCalls[0][0].value.allow).toEqual([]);
     });
@@ -474,9 +456,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Add Rule'));
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       expect(setCalls[0][0].value.allow).toContain('WebFetch');
     });
@@ -504,10 +484,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Rule already exists')).toBeTruthy();
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
-      expect(setCalls.length).toBe(0);
+      expect(getCalls('settings.set').length).toBe(0);
     });
   });
 
@@ -532,9 +509,7 @@ describe('SettingsPage', () => {
     fireEvent.change(defaultModeSelect, { target: { value: 'ask' } });
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       expect(setCalls[0][0].value.defaultMode).toBe('ask');
     });
@@ -566,10 +541,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Cancel'));
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
-      expect(setCalls.length).toBe(0);
+      expect(getCalls('settings.set').length).toBe(0);
     });
   });
 
@@ -594,9 +566,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Confirm'));
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       expect(setCalls[0][0].value.defaultMode).toBe('bypassPermissions');
     });
@@ -622,9 +592,7 @@ describe('SettingsPage', () => {
     fireEvent.change(selects[0], { target: { value: '' } });
 
     await waitFor(() => {
-      const setCalls = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.set',
-      );
+      const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
       expect(setCalls[0][0].value).not.toHaveProperty('defaultMode');
     });
@@ -659,18 +627,13 @@ describe('SettingsPage', () => {
     renderPage();
     await waitFor(() => screen.getAllByRole('combobox'));
 
-    const beforeCount = mockSendRequest.mock.calls.filter(
-      (c: any[]) => c[0]?.type === 'settings.get',
-    ).length;
+    const beforeCount = getCalls('settings.get').length;
 
     // 觸發 push message
     capture.fn?.({ type: 'settings.refresh' });
 
     await waitFor(() => {
-      const afterCount = mockSendRequest.mock.calls.filter(
-        (c: any[]) => c[0]?.type === 'settings.get',
-      ).length;
-      expect(afterCount).toBeGreaterThan(beforeCount);
+      expect(getCalls('settings.get').length).toBeGreaterThan(beforeCount);
     });
   });
 });
