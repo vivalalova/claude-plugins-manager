@@ -669,6 +669,36 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
     const field = input.closest('.settings-field') as HTMLElement;
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
   });
+
+  it('切換 scope 時，即使 persisted command 相同，也會丟棄未儲存輸入並重設為已存值', () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderSection(
+      { fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } },
+      onSave,
+      onDelete,
+      'user',
+    );
+
+    const input = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'bash ~/edited-but-unsaved.sh' } });
+    expect(input.value).toBe('bash ~/edited-but-unsaved.sh');
+
+    rerender(
+      <I18nProvider>
+        <ToastProvider>
+          <AdvancedSection
+            scope="project"
+            settings={{ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } } as any}
+            onSave={onSave}
+            onDelete={onDelete}
+          />
+        </ToastProvider>
+      </I18nProvider>,
+    );
+
+    expect((screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER) as HTMLInputElement).value).toBe('bash ~/suggest.sh');
+  });
 });
 
 // ---------------------------------------------------------------------------
