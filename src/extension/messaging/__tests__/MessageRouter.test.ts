@@ -49,6 +49,9 @@ function createMockServices() {
       explain: vi.fn().mockResolvedValue({ explanation: 'test explanation', fromCache: false }),
       cleanExpired: vi.fn().mockResolvedValue(undefined),
     },
+    extensionInfo: {
+      getInfo: vi.fn().mockResolvedValue({ extensionVersion: '0.1.2', cliPath: '/usr/local/bin/claude', cliVersion: '1.0.0' }),
+    },
   };
 }
 
@@ -66,6 +69,7 @@ describe('MessageRouter', () => {
       services.translation as unknown as TranslationService,
       services.settings as unknown as SettingsFileService,
       services.hookExplanation as unknown as HookExplanationService,
+      services.extensionInfo as never,
     );
     posted = [];
   });

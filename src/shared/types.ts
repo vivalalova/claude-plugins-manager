@@ -329,3 +329,19 @@ export interface MergedPlugin {
   /** local scope 安裝（null = 未安裝） */
   localInstall: InstalledPlugin | null;
 }
+
+/** Extension Info 頁面資料 */
+export interface ExtensionInfo {
+  extensionVersion: string;
+  extensionName: string;
+  publisher: string;
+  repoUrl: string | null;
+  cliPath: string | null;
+  cliVersion: string | null;
+  cacheDirPath: string;
+  pluginsDirPath: string;
+  installedPluginsPath: string;
+  knownMarketplacesPath: string;
+  extensionPath: string;
+  preferencesPath: string;
+}

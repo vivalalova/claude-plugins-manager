@@ -31,7 +31,7 @@ interface ExecError {
  */
 export class CliService {
   /** claude CLI 完整路徑（VSCode extension host 的 PATH 不含 ~/.local/bin） */
-  private readonly claudePath: string;
+  readonly claudePath: string;
 
   constructor() {
     const candidates = [

@@ -1,39 +1,53 @@
 ---
-title: Extension Info 骨架：constants + protocol + routing
+title: ExtensionInfoService + extension.getInfo handler
 created: 2026-03-13
 priority: critical
-suggested_order: A01
+suggested_order: B01
+blockedBy: a01-extension-info-skeleton
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# Extension Info 骨架：constants + protocol + routing
+# ExtensionInfoService + extension.getInfo handler
 
-Extension Info 頁作為第 5 個 Editor panel 接入現有 panel 系統。需要在多處加入 `'info'` category 支援，並建立空白 InfoPage 骨架。
+新增 `ExtensionInfoService`，負責收集所有 extension 相關靜態與動態資訊，並接上 MessageRouter。
 
 ## 異動範圍
 
-1. `src/extension/constants.ts` — `PanelCategory` union type 加 `'info'`、`PANEL_TITLES` 加標題、`COMMANDS` 加 `openInfo`
-2. `src/webview/sidebar/SidebarApp.tsx` — `categories` 陣列加一項（icon 用 `ℹ️`，無 count badge）
-3. `src/webview/editor/EditorApp.tsx` — switch 加 `case 'info'` 渲染 InfoPage
-4. 新增 `src/webview/editor/info/InfoPage.tsx` — 空白骨架（標題 + placeholder）
-5. `src/extension/messaging/protocol.ts` — 新增 `extension.getInfo` / `extension.revealPath` / `extension.clearCache` request types
-6. `src/extension/messaging/MessageRouter.ts` — 新增 dispatch cases（先 stub，回傳空物件）
-7. `package.json` contributes.commands 加 `openInfo`
-8. `src/extension/extension.ts` — 註冊新 command
-9. i18n locales (en, zh-TW, ja) 加 `info.*` 翻譯 key
+1. 新增 `src/extension/services/ExtensionInfoService.ts`
+2. `src/shared/types.ts` — 新增 `ExtensionInfo` interface
+3. `src/extension/services/CliService.ts` — `claudePath` 改為 public readonly 或加 getter
+4. `src/extension/messaging/MessageRouter.ts` — 注入 ExtensionInfoService，`extension.getInfo` dispatch 呼叫 service
+5. `src/extension/extension.ts` — 建構 ExtensionInfoService 並傳入 MessageRouter
+
+## ExtensionInfo 欄位
+
+| 欄位 | 型別 | 來源 |
+|------|------|------|
+| extensionVersion | string | `context.extension.packageJSON.version` |
+| extensionName | string | `context.extension.packageJSON.displayName` |
+| publisher | string | `context.extension.packageJSON.publisher` |
+| repoUrl | string | `package.json` repository.url |
+| cliPath | string \| null | `CliService.claudePath` |
+| cliVersion | string \| null | `claude --version`（lazy load） |
+| cacheDirPath | string | `PLUGINS_CACHE_DIR` |
+| pluginsDirPath | string | `~/.claude/plugins/` |
+| installedPluginsPath | string | `~/.claude/plugins/installed_plugins.json` |
+| knownMarketplacesPath | string | `~/.claude/plugins/known_marketplaces.json` |
+| extensionPath | string | `context.extensionUri.fsPath` |
+| preferencesPath | string | `~/.claude/claude-plugins-manager/preferences.json` |
 
 ## User Stories
 
-- As a user, I want to see a 5th "Info" button in the sidebar, so that I can access extension information
-- As a user, I want to open Info page from Command Palette, so that I have multiple entry points
+- As a user, I want the Info page to show my extension version and CLI version, so that I can verify my setup
+- As a user, I want to see all relevant file paths, so that I know where configuration is stored
 
 ## 驗收條件
 
-- Given sidebar 已載入，When 使用者觀察 sidebar，Then 看到 5 個按鈕，第 5 個為 Info（ℹ️ icon，無 badge）
-- Given 使用者點擊 Info 按鈕，When Editor panel 打開，Then 顯示 InfoPage 骨架（標題 + 空白區域）
-- Given Command Palette 搜尋 "Open Extension Info"，When 執行，Then 打開 Info editor panel
-- Given protocol 已定義 `extension.getInfo`，When webview 發送此 request，Then MessageRouter 不拋 "Unknown message type"
-- Given `npm run typecheck && npm test && npm run build`，When 執行，Then 全部通過
+- Given ExtensionInfoService 已建構，When 呼叫 `getInfo()`，Then 回傳包含所有必填欄位的 ExtensionInfo 物件
+- Given CLI 已安裝，When `getInfo()` 被呼叫，Then `cliVersion` 包含實際版本字串
+- Given CLI 未安裝，When `getInfo()` 被呼叫，Then `cliVersion` 為 null，不拋例外
+- Given MessageRouter 收到 `extension.getInfo` request，When dispatch，Then 回傳 ExtensionInfo 物件
+- Given `npm run typecheck && npm test`，When 執行，Then 全部通過

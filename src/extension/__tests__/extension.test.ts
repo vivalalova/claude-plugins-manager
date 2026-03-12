@@ -113,6 +113,7 @@ describe('activate', () => {
   it('註冊 sidebar、commands，並把檔案/ workspace 事件綁到對應服務', () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
+      extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
 
@@ -147,6 +148,7 @@ describe('activate', () => {
   it('subscriptions 內的 cleanup disposable 會釋放 manager/provider/service/fileWatcher', () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
+      extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
 
@@ -165,6 +167,7 @@ describe('activate', () => {
   it('workspace folder listener 會加入 subscriptions，dispose 後不再觸發 mcp cache invalidate', () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
+      extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
 
