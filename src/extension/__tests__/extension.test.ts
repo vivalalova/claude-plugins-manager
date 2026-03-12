@@ -122,8 +122,8 @@ describe('activate', () => {
       'mock.sidebar.view',
       state.sidebarProviderInstance,
     );
-    expect(commands.registerCommand).toHaveBeenCalledTimes(4);
-    expect(context.subscriptions).toHaveLength(10);
+    expect(commands.registerCommand).toHaveBeenCalledTimes(5);
+    expect(context.subscriptions).toHaveLength(11);
 
     const commandCalls = commands.registerCommand.mock.calls;
     commandCalls.find(([id]) => id === COMMANDS.openMarketplace)?.[1]();
@@ -170,7 +170,7 @@ describe('activate', () => {
 
     activate(context as never);
 
-    expect(context.subscriptions).toHaveLength(10);
+    expect(context.subscriptions).toHaveLength(11);
 
     for (const disposable of context.subscriptions) {
       disposable.dispose?.();

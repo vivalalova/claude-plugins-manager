@@ -10,6 +10,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'sidebar.mcp.desc': 'MCP サーバー接続を管理',
   'sidebar.settings': '設定',
   'sidebar.settings.desc': 'スコープごとに Claude Code を設定',
+  'sidebar.info': 'Extension 情報',
+  'sidebar.info.desc': 'Extension バージョン・キャッシュパス・CLI 情報を確認',
   // PluginPage
   'plugin.page.title': 'プラグインマネージャー',
   'plugin.page.updateAll': 'すべて更新',

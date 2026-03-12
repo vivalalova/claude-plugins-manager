@@ -5,7 +5,7 @@ import { hasPluginUpdate, isPluginEnabled } from '../editor/plugin/filterUtils';
 import type { Marketplace, PluginListResponse, McpServer } from '../../shared/types';
 import { useI18n } from '../i18n/I18nContext';
 
-type CategoryId = 'marketplace' | 'plugin' | 'mcp' | 'settings';
+type CategoryId = 'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info';
 
 interface Counts {
   marketplace: number;
@@ -43,6 +43,12 @@ export function SidebarApp(): React.ReactElement {
       label: t('sidebar.settings'),
       icon: '⚙️',
       description: t('sidebar.settings.desc'),
+    },
+    {
+      id: 'info' as CategoryId,
+      label: t('sidebar.info'),
+      icon: 'ℹ️',
+      description: t('sidebar.info.desc'),
     },
   ];
 
@@ -93,7 +99,7 @@ export function SidebarApp(): React.ReactElement {
   };
 
   const getCount = (id: CategoryId): number => {
-    if (!counts || id === 'settings') return 0;
+    if (!counts || id === 'settings' || id === 'info') return 0;
     return counts[id] ?? 0;
   };
 

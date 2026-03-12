@@ -16,10 +16,11 @@ export const COMMANDS = {
   openPlugin: `${EXTENSION_ID}.openPlugin`,
   openMcp: `${EXTENSION_ID}.openMcp`,
   openSettings: `${EXTENSION_ID}.openSettings`,
+  openInfo: `${EXTENSION_ID}.openInfo`,
 } as const;
 
 /** Editor panel 分類 */
-export type PanelCategory = 'marketplace' | 'plugin' | 'mcp' | 'settings';
+export type PanelCategory = 'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info';
 
 /** 分類對應的顯示名稱 */
 export const PANEL_TITLES: Record<PanelCategory, string> = {
@@ -27,6 +28,7 @@ export const PANEL_TITLES: Record<PanelCategory, string> = {
   plugin: 'Plugins Manager',
   mcp: 'MCP Servers Manager',
   settings: 'Settings',
+  info: 'Extension Info',
 };
 
 /** CLI 預設 timeout（毫秒） */

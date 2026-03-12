@@ -8,6 +8,8 @@ export const en = {
   'sidebar.mcp.desc': 'Manage MCP server connections',
   'sidebar.settings': 'Settings',
   'sidebar.settings.desc': 'Configure Claude Code settings per scope',
+  'sidebar.info': 'Extension Info',
+  'sidebar.info.desc': 'View extension info, cache paths, and CLI details',
   // SettingsPage
   'settings.scope.user': 'User',
   'settings.scope.project': 'Project',

@@ -64,6 +64,11 @@
         "command": "claude-plugins-manager.openMcp",
         "title": "Open MCP Server Manager",
         "category": "Claude Code"
+      },
+      {
+        "command": "claude-plugins-manager.openInfo",
+        "title": "Open Extension Info",
+        "category": "Claude Code"
       }
     ]
   },

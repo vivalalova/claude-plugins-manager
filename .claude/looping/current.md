@@ -3,6 +3,10 @@ title: Extension Info 骨架：constants + protocol + routing
 created: 2026-03-13
 priority: critical
 suggested_order: A01
+phase: needs-commit
+iteration: 1
+max_iterations: 3
+review_iterations: 0
 ---
 
 # Extension Info 骨架：constants + protocol + routing

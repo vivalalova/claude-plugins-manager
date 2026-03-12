@@ -10,6 +10,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'sidebar.mcp.desc': '管理 MCP 伺服器連線',
   'sidebar.settings': '設定',
   'sidebar.settings.desc': '依 scope 設定 Claude Code',
+  'sidebar.info': 'Extension 資訊',
+  'sidebar.info.desc': '查看 extension 版本、快取路徑及 CLI 資訊',
   // SettingsPage
   'settings.scope.user': '使用者',
   'settings.scope.project': '專案',

@@ -72,6 +72,10 @@ export function activate(context: vscode.ExtensionContext): void {
       COMMANDS.openSettings,
       () => editorManager.openPanel('settings'),
     ),
+    vscode.commands.registerCommand(
+      COMMANDS.openInfo,
+      () => editorManager.openPanel('info'),
+    ),
     workspaceFolderDisposable,
     { dispose: () => editorManager.dispose() },
     { dispose: () => sidebarProvider.dispose() },

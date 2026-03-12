@@ -160,6 +160,15 @@ export class MessageRouter {
         return;
       }
 
+      case 'extension.getInfo':
+        return {};
+
+      case 'extension.revealPath':
+        return {};
+
+      case 'extension.clearCache':
+        return {};
+
       case 'settings.openInEditor': {
         const filePath = this.settings.getSettingsPath(message.scope);
         const uri = vscode.Uri.file(filePath);
