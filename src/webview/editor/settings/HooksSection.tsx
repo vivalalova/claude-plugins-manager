@@ -35,10 +35,9 @@ function getHookLabel(hook: HookCommand): string {
   }
 }
 
-function getHookDetail(hook: HookCommand, timeoutLabel: string): string | null {
+function getHookDetail(hook: HookCommand): string | null {
   const parts: string[] = [];
   if ('model' in hook && hook.model) parts.push(hook.model);
-  if ('timeout' in hook && hook.timeout != null) parts.push(`${timeoutLabel}: ${hook.timeout}s`);
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -49,7 +48,6 @@ function getHookDetail(hook: HookCommand, timeoutLabel: string): string | null {
 interface HookItemProps {
   hook: HookCommand;
   eventType: string;
-  timeoutLabel: string;
   filePath: string | null;
   onOpenFile: (path: string) => Promise<void>;
   openingPath: string | null;
@@ -60,9 +58,9 @@ interface HookItemProps {
   isExplaining: boolean;
 }
 
-function HookItem({ hook, eventType, timeoutLabel, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
+function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
   const label = getHookLabel(hook);
-  const detail = getHookDetail(hook, timeoutLabel);
+  const detail = getHookDetail(hook);
   const fullCmd = getHookContent(hook);
   const isOpening = filePath !== null && openingPath === filePath;
 
@@ -278,7 +276,6 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
                           key={hIdx}
                           hook={hook}
                           eventType={eventType}
-                          timeoutLabel={t('settings.hooks.timeout')}
                           filePath={hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null}
                           onOpenFile={handleOpenFile}
                           openingPath={openingPath}

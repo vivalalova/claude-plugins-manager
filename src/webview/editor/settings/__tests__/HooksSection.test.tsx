@@ -146,7 +146,7 @@ describe('HooksSection — 渲染', () => {
     });
   });
 
-  it('hook 顯示 timeout', async () => {
+  it('hook 有 timeout 也不顯示 timeout detail', async () => {
     renderSection({
       hooks: {
         PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '/g.sh', timeout: 5 }] }],
@@ -154,8 +154,9 @@ describe('HooksSection — 渲染', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/timeout: 5s/)).toBeTruthy();
+      expect(screen.getByText('/g.sh')).toBeTruthy();
     });
+    expect(screen.queryByText(/timeout: 5s/)).toBeNull();
   });
 
   it('60+ 字元的 command 被截斷顯示', async () => {
