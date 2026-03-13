@@ -29,7 +29,7 @@ export class PluginService {
   async listInstalled(): Promise<InstalledPlugin[]> {
     const [data, enabledByScope, available] = await Promise.all([
       this.settings.readInstalledPlugins(),
-      this.readAllEnabledPlugins(),
+      this.settings.readAllEnabledPlugins(),
       this.settings.scanAvailablePlugins(),
     ]);
     return this.buildInstalledList(data, enabledByScope, available);
@@ -39,7 +39,7 @@ export class PluginService {
   async listAvailable(): Promise<PluginListResponse> {
     const [data, enabledByScope, available, marketplaceSources] = await Promise.all([
       this.settings.readInstalledPlugins(),
-      this.readAllEnabledPlugins(),
+      this.settings.readAllEnabledPlugins(),
       this.settings.scanAvailablePlugins(),
       this.settings.readMarketplaceSources(),
     ]);
@@ -284,29 +284,6 @@ export class PluginService {
       throw error;
     }
     await this.settings.updateInstallEntryTimestamp(plugin, scope);
-  }
-
-  /** 讀取三個 scope 的 enabledPlugins */
-  private async readAllEnabledPlugins(): Promise<
-    Record<PluginScope, Record<string, boolean>>
-  > {
-    const [user, project, local] = await Promise.all([
-      this.settings.readEnabledPlugins('user'),
-      this.readScopedEnabledPlugins('project'),
-      this.readScopedEnabledPlugins('local'),
-    ]);
-    return { user, project, local };
-  }
-
-  private async readScopedEnabledPlugins(scope: Extract<PluginScope, 'project' | 'local'>): Promise<Record<string, boolean>> {
-    try {
-      return await this.settings.readEnabledPlugins(scope);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('No workspace')) {
-        return {};
-      }
-      throw error;
-    }
   }
 
   /** 讀取 plugin 目錄中的 .mcp.json（如果有） */

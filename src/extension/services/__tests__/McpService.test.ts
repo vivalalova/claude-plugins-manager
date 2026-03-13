@@ -27,9 +27,10 @@ function enoent(): NodeJS.ErrnoException {
   return error;
 }
 
-function createMockSettings(): Pick<SettingsFileService, 'readEnabledPlugins'> {
+function createMockSettings(): Pick<SettingsFileService, 'readEnabledPlugins' | 'readAllEnabledPlugins'> {
   return {
     readEnabledPlugins: vi.fn().mockResolvedValue({}),
+    readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
   };
 }
 
@@ -103,9 +104,9 @@ describe('McpService', () => {
     });
 
     it('包含 plugin-provided MCP servers（如 context7）', async () => {
-      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => (
-        scope === 'user' ? { 'context7@official': true } : {}
-      ));
+      settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({
+        user: { 'context7@official': true }, project: {}, local: {},
+      });
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) {
           return JSON.stringify({
@@ -190,10 +191,10 @@ describe('McpService', () => {
         { uri: { fsPath: '/my/project' } },
       ] as any;
 
-      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
-        if (scope === 'project') return { 'context7@official': true };
-        if (scope === 'user') return { 'context7@official': false };
-        return {};
+      settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({
+        user: { 'context7@official': false },
+        project: { 'context7@official': true },
+        local: {},
       });
 
       mockReadFile.mockImplementation(async (path: string) => {
@@ -250,10 +251,9 @@ describe('McpService', () => {
     });
 
     it('enabledPlugins 設定檔無效時直接拋錯，不靜默改成 disabled', async () => {
-      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
-        if (scope === 'user') throw new Error('Invalid JSON in settings.json');
-        return {};
-      });
+      settings.readAllEnabledPlugins = vi.fn().mockRejectedValue(
+        new Error('Invalid JSON in settings.json'),
+      );
 
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) return JSON.stringify({});
@@ -316,7 +316,7 @@ describe('McpService', () => {
     });
 
     it('同 base name 不同 marketplace 的 plugin MCP 會保留獨立 fullName', async () => {
-      settings.readEnabledPlugins = vi.fn().mockResolvedValue({});
+      settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} });
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) return JSON.stringify({});
         if (path.includes('installed_plugins.json')) {
@@ -665,10 +665,10 @@ describe('McpService', () => {
         { uri: { fsPath: '/my/project' } },
       ] as any;
 
-      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
-        if (scope === 'project') return { 'context7@official': true };
-        if (scope === 'user') return { 'context7@official': false };
-        return {};
+      settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({
+        user: { 'context7@official': false },
+        project: { 'context7@official': true },
+        local: {},
       });
 
       mockReadFile.mockImplementation(async (path: string) => {
@@ -751,9 +751,10 @@ describe('McpService', () => {
     });
 
     it('同 base name 不同 marketplace 的 plugin detail 依 canonical fullName 命中正確 plugin', async () => {
-      settings.readEnabledPlugins = vi.fn().mockImplementation(async (scope: string) => {
-        if (scope === 'user') return { 'shared@community': true, 'shared@official': false };
-        return {};
+      settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({
+        user: { 'shared@community': true, 'shared@official': false },
+        project: {},
+        local: {},
       });
 
       mockReadFile.mockImplementation(async (path: string) => {

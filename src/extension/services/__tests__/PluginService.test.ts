@@ -24,6 +24,8 @@ function createMockSettings(): SettingsFileService & Record<string, ReturnType<t
   return {
     getSettingsPath: vi.fn(),
     readEnabledPlugins: vi.fn().mockResolvedValue({}),
+    readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
+    readScopedEnabledPlugins: vi.fn().mockResolvedValue({}),
     setPluginEnabled: vi.fn().mockResolvedValue(undefined),
     readInstalledPlugins: vi.fn().mockResolvedValue({ version: 2, plugins: {} }),
     writeInstalledPlugins: vi.fn().mockResolvedValue(undefined),
@@ -103,10 +105,11 @@ describe('PluginService', () => {
         },
       } satisfies InstalledPluginsFile);
 
-      settings.readEnabledPlugins
-        .mockResolvedValueOnce({ 'my-plugin@mp': true }) // user
-        .mockResolvedValueOnce({})                        // project
-        .mockResolvedValueOnce({});                       // local
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'my-plugin@mp': true },
+        project: {},
+        local: {},
+      });
 
       mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
 
@@ -169,11 +172,6 @@ describe('PluginService', () => {
         },
       } satisfies InstalledPluginsFile);
 
-      settings.readEnabledPlugins
-        .mockResolvedValueOnce({}) // user
-        .mockResolvedValueOnce({}) // project
-        .mockResolvedValueOnce({}); // local
-
       mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
 
       const result = await svc.listInstalled();
@@ -216,10 +214,11 @@ describe('PluginService', () => {
         },
       } satisfies InstalledPluginsFile);
 
-      settings.readEnabledPlugins
-        .mockResolvedValueOnce({ 'plugin-a@mp': true }) // user
-        .mockResolvedValueOnce({})                       // project (caught)
-        .mockResolvedValueOnce({});                      // local (caught)
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'plugin-a@mp': true },
+        project: {},
+        local: {},
+      });
 
       mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
 
@@ -245,7 +244,6 @@ describe('PluginService', () => {
         },
       });
 
-      settings.readEnabledPlugins.mockResolvedValue({});
       mockReadFile.mockResolvedValue(
         JSON.stringify({ myServer: { command: 'node', args: ['server.js'] } }),
       );
@@ -269,8 +267,6 @@ describe('PluginService', () => {
           }],
         },
       });
-
-      settings.readEnabledPlugins.mockResolvedValue({});
       mockReadFile.mockRejectedValue(new Error('ENOENT'));
 
       const result = await svc.listInstalled();
@@ -282,7 +278,6 @@ describe('PluginService', () => {
   describe('listAvailable()', () => {
     it('合併 installed + available', async () => {
       settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
-      settings.readEnabledPlugins.mockResolvedValue({});
 
       const available = [
         {
@@ -305,7 +300,6 @@ describe('PluginService', () => {
 
     it('scanAvailablePlugins 只呼叫一次（不重複掃描）', async () => {
       settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
-      settings.readEnabledPlugins.mockResolvedValue({});
       settings.scanAvailablePlugins.mockResolvedValue([]);
       settings.readMarketplaceSources.mockResolvedValue({});
 
@@ -327,7 +321,6 @@ describe('PluginService', () => {
           }],
         },
       });
-      settings.readEnabledPlugins.mockResolvedValue({});
       mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
 
       const available = [{
@@ -607,10 +600,9 @@ describe('PluginService', () => {
   });
 
   describe('exportScript', () => {
-    /** Mock readEnabledPlugins per-scope（readAllEnabledPlugins 呼叫三次） */
+    /** Mock readAllEnabledPlugins per-scope */
     function mockEnabledPlugins(user: Record<string, boolean>, project: Record<string, boolean> = {}, local: Record<string, boolean> = {}) {
-      const map: Record<string, Record<string, boolean>> = { user, project, local };
-      settings.readEnabledPlugins.mockImplementation(async (scope: string) => map[scope] ?? {});
+      settings.readAllEnabledPlugins.mockResolvedValue({ user, project, local });
     }
 
     it('enabled plugins → shell script with install commands preserving scope', async () => {

@@ -35,7 +35,7 @@ export class McpService {
 
   constructor(
     private readonly cli: CliService,
-    private readonly settings?: Pick<SettingsFileService, 'readEnabledPlugins'>,
+    private readonly settings?: Pick<SettingsFileService, 'readEnabledPlugins' | 'readAllEnabledPlugins'>,
   ) {}
 
   /** 使 metadata cache 失效，下次 buildServerMetadata() 將重新從 disk 讀取 */
@@ -510,25 +510,7 @@ export class McpService {
     if (!this.settings) {
       return { user: {}, project: {}, local: {} };
     }
-
-    const [user, project, local] = await Promise.all([
-      this.settings.readEnabledPlugins('user'),
-      this.readScopedEnabledPlugins('project'),
-      this.readScopedEnabledPlugins('local'),
-    ]);
-
-    return { user, project, local };
-  }
-
-  private async readScopedEnabledPlugins(scope: Extract<McpScope, 'project' | 'local'>): Promise<Record<string, boolean>> {
-    try {
-      return await this.settings!.readEnabledPlugins(scope);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('No workspace folder open')) {
-        return {};
-      }
-      throw error;
-    }
+    return this.settings.readAllEnabledPlugins();
   }
 
   private getRelevantPluginEntries<T extends { scope: string; projectPath?: string }>(entries: T[]): T[] {

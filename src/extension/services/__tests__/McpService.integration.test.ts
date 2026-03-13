@@ -38,9 +38,10 @@ function createMockCli(output = ''): CliService {
   } as unknown as CliService;
 }
 
-function createMockSettings(): Pick<import('../SettingsFileService').SettingsFileService, 'readEnabledPlugins'> {
+function createMockSettings(): Pick<import('../SettingsFileService').SettingsFileService, 'readEnabledPlugins' | 'readAllEnabledPlugins'> {
   return {
     readEnabledPlugins: vi.fn().mockResolvedValue({}),
+    readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
   };
 }
 
@@ -299,8 +300,10 @@ describe('McpService（integration / 真實 filesystem）', () => {
       });
 
       const settings = createMockSettings();
-      (settings.readEnabledPlugins as ReturnType<typeof vi.fn>).mockResolvedValue({
-        'my-plugin@marketplace': true,
+      (settings.readAllEnabledPlugins as ReturnType<typeof vi.fn>).mockResolvedValue({
+        user: { 'my-plugin@marketplace': true },
+        project: {},
+        local: {},
       });
 
       const svc = new McpService(createMockCli(), settings);

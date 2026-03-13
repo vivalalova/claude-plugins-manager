@@ -92,6 +92,31 @@ export class SettingsFileService {
     return (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
   }
 
+  /**
+   * 讀取三個 scope 的 enabledPlugins。
+   * project/local scope 無 workspace 時回傳 `{}`，不拋錯。
+   */
+  async readAllEnabledPlugins(): Promise<Record<PluginScope, EnabledPluginsMap>> {
+    const [user, project, local] = await Promise.all([
+      this.readEnabledPlugins('user'),
+      this.readScopedEnabledPlugins('project'),
+      this.readScopedEnabledPlugins('local'),
+    ]);
+    return { user, project, local };
+  }
+
+  /** 讀取 project/local scope 的 enabledPlugins，無 workspace 時回傳 `{}` */
+  async readScopedEnabledPlugins(scope: Extract<PluginScope, 'project' | 'local'>): Promise<EnabledPluginsMap> {
+    try {
+      return await this.readEnabledPlugins(scope);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('No workspace')) {
+        return {};
+      }
+      throw error;
+    }
+  }
+
   /** 清除指定 scope 的所有 enabledPlugins（單次 read-write） */
   async clearAllEnabledPlugins(scope: PluginScope): Promise<void> {
     const path = this.getSettingsPath(scope);
