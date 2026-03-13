@@ -143,7 +143,7 @@ export class MessageRouter {
         });
 
       case 'hooks.explain':
-        return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale, message.filePath);
+        return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale, message.filePath, message.refresh);
 
       case 'hooks.loadCachedExplanations':
         return this.hookExplanation.loadCached(message.items);

@@ -81,6 +81,7 @@ describe('HookExplanationService — integration', () => {
         '--print',
         '--system-prompt', expect.any(String),
         '--no-session-persistence',
+        '--setting-sources', '',
         '--settings', expect.stringContaining('disableAllHooks'),
         expect.stringContaining('PreToolUse'),
       ],
@@ -220,6 +221,34 @@ describe('HookExplanationService — integration', () => {
     const r2 = await service.explain(content, 'PreToolUse', 'en');
     expect(r2.fromCache).toBe(true);
     expect(cli.exec).toHaveBeenCalledOnce();
+  });
+
+  it('refresh: true → 忽略快取命中，重新呼叫 CLI 並覆蓋舊值', async () => {
+    const content = 'echo "refresh me"';
+    (cli.exec as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce('original explanation')
+      .mockResolvedValueOnce('refreshed explanation');
+
+    const r1 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r1.fromCache).toBe(false);
+    expect(r1.explanation).toBe('original explanation');
+
+    // Without refresh → cache hit
+    const r2 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r2.fromCache).toBe(true);
+    expect(r2.explanation).toBe('original explanation');
+    expect(cli.exec).toHaveBeenCalledOnce();
+
+    // With refresh → bypass cache, call CLI again
+    const r3 = await service.explain(content, 'PreToolUse', 'en', undefined, true);
+    expect(r3.fromCache).toBe(false);
+    expect(r3.explanation).toBe('refreshed explanation');
+    expect(cli.exec).toHaveBeenCalledTimes(2);
+
+    // Subsequent call without refresh → cache hit with new value
+    const r4 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r4.fromCache).toBe(true);
+    expect(r4.explanation).toBe('refreshed explanation');
   });
 
   it('不同 hookContent（無 filePath）→ hash 不衝突，各自呼叫 CLI', async () => {

@@ -574,6 +574,43 @@ describe('HooksSection — explain button', () => {
     expect(callCount).toBe(2);
   });
 
+  it('第二次呼叫 explain → sendRequest 帶 refresh: true', async () => {
+    let callCount = 0;
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        callCount++;
+        return Promise.resolve({ explanation: `解釋 #${callCount}`, fromCache: false });
+      }
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    // First click — no refresh flag
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+    await waitFor(() => screen.getByText('解釋 #1'));
+
+    const firstCall = mockSendRequest.mock.calls.find(
+      (c: unknown[]) => (c[0] as { type: string }).type === 'hooks.explain',
+    );
+    expect(firstCall).toBeDefined();
+    expect((firstCall![0] as { refresh?: boolean }).refresh).toBeUndefined();
+
+    // Second click — refresh flag should be true
+    const refreshBtn = screen.getByRole('button', { name: 'Explain' });
+    fireEvent.click(refreshBtn);
+    await waitFor(() => screen.getByText('解釋 #2'));
+
+    const secondCall = mockSendRequest.mock.calls
+      .filter((c: unknown[]) => (c[0] as { type: string }).type === 'hooks.explain')[1];
+    expect(secondCall).toBeDefined();
+    expect((secondCall[0] as { refresh?: boolean }).refresh).toBe(true);
+  });
+
   it('hooks.explain 失敗 → toast 顯示第一行短錯誤', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.explain') {

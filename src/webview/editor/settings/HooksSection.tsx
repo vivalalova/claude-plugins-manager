@@ -257,6 +257,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
 
   const handleExplain = async (hookContent: string, eventType: string, filePath: string | null): Promise<void> => {
     const key = `${filePath ?? hookContent}:${locale}`;
+    const isRefresh = explanations.has(key);
     setExplaining((prev) => new Set([...prev, key]));
     try {
       const { explanation } = await sendRequest<{ explanation: string; fromCache: boolean }>({
@@ -265,6 +266,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
         eventType,
         locale,
         filePath: filePath ?? undefined,
+        refresh: isRefresh || undefined,
       }, 120_000);
       setExplanations((prev) => new Map([...prev, [key, explanation]]));
     } catch (e) {

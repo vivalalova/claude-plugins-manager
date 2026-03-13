@@ -23,13 +23,15 @@ type CacheFile = Record<string, CacheEntry>;
 export class HookExplanationService {
   constructor(private readonly cli: CliService) {}
 
-  async explain(hookContent: string, eventType: string, locale: string, filePath?: string): Promise<{ explanation: string; fromCache: boolean }> {
+  async explain(hookContent: string, eventType: string, locale: string, filePath?: string, refresh?: boolean): Promise<{ explanation: string; fromCache: boolean }> {
     const cache = await this.readCache();
     const key = await this.cacheKey(hookContent, locale, filePath);
-    const cachedEntry = cache[key];
 
-    if (cachedEntry && this.isFresh(cachedEntry)) {
-      return { explanation: cachedEntry.explanation, fromCache: true };
+    if (!refresh) {
+      const cachedEntry = cache[key];
+      if (cachedEntry && this.isFresh(cachedEntry)) {
+        return { explanation: cachedEntry.explanation, fromCache: true };
+      }
     }
 
     const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${hookContent}`;
@@ -39,6 +41,7 @@ export class HookExplanationService {
         '--print',
         '--system-prompt', 'You are a concise assistant that explains hook scripts.',
         '--no-session-persistence',
+        '--setting-sources', '',
         '--settings', '{"disableAllHooks":true}',
         prompt,
       ],
