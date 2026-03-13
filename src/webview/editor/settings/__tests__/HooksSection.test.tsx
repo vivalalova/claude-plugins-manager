@@ -543,9 +543,13 @@ describe('HooksSection — explain button', () => {
     });
   });
 
-  it('解釋過的 hook → 再次點擊不重送 request（UI 快取）', async () => {
+  it('解釋過的 hook → 按鈕變 refresh icon，再次點擊重新呼叫 explain', async () => {
+    let callCount = 0;
     mockSendRequest.mockImplementation((msg: { type: string }) => {
-      if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: '快取中的解釋。', fromCache: true });
+      if (msg.type === 'hooks.explain') {
+        callCount++;
+        return Promise.resolve({ explanation: callCount === 1 ? '初次解釋。' : '更新後解釋。', fromCache: false });
+      }
       return Promise.resolve(undefined);
     });
     renderSection({
@@ -556,16 +560,18 @@ describe('HooksSection — explain button', () => {
 
     await waitFor(() => screen.getByText('Explain'));
     fireEvent.click(screen.getByText('Explain'));
-    await waitFor(() => screen.getByText('快取中的解釋。'));
+    await waitFor(() => screen.getByText('初次解釋。'));
 
-    // 再按一次
-    fireEvent.click(screen.getByText('Explain'));
-    await waitFor(() => expect(screen.getByText('快取中的解釋。')).toBeTruthy());
+    // 按鈕變 refresh icon（SVG），不再顯示 Explain 文字
+    expect(screen.queryByText('Explain')).toBeNull();
+    const refreshBtn = screen.getByRole('button', { name: 'Explain' });
+    expect(refreshBtn.querySelector('.hooks-refresh-icon')).toBeTruthy();
 
-    // hooks.explain 只呼叫一次
-    expect(
-      mockSendRequest.mock.calls.filter((c: unknown[]) => (c[0] as { type: string }).type === 'hooks.explain'),
-    ).toHaveLength(1);
+    // 再按一次 → 重新呼叫
+    fireEvent.click(refreshBtn);
+    await waitFor(() => screen.getByText('更新後解釋。'));
+
+    expect(callCount).toBe(2);
   });
 
   it('hooks.explain 失敗 → toast 顯示第一行短錯誤', async () => {

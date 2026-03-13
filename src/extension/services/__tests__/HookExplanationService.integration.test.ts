@@ -76,7 +76,14 @@ describe('HookExplanationService — integration', () => {
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(cli.exec).toHaveBeenCalledWith(
-      ['--model', 'sonnet', '--print', expect.stringContaining('PreToolUse')],
+      [
+        '--model', 'sonnet',
+        '--print',
+        '--system-prompt', expect.any(String),
+        '--no-session-persistence',
+        '--settings', expect.stringContaining('disableAllHooks'),
+        expect.stringContaining('PreToolUse'),
+      ],
       { timeout: 120_000 },
     );
     expect(result.fromCache).toBe(false);
@@ -267,5 +274,75 @@ describe('HookExplanationService — integration', () => {
 
     const { access } = await import('fs/promises');
     await expect(access(cachePath)).rejects.toThrow();
+  });
+
+  // ---------------------------------------------------------------------------
+  // loadCached
+  // ---------------------------------------------------------------------------
+
+  it('loadCached → 回傳快取命中的項目，以 uiKey 為 key', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
+    const { mtimeMs } = await stat(hookFile);
+
+    await writeCache(cachePath, {
+      [`${hookFile}:${mtimeMs}:en`]: {
+        explanation: 'cached explanation',
+        locale: 'en',
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    const result = await service.loadCached([
+      { hookContent: '/guard.sh', locale: 'en', filePath: hookFile },
+    ]);
+
+    expect(result).toEqual({ [`${hookFile}:en`]: 'cached explanation' });
+    expect(cli.exec).not.toHaveBeenCalled();
+  });
+
+  it('loadCached → 無 filePath 用 hookContent 作 uiKey', async () => {
+    const content = 'echo "inline"';
+    await writeCache(cachePath, {
+      [`${hashContent(content)}:0:zh-TW`]: {
+        explanation: '行內解釋',
+        locale: 'zh-TW',
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    const result = await service.loadCached([
+      { hookContent: content, locale: 'zh-TW' },
+    ]);
+
+    expect(result).toEqual({ [`${content}:zh-TW`]: '行內解釋' });
+  });
+
+  it('loadCached → 過期 entry 不回傳', async () => {
+    const hookFile = join(tmpDir, 'old.sh');
+    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
+    const { mtimeMs } = await stat(hookFile);
+
+    await writeCache(cachePath, {
+      [`${hookFile}:${mtimeMs}:en`]: {
+        explanation: 'stale',
+        locale: 'en',
+        createdAt: new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    });
+
+    const result = await service.loadCached([
+      { hookContent: '/old.sh', locale: 'en', filePath: hookFile },
+    ]);
+
+    expect(result).toEqual({});
+  });
+
+  it('loadCached → 空快取回傳空物件', async () => {
+    const result = await service.loadCached([
+      { hookContent: 'nonexistent', locale: 'en' },
+    ]);
+
+    expect(result).toEqual({});
   });
 });

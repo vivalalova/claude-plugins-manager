@@ -145,6 +145,9 @@ export class MessageRouter {
       case 'hooks.explain':
         return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale, message.filePath);
 
+      case 'hooks.loadCachedExplanations':
+        return this.hookExplanation.loadCached(message.items);
+
       case 'hooks.cleanExpiredExplanations':
         this.hookExplanation.cleanExpired().catch((e: unknown) =>
           console.error('[MessageRouter] cleanExpired failed:', e),

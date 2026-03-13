@@ -126,13 +126,18 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
           </button>
         )}
         <button
-          className="btn btn-secondary btn-sm"
+          className={`btn btn-sm ${explanation ? 'btn-icon' : 'btn-secondary'}`}
           type="button"
           disabled={isExplaining}
           aria-label={isExplaining ? explainingLabel : explainLabel}
+          title={explanation ? explainLabel : undefined}
           onClick={() => void onExplain(fullCmd, eventType, filePath)}
         >
-          {isExplaining ? <span className="scope-spinner hooks-explain-spinner" aria-hidden="true" /> : explainLabel}
+          {isExplaining
+            ? <span className="scope-spinner hooks-explain-spinner" aria-hidden="true" />
+            : explanation
+              ? <svg className="hooks-refresh-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M13.45 5.17A6 6 0 0 0 2.05 7H.5l2.5 3 2.5-3H3.95a4.5 4.5 0 0 1 8.53-1.33l.97-.5ZM13 6l-2.5 3h1.55a4.5 4.5 0 0 1-8.53 1.33l-.97.5A6 6 0 0 0 13.95 9H15.5L13 6Z" /></svg>
+              : explainLabel}
         </button>
       </div>
       {explanation && (
@@ -224,9 +229,34 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     void sendRequest({ type: 'hooks.cleanExpiredExplanations' }).catch(() => {});
   }, []);
 
+  // mount 時載入磁碟快取的解釋
+  useEffect(() => {
+    const items: Array<{ hookContent: string; locale: string; filePath?: string }> = [];
+    for (const matchers of Object.values(hooksData)) {
+      for (const group of matchers) {
+        for (const hook of group.hooks) {
+          const content = getHookContent(hook);
+          const fp = hook.type === 'command' ? extractFilePath(hook.command) ?? undefined : undefined;
+          items.push({ hookContent: content, locale, filePath: fp });
+        }
+      }
+    }
+    if (items.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const cached = await sendRequest<Record<string, string>>({ type: 'hooks.loadCachedExplanations', items });
+        if (!cancelled && Object.keys(cached).length > 0) {
+          setExplanations((prev) => new Map([...prev, ...Object.entries(cached)]));
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.hooks]);
+
   const handleExplain = async (hookContent: string, eventType: string, filePath: string | null): Promise<void> => {
     const key = `${filePath ?? hookContent}:${locale}`;
-    if (explanations.has(key)) return;
     setExplaining((prev) => new Set([...prev, key]));
     try {
       const { explanation } = await sendRequest<{ explanation: string; fromCache: boolean }>({

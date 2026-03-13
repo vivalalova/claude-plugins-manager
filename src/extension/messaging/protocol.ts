@@ -43,6 +43,7 @@ export type RequestMessage =
   | { type: 'hooks.checkFilePaths'; requestId: string; paths: string[] }
   | { type: 'hooks.openFile'; requestId: string; path: string }
   | { type: 'hooks.explain'; requestId: string; hookContent: string; eventType: string; locale: string; filePath?: string }
+  | { type: 'hooks.loadCachedExplanations'; requestId: string; items: Array<{ hookContent: string; locale: string; filePath?: string }> }
   | { type: 'hooks.cleanExpiredExplanations'; requestId: string }
   | { type: 'extension.getInfo'; requestId: string }
   | { type: 'extension.revealPath'; requestId: string; path: string }

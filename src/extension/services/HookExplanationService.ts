@@ -34,7 +34,14 @@ export class HookExplanationService {
 
     const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${hookContent}`;
     const explanation = (await this.cli.exec(
-      ['--model', 'sonnet', '--print', prompt],
+      [
+        '--model', 'sonnet',
+        '--print',
+        '--system-prompt', 'You are a concise assistant that explains hook scripts.',
+        '--no-session-persistence',
+        '--settings', '{"disableAllHooks":true}',
+        prompt,
+      ],
       { timeout: 120_000 },
     )).trim();
 
@@ -46,6 +53,20 @@ export class HookExplanationService {
     await this.writeCache(cache);
 
     return { explanation, fromCache: false };
+  }
+
+  async loadCached(items: ReadonlyArray<{ hookContent: string; locale: string; filePath?: string }>): Promise<Record<string, string>> {
+    const cache = await this.readCache();
+    const result: Record<string, string> = {};
+    for (const item of items) {
+      const cacheKey = await this.cacheKey(item.hookContent, item.locale, item.filePath);
+      const entry = cache[cacheKey];
+      if (entry && this.isFresh(entry)) {
+        const uiKey = `${item.filePath ?? item.hookContent}:${item.locale}`;
+        result[uiKey] = entry.explanation;
+      }
+    }
+    return result;
   }
 
   async cleanExpired(): Promise<void> {
