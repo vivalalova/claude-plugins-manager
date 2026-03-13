@@ -17,9 +17,12 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skil
 
 ## Source of truth
 
-- primary: `https://code.claude.com/docs/en/settings`
-- secondary: schema、`src/shared/types.ts`、現有 section 實作；只補 literal type、default、shape
-- docs vs repo 衝突：docs 為準；輸出必列衝突點
+- primary: `context7` cross-doc query（`/websites/code_claude`）
+- structured: JSON schema store（machine-readable type/enum/default）
+- targeted: `agent-browser` — 僅 context7 回傳的特定 URL，conditional
+- fallback: `context7` `/anthropics/claude-code`
+- secondary: `src/shared/types.ts`、現有 section 實作；只補 literal type、default、shape
+- 衝突優先序：docs > schema > repo；輸出必列衝突點
 
 ## References
 
@@ -27,12 +30,33 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skil
 - key → section mapping：`references/surface-map.md`
 - editor 選型：`references/editor-patterns.md`
 
-## Phase 1: Fetch Docs
+## Phase 1: Fetch Docs（multi-source）
 
-1. `agent-browser` skill 開啟 `https://code.claude.com/docs/en/settings`
-2. 擷取所有 setting key、type、default、description
-3. 結構化為 key list
-4. fallback：`context7` query
+### 1a. context7 cross-doc query（primary）
+
+- resolve library id：`/websites/code_claude`
+- 依 settings 類別分批 query（≤5 批）：
+  - general settings（model、language、output、memory）
+  - hooks（types、events、matchers）
+  - permissions（allow/deny/ask、additionalDirectories）
+  - display/UI（spinner、terminal、teammate、statusLine）
+  - advanced（auth、sandbox、MCP、fileSuggestion、modelOverrides）
+- 收集所有 snippet 中的 key、type、default、description
+
+### 1b. JSON schema 補充（structured）
+
+- 查 JSON schema store 取 machine-readable type/enum/default
+- 補充 1a 中型別不明確的欄位
+
+### 1c. agent-browser targeted（conditional）
+
+- 僅當 1a 回傳特定 URL 且資訊不完整時開啟該 URL
+- 不主動開啟；上限 2 個 URL
+
+### 1d. context7 fallback（整體 fallback）
+
+- 1a+1b+1c 完成後，資料仍不足時啟動
+- 改 query `/anthropics/claude-code`，結構化為完整 key list
 
 ## Phase 2: Parallel Research（Codex + Gemini + Explore）
 
