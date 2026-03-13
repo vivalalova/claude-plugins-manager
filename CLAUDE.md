@@ -6,11 +6,12 @@
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
 npm test                   # vitest run（1228 tests）
 npm run build              # esbuild 雙配置（extension + webview）
+npm run verify             # typecheck → test → build（一鍵驗證）
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
 ```
 
-驗證順序：`typecheck → test → build → install:ext`
+驗證順序：`npm run verify`（= typecheck → test → build）；部署前加 `install:ext`
 
 ## 架構
 
