@@ -34,7 +34,19 @@ export class HookExplanationService {
       }
     }
 
-    const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${hookContent}`;
+    let contentForPrompt = hookContent;
+    if (filePath) {
+      const resolved = filePath.startsWith('~/')
+        ? join(homedir(), filePath.slice(2))
+        : filePath;
+      try {
+        contentForPrompt = await readFile(resolved, 'utf-8');
+      } catch {
+        // 檔案不可讀，fallback 用原始 hookContent
+      }
+    }
+
+    const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${contentForPrompt}`;
     const explanation = (await this.cli.exec(
       [
         '--model', 'sonnet',

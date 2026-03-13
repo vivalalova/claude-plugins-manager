@@ -175,6 +175,27 @@ describe('HookExplanationService — integration', () => {
     expect(result.explanation).toBe('中文解釋。');
   });
 
+  it('filePath 存在 → prompt 包含檔案內容而非路徑字串', async () => {
+    const hookFile = join(tmpDir, 'guard.sh');
+    const scriptContent = '#!/bin/bash\necho "guard content"';
+    await writeFile(hookFile, scriptContent, 'utf-8');
+
+    await service.explain('/guard.sh --arg', 'PreToolUse', 'en', hookFile);
+
+    const prompt = (cli.exec as ReturnType<typeof vi.fn>).mock.calls[0][0].at(-1) as string;
+    expect(prompt).toContain('guard content');
+    expect(prompt).not.toContain('/guard.sh --arg');
+  });
+
+  it('filePath 不可讀 → fallback 用 hookContent', async () => {
+    const nonExistentFile = join(tmpDir, 'missing.sh');
+
+    await service.explain('echo "fallback"', 'PreToolUse', 'en', nonExistentFile);
+
+    const prompt = (cli.exec as ReturnType<typeof vi.fn>).mock.calls[0][0].at(-1) as string;
+    expect(prompt).toContain('echo "fallback"');
+  });
+
   it('filePath 指向不存在的檔案 → fallback hash key', async () => {
     const nonExistentFile = join(tmpDir, 'nonexistent.sh');
     const content = '/nonexistent.sh --arg';
