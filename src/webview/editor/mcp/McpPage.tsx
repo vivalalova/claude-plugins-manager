@@ -56,6 +56,7 @@ export function McpPage(): React.ReactElement {
   const [detailText, setDetailText] = useState<string | null>(null);
   const [pollUnavailable, setPollUnavailable] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [removingServer, setRemovingServer] = useState<string | null>(null);
   const detailTitleId = useId();
   const detailTrapRef = useFocusTrap(() => setDetailText(null), !!detailText);
 
@@ -119,12 +120,15 @@ export function McpPage(): React.ReactElement {
   const handleRemove = async (name: string, scope?: McpAddParams['scope']): Promise<void> => {
     setConfirmRemove(null);
     setError(null);
+    setRemovingServer(`${scope ?? 'none'}:${name}`);
     try {
       await sendRequest({ type: 'mcp.remove', name, scope });
       await fetchList();
       addToast('MCP server removed');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRemovingServer(null);
     }
   };
 
@@ -209,6 +213,7 @@ export function McpPage(): React.ReactElement {
             onRetry={handleRefreshStatus}
             onAuthenticate={handleRefreshStatus}
             retrying={retrying}
+            removing={removingServer === `${server.scope ?? 'none'}:${server.name}`}
           />
         ))}
       </div>

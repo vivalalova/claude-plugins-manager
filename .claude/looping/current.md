@@ -3,6 +3,10 @@ title: MCP 頁面 loading 狀態
 created: 2026-03-13
 priority: medium
 suggested_order: U1
+phase: needs-commit
+iteration: 1
+max_iterations: 3
+review_iterations: 2
 ---
 
 # MCP 頁面 loading 狀態

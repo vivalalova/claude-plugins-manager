@@ -12,6 +12,7 @@ interface McpServerCardProps {
   onRetry: () => void;
   onAuthenticate?: () => void;
   retrying?: boolean;
+  removing?: boolean;
 }
 
 /** MCP Server 卡片，顯示名稱、命令、scope、連線狀態 */
@@ -23,6 +24,7 @@ export function McpServerCard({
   onRetry,
   onAuthenticate,
   retrying,
+  removing,
 }: McpServerCardProps): React.ReactElement {
   const { t } = useI18n();
   const isFailed = server.status === 'failed';
@@ -86,8 +88,8 @@ export function McpServerCard({
           </button>
         )}
         {canManageInMcp && (
-          <button className="btn btn-danger" onClick={onRemove}>
-            {t('mcp.card.remove')}
+          <button className="btn btn-danger" onClick={onRemove} disabled={removing}>
+            {removing ? t('mcp.card.removing') : t('mcp.card.remove')}
           </button>
         )}
       </div>

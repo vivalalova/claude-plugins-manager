@@ -81,6 +81,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'mcp.card.details': '詳細',
   'mcp.card.edit': '編集',
   'mcp.card.remove': '削除',
+  'mcp.card.removing': '削除中…',
   'mcp.card.pluginProvided': 'プラグイン {plugin} が提供',
   'mcp.card.pluginEnabled': 'Plugins で有効',
   'mcp.card.pluginDisabled': 'Plugins で無効',

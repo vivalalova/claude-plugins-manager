@@ -316,6 +316,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'mcp.card.details': '詳細資料',
   'mcp.card.edit': '編輯',
   'mcp.card.remove': '移除',
+  'mcp.card.removing': '移除中…',
   'mcp.card.pluginProvided': '由外掛 {plugin} 提供',
   'mcp.card.pluginEnabled': '已在外掛頁啟用',
   'mcp.card.pluginDisabled': '已在外掛頁停用',

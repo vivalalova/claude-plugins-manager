@@ -495,6 +495,140 @@ describe('McpPage — 核心流程', () => {
     });
   });
 
+  it('Remove 確認後，card 的 Remove 按鈕顯示 "Removing..." + disabled 直到完成', async () => {
+    let resolveRemove!: () => void;
+    let listCallCount = 0;
+
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        listCallCount++;
+        return listCallCount <= 1 ? [makeServer('slow-srv')] : [];
+      }
+      if (req.type === 'mcp.remove') {
+        return new Promise<void>((resolve) => { resolveRemove = resolve; });
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('slow-srv')).toBeTruthy();
+    });
+
+    // 點 Remove → ConfirmDialog
+    await act(async () => {
+      fireEvent.click(screen.getByText('Remove'));
+    });
+
+    // 確認 → 開始 remove
+    await act(async () => {
+      const dialog = within(screen.getByRole('dialog'));
+      fireEvent.click(dialog.getByRole('button', { name: 'Remove' }));
+    });
+
+    // remove 進行中：按鈕顯示 Removing... + disabled
+    await waitFor(() => {
+      const btn = screen.getByRole('button', { name: 'Removing...' });
+      expect(btn).toBeTruthy();
+      expect((btn as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    // resolve remove request
+    await act(async () => {
+      resolveRemove();
+    });
+
+    // 完成後刷新列表
+    await waitFor(() => {
+      expect(screen.getByText('No MCP servers configured')).toBeTruthy();
+    });
+  });
+
+  it('Remove 失敗時，按鈕恢復為 "Remove" 且 ErrorBanner 出現', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') return [makeServer('fail-srv')];
+      if (req.type === 'mcp.remove') throw new Error('Remove failed');
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('fail-srv')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Remove'));
+    });
+
+    await act(async () => {
+      const dialog = within(screen.getByRole('dialog'));
+      fireEvent.click(dialog.getByRole('button', { name: 'Remove' }));
+    });
+
+    // 失敗後按鈕恢復正常
+    await waitFor(() => {
+      const btn = screen.getByRole('button', { name: 'Remove' });
+      expect(btn).toBeTruthy();
+      expect((btn as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    // ErrorBanner 出現
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByText('Remove failed')).toBeTruthy();
+  });
+
+  it('同名不同 scope：Remove 只對被點選的 card 顯示 Removing', async () => {
+    let resolveRemove!: () => void;
+
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          { ...makeServer('shared-name'), scope: 'user' },
+          { ...makeServer('shared-name'), scope: 'project' },
+        ];
+      }
+      if (req.type === 'mcp.remove') {
+        return new Promise<void>((resolve) => { resolveRemove = resolve; });
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('shared-name')).toHaveLength(2);
+    });
+
+    // 點 project scope card 的 Remove
+    const projectCard = screen.getByText('project').closest('.card') as HTMLElement;
+    await act(async () => {
+      fireEvent.click(within(projectCard).getByText('Remove'));
+    });
+
+    await act(async () => {
+      const dialog = within(screen.getByRole('dialog'));
+      fireEvent.click(dialog.getByRole('button', { name: 'Remove' }));
+    });
+
+    // project card 顯示 Removing...
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Removing...' })).toBeTruthy();
+    });
+
+    // user card 仍顯示 Remove（非 Removing）
+    const userCard = screen.getAllByText('user')[0].closest('.card') as HTMLElement;
+    const userRemoveBtn = within(userCard).getByRole('button', { name: 'Remove' });
+    expect(userRemoveBtn).toBeTruthy();
+    expect((userRemoveBtn as HTMLButtonElement).disabled).toBe(false);
+
+    // cleanup
+    await act(async () => {
+      resolveRemove();
+    });
+  });
+
   it('載入失敗顯示 ErrorBanner，可 dismiss', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') throw new Error('Connection refused');
