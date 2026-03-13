@@ -350,23 +350,25 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     });
   });
 
-  it('outputStyle: "auto" → 第二個 select 顯示 auto', async () => {
-    renderSection({ outputStyle: 'auto' });
+  it('outputStyle: "Explanatory" → input 顯示值', async () => {
+    renderSection({ outputStyle: 'Explanatory' });
     await waitFor(() => {
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      expect(selects[1].value).toBe('auto');
+      const input = screen.getByPlaceholderText('e.g. Explanatory') as HTMLInputElement;
+      expect(input.value).toBe('Explanatory');
     });
   });
 
-  it('選擇 outputStyle "stream-json" → 呼叫 onSave("outputStyle", "stream-json")', async () => {
+  it('輸入 outputStyle 後點擊 Save → 呼叫 onSave("outputStyle", value)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
-    await waitFor(() => screen.getAllByRole('combobox'));
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'stream-json' } });
+    await waitFor(() => screen.getByPlaceholderText('e.g. Explanatory'));
+    const field = screen.getByPlaceholderText('e.g. Explanatory').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. Explanatory'), { target: { value: 'Learning' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('outputStyle', 'stream-json');
+      expect(onSave).toHaveBeenCalledWith('outputStyle', 'Learning');
     });
   });
 

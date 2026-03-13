@@ -4,7 +4,7 @@ import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagListSetting } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
 
-const KNOWN_TEAMMATE_MODES = ['auto', 'inline', 'tmux', 'iterm2'] as const;
+const KNOWN_TEAMMATE_MODES = ['auto', 'in-process', 'tmux'] as const;
 
 interface DisplaySectionProps {
   scope: PluginScope;
@@ -224,9 +224,8 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
 
   const teammateModeLabels: Record<string, string> = {
     auto: t('settings.display.teammateMode.auto'),
-    inline: t('settings.display.teammateMode.inline'),
+    'in-process': t('settings.display.teammateMode.inProcess'),
     tmux: t('settings.display.teammateMode.tmux'),
-    iterm2: t('settings.display.teammateMode.iterm2'),
   };
 
   return (

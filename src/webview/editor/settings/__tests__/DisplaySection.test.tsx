@@ -235,9 +235,9 @@ describe('DisplaySection — teammateMode dropdown', () => {
     });
   });
 
-  it('teammateMode="inline", 選擇空值 → onDelete("teammateMode")', async () => {
+  it('teammateMode="in-process", 選擇空值 → onDelete("teammateMode")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ teammateMode: 'inline' }, vi.fn(), onDelete);
+    renderSection({ teammateMode: 'in-process' }, vi.fn(), onDelete);
 
     await waitFor(() => screen.getByRole('combobox', { name: 'Teammate Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Teammate Mode' }), { target: { value: '' } });
@@ -247,11 +247,11 @@ describe('DisplaySection — teammateMode dropdown', () => {
     });
   });
 
-  it('teammateMode="iterm2" → select 顯示 iterm2', async () => {
-    renderSection({ teammateMode: 'iterm2' });
+  it('teammateMode="in-process" → select 顯示 in-process', async () => {
+    renderSection({ teammateMode: 'in-process' });
     await waitFor(() => {
       const select = screen.getByRole('combobox', { name: 'Teammate Mode' }) as HTMLSelectElement;
-      expect(select.value).toBe('iterm2');
+      expect(select.value).toBe('in-process');
     });
   });
 });
@@ -301,7 +301,7 @@ describe('DisplaySection — SpinnerVerbs 驗收', () => {
     expect((screen.getByPlaceholderText('e.g. Thinking') as HTMLInputElement).value).toBe('Unsaved');
 
     rerender(
-      <I18nProvider>
+      <I18nProvider locale="en">
         <ToastProvider>
           <DisplaySection
             scope="project"

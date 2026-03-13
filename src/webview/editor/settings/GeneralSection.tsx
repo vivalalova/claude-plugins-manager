@@ -8,7 +8,6 @@ import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } fro
 // ---------------------------------------------------------------------------
 
 const KNOWN_EFFORT_LEVELS = ['high', 'medium', 'low'] as const;
-const KNOWN_OUTPUT_STYLES = ['auto', 'stream-json'] as const;
 const KNOWN_AUTO_UPDATES_CHANNELS = ['stable', 'latest'] as const;
 
 // ---------------------------------------------------------------------------
@@ -29,11 +28,6 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
     high: t('settings.general.effortLevel.high'),
     medium: t('settings.general.effortLevel.medium'),
     low: t('settings.general.effortLevel.low'),
-  };
-
-  const outputLabels: Record<string, string> = {
-    auto: t('settings.general.outputStyle.auto'),
-    'stream-json': t('settings.general.outputStyle.streamJson'),
   };
 
   const autoUpdatesChannelLabels: Record<string, string> = {
@@ -115,15 +109,15 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         />
       ))}
 
-      <EnumDropdown
+      <TextSetting
         label={t('settings.general.outputStyle.label')}
-        value={settings.outputStyle}
         description={t('settings.general.outputStyle.description')}
-        knownValues={KNOWN_OUTPUT_STYLES}
-        knownLabels={outputLabels}
-        notSetLabel={t('settings.general.outputStyle.notSet')}
-        unknownTemplate={t('settings.general.outputStyle.unknown')}
+        value={settings.outputStyle}
+        placeholder={t('settings.general.outputStyle.placeholder')}
+        saveLabel={t('settings.general.outputStyle.save')}
+        clearLabel={t('settings.general.outputStyle.clear')}
         settingKey="outputStyle"
+        scope={scope}
         onSave={onSave}
         onDelete={onDelete}
       />
