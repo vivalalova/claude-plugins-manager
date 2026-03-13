@@ -4,9 +4,10 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（1228 tests）
+npm test                   # vitest run（1275 tests）
 npm run build              # esbuild 雙配置（extension + webview）
 npm run verify             # typecheck → test → build（一鍵驗證）
+npm run check:schema       # 驗證 claude-settings-schema.ts 與 ClaudeSettings interface 一致
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
 ```
@@ -19,7 +20,8 @@ npm run watch              # concurrently watch extension + webview
   — Services 直接讀寫 Claude Code 設定檔 + CLI 輔助
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **通訊**：Extension ↔ Webview 用 `postMessage` + `requestId` 配對
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；`npm run check:schema` 驗證與 `ClaudeSettings` interface 一致
+- **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
 - **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）
 
 ### Services
@@ -27,7 +29,7 @@ npm run watch              # concurrently watch extension + webview
 | Service             | 資料來源                                                                  | 職責                                                     |
 | ------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
 | CliService          | `child_process.execFile`                                                  | Claude CLI 封裝；自動搜尋完整路徑；env 清理 `CLAUDECODE` |
-| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔、掃描 marketplace/plugin 內容                 |
+| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔（含 `readScopedEnabledPlugins` / `readAllEnabledPlugins` 共用 helper）、掃描 marketplace/plugin 內容 |
 | PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable          |
 | MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate                       |
 | McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢                                |
@@ -51,7 +53,7 @@ npm run watch              # concurrently watch extension + webview
 | ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
 | GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
 | DisplaySection      | `DisplaySection.tsx`     | teammateMode、showTurnDuration、spinnerTipsEnabled、spinnerVerbs、spinnerTipsOverride、terminalProgressBarEnabled、prefersReducedMotion |
-| AdvancedSection     | `AdvancedSection.tsx`    | forceLoginMethod、forceLoginOrgUUID、autoMemoryDirectory、modelOverrides、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
+| AdvancedSection     | `AdvancedSection.tsx` + `components/` 下 4 個 sub-editor（Attribution·StatusLine·Sandbox·CompanyAnnouncementsEditor） | forceLoginMethod、forceLoginOrgUUID、autoMemoryDirectory、modelOverrides、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
 | PermissionsSection  | `PermissionsSection.tsx` | permissions（allow/deny/ask/defaultMode/additionalDirectories）                                 |
 | EnvSection          | `EnvSection.tsx`         | env（key-value map）                                                                            |
 | HooksSection        | `HooksSection.tsx`       | hooks（四種 type）、disableAllHooks                                                             |
