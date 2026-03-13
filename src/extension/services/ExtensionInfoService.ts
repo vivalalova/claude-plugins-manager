@@ -46,7 +46,8 @@ export class ExtensionInfoService {
   private async getCliVersion(): Promise<string | null> {
     try {
       return await this.cli.exec(['--version'], { timeout: 5_000 });
-    } catch {
+    } catch (e: unknown) {
+      console.error('[ExtensionInfoService] Failed to get CLI version:', e);
       return null;
     }
   }

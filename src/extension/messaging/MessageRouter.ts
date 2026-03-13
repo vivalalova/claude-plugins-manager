@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { rm as rmAsync, mkdir as mkdirAsync } from 'fs/promises';
 import * as os from 'os';
 import type { MarketplaceService } from '../services/MarketplaceService';
 import type { PluginService } from '../services/PluginService';
@@ -179,8 +180,7 @@ export class MessageRouter {
       }
 
       case 'extension.clearCache': {
-        const { rm, mkdir: mkdirAsync } = await import('fs/promises');
-        await rm(PLUGINS_CACHE_DIR, { recursive: true, force: true });
+        await rmAsync(PLUGINS_CACHE_DIR, { recursive: true, force: true });
         await mkdirAsync(PLUGINS_CACHE_DIR, { recursive: true });
         return { cleared: true, path: PLUGINS_CACHE_DIR };
       }

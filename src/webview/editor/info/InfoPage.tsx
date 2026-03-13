@@ -49,7 +49,7 @@ export function InfoPage(): React.ReactElement {
     );
   }
 
-  if (error ?? !info) {
+  if (error || !info) {
     return (
       <div className="page-container">
         <div className="info-status info-status--error">
