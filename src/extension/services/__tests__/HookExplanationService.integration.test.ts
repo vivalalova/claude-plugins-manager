@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir, stat } from 'fs/promises';
+import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { createHash } from 'crypto';
@@ -67,10 +67,10 @@ describe('HookExplanationService — integration', () => {
     vi.clearAllMocks();
   });
 
-  it('cache miss（有 filePath）→ 呼叫 CLI → 寫入 filePath:mtime:locale key', async () => {
+  it('cache miss（有 filePath）→ 呼叫 CLI → 寫入 filePath:contentHash:locale key', async () => {
     const hookFile = join(tmpDir, 'guard.sh');
-    await writeFile(hookFile, '#!/bin/bash\necho "guard"', 'utf-8');
-    const { mtimeMs } = await stat(hookFile);
+    const fileContent = '#!/bin/bash\necho "guard"';
+    await writeFile(hookFile, fileContent, 'utf-8');
 
     const result = await service.explain('/guard.sh arg', 'PreToolUse', 'en', hookFile);
 
@@ -92,7 +92,7 @@ describe('HookExplanationService — integration', () => {
 
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    const expectedKey = `${hookFile}:${mtimeMs}:en`;
+    const expectedKey = `${hookFile}:${hashContent(fileContent)}:en`;
     expect(cache[expectedKey]).toBeDefined();
     expect(cache[expectedKey].explanation).toBe(result.explanation);
   });
@@ -112,13 +112,13 @@ describe('HookExplanationService — integration', () => {
     expect(cache[expectedKey].explanation).toBe('inline explanation');
   });
 
-  it('cache hit（filePath + mtime 相同）→ 不呼叫 CLI → fromCache: true', async () => {
+  it('cache hit（filePath + content 相同）→ 不呼叫 CLI → fromCache: true', async () => {
     const hookFile = join(tmpDir, 'guard.sh');
-    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
-    const { mtimeMs } = await stat(hookFile);
+    const fileContent = '#!/bin/bash';
+    await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${mtimeMs}:zh-TW`]: {
+      [`${hookFile}:${hashContent(fileContent)}:zh-TW`]: {
         explanation: '這個 hook 執行守護腳本。',
         locale: 'zh-TW',
         createdAt: new Date().toISOString(),
@@ -132,35 +132,37 @@ describe('HookExplanationService — integration', () => {
     expect(result.explanation).toBe('這個 hook 執行守護腳本。');
   });
 
-  it('檔案 mtime 改變 → cache miss → 重新呼叫 CLI', async () => {
+  it('檔案內容改變 → cache miss → 重新呼叫 CLI', async () => {
     const hookFile = join(tmpDir, 'guard.sh');
-    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
-    const oldMtime = 1710000000000; // hardcoded old mtime, differs from real mtime
+    const oldContent = '#!/bin/bash\necho old';
+    await writeFile(hookFile, oldContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${oldMtime}:en`]: {
+      [`${hookFile}:${hashContent(oldContent)}:en`]: {
         explanation: 'old explanation',
         locale: 'en',
         createdAt: new Date().toISOString(),
       },
     });
 
-    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('fresh explanation after mtime change');
+    // 檔案內容改變
+    await writeFile(hookFile, '#!/bin/bash\necho new', 'utf-8');
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('fresh explanation after content change');
 
     const result = await service.explain('/guard.sh', 'PreToolUse', 'en', hookFile);
 
     expect(cli.exec).toHaveBeenCalledOnce();
     expect(result.fromCache).toBe(false);
-    expect(result.explanation).toBe('fresh explanation after mtime change');
+    expect(result.explanation).toBe('fresh explanation after content change');
   });
 
   it('locale 不同 → cache miss → 重新呼叫 CLI', async () => {
     const hookFile = join(tmpDir, 'guard.sh');
-    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
-    const { mtimeMs } = await stat(hookFile);
+    const fileContent = '#!/bin/bash';
+    await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${mtimeMs}:en`]: {
+      [`${hookFile}:${hashContent(fileContent)}:en`]: {
         explanation: 'English explanation.',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -213,11 +215,11 @@ describe('HookExplanationService — integration', () => {
 
   it('cache entry 已過期 → 忽略舊值並重新呼叫 CLI', async () => {
     const hookFile = join(tmpDir, 'guard.sh');
-    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
-    const { mtimeMs } = await stat(hookFile);
+    const fileContent = '#!/bin/bash';
+    await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${mtimeMs}:en`]: {
+      [`${hookFile}:${hashContent(fileContent)}:en`]: {
         explanation: 'stale explanation',
         locale: 'en',
         createdAt: new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString(),
@@ -285,6 +287,28 @@ describe('HookExplanationService — integration', () => {
     expect(cli.exec).toHaveBeenCalledTimes(2);
   });
 
+  it('並行 explain → read-merge-write 不互相覆蓋', async () => {
+    (cli.exec as ReturnType<typeof vi.fn>)
+      .mockImplementation(() => new Promise((resolve) => {
+        setTimeout(() => resolve('concurrent result'), 10);
+      }));
+
+    const [r1, r2, r3] = await Promise.all([
+      service.explain('hook-a', 'PreToolUse', 'en'),
+      service.explain('hook-b', 'PreToolUse', 'en'),
+      service.explain('hook-c', 'PreToolUse', 'en'),
+    ]);
+
+    expect(r1.fromCache).toBe(false);
+    expect(r2.fromCache).toBe(false);
+    expect(r3.fromCache).toBe(false);
+
+    const { readFile } = await import('fs/promises');
+    const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
+    const keys = Object.keys(cache);
+    expect(keys).toHaveLength(3);
+  });
+
   it('cleanExpired → 超過 180 天的 entry 被清除，未過期的保留', async () => {
     const thirtyOneDaysAgo = new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString();
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -332,11 +356,11 @@ describe('HookExplanationService — integration', () => {
 
   it('loadCached → 回傳快取命中的項目，以 uiKey 為 key', async () => {
     const hookFile = join(tmpDir, 'guard.sh');
-    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
-    const { mtimeMs } = await stat(hookFile);
+    const fileContent = '#!/bin/bash';
+    await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${mtimeMs}:en`]: {
+      [`${hookFile}:${hashContent(fileContent)}:en`]: {
         explanation: 'cached explanation',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -370,11 +394,11 @@ describe('HookExplanationService — integration', () => {
 
   it('loadCached → 過期 entry 不回傳', async () => {
     const hookFile = join(tmpDir, 'old.sh');
-    await writeFile(hookFile, '#!/bin/bash', 'utf-8');
-    const { mtimeMs } = await stat(hookFile);
+    const fileContent = '#!/bin/bash';
+    await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${mtimeMs}:en`]: {
+      [`${hookFile}:${hashContent(fileContent)}:en`]: {
         explanation: 'stale',
         locale: 'en',
         createdAt: new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString(),

@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, stat } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { createHash } from 'crypto';
@@ -18,9 +18,12 @@ type CacheFile = Record<string, CacheEntry>;
 
 /**
  * Hook 內容 AI 解釋 service。
- * 以 filePath:mtime:locale（或 hash:0:locale）為 key 持久化快取至 ~/.claude/plugins/cache/hook-explanations.json。
+ * 以 filePath:contentHash:locale（或 hash:0:locale）為 key 持久化快取至 ~/.claude/plugins/cache/hook-explanations.json。
+ * 寫入採 read-merge-write 避免並行 explain 互相覆蓋。
  */
 export class HookExplanationService {
+  private writeLock: Promise<void> = Promise.resolve();
+
   constructor(private readonly cli: CliService) {}
 
   async explain(hookContent: string, eventType: string, locale: string, filePath?: string, refresh?: boolean): Promise<{ explanation: string; fromCache: boolean }> {
@@ -64,8 +67,7 @@ export class HookExplanationService {
       throw new Error('Hook explanation was empty');
     }
 
-    cache[key] = { explanation, locale, createdAt: new Date().toISOString() };
-    await this.writeCache(cache);
+    await this.mergeEntry(key, { explanation, locale, createdAt: new Date().toISOString() });
 
     return { explanation, fromCache: false };
   }
@@ -101,8 +103,9 @@ export class HookExplanationService {
         ? join(homedir(), filePath.slice(2))
         : filePath;
       try {
-        const { mtimeMs } = await stat(resolved);
-        return `${resolved}:${mtimeMs}:${locale}`;
+        const content = await readFile(resolved, 'utf-8');
+        const hash = createHash('sha256').update(content).digest('hex').slice(0, 8);
+        return `${resolved}:${hash}:${locale}`;
       } catch {
         // file not accessible, fall through to hash
       }
@@ -123,6 +126,21 @@ export class HookExplanationService {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') return {};
       throw e;
     }
+  }
+
+  /** 序列化 read-merge-write：透過 writeLock 保證同一時間只有一筆寫入，避免並行覆蓋 */
+  private mergeEntry(key: string, entry: CacheEntry): Promise<void> {
+    this.writeLock = this.writeLock.then(async () => {
+      const latest = await this.readCache();
+      latest[key] = entry;
+      await this.writeCache(latest);
+    }, async () => {
+      // 前一個 lock 失敗也要繼續
+      const latest = await this.readCache();
+      latest[key] = entry;
+      await this.writeCache(latest);
+    });
+    return this.writeLock;
   }
 
   private async writeCache(cache: CacheFile): Promise<void> {
