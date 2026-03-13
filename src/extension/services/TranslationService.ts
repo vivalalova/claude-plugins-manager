@@ -1,7 +1,6 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { createHash } from 'crypto';
-import https from 'https';
 import { TRANSLATE_LANGS } from '../../shared/types';
 import { PLUGINS_CACHE_DIR } from '../constants';
 
@@ -154,46 +153,30 @@ export class TranslationService {
   }
 
   /** 呼叫 MyMemory 翻譯 API（POST 避免 URL 長度限制） */
-  private callApi(text: string, targetLang: string, email?: string): Promise<string> {
+  private async callApi(text: string, targetLang: string, email?: string): Promise<string> {
     let postData = `q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
     if (email) postData += `&de=${encodeURIComponent(email)}`;
 
-    return new Promise((resolve, reject) => {
-      const req = https.request(
-        'https://api.mymemory.translated.net/get',
-        {
-          method: 'POST',
-          timeout: API_TIMEOUT_MS,
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': Buffer.byteLength(postData),
-          },
-        },
-        (res) => {
-          let data = '';
-          res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-          res.on('end', () => {
-            try {
-              const json = JSON.parse(data) as {
-                responseStatus: number;
-                responseData?: { translatedText?: string };
-              };
-              if (json.responseStatus === 200 && json.responseData?.translatedText) {
-                resolve(json.responseData.translatedText);
-              } else {
-                reject(new Error(`API status: ${json.responseStatus}`));
-              }
-            } catch (e) {
-              reject(e);
-            }
-          });
-        },
-      );
-      req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-      req.write(postData);
-      req.end();
+    const res = await fetch('https://api.mymemory.translated.net/get', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: postData,
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
+
+    if (!res.ok) {
+      throw new Error(`API HTTP ${res.status}`);
+    }
+
+    const json = await res.json() as {
+      responseStatus: number;
+      responseData?: { translatedText?: string };
+    };
+
+    if (json.responseStatus === 200 && json.responseData?.translatedText) {
+      return json.responseData.translatedText;
+    }
+    throw new Error(`API status: ${json.responseStatus}`);
   }
 
   /** SHA-256 hash（前 16 字元） */
