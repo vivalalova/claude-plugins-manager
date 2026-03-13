@@ -51,7 +51,7 @@ export class HookExplanationService {
       [
         '--model', 'sonnet',
         '--print',
-        '--system-prompt', 'You are a concise assistant that explains hook scripts.',
+        '--system-prompt', 'You are a concise assistant that explains hook scripts. Format your response with clear structure: use **bold** for key terms, `backticks` for code/commands/paths, and bullet lists (- item) for multiple points. Keep it brief (2-4 sentences or a short list).',
         '--no-session-persistence',
         '--setting-sources', '',
         '--settings', '{"disableAllHooks":true}',
