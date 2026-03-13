@@ -65,24 +65,31 @@ function getHookDetail(hook: HookCommand): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
-type ExplanationBlock =
-  | { type: 'text'; lines: string[] }
-  | { type: 'list'; items: string[] };
+function inlineMarkdown(text: string): string {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
 
-function parseExplanation(explanation: string): ExplanationBlock[] {
-  return explanation
+/** 簡易 markdown → HTML：bold, code, list, paragraph */
+function renderSimpleMarkdown(text: string): string {
+  return text
     .trim()
     .split(/\n\s*\n/)
-    .map((block) => block
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean))
-    .filter((lines) => lines.length > 0)
-    .map((lines) => (
-      lines.every((line) => /^[-*]\s+/.test(line))
-        ? { type: 'list', items: lines.map((line) => line.replace(/^[-*]\s+/, '')) }
-        : { type: 'text', lines }
-    ));
+    .map(block => {
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) return '';
+      if (lines.every(l => /^[-*]\s+/.test(l))) {
+        return '<ul>' + lines.map(l =>
+          '<li>' + inlineMarkdown(l.replace(/^[-*]\s+/, '')) + '</li>'
+        ).join('') + '</ul>';
+      }
+      return '<p>' + lines.map(l => inlineMarkdown(l)).join('<br/>') + '</p>';
+    })
+    .filter(Boolean)
+    .join('');
 }
 
 // ---------------------------------------------------------------------------
@@ -141,29 +148,10 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
         </button>
       </div>
       {explanation && (
-        <details className="hooks-explanation" open>
-          <summary className="hooks-explanation-summary">AI</summary>
-          <div className="hooks-explanation-body">
-            {parseExplanation(explanation).map((block, blockIdx) => (
-              block.type === 'list' ? (
-                <ul key={`list-${blockIdx}`} className="hooks-explanation-list">
-                  {block.items.map((item, itemIdx) => (
-                    <li key={`item-${blockIdx}-${itemIdx}`}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p key={`text-${blockIdx}`} className="hooks-explanation-paragraph">
-                  {block.lines.map((line, lineIdx) => (
-                    <React.Fragment key={`line-${blockIdx}-${lineIdx}`}>
-                      {lineIdx > 0 && <br />}
-                      {line}
-                    </React.Fragment>
-                  ))}
-                </p>
-              )
-            ))}
-          </div>
-        </details>
+        <div
+          className="hooks-explanation-text"
+          dangerouslySetInnerHTML={{ __html: renderSimpleMarkdown(explanation) }}
+        />
       )}
     </div>
   );

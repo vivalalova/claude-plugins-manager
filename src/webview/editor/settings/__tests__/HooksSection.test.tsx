@@ -477,15 +477,85 @@ describe('HooksSection — explain button', () => {
     fireEvent.click(screen.getByText('Explain'));
 
     await waitFor(() => {
-      expect(container.querySelector('.hooks-explanation-body')).toBeTruthy();
+      expect(container.querySelector('.hooks-explanation-text')).toBeTruthy();
     });
 
-    const explanation = container.querySelector('.hooks-explanation-body');
-    expect(explanation?.querySelectorAll('.hooks-explanation-paragraph')).toHaveLength(1);
-    expect(explanation?.querySelectorAll('br')).toHaveLength(1);
-    expect(explanation?.querySelectorAll('li')).toHaveLength(2);
-    expect(explanation?.textContent).toContain('第一行');
-    expect(explanation?.textContent).toContain('規則一');
+    const explanation = container.querySelector('.hooks-explanation-text')!;
+    expect(explanation.querySelectorAll('p')).toHaveLength(1);
+    expect(explanation.querySelectorAll('ul')).toHaveLength(1);
+    expect(explanation.querySelectorAll('li')).toHaveLength(2);
+    expect(explanation.textContent).toContain('第一行');
+    expect(explanation.textContent).toContain('規則一');
+  });
+
+  it('markdown bold → 渲染 <strong>', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return Promise.resolve({ explanation: '這是 **重點** 說明', fromCache: false });
+      }
+      return Promise.resolve(undefined);
+    });
+    const { container } = renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      const el = container.querySelector('.hooks-explanation-text');
+      expect(el).toBeTruthy();
+      expect(el!.innerHTML).toContain('<strong>重點</strong>');
+    });
+  });
+
+  it('markdown inline code → 渲染 <code>', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return Promise.resolve({ explanation: '執行 `echo hello` 指令', fromCache: false });
+      }
+      return Promise.resolve(undefined);
+    });
+    const { container } = renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      const el = container.querySelector('.hooks-explanation-text');
+      expect(el).toBeTruthy();
+      expect(el!.innerHTML).toContain('<code>echo hello</code>');
+    });
+  });
+
+  it('HTML 特殊字元被 escape', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string }) => {
+      if (msg.type === 'hooks.explain') {
+        return Promise.resolve({ explanation: '<script>alert("xss")</script>', fromCache: false });
+      }
+      return Promise.resolve(undefined);
+    });
+    const { container } = renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => screen.getByText('Explain'));
+    fireEvent.click(screen.getByText('Explain'));
+
+    await waitFor(() => {
+      const el = container.querySelector('.hooks-explanation-text');
+      expect(el).toBeTruthy();
+      expect(el!.innerHTML).toContain('&lt;script&gt;');
+      expect(el!.innerHTML).not.toContain('<script>');
+    });
   });
 
   it('hooks.explain 呼叫時帶正確 locale', async () => {
