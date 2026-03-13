@@ -48,7 +48,7 @@ npm run watch              # concurrently watch extension + webview
 
 | Section             | 元件檔案                 | 涵蓋欄位範圍                                                                                    |
 | ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、includeCoAuthoredBy、fastMode、autoMemoryEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays 等 |
+| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
 | DisplaySection      | `DisplaySection.tsx`     | teammateMode、showTurnDuration、spinnerTipsEnabled、spinnerVerbs、spinnerTipsOverride、terminalProgressBarEnabled、prefersReducedMotion |
 | AdvancedSection     | `AdvancedSection.tsx`    | forceLoginMethod、forceLoginOrgUUID、autoMemoryDirectory、modelOverrides、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
 | PermissionsSection  | `PermissionsSection.tsx` | permissions（allow/deny/ask/defaultMode/additionalDirectories）                                 |
@@ -77,8 +77,12 @@ https://code.claude.com/docs/en/settings
 - `spinnerVerbs` / `spinnerTipsOverride` clear 操作呼叫 `onDelete(key)`，非存空物件
 - `fileSuggestion` 儲存格式固定為 `{ type: 'command', command: string }`
 - `statusLine` 儲存格式固定為 `{ type: 'command'; command: string; padding?: number }`
-- `outputStyle` 依官方 docs 改為自由字串，不再限制 `auto`/`stream-json`
-- `teammateMode` 依官方 docs 使用 `auto | in-process | tmux`；舊值 `inline` / `iterm2` 視為 unknown value 顯示
+- `outputStyle` 為自由字串（TextSetting），如 `default`、`Explanatory`、`Learning`
+- `teammateMode` 使用 `auto | in-process | tmux`；舊值 `inline` / `iterm2` 視為 unknown value 顯示
+- `HookCommand` 四種 type 均有 `statusMessage?: string`；http type 額外有 `allowedEnvVars?: string[]`
+- `permissions.disableBypassPermissionsMode` 可設為 `'disable'` 停用 bypass 模式
+- `sandbox` 額外子屬性：`enableWeakerNetworkIsolation`、`enableWeakerNestedSandbox`、`allowUnsandboxedCommands`、`ignoreViolations`、`network.allowAllUnixSockets`、`network.httpProxyPort`、`network.socksProxyPort`、`network.allowManagedDomainsOnly`
+- `spinnerVerbs.mode` 為 optional（schema 不要求）
 
 ## 測試
 

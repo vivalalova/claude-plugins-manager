@@ -173,10 +173,10 @@ export interface McpAddParams {
 
 /** Hook command discriminated union（四種 hook type） */
 export type HookCommand =
-  | { type: 'command'; command: string; timeout?: number; async?: boolean }
-  | { type: 'prompt'; prompt: string; model?: string; timeout?: number }
-  | { type: 'agent'; prompt: string; model?: string; timeout?: number }
-  | { type: 'http'; url: string; headers?: Record<string, string>; timeout?: number };
+  | { type: 'command'; command: string; timeout?: number; async?: boolean; statusMessage?: string }
+  | { type: 'prompt'; prompt: string; model?: string; timeout?: number; statusMessage?: string }
+  | { type: 'agent'; prompt: string; model?: string; timeout?: number; statusMessage?: string }
+  | { type: 'http'; url: string; headers?: Record<string, string>; timeout?: number; statusMessage?: string; allowedEnvVars?: string[] };
 
 /**
  * Claude Code settings.json 結構。
@@ -186,7 +186,7 @@ export interface ClaudeSettings {
   /** 使用的 Claude 模型 ID。對應 docs: model */
   model?: string;
   /** 工具呼叫的 allow/deny/ask 規則 + defaultMode + additionalDirectories。對應 docs: permissions */
-  permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; defaultMode?: string; additionalDirectories?: string[] };
+  permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; defaultMode?: string; disableBypassPermissionsMode?: 'disable'; additionalDirectories?: string[] };
   /** 注入每次 session 的環境變數 key-value map。對應 docs: env */
   env?: Record<string, string>;
   /** lifecycle hooks（PreToolUse/PostToolUse/Stop 等）→ matcher + hook command array。對應 docs: hooks */
@@ -207,8 +207,8 @@ export interface ClaudeSettings {
   includeGitInstructions?: boolean;
   /** 是否遵守 .gitignore 過濾檔案建議。對應 docs: respectGitignore */
   respectGitignore?: boolean;
-  /** auto = 自動選擇；stream-json = 強制 JSON streaming 格式。對應 docs: outputStyle */
-  outputStyle?: 'auto' | 'stream-json';
+  /** 輸出風格（自由字串，如 "default"、"Explanatory"、"Learning"）。對應 docs: outputStyle */
+  outputStyle?: string;
   /** 啟用快速模式（使用相同模型加速輸出速度）。對應 docs: fastMode */
   fastMode?: boolean;
   /** 允許每個 session 個別 opt-in 快速模式。對應 docs: fastModePerSessionOptIn */
@@ -246,6 +246,10 @@ export interface ClaudeSettings {
     enabled?: boolean;
     autoAllowBashIfSandboxed?: boolean;
     excludedCommands?: string[];
+    enableWeakerNetworkIsolation?: boolean;
+    enableWeakerNestedSandbox?: boolean;
+    allowUnsandboxedCommands?: boolean;
+    ignoreViolations?: Record<string, string[]>;
     filesystem?: {
       allowWrite?: string[];
       denyWrite?: string[];
@@ -254,7 +258,11 @@ export interface ClaudeSettings {
     network?: {
       allowedDomains?: string[];
       allowUnixSockets?: string[];
+      allowAllUnixSockets?: boolean;
       allowLocalBinding?: boolean;
+      httpProxyPort?: number;
+      socksProxyPort?: number;
+      allowManagedDomainsOnly?: boolean;
     };
   };
   /** 公司公告字串清單，顯示在 Claude Code 啟動時。對應 docs: companyAnnouncements */
@@ -268,15 +276,15 @@ export interface ClaudeSettings {
   /** 載入 spinner 時顯示 tips 提示。對應 docs: spinnerTipsEnabled */
   spinnerTipsEnabled?: boolean;
   /** Spinner 動詞設定：mode = append（追加）或 replace（取代）+ verbs 清單。對應 docs: spinnerVerbs */
-  spinnerVerbs?: { mode: 'append' | 'replace'; verbs: string[] };
+  spinnerVerbs?: { mode?: 'append' | 'replace'; verbs: string[] };
   /** 覆蓋預設 spinner tips：自訂 tips 清單 + excludeDefault 是否排除內建 tips。對應 docs: spinnerTipsOverride */
   spinnerTipsOverride?: { tips: string[]; excludeDefault?: boolean };
   /** 顯示終端機進度條（file operations 等）。對應 docs: terminalProgressBarEnabled */
   terminalProgressBarEnabled?: boolean;
   /** 減少動畫（尊重系統 prefers-reduced-motion 設定）。對應 docs: prefersReducedMotion */
   prefersReducedMotion?: boolean;
-  /** Claude Code 的 UI 呈現模式：auto/inline/tmux/iterm2。對應 docs: teammateMode */
-  teammateMode?: 'auto' | 'inline' | 'tmux' | 'iterm2';
+  /** Claude Code 的 UI 呈現模式：auto/in-process/tmux。對應 docs: teammateMode */
+  teammateMode?: 'auto' | 'in-process' | 'tmux';
 }
 
 /** 翻譯目標語言 allowlist（前後端共用） */
