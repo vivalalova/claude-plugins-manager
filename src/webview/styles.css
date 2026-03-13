@@ -2142,7 +2142,12 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 .hooks-hook-item-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+
+.hooks-hook-item-wrapper + .hooks-hook-item-wrapper {
+  padding-top: 6px;
+  border-top: 1px solid var(--vscode-editorWidget-border, rgba(128,128,128,0.08));
 }
 
 .hooks-hook-item {
@@ -2183,13 +2188,15 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 }
 
 .hooks-explanation-text {
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+  padding-left: 8px;
 }
 
 .hooks-explanation-text p {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
 }
 
 .hooks-explanation-text p:last-child {
@@ -2199,18 +2206,18 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
 .hooks-explanation-text ul,
 .hooks-explanation-text ol {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 16px;
 }
 
 .hooks-explanation-text li + li {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .hooks-explanation-text code {
   font-family: var(--vscode-editor-font-family);
-  font-size: 11px;
-  padding: 1px 4px;
-  border-radius: 3px;
+  font-size: 10px;
+  padding: 0 3px;
+  border-radius: 2px;
   background: var(--vscode-textCodeBlock-background);
 }
 
