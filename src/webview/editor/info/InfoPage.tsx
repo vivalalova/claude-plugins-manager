@@ -28,6 +28,13 @@ export function InfoPage(): React.ReactElement {
     });
   };
 
+  const handleOpenRepo = (): void => {
+    if (!info?.repoUrl) return;
+    sendRequest<void>({ type: 'openExternal', url: info.repoUrl }).catch(() => {
+      addToast(t('info.action.openFailed'), 'error');
+    });
+  };
+
   const handleClearCache = async (): Promise<void> => {
     setShowClearConfirm(false);
     setClearing(true);
@@ -59,8 +66,8 @@ export function InfoPage(): React.ReactElement {
     );
   }
 
-  const paths: Array<{ key: string; label: string; value: string; isCacheDir?: boolean }> = [
-    { key: 'cacheDir', label: t('info.path.cacheDir'), value: info.cacheDirPath, isCacheDir: true },
+  const paths: Array<{ key: string; label: string; value: string; action?: 'clearCache' }> = [
+    { key: 'cacheDir', label: t('info.path.cacheDir'), value: info.cacheDirPath, action: 'clearCache' },
     { key: 'pluginsDir', label: t('info.path.pluginsDir'), value: info.pluginsDirPath },
     { key: 'installedPlugins', label: t('info.path.installedPlugins'), value: info.installedPluginsPath },
     { key: 'knownMarketplaces', label: t('info.path.knownMarketplaces'), value: info.knownMarketplacesPath },
@@ -87,7 +94,7 @@ export function InfoPage(): React.ReactElement {
                 <span className="info-field-label">{t('info.extension.repo')}</span>
                 <button
                   className="info-link"
-                  onClick={() => sendRequest<void>({ type: 'openExternal', url: info.repoUrl! })}
+                  onClick={handleOpenRepo}
                 >
                   {info.repoUrl}
                 </button>
@@ -117,7 +124,7 @@ export function InfoPage(): React.ReactElement {
         <div className="settings-section info-section">
           <h3 className="settings-section-title">{t('info.section.paths')}</h3>
           <div className="info-path-list">
-            {paths.map(({ key, label, value, isCacheDir }) => (
+            {paths.map(({ key, label, value, action }) => (
               <div key={key} className="info-path-row">
                 <div className="info-path-meta">
                   <span className="info-path-label">{label}</span>
@@ -130,7 +137,7 @@ export function InfoPage(): React.ReactElement {
                   >
                     {t('info.action.open')}
                   </button>
-                  {isCacheDir && (
+                  {action === 'clearCache' && (
                     <button
                       className="btn btn-danger info-path-btn"
                       onClick={() => setShowClearConfirm(true)}

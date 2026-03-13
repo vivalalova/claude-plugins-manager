@@ -136,15 +136,11 @@ export class MessageRouter {
         return this.settings.setSetting(message.scope, message.key, message.value);
       case 'settings.delete':
         return this.settings.deleteSetting(message.scope, message.key);
-      case 'hooks.checkFilePaths': {
-        const home = os.homedir();
-        const expandPath = (p: string): string =>
-          p.startsWith('~/') ? home + p.slice(1) : p;
+      case 'hooks.checkFilePaths':
         return message.paths.filter((p) => {
-          const expanded = expandPath(p);
+          const expanded = this.expandTildePath(p);
           return (p.startsWith('/') || p.startsWith('~/')) && fs.existsSync(expanded);
         });
-      }
 
       case 'hooks.explain':
         return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale, message.filePath);
@@ -156,10 +152,7 @@ export class MessageRouter {
         return;
 
       case 'hooks.openFile': {
-        const home = os.homedir();
-        const resolved = message.path.startsWith('~/')
-          ? home + message.path.slice(1)
-          : message.path;
+        const resolved = this.expandTildePath(message.path);
         await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
         return;
       }
@@ -168,10 +161,7 @@ export class MessageRouter {
         return this.extensionInfo.getInfo();
 
       case 'extension.revealPath': {
-        const home = os.homedir();
-        const resolved = message.path.startsWith('~/')
-          ? home + message.path.slice(1)
-          : message.path;
+        const resolved = this.expandTildePath(message.path);
         if (!fs.existsSync(resolved)) {
           throw new Error(`Path does not exist: ${resolved}`);
         }
@@ -207,5 +197,9 @@ export class MessageRouter {
       default:
         throw new Error(`Unknown message type: ${(message as { type: string }).type}`);
     }
+  }
+
+  private expandTildePath(p: string): string {
+    return p.startsWith('~/') ? os.homedir() + p.slice(1) : p;
   }
 }
