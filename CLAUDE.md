@@ -48,9 +48,9 @@ npm run watch              # concurrently watch extension + webview
 
 | Section             | 元件檔案                 | 涵蓋欄位範圍                                                                                    |
 | ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、fastMode、autoMemoryEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays 等 |
+| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、includeCoAuthoredBy、fastMode、autoMemoryEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays 等 |
 | DisplaySection      | `DisplaySection.tsx`     | teammateMode、showTurnDuration、spinnerTipsEnabled、spinnerVerbs、spinnerTipsOverride、terminalProgressBarEnabled、prefersReducedMotion |
-| AdvancedSection     | `AdvancedSection.tsx`    | forceLoginMethod、forceLoginOrgUUID、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
+| AdvancedSection     | `AdvancedSection.tsx`    | forceLoginMethod、forceLoginOrgUUID、autoMemoryDirectory、modelOverrides、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
 | PermissionsSection  | `PermissionsSection.tsx` | permissions（allow/deny/ask/defaultMode/additionalDirectories）                                 |
 | EnvSection          | `EnvSection.tsx`         | env（key-value map）                                                                            |
 | HooksSection        | `HooksSection.tsx`       | hooks（四種 type）、disableAllHooks                                                             |
@@ -60,7 +60,7 @@ npm run watch              # concurrently watch extension + webview
 實作設定頁新功能前，先查官方文件確認支援的參數：
 https://code.claude.com/docs/en/settings
 
-同步 docs 變更回 repo 前，先讀 [.agents/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.agents/skills/sync-settings-options/SKILL.md)
+同步 docs 變更回 repo 前，先讀 [.claude/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.claude/skills/sync-settings-options/SKILL.md)
 
 ## 已知陷阱
 
@@ -73,9 +73,12 @@ https://code.claude.com/docs/en/settings
 - `scanAvailablePlugins()` 會讀 `plugin.json`（description/version 優先於 marketplace.json）；`author` 欄位可能是 string 或 `{ name, email }` object
 - `handleUpdateAll` 只更新 **enabled** plugin 的 **enabled** scope；disabled 的 skip
 - `ClaudeSettings.sandbox` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
+- `ClaudeSettings.modelOverrides` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
 - `spinnerVerbs` / `spinnerTipsOverride` clear 操作呼叫 `onDelete(key)`，非存空物件
 - `fileSuggestion` 儲存格式固定為 `{ type: 'command', command: string }`
 - `statusLine` 儲存格式固定為 `{ type: 'command'; command: string; padding?: number }`
+- `outputStyle` 依官方 docs 改為自由字串，不再限制 `auto`/`stream-json`
+- `teammateMode` 依官方 docs 使用 `auto | in-process | tmux`；舊值 `inline` / `iterm2` 視為 unknown value 顯示
 
 ## 測試
 

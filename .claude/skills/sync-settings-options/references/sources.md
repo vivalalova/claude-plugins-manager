@@ -3,6 +3,8 @@
 ## Canonical
 
 - official docs：`https://code.claude.com/docs/en/settings`
+- fetch 方式：`agent-browser` skill 開啟 docs 頁面擷取
+- fallback：`context7` query
 
 ## Secondary
 
