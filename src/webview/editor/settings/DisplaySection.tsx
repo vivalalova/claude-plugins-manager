@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, TagListSetting } from './components/SettingControls';
-import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault } from '../../../shared/claude-settings-schema';
+import { TagListSetting } from './components/SettingControls';
+import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { useToast } from '../../components/Toast';
 
@@ -211,55 +211,67 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 // DisplaySection
 // ---------------------------------------------------------------------------
 
+/** 欄位渲染順序（與改造前一致） */
+const DISPLAY_FIELD_ORDER: (keyof ClaudeSettings)[] = [
+  'teammateMode',
+  'showTurnDuration',
+  'spinnerTipsEnabled',
+  'terminalProgressBarEnabled',
+  'prefersReducedMotion',
+  'spinnerVerbs',
+  'spinnerTipsOverride',
+];
+
 export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
   const { t } = useI18n();
-
-  const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
-    { key: 'showTurnDuration', label: t('settings.display.showTurnDuration.label'), description: t('settings.display.showTurnDuration.description') },
-    { key: 'spinnerTipsEnabled', label: t('settings.display.spinnerTipsEnabled.label'), description: t('settings.display.spinnerTipsEnabled.description') },
-    { key: 'terminalProgressBarEnabled', label: t('settings.display.terminalProgressBarEnabled.label'), description: t('settings.display.terminalProgressBarEnabled.description') },
-    { key: 'prefersReducedMotion', label: t('settings.display.prefersReducedMotion.label'), description: t('settings.display.prefersReducedMotion.description') },
-  ];
 
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.display')}</h3>
 
-      <SchemaFieldRenderer
-        settingKey="teammateMode"
-        schema={CLAUDE_SETTINGS_SCHEMA.teammateMode}
-        value={settings.teammateMode}
-        scope={scope}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+      {DISPLAY_FIELD_ORDER.map((key) => {
+        const schema = CLAUDE_SETTINGS_SCHEMA[key];
+        if (!schema) return null;
 
-      {booleanFields.map(({ key, label, description }) => (
-        <BooleanToggle
-          key={key}
-          label={label}
-          description={description}
-          value={settings[key] as boolean | undefined}
-          settingKey={key}
-          defaultValue={getSchemaDefault<boolean>(key)}
-          onSave={onSave}
-          onDelete={onDelete}
-        />
-      ))}
+        if (schema.controlType === 'custom') {
+          switch (key) {
+            case 'spinnerVerbs':
+              return (
+                <SpinnerVerbsEditor
+                  key={key}
+                  scope={scope}
+                  value={settings.spinnerVerbs}
+                  onSave={onSave}
+                  onDelete={onDelete}
+                />
+              );
+            case 'spinnerTipsOverride':
+              return (
+                <SpinnerTipsOverrideEditor
+                  key={key}
+                  scope={scope}
+                  value={settings.spinnerTipsOverride}
+                  onSave={onSave}
+                  onDelete={onDelete}
+                />
+              );
+            default:
+              return null;
+          }
+        }
 
-      <SpinnerVerbsEditor
-        scope={scope}
-        value={settings.spinnerVerbs}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <SpinnerTipsOverrideEditor
-        scope={scope}
-        value={settings.spinnerTipsOverride}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+        return (
+          <SchemaFieldRenderer
+            key={key}
+            settingKey={key}
+            schema={schema}
+            value={(settings as Record<string, unknown>)[key]}
+            scope={scope}
+            onSave={onSave}
+            onDelete={onDelete}
+          />
+        );
+      })}
     </div>
   );
 }
