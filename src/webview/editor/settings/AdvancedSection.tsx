@@ -9,9 +9,25 @@ import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEdi
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 
-const TEXT_FIELD_KEYS: (keyof ClaudeSettings)[] = [
-  'forceLoginOrgUUID', 'plansDirectory', 'apiKeyHelper',
-  'otelHeadersHelper', 'awsCredentialExport', 'awsAuthRefresh',
+// ---------------------------------------------------------------------------
+// AdvancedSection
+// ---------------------------------------------------------------------------
+
+/** 欄位渲染順序（與改造前一致） */
+const ADVANCED_FIELD_ORDER: (keyof ClaudeSettings)[] = [
+  'forceLoginMethod',
+  'attribution',
+  'statusLine',
+  'fileSuggestion',
+  'sandbox',
+  'companyAnnouncements',
+  'forceLoginOrgUUID',
+  'plansDirectory',
+  'apiKeyHelper',
+  'otelHeadersHelper',
+  'awsCredentialExport',
+  'awsAuthRefresh',
+  'skipWebFetchPreflight',
 ];
 
 interface AdvancedSectionProps {
@@ -23,52 +39,58 @@ interface AdvancedSectionProps {
 
 export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
   const { t } = useI18n();
+
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.advanced')}</h3>
-      <SchemaFieldRenderer
-        settingKey="forceLoginMethod"
-        schema={CLAUDE_SETTINGS_SCHEMA.forceLoginMethod}
-        value={settings.forceLoginMethod}
-        scope={scope}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-      <AttributionEditor attribution={settings.attribution} onSave={onSave} onDelete={onDelete} />
-      <StatusLineEditor statusLine={settings.statusLine} onSave={onSave} onDelete={onDelete} />
-      <TextSetting
-        label={t('settings.advanced.fileSuggestion.label')}
-        description={t('settings.advanced.fileSuggestion.description')}
-        value={settings.fileSuggestion?.command}
-        placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
-        saveLabel={t('settings.advanced.fileSuggestion.save')}
-        clearLabel={t('settings.advanced.fileSuggestion.clear')}
-        settingKey="fileSuggestion"
-        scope={scope}
-        onSave={async (_key, value) => onSave('fileSuggestion', { type: 'command', command: value as string })}
-        onDelete={async () => onDelete('fileSuggestion')}
-      />
-      <SandboxEditor sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />
-      <CompanyAnnouncementsEditor scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />
-      {TEXT_FIELD_KEYS.map((key) => (
-        <SchemaFieldRenderer
-          key={key}
-          settingKey={key}
-          schema={CLAUDE_SETTINGS_SCHEMA[key]}
-          value={settings[key] as string | undefined}
-          scope={scope}
-          onSave={onSave}
-          onDelete={onDelete}
-        />
-      ))}
-      <SchemaFieldRenderer
-        settingKey="skipWebFetchPreflight"
-        schema={CLAUDE_SETTINGS_SCHEMA.skipWebFetchPreflight}
-        value={settings.skipWebFetchPreflight}
-        scope={scope}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+
+      {ADVANCED_FIELD_ORDER.map((key) => {
+        const schema = CLAUDE_SETTINGS_SCHEMA[key];
+        if (!schema) return null;
+
+        if (schema.controlType === 'custom') {
+          switch (key) {
+            case 'attribution':
+              return <AttributionEditor key={key} attribution={settings.attribution} onSave={onSave} onDelete={onDelete} />;
+            case 'statusLine':
+              return <StatusLineEditor key={key} statusLine={settings.statusLine} onSave={onSave} onDelete={onDelete} />;
+            case 'fileSuggestion':
+              return (
+                <TextSetting
+                  key={key}
+                  label={t('settings.advanced.fileSuggestion.label')}
+                  description={t('settings.advanced.fileSuggestion.description')}
+                  value={settings.fileSuggestion?.command}
+                  placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
+                  saveLabel={t('settings.advanced.fileSuggestion.save')}
+                  clearLabel={t('settings.advanced.fileSuggestion.clear')}
+                  settingKey="fileSuggestion"
+                  scope={scope}
+                  onSave={async (_key, value) => onSave('fileSuggestion', { type: 'command', command: value as string })}
+                  onDelete={async () => onDelete('fileSuggestion')}
+                />
+              );
+            case 'sandbox':
+              return <SandboxEditor key={key} sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />;
+            case 'companyAnnouncements':
+              return <CompanyAnnouncementsEditor key={key} scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
+            default:
+              return null;
+          }
+        }
+
+        return (
+          <SchemaFieldRenderer
+            key={key}
+            settingKey={key}
+            schema={schema}
+            value={(settings as Record<string, unknown>)[key]}
+            scope={scope}
+            onSave={onSave}
+            onDelete={onDelete}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -1,38 +1,44 @@
 ---
-title: 改造 DisplaySection — schema-driven 渲染
+title: 改造 AdvancedSection — schema-driven 渲染
 created: 2026-03-14
 priority: high
-suggested_order: B02
-blockedBy: [c01-schema-field-renderer, c02-enum-label-i18n]
+suggested_order: B03
+blockedBy: [c01-schema-field-renderer, c02-enum-label-i18n, c03-text-number-i18n]
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# 改造 DisplaySection — schema-driven 渲染
+# 改造 AdvancedSection — schema-driven 渲染
 
-將 `DisplaySection` 的硬編碼 boolean 和 enum 欄位替換為 schema-driven 渲染。
+將 `AdvancedSection` 的硬編碼 text、boolean、enum 欄位替換為 schema-driven 渲染。
 
 ## 改造範圍
 
-1. **移除 `booleanFields[]` 陣列** — 改為從 schema 過濾 `section === 'display' && controlType === 'boolean'`
-2. **移除 `KNOWN_TEAMMATE_MODES` 常數** — `teammateMode` 改用 `SchemaFieldRenderer`（options 從 schema 取）
+1. **移除 `TEXT_FIELD_KEYS[]` 陣列** — text 欄位改用 SchemaFieldRenderer（從 schema 過濾 `section === 'advanced' && controlType === 'text'`）
+2. **移除 `DEFAULT_VALUES` 常數** — default 值已在 schema
+3. **移除 `KNOWN_FORCE_LOGIN_METHODS` 常數** — `forceLoginMethod` enum 改用 SchemaFieldRenderer
+4. **`skipWebFetchPreflight` boolean** — 改用 SchemaFieldRenderer
+
+涉及的 text 欄位：`forceLoginOrgUUID`、`plansDirectory`、`apiKeyHelper`、`otelHeadersHelper`、`awsCredentialExport`、`awsAuthRefresh`（確認實際清單）
 
 ## 保留不動
 
-- `SpinnerVerbsEditor` — schema 中 `spinnerVerbs` 為 `controlType: 'custom'`
-- `SpinnerTipsOverrideEditor` — schema 中 `spinnerTipsOverride` 為 `controlType: 'custom'`
-- Section 手動 render custom editor 的邏輯
+- `AttributionEditor` — `controlType: 'custom'`
+- `StatusLineEditor` — `controlType: 'custom'`
+- `SandboxEditor` — `controlType: 'custom'`
+- `CompanyAnnouncementsEditor` — `controlType: 'custom'`
+- `fileSuggestion` — 目前用 `TextSetting` + wrapper onSave（將 string 包成 `{ type: 'command', command }`），保持 `controlType: 'custom'` 不改動
 
 ## User Stories
 
-- As a developer, I want the Display section to use schema-driven rendering for simple fields while keeping custom editors for complex ones.
+- As a developer, I want the Advanced section to eliminate its TEXT_FIELD_KEYS/DEFAULT_VALUES arrays and read everything from the schema.
 
 ## 驗收條件
 
-- Given DisplaySection renders, when I compare with改造前, then 所有欄位的 UI 行為完全一致
-- Given `booleanFields` constant, when I search DisplaySection.tsx, then 找不到
-- Given `KNOWN_TEAMMATE_MODES`, when I search DisplaySection.tsx, then 找不到
-- Given `spinnerVerbs`/`spinnerTipsOverride`, when I check render, then 仍用 custom editor（未被 SchemaFieldRenderer 取代）
+- Given AdvancedSection renders, when I compare with改造前, then 所有欄位 UI 行為一致
+- Given `TEXT_FIELD_KEYS`, when I search AdvancedSection.tsx, then 找不到
+- Given `DEFAULT_VALUES`, when I search AdvancedSection.tsx, then 找不到
+- Given attribution/statusLine/sandbox, when I check render, then 仍用 custom editor
 - Given `npm run typecheck && npm test`, when I run them, then 全部通過
