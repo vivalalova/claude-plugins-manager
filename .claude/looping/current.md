@@ -1,33 +1,39 @@
 ---
-title: Section 改造後回歸測試更新
+title: SchemaFieldRenderer unit test
 created: 2026-03-14
-priority: high
-suggested_order: T02
-blockedBy: [b01-general-section-schema-driven, b02-display-section-schema-driven, b03-advanced-section-schema-driven]
+priority: critical
+suggested_order: T01
+blockedBy: [c01-schema-field-renderer, c02-enum-label-i18n, c03-text-number-i18n]
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# Section 改造後回歸測試更新
+# SchemaFieldRenderer unit test
 
-B01/B02/B03 改造後，現有的 Section 測試行為斷言不應改變（render 結果相同）。
+在 `src/webview/editor/settings/components/__tests__/SchemaFieldRenderer.test.tsx` 新增測試。
 
-## 任務
+## 測試案例
 
-1. 檢查 `GeneralSection.test.tsx`、`DisplaySection.test.tsx`、`AdvancedSection.test.tsx` 是否因 import 路徑變更或 mock 方式改變而失敗
-2. 修正因重構導致的測試失敗（如 mock 的 constant 已不存在）
-3. 新增斷言：確認欄位順序未改變（snapshot 或 explicit order check）
-4. 確保 schema-driven 欄位的 render 結果與硬編碼版本一致
+1. **boolean schema** → renders BooleanToggle，傳入正確 label/description/defaultValue
+2. **enum schema** with `options: ['a', 'b']` → renders EnumDropdown with knownValues=['a','b'] 和自動組裝的 knownLabels
+3. **text schema** → renders TextSetting with i18n-derived placeholder
+4. **number schema** with `min: 0, max: 100, step: 1` → renders NumberSetting with 正確 props
+5. **tagInput schema** → renders TagInput
+6. **custom schema** → returns null（不渲染任何東西）
+7. **i18n key 組裝** — 驗證 label 用 `settings.{section}.{key}.label` 格式
+8. **onSave/onDelete callback** — 驗證正確傳遞
+
+需加 `/** @vitest-environment jsdom */`。若測試中引用到 vscode（間接透過 provider 或 hook），依 Section test 慣例 mock `'../../../../vscode'`（測試在 `components/__tests__/`，比 `__tests__/` 多一層）。參考 `SettingControls.test.tsx` 和 `GeneralSection.test.tsx` 確認需要的 providers（I18nProvider、ToastProvider）。
 
 ## User Stories
 
-- As a developer, I want the existing test suite to pass unchanged after the schema-driven refactor to ensure no UI regressions.
+- As a developer, I want comprehensive tests for the schema renderer so that regressions in field dispatch or i18n wiring are caught early.
 
 ## 驗收條件
 
-- Given B01/B02/B03 已完成, when I run `npm test`, then 所有 Section 測試通過
-- Given 改造前後的 render output, when compared, then 欄位順序、控制元件類型、props 一致
-- Given 新增的 order assertion, when 有人改變欄位順序, then test 失敗提醒
+- Given `npm test SchemaFieldRenderer`, when I run it, then 所有案例通過
+- Given 每個 controlType, when tested, then 對應的控制元件被渲染
+- Given `controlType: 'custom'`, when tested, then component returns null
 - Given `npm run verify`, when I run it, then 全部通過

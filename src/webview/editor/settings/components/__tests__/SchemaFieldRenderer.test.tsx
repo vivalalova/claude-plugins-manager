@@ -58,7 +58,7 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('enum → renders EnumDropdown with options', async () => {
+  it('enum → renders EnumDropdown with options and notSet label', async () => {
     renderField('effortLevel', {
       type: "'high' | 'medium' | 'low'",
       default: 'high',
@@ -74,42 +74,50 @@ describe('SchemaFieldRenderer', () => {
       expect(screen.getByText('High')).toBeTruthy();
       expect(screen.getByText('Medium')).toBeTruthy();
       expect(screen.getByText('Low')).toBeTruthy();
+      // notSet option rendered from i18n convention
+      expect(screen.getByText('— not set —')).toBeTruthy();
     });
   });
 
-  it('text → renders TextSetting with placeholder', async () => {
+  it('text → renders TextSetting with placeholder and save/clear buttons', async () => {
     renderField('language', {
       type: 'string',
       description: 'Claude 回應語言',
       section: 'general',
       controlType: 'text',
-    });
+    }, 'zh-TW');
     await waitFor(() => {
       expect(screen.getByText('Language')).toBeTruthy();
-      expect(screen.getByRole('textbox')).toBeTruthy();
+      const input = screen.getByRole('textbox');
+      expect(input).toBeTruthy();
+      expect(input.getAttribute('placeholder')).toBe('e.g. zh-TW');
+      expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy();
     });
   });
 
-  it('number → renders NumberSetting with min/step', async () => {
+  it('number → renders NumberSetting with min/max/step', async () => {
     renderField('cleanupPeriodDays', {
       type: 'number',
       default: 30,
       description: '自動清理週期',
       section: 'general',
       controlType: 'number',
-      min: 1,
+      min: 0,
+      max: 365,
       step: 1,
     });
     await waitFor(() => {
       expect(screen.getByText('Cleanup Period Days')).toBeTruthy();
       const input = screen.getByRole('spinbutton');
       expect(input).toBeTruthy();
-      expect(input.getAttribute('min')).toBe('1');
+      expect(input.getAttribute('min')).toBe('0');
+      expect(input.getAttribute('max')).toBe('365');
       expect(input.getAttribute('step')).toBe('1');
     });
   });
 
-  it('tagInput → renders TagInput', async () => {
+  it('tagInput → renders TagInput with add button', async () => {
     renderField('availableModels', {
       type: 'string[]',
       description: '可選模型清單',
@@ -118,6 +126,7 @@ describe('SchemaFieldRenderer', () => {
     }, []);
     await waitFor(() => {
       expect(screen.getByText('Available Models Whitelist')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy();
     });
   });
 
@@ -155,5 +164,18 @@ describe('SchemaFieldRenderer', () => {
     await waitFor(() => {
       expect(screen.getByText('Include Git Instructions')).toBeTruthy();
     });
+  });
+
+  it('boolean → onDelete called on reset', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderField('fastMode', {
+      type: 'boolean',
+      default: false,
+      description: '啟用快速模式',
+      section: 'general',
+      controlType: 'boolean',
+    }, true, vi.fn().mockResolvedValue(undefined), onDelete);
+    fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('fastMode'));
   });
 });
