@@ -49,6 +49,7 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   effortLevel: {
     type: "'high' | 'medium' | 'low'",
+    default: 'high',
     description: '思考深度，影響 token 用量',
     section: 'general',
     controlType: 'enum',
@@ -74,24 +75,28 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   fastMode: {
     type: 'boolean',
+    default: false,
     description: '啟用快速模式',
     section: 'general',
     controlType: 'boolean',
   },
   fastModePerSessionOptIn: {
     type: 'boolean',
+    default: false,
     description: '允許每個 session 個別 opt-in 快速模式',
     section: 'general',
     controlType: 'boolean',
   },
   autoMemoryEnabled: {
     type: 'boolean',
+    default: true,
     description: '自動寫入 memory（CLAUDE.md）功能開關',
     section: 'general',
     controlType: 'boolean',
   },
   autoUpdatesChannel: {
     type: "'stable' | 'latest'",
+    default: 'latest',
     description: '自動更新頻道',
     section: 'general',
     controlType: 'enum',
@@ -99,6 +104,7 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   cleanupPeriodDays: {
     type: 'number',
+    default: 30,
     description: '自動清理暫存檔案的週期（天數）',
     section: 'general',
     controlType: 'number',
@@ -106,24 +112,28 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   alwaysThinkingEnabled: {
     type: 'boolean',
+    default: false,
     description: '強制每次回應都啟用 extended thinking',
     section: 'general',
     controlType: 'boolean',
   },
   includeGitInstructions: {
     type: 'boolean',
+    default: true,
     description: '是否在 system prompt 加入 git context',
     section: 'general',
     controlType: 'boolean',
   },
   respectGitignore: {
     type: 'boolean',
+    default: true,
     description: '是否遵守 .gitignore 過濾檔案建議',
     section: 'general',
     controlType: 'boolean',
   },
   enableAllProjectMcpServers: {
     type: 'boolean',
+    default: false,
     description: '自動啟用 .mcp.json 中所有 project MCP server',
     section: 'general',
     controlType: 'boolean',
@@ -144,6 +154,7 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   // ── Display ──
   teammateMode: {
     type: "'auto' | 'in-process' | 'tmux'",
+    default: 'auto',
     description: 'Claude Code 的 UI 呈現模式',
     section: 'display',
     controlType: 'enum',
@@ -151,12 +162,14 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   showTurnDuration: {
     type: 'boolean',
+    default: true,
     description: '顯示每次 turn 的耗時',
     section: 'display',
     controlType: 'boolean',
   },
   spinnerTipsEnabled: {
     type: 'boolean',
+    default: true,
     description: '載入 spinner 時顯示 tips 提示',
     section: 'display',
     controlType: 'boolean',
@@ -175,12 +188,14 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   terminalProgressBarEnabled: {
     type: 'boolean',
+    default: true,
     description: '顯示終端機進度條',
     section: 'display',
     controlType: 'boolean',
   },
   prefersReducedMotion: {
     type: 'boolean',
+    default: false,
     description: '減少動畫',
     section: 'display',
     controlType: 'boolean',
@@ -263,6 +278,7 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   skipWebFetchPreflight: {
     type: 'boolean',
+    default: false,
     description: '跳過 WebFetch 的 preflight 安全檢查',
     section: 'advanced',
     controlType: 'boolean',
@@ -293,11 +309,22 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   },
   disableAllHooks: {
     type: 'boolean',
+    default: false,
     description: '全域停用所有 hooks',
     section: 'hooks',
     controlType: 'boolean',
   },
 };
+
+/**
+ * 從 schema 取得欄位的預設值。
+ * 若 key 不存在，拋出 Error（fail-fast）；無預設則回傳 undefined。
+ */
+export function getSchemaDefault<T = unknown>(key: string): T | undefined {
+  const field = CLAUDE_SETTINGS_SCHEMA[key];
+  if (!field) throw new Error(`Schema key "${key}" not found`);
+  return field.default as T | undefined;
+}
 
 /**
  * 從 schema 取得 enum 欄位的 options 陣列。

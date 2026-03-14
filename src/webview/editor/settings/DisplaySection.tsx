@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagListSetting } from './components/SettingControls';
-import { getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
+import { getSchemaDefault, getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
 import { useToast } from '../../components/Toast';
 
 interface DisplaySectionProps {
@@ -213,7 +213,6 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
   const { t } = useI18n();
 
-  // Defaults mirror Claude Code's published settings schema.
   const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
     { key: 'showTurnDuration', label: t('settings.display.showTurnDuration.label'), description: t('settings.display.showTurnDuration.description') },
     { key: 'spinnerTipsEnabled', label: t('settings.display.spinnerTipsEnabled.label'), description: t('settings.display.spinnerTipsEnabled.description') },
@@ -240,7 +239,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
         notSetLabel={t('settings.display.teammateMode.notSet')}
         unknownTemplate={t('settings.display.teammateMode.unknown')}
         settingKey="teammateMode"
-        defaultValue="auto"
+        defaultValue={getSchemaDefault<string>('teammateMode')}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -252,7 +251,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
           description={description}
           value={settings[key] as boolean | undefined}
           settingKey={key}
-          defaultValue={key === 'prefersReducedMotion' ? false : true}
+          defaultValue={getSchemaDefault<boolean>(key)}
           onSave={onSave}
           onDelete={onDelete}
         />

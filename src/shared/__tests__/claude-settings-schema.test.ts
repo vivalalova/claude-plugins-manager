@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CLAUDE_SETTINGS_SCHEMA, getSchemaEnumOptions } from '../claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault, getSchemaEnumOptions } from '../claude-settings-schema';
 
 const TYPES_PATH = join(__dirname, '..', 'types.ts');
 
@@ -106,5 +106,44 @@ describe('getSchemaEnumOptions', () => {
 
   it('非 enum 的 key → 拋出 Error', () => {
     expect(() => getSchemaEnumOptions('model')).toThrow('not an enum');
+  });
+});
+
+describe('getSchemaDefault', () => {
+  it('有 default 的 key 回傳正確值', () => {
+    expect(getSchemaDefault('fastMode')).toBe(false);
+    expect(getSchemaDefault('autoMemoryEnabled')).toBe(true);
+    expect(getSchemaDefault('effortLevel')).toBe('high');
+    expect(getSchemaDefault('cleanupPeriodDays')).toBe(30);
+    expect(getSchemaDefault('plansDirectory')).toBe('~/.claude/plans');
+    expect(getSchemaDefault('prefersReducedMotion')).toBe(false);
+    expect(getSchemaDefault('teammateMode')).toBe('auto');
+  });
+
+  it('無 default 的 key 回傳 undefined', () => {
+    expect(getSchemaDefault('model')).toBeUndefined();
+    expect(getSchemaDefault('language')).toBeUndefined();
+  });
+
+  it('不存在的 key → 拋出 Error', () => {
+    expect(() => getSchemaDefault('nonExistent')).toThrow('not found');
+  });
+
+  it('所有 boolean entry 都有 default 值', () => {
+    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+      if (field.controlType === 'boolean') {
+        expect(field.default, `${key} boolean entry 缺少 default`).not.toBeUndefined();
+        expect(typeof field.default, `${key} default 應為 boolean`).toBe('boolean');
+      }
+    }
+  });
+
+  it('enum default 值在 options 中', () => {
+    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+      if (field.controlType === 'enum' && field.default !== undefined) {
+        expect(field.options, `${key} enum 應有 options`).toBeDefined();
+        expect(field.options).toContain(field.default);
+      }
+    }
   });
 });

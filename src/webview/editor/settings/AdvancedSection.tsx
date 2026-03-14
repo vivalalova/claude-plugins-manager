@@ -6,16 +6,12 @@ import { AttributionEditor } from './components/AttributionEditor';
 import { StatusLineEditor } from './components/StatusLineEditor';
 import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
-import { getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
+import { getSchemaDefault, getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
 
 const TEXT_FIELD_KEYS: (keyof ClaudeSettings)[] = [
   'forceLoginOrgUUID', 'plansDirectory', 'apiKeyHelper',
   'otelHeadersHelper', 'awsCredentialExport', 'awsAuthRefresh',
 ];
-
-const DEFAULT_VALUES: Partial<Record<keyof ClaudeSettings, string>> = {
-  plansDirectory: '~/.claude/plans',
-};
 
 interface AdvancedSectionProps {
   scope: PluginScope;
@@ -74,7 +70,7 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
             saveLabel={tk('save')}
             clearLabel={tk('clear')}
             settingKey={key}
-            defaultValue={DEFAULT_VALUES[key]}
+            defaultValue={getSchemaDefault<string>(key)}
             scope={scope}
             onSave={onSave}
             onDelete={onDelete}
@@ -86,6 +82,7 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
         description={t('settings.advanced.skipWebFetchPreflight.description')}
         value={settings.skipWebFetchPreflight}
         settingKey="skipWebFetchPreflight"
+        defaultValue={getSchemaDefault<boolean>('skipWebFetchPreflight')}
         onSave={onSave}
         onDelete={onDelete}
       />
