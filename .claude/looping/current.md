@@ -1,37 +1,41 @@
 ---
-title: SchemaFieldRenderer text/number i18n 自動組裝
+title: 改造 GeneralSection — schema-driven 渲染
 created: 2026-03-14
 priority: high
-suggested_order: C03
-blockedBy: c01-schema-field-renderer
+suggested_order: B01
+blockedBy: [c01-schema-field-renderer, c02-enum-label-i18n, c03-text-number-i18n]
 phase: needs-commit
 iteration: 3
 max_iterations: 3
 review_iterations: 2
 ---
 
-# SchemaFieldRenderer text/number i18n 自動組裝
+# 改造 GeneralSection — schema-driven 渲染
 
-`TextSetting` 和 `NumberSetting` 需要 `placeholder`、`saveLabel`、`clearLabel` 等 props。在 `SchemaFieldRenderer` 中自動從 i18n 組裝。
+將 `GeneralSection` 的硬編碼欄位替換為 schema-driven 渲染。
 
-## 規則
+## 改造範圍
 
-- placeholder: `t('settings.{section}.{key}.placeholder')`
-- save button: `t('settings.common.save')` （共用 fallback）
-- clear button: `t('settings.common.clear')` （共用 fallback）
-- number min error: `t('settings.common.minError')` （共用 fallback）
-- number max error: `t('settings.common.maxError')` （共用 fallback）
+1. **移除 `booleanFields[]` 陣列** — 改為從 `CLAUDE_SETTINGS_SCHEMA` 過濾 `section === 'general' && controlType === 'boolean'` 的 entries
+2. **移除手動 `EnumDropdown` 呼叫** — `effortLevel`、`autoUpdatesChannel` 改用 `SchemaFieldRenderer`
+3. **移除手動 `TextSetting` 呼叫** — `language`、`outputStyle` 改用 `SchemaFieldRenderer`
+4. **移除手動 `NumberSetting` 呼叫** — `cleanupPeriodDays` 改用 `SchemaFieldRenderer`
+5. **移除手動 `TagInput` 呼叫** — `availableModels` 改用 `SchemaFieldRenderer`
 
-需新增 `settings.common.*` 共用 i18n keys（如果不存在）。若特定欄位需要覆蓋，可用 `settings.{section}.{key}.save` 等。
+## 保留不動
+
+- Section title、docs hint 等手寫 JSX
+- 欄位順序需與改造前一致（根據 schema 中 key 的定義順序，或在 Section 中明確排序）
+- `enableAllProjectMcpServers` 如有特殊行為需保留
 
 ## User Stories
 
-- As a developer, I want text/number field labels auto-resolved from i18n convention so that adding a new text setting only requires schema + i18n entries, not code changes.
+- As a developer, I want the General section to derive its fields from the schema so that adding a new general boolean setting requires zero code changes in GeneralSection.
 
 ## 驗收條件
 
-- Given a text field with existing placeholder i18n key, when SchemaFieldRenderer renders, then placeholder 正確顯示
-- Given `settings.common.save` i18n key exists, when TextSetting renders via SchemaFieldRenderer, then save 按鈕顯示共用文字
-- Given a number field with min constraint, when validation fails, then 顯示 `settings.common.minError` 的翻譯
-- Given 新增的 common i18n keys, when I check en.ts / zh-TW.ts, then 都有對應翻譯
+- Given GeneralSection renders, when I compare with改造前, then 欄位順序、控制元件類型、label、description 完全一致
+- Given `booleanFields` constant, when I search GeneralSection.tsx, then 找不到（已移除）
+- Given `KNOWN_EFFORT_LEVELS` constant, when I search GeneralSection.tsx, then 找不到（已移至 schema）
+- Given 新增一個 `controlType: 'boolean', section: 'general'` 的 schema entry, when GeneralSection renders, then 自動出現新欄位（zero code change）
 - Given `npm run typecheck && npm test`, when I run them, then 全部通過
