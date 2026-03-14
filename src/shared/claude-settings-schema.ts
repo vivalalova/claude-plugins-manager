@@ -108,7 +108,8 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
     description: '自動清理暫存檔案的週期（天數）',
     section: 'general',
     controlType: 'number',
-    min: 1,
+    min: 0,
+    step: 1,
   },
   alwaysThinkingEnabled: {
     type: 'boolean',

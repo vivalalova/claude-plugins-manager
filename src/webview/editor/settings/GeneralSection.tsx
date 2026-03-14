@@ -1,7 +1,7 @@
 import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, NumberSetting, TagInput, TextSetting } from './components/SettingControls';
+import { BooleanToggle } from './components/SettingControls';
 import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 
@@ -48,30 +48,22 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         onDelete={onDelete}
       />
 
-      <TextSetting
-        label={t('settings.general.language.label')}
-        description={t('settings.general.language.description')}
-        value={settings.language}
-        placeholder={t('settings.general.language.placeholder')}
-        saveLabel={t('settings.general.language.save')}
-        clearLabel={t('settings.general.language.clear')}
+      <SchemaFieldRenderer
         settingKey="language"
+        schema={CLAUDE_SETTINGS_SCHEMA.language}
+        value={settings.language}
         scope={scope}
         onSave={onSave}
         onDelete={onDelete}
       />
 
-      <TagInput
-        label={t('settings.general.availableModels.label')}
-        description={t('settings.general.availableModels.description')}
-        scope={scope}
-        tags={settings.availableModels ?? []}
-        emptyPlaceholder={t('settings.general.availableModels.empty')}
-        inputPlaceholder={t('settings.general.availableModels.placeholder')}
-        addLabel={t('settings.general.availableModels.add')}
-        duplicateError={t('settings.general.availableModels.duplicate')}
+      <SchemaFieldRenderer
         settingKey="availableModels"
+        schema={CLAUDE_SETTINGS_SCHEMA.availableModels}
+        value={settings.availableModels}
+        scope={scope}
         onSave={onSave}
+        onDelete={onDelete}
       />
 
       {booleanFields.map(({ key, label, description }) => (
@@ -87,14 +79,10 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         />
       ))}
 
-      <TextSetting
-        label={t('settings.general.outputStyle.label')}
-        description={t('settings.general.outputStyle.description')}
-        value={settings.outputStyle}
-        placeholder={t('settings.general.outputStyle.placeholder')}
-        saveLabel={t('settings.general.outputStyle.save')}
-        clearLabel={t('settings.general.outputStyle.clear')}
+      <SchemaFieldRenderer
         settingKey="outputStyle"
+        schema={CLAUDE_SETTINGS_SCHEMA.outputStyle}
+        value={settings.outputStyle}
         scope={scope}
         onSave={onSave}
         onDelete={onDelete}
@@ -109,19 +97,11 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         onDelete={onDelete}
       />
 
-      <NumberSetting
-        label={t('settings.general.cleanupPeriodDays.label')}
-        description={t('settings.general.cleanupPeriodDays.description')}
-        value={settings.cleanupPeriodDays}
-        placeholder={t('settings.general.cleanupPeriodDays.placeholder')}
-        saveLabel={t('settings.general.cleanupPeriodDays.save')}
-        clearLabel={t('settings.general.cleanupPeriodDays.clear')}
+      <SchemaFieldRenderer
         settingKey="cleanupPeriodDays"
-        defaultValue={getSchemaDefault<number>('cleanupPeriodDays')}
+        schema={CLAUDE_SETTINGS_SCHEMA.cleanupPeriodDays}
+        value={settings.cleanupPeriodDays}
         scope={scope}
-        min={0}
-        step={1}
-        minError={t('settings.general.cleanupPeriodDays.minError')}
         onSave={onSave}
         onDelete={onDelete}
       />
