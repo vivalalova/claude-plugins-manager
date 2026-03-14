@@ -6,8 +6,7 @@ import { AttributionEditor } from './components/AttributionEditor';
 import { StatusLineEditor } from './components/StatusLineEditor';
 import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
-
-const KNOWN_FORCE_LOGIN_METHODS = ['claudeai', 'console'] as const satisfies readonly (NonNullable<ClaudeSettings['forceLoginMethod']>)[];
+import { getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
 
 const TEXT_FIELD_KEYS: (keyof ClaudeSettings)[] = [
   'forceLoginOrgUUID', 'plansDirectory', 'apiKeyHelper',
@@ -39,7 +38,7 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
         label={t('settings.advanced.forceLoginMethod.label')}
         description={t('settings.advanced.forceLoginMethod.description')}
         value={settings.forceLoginMethod}
-        knownValues={KNOWN_FORCE_LOGIN_METHODS}
+        knownValues={getSchemaEnumOptions('forceLoginMethod')}
         knownLabels={forceLoginMethodLabels}
         notSetLabel={t('settings.advanced.forceLoginMethod.notSet')}
         unknownTemplate={t('settings.advanced.forceLoginMethod.unknown')}

@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagListSetting } from './components/SettingControls';
+import { getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
 import { useToast } from '../../components/Toast';
-
-const KNOWN_TEAMMATE_MODES = ['auto', 'in-process', 'tmux'] as const;
 
 interface DisplaySectionProps {
   scope: PluginScope;
@@ -236,7 +235,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
         label={t('settings.display.teammateMode.label')}
         description={t('settings.display.teammateMode.description')}
         value={settings.teammateMode}
-        knownValues={KNOWN_TEAMMATE_MODES}
+        knownValues={getSchemaEnumOptions('teammateMode')}
         knownLabels={teammateModeLabels}
         notSetLabel={t('settings.display.teammateMode.notSet')}
         unknownTemplate={t('settings.display.teammateMode.unknown')}

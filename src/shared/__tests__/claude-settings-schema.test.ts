@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CLAUDE_SETTINGS_SCHEMA } from '../claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getSchemaEnumOptions } from '../claude-settings-schema';
 
 const TYPES_PATH = join(__dirname, '..', 'types.ts');
 
@@ -89,5 +89,22 @@ describe('claude-settings-schema', () => {
         expect(field.step, `${key} 非 number 不應有 step`).toBeUndefined();
       }
     }
+  });
+});
+
+describe('getSchemaEnumOptions', () => {
+  it('回傳已知 enum key 的 options', () => {
+    expect(getSchemaEnumOptions('effortLevel')).toEqual(['high', 'medium', 'low']);
+    expect(getSchemaEnumOptions('autoUpdatesChannel')).toEqual(['stable', 'latest']);
+    expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux']);
+    expect(getSchemaEnumOptions('forceLoginMethod')).toEqual(['claudeai', 'console']);
+  });
+
+  it('不存在的 key → 拋出 Error', () => {
+    expect(() => getSchemaEnumOptions('nonExistent')).toThrow('not found');
+  });
+
+  it('非 enum 的 key → 拋出 Error', () => {
+    expect(() => getSchemaEnumOptions('model')).toThrow('not an enum');
   });
 });

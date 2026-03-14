@@ -298,3 +298,16 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
     controlType: 'boolean',
   },
 };
+
+/**
+ * 從 schema 取得 enum 欄位的 options 陣列。
+ * 若 key 不存在或非 enum，拋出 Error（fail-fast）。
+ */
+export function getSchemaEnumOptions(key: string): readonly string[] {
+  const field = CLAUDE_SETTINGS_SCHEMA[key];
+  if (!field) throw new Error(`Schema key "${key}" not found`);
+  if (field.controlType !== 'enum' || !field.options) {
+    throw new Error(`Schema key "${key}" is not an enum with options`);
+  }
+  return field.options;
+}

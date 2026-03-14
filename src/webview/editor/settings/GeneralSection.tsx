@@ -2,13 +2,7 @@ import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './components/SettingControls';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const KNOWN_EFFORT_LEVELS = ['high', 'medium', 'low'] as const;
-const KNOWN_AUTO_UPDATES_CHANNELS = ['stable', 'latest'] as const;
+import { getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
 
 // ---------------------------------------------------------------------------
 // GeneralSection
@@ -60,7 +54,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         label={t('settings.general.effortLevel.label')}
         description={t('settings.general.effortLevel.description')}
         value={settings.effortLevel}
-        knownValues={KNOWN_EFFORT_LEVELS}
+        knownValues={getSchemaEnumOptions('effortLevel')}
         knownLabels={effortLabels}
         notSetLabel={t('settings.general.effortLevel.notSet')}
         unknownTemplate={t('settings.general.effortLevel.unknown')}
@@ -126,7 +120,7 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         label={t('settings.general.autoUpdatesChannel.label')}
         description={t('settings.general.autoUpdatesChannel.description')}
         value={settings.autoUpdatesChannel}
-        knownValues={KNOWN_AUTO_UPDATES_CHANNELS}
+        knownValues={getSchemaEnumOptions('autoUpdatesChannel')}
         knownLabels={autoUpdatesChannelLabels}
         notSetLabel={t('settings.general.autoUpdatesChannel.notSet')}
         unknownTemplate={t('settings.general.autoUpdatesChannel.unknown')}
