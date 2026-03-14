@@ -113,7 +113,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.emptyState': '尚未定義環境變數',
   'settings.env.toggleReveal': '切換顯示',
   // Hooks section
-  'settings.hooks.disableAll': '停用所有 Hooks',
+  'settings.hooks.disableAllHooks.label': '停用所有 Hooks',
+  'settings.hooks.disableAllHooks.description': '全域停用所有已設定的 hooks',
   'settings.hooks.openInEditor': '在 JSON 編輯器中開啟',
   'settings.hooks.empty': '尚未設定 Hooks',
   'settings.hooks.emptyAction': '開啟 JSON 編輯器以新增 Hooks',

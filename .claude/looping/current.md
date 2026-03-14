@@ -1,35 +1,29 @@
 ---
-title: check:schema 腳本擴充 — 驗證 controlType 與 options
+title: HooksSection disableAllHooks boolean 用 SchemaFieldRenderer
 created: 2026-03-14
-priority: high
-suggested_order: A04
-blockedBy: a01-extend-schema-ui-metadata
+priority: medium
+suggested_order: B04
+blockedBy: c01-schema-field-renderer
 phase: needs-commit
-iteration: 3
+iteration: 2
 max_iterations: 3
-review_iterations: 2
+review_iterations: 1
 ---
 
-# check:schema 腳本擴充 — 驗證 controlType 與 options
+# HooksSection disableAllHooks boolean 用 SchemaFieldRenderer
 
-擴充 `scripts/check-settings-schema.ts`，除了比對 key 一致性外，新增驗證規則：
+`HooksSection` 整體是 custom editor，但 `disableAllHooks` 是一個獨立的 boolean toggle。將這個單一 boolean 改為用 `SchemaFieldRenderer` 渲染，保持一致性。
 
-1. 每個 schema entry 必須有 `controlType`
-2. `controlType: 'enum'` 必須有 `options` 陣列且長度 > 0
-3. `controlType: 'number'` 有 `min`/`max` 時，`min <= max`
-4. `controlType: 'custom'` 不該有 `options`/`min`/`max`（防誤設）
-5. `options` 內的值不能有重複
+## 改造範圍
 
-失敗時 exit 1 並列出所有錯誤（不只第一個）。
+僅 `disableAllHooks` 的 `BooleanToggle` 呼叫改為 `SchemaFieldRenderer`。其餘 hooks 編輯器完全不動。
 
 ## User Stories
 
-- As a developer, I want the CI validation script to catch schema inconsistencies (missing controlType, enum without options) so bugs are found before runtime.
+- As a developer, I want even the simple boolean fields inside complex sections to use the schema renderer for consistency.
 
 ## 驗收條件
 
-- Given a schema entry without `controlType`, when I run `npm run check:schema`, then exit 1 並報錯
-- Given `controlType: 'enum'` without `options`, when I run check, then exit 1
-- Given `controlType: 'number'` with `min: 10, max: 5`, when I run check, then exit 1
-- Given 正確的 schema, when I run `npm run check:schema`, then exit 0
-- Given `package.json` verify script, when I run `npm run verify`, then 包含 check:schema（需將 `npm run check:schema` 加入 verify 指令）
+- Given HooksSection renders, when I check `disableAllHooks` toggle, then 它由 SchemaFieldRenderer 渲染
+- Given HooksSection, when I check hooks editor, then 其餘 UI 完全不變
+- Given `npm run typecheck && npm test`, when I run them, then 全部通過

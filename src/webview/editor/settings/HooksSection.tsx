@@ -3,6 +3,8 @@ import { sendRequest } from '../../vscode';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/types';
+import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -171,7 +173,6 @@ interface HooksSectionProps {
 export function HooksSection({ scope, settings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
   const { t, locale } = useI18n();
   const { addToast } = useToast();
-  const [toggling, setToggling] = useState(false);
   const [opening, setOpening] = useState(false);
   const [existingPaths, setExistingPaths] = useState<ReadonlySet<string>>(new Set());
   const [openingPath, setOpeningPath] = useState<string | null>(null);
@@ -180,7 +181,6 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
 
   const hooksData = settings.hooks ?? {};
   const eventTypes = Object.keys(hooksData);
-  const disableAllHooks = settings.disableAllHooks ?? false;
 
   useEffect(() => {
     const allPaths: string[] = [];
@@ -279,21 +279,6 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     }
   };
 
-  const handleToggleDisable = async (): Promise<void> => {
-    setToggling(true);
-    try {
-      if (disableAllHooks) {
-        await onDelete('disableAllHooks');
-      } else {
-        await onSave('disableAllHooks', true);
-      }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setToggling(false);
-    }
-  };
-
   const handleOpenInEditor = async (): Promise<void> => {
     setOpening(true);
     try {
@@ -309,17 +294,16 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.hooks')}</h3>
 
-      {/* Header row: disableAllHooks toggle + openInEditor button */}
+      <SchemaFieldRenderer
+        settingKey="disableAllHooks"
+        schema={CLAUDE_SETTINGS_SCHEMA.disableAllHooks}
+        value={settings.disableAllHooks}
+        scope={scope}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
       <div className="hooks-header-row">
-        <label className="hooks-toggle-label">
-          <input
-            type="checkbox"
-            checked={disableAllHooks}
-            onChange={() => void handleToggleDisable()}
-            disabled={toggling}
-          />
-          {t('settings.hooks.disableAll')}
-        </label>
         <button
           className="btn btn-secondary"
           onClick={() => void handleOpenInEditor()}

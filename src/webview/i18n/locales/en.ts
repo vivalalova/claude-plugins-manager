@@ -111,7 +111,8 @@ export const en = {
   'settings.env.emptyState': 'No environment variables defined',
   'settings.env.toggleReveal': 'Toggle visibility',
   // Hooks section
-  'settings.hooks.disableAll': 'Disable All Hooks',
+  'settings.hooks.disableAllHooks.label': 'Disable All Hooks',
+  'settings.hooks.disableAllHooks.description': 'Globally disable all configured hooks',
   'settings.hooks.openInEditor': 'Open in JSON Editor',
   'settings.hooks.empty': 'No hooks configured',
   'settings.hooks.emptyAction': 'Open JSON Editor to add hooks',
