@@ -1,44 +1,33 @@
 ---
-title: 改造 AdvancedSection — schema-driven 渲染
+title: Section 改造後回歸測試更新
 created: 2026-03-14
 priority: high
-suggested_order: B03
-blockedBy: [c01-schema-field-renderer, c02-enum-label-i18n, c03-text-number-i18n]
+suggested_order: T02
+blockedBy: [b01-general-section-schema-driven, b02-display-section-schema-driven, b03-advanced-section-schema-driven]
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# 改造 AdvancedSection — schema-driven 渲染
+# Section 改造後回歸測試更新
 
-將 `AdvancedSection` 的硬編碼 text、boolean、enum 欄位替換為 schema-driven 渲染。
+B01/B02/B03 改造後，現有的 Section 測試行為斷言不應改變（render 結果相同）。
 
-## 改造範圍
+## 任務
 
-1. **移除 `TEXT_FIELD_KEYS[]` 陣列** — text 欄位改用 SchemaFieldRenderer（從 schema 過濾 `section === 'advanced' && controlType === 'text'`）
-2. **移除 `DEFAULT_VALUES` 常數** — default 值已在 schema
-3. **移除 `KNOWN_FORCE_LOGIN_METHODS` 常數** — `forceLoginMethod` enum 改用 SchemaFieldRenderer
-4. **`skipWebFetchPreflight` boolean** — 改用 SchemaFieldRenderer
-
-涉及的 text 欄位：`forceLoginOrgUUID`、`plansDirectory`、`apiKeyHelper`、`otelHeadersHelper`、`awsCredentialExport`、`awsAuthRefresh`（確認實際清單）
-
-## 保留不動
-
-- `AttributionEditor` — `controlType: 'custom'`
-- `StatusLineEditor` — `controlType: 'custom'`
-- `SandboxEditor` — `controlType: 'custom'`
-- `CompanyAnnouncementsEditor` — `controlType: 'custom'`
-- `fileSuggestion` — 目前用 `TextSetting` + wrapper onSave（將 string 包成 `{ type: 'command', command }`），保持 `controlType: 'custom'` 不改動
+1. 檢查 `GeneralSection.test.tsx`、`DisplaySection.test.tsx`、`AdvancedSection.test.tsx` 是否因 import 路徑變更或 mock 方式改變而失敗
+2. 修正因重構導致的測試失敗（如 mock 的 constant 已不存在）
+3. 新增斷言：確認欄位順序未改變（snapshot 或 explicit order check）
+4. 確保 schema-driven 欄位的 render 結果與硬編碼版本一致
 
 ## User Stories
 
-- As a developer, I want the Advanced section to eliminate its TEXT_FIELD_KEYS/DEFAULT_VALUES arrays and read everything from the schema.
+- As a developer, I want the existing test suite to pass unchanged after the schema-driven refactor to ensure no UI regressions.
 
 ## 驗收條件
 
-- Given AdvancedSection renders, when I compare with改造前, then 所有欄位 UI 行為一致
-- Given `TEXT_FIELD_KEYS`, when I search AdvancedSection.tsx, then 找不到
-- Given `DEFAULT_VALUES`, when I search AdvancedSection.tsx, then 找不到
-- Given attribution/statusLine/sandbox, when I check render, then 仍用 custom editor
-- Given `npm run typecheck && npm test`, when I run them, then 全部通過
+- Given B01/B02/B03 已完成, when I run `npm test`, then 所有 Section 測試通過
+- Given 改造前後的 render output, when compared, then 欄位順序、控制元件類型、props 一致
+- Given 新增的 order assertion, when 有人改變欄位順序, then test 失敗提醒
+- Given `npm run verify`, when I run it, then 全部通過

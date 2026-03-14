@@ -6,7 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { I18nProvider } from '../../../i18n/I18nContext';
-import { AdvancedSection } from '../AdvancedSection';
+import { AdvancedSection, ADVANCED_FIELD_ORDER } from '../AdvancedSection';
 import { ToastProvider } from '../../../components/Toast';
 
 vi.mock('../../../vscode', () => ({
@@ -88,6 +88,18 @@ describe('AdvancedSection — 渲染', () => {
     renderSection({});
     const field = screen.getByPlaceholderText('e.g. ./plans').closest('.settings-field') as HTMLElement;
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+
+  it('欄位按 ADVANCED_FIELD_ORDER 順序渲染', async () => {
+    const { container } = renderSection({});
+    await waitFor(() => {
+      const hints = container.querySelectorAll('.settings-key-hint');
+      const keys = Array.from(hints).map((el) => {
+        const match = el.textContent?.match(/^\((\w+)/);
+        return match?.[1] ?? '';
+      }).filter(Boolean);
+      expect(keys).toEqual([...ADVANCED_FIELD_ORDER]);
+    });
   });
 });
 

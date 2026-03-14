@@ -9,7 +9,7 @@ import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 // ---------------------------------------------------------------------------
 
 /** 欄位渲染順序（與改造前一致） */
-const GENERAL_FIELD_ORDER: (keyof ClaudeSettings)[] = [
+export const GENERAL_FIELD_ORDER: (keyof ClaudeSettings)[] = [
   'effortLevel',
   'language',
   'availableModels',

@@ -212,7 +212,7 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 // ---------------------------------------------------------------------------
 
 /** 欄位渲染順序（與改造前一致） */
-const DISPLAY_FIELD_ORDER: (keyof ClaudeSettings)[] = [
+export const DISPLAY_FIELD_ORDER: (keyof ClaudeSettings)[] = [
   'teammateMode',
   'showTurnDuration',
   'spinnerTipsEnabled',

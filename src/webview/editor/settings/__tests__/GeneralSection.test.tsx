@@ -5,7 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
-import { GeneralSection } from '../GeneralSection';
+import { GeneralSection, GENERAL_FIELD_ORDER } from '../GeneralSection';
 import { ToastProvider } from '../../../components/Toast';
 import { I18nProvider } from '../../../i18n/I18nContext';
 
@@ -122,6 +122,18 @@ describe('GeneralSection — 渲染', () => {
     const labels = container.querySelectorAll('label.hooks-toggle-label');
     labels.forEach((label) => {
       expect(label.querySelector('.settings-field-description')).toBeNull();
+    });
+  });
+
+  it('欄位按 GENERAL_FIELD_ORDER 順序渲染', async () => {
+    const { container } = renderSection();
+    await waitFor(() => {
+      const hints = container.querySelectorAll('.settings-key-hint');
+      const keys = Array.from(hints).map((el) => {
+        const match = el.textContent?.match(/^\((\w+)/);
+        return match?.[1] ?? '';
+      }).filter(Boolean);
+      expect(keys).toEqual([...GENERAL_FIELD_ORDER]);
     });
   });
 });
