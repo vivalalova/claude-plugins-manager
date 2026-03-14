@@ -1,8 +1,9 @@
 import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './components/SettingControls';
-import { getSchemaDefault, getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
+import { BooleanToggle, NumberSetting, TagInput, TextSetting } from './components/SettingControls';
+import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 
 // ---------------------------------------------------------------------------
 // GeneralSection
@@ -17,17 +18,6 @@ interface GeneralSectionProps {
 
 export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSectionProps): React.ReactElement {
   const { t } = useI18n();
-
-  const effortLabels: Record<string, string> = {
-    high: t('settings.general.effortLevel.high'),
-    medium: t('settings.general.effortLevel.medium'),
-    low: t('settings.general.effortLevel.low'),
-  };
-
-  const autoUpdatesChannelLabels: Record<string, string> = {
-    stable: t('settings.general.autoUpdatesChannel.stable'),
-    latest: t('settings.general.autoUpdatesChannel.latest'),
-  };
 
   const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
     { key: 'enableAllProjectMcpServers', label: t('settings.general.enableAllProjectMcpServers.label'), description: t('settings.general.enableAllProjectMcpServers.description') },
@@ -49,16 +39,11 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         </a>
       </p>
 
-      <EnumDropdown
-        label={t('settings.general.effortLevel.label')}
-        description={t('settings.general.effortLevel.description')}
-        value={settings.effortLevel}
-        knownValues={getSchemaEnumOptions('effortLevel')}
-        knownLabels={effortLabels}
-        notSetLabel={t('settings.general.effortLevel.notSet')}
-        unknownTemplate={t('settings.general.effortLevel.unknown')}
+      <SchemaFieldRenderer
         settingKey="effortLevel"
-        defaultValue={getSchemaDefault<string>('effortLevel')}
+        schema={CLAUDE_SETTINGS_SCHEMA.effortLevel}
+        value={settings.effortLevel}
+        scope={scope}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -115,16 +100,11 @@ export function GeneralSection({ scope, settings, onSave, onDelete }: GeneralSec
         onDelete={onDelete}
       />
 
-      <EnumDropdown
-        label={t('settings.general.autoUpdatesChannel.label')}
-        description={t('settings.general.autoUpdatesChannel.description')}
-        value={settings.autoUpdatesChannel}
-        knownValues={getSchemaEnumOptions('autoUpdatesChannel')}
-        knownLabels={autoUpdatesChannelLabels}
-        notSetLabel={t('settings.general.autoUpdatesChannel.notSet')}
-        unknownTemplate={t('settings.general.autoUpdatesChannel.unknown')}
+      <SchemaFieldRenderer
         settingKey="autoUpdatesChannel"
-        defaultValue={getSchemaDefault<string>('autoUpdatesChannel')}
+        schema={CLAUDE_SETTINGS_SCHEMA.autoUpdatesChannel}
+        value={settings.autoUpdatesChannel}
+        scope={scope}
         onSave={onSave}
         onDelete={onDelete}
       />

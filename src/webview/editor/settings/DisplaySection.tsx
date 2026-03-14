@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, TagListSetting } from './components/SettingControls';
-import { getSchemaDefault, getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
+import { BooleanToggle, TagListSetting } from './components/SettingControls';
+import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { useToast } from '../../components/Toast';
 
 interface DisplaySectionProps {
@@ -220,26 +221,15 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
     { key: 'prefersReducedMotion', label: t('settings.display.prefersReducedMotion.label'), description: t('settings.display.prefersReducedMotion.description') },
   ];
 
-  const teammateModeLabels: Record<string, string> = {
-    auto: t('settings.display.teammateMode.auto'),
-    'in-process': t('settings.display.teammateMode.in-process'),
-    tmux: t('settings.display.teammateMode.tmux'),
-  };
-
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.display')}</h3>
 
-      <EnumDropdown
-        label={t('settings.display.teammateMode.label')}
-        description={t('settings.display.teammateMode.description')}
-        value={settings.teammateMode}
-        knownValues={getSchemaEnumOptions('teammateMode')}
-        knownLabels={teammateModeLabels}
-        notSetLabel={t('settings.display.teammateMode.notSet')}
-        unknownTemplate={t('settings.display.teammateMode.unknown')}
+      <SchemaFieldRenderer
         settingKey="teammateMode"
-        defaultValue={getSchemaDefault<string>('teammateMode')}
+        schema={CLAUDE_SETTINGS_SCHEMA.teammateMode}
+        value={settings.teammateMode}
+        scope={scope}
         onSave={onSave}
         onDelete={onDelete}
       />

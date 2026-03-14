@@ -1,12 +1,13 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, TextSetting } from './components/SettingControls';
+import { BooleanToggle, TextSetting } from './components/SettingControls';
 import { AttributionEditor } from './components/AttributionEditor';
 import { StatusLineEditor } from './components/StatusLineEditor';
 import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
-import { getSchemaDefault, getSchemaEnumOptions } from '../../../shared/claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 
 const TEXT_FIELD_KEYS: (keyof ClaudeSettings)[] = [
   'forceLoginOrgUUID', 'plansDirectory', 'apiKeyHelper',
@@ -22,23 +23,14 @@ interface AdvancedSectionProps {
 
 export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
   const { t } = useI18n();
-  const forceLoginMethodLabels = useMemo(() => ({
-    claudeai: t('settings.advanced.forceLoginMethod.claudeai'),
-    console: t('settings.advanced.forceLoginMethod.console'),
-  }), [t]);
-
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.advanced')}</h3>
-      <EnumDropdown
-        label={t('settings.advanced.forceLoginMethod.label')}
-        description={t('settings.advanced.forceLoginMethod.description')}
-        value={settings.forceLoginMethod}
-        knownValues={getSchemaEnumOptions('forceLoginMethod')}
-        knownLabels={forceLoginMethodLabels}
-        notSetLabel={t('settings.advanced.forceLoginMethod.notSet')}
-        unknownTemplate={t('settings.advanced.forceLoginMethod.unknown')}
+      <SchemaFieldRenderer
         settingKey="forceLoginMethod"
+        schema={CLAUDE_SETTINGS_SCHEMA.forceLoginMethod}
+        value={settings.forceLoginMethod}
+        scope={scope}
         onSave={onSave}
         onDelete={onDelete}
       />
