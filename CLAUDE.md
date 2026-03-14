@@ -4,15 +4,15 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（1275 tests）
+npm test                   # vitest run
 npm run build              # esbuild 雙配置（extension + webview）
-npm run verify             # typecheck → test → build（一鍵驗證）
-npm run check:schema       # 驗證 claude-settings-schema.ts 與 ClaudeSettings interface 一致
+npm run verify             # typecheck → check:schema → test → build（一鍵驗證）
+npm run check:schema       # 驗證 schema 與 ClaudeSettings interface 一致 + controlType/options 邏輯驗證
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
 ```
 
-驗證順序：`npm run verify`（= typecheck → test → build）；部署前加 `install:ext`
+驗證順序：`npm run verify`（= typecheck → check:schema → test → build）；部署前加 `install:ext`
 
 ## 架構
 
@@ -20,7 +20,8 @@ npm run watch              # concurrently watch extension + webview
   — Services 直接讀寫 Claude Code 設定檔 + CLI 輔助
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；`npm run check:schema` 驗證與 `ClaudeSettings` interface 一致
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options；`npm run check:schema` 驗證一致性 + 邏輯約束
+- **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
 - **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）
 
@@ -49,14 +50,14 @@ npm run watch              # concurrently watch extension + webview
 
 ### Settings 頁面分區（`src/webview/editor/settings/`）
 
-| Section             | 元件檔案                 | 涵蓋欄位範圍                                                                                    |
-| ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
-| DisplaySection      | `DisplaySection.tsx`     | teammateMode、showTurnDuration、spinnerTipsEnabled、spinnerVerbs、spinnerTipsOverride、terminalProgressBarEnabled、prefersReducedMotion |
-| AdvancedSection     | `AdvancedSection.tsx` + `components/` 下 4 個 sub-editor（Attribution·StatusLine·Sandbox·CompanyAnnouncementsEditor） | forceLoginMethod、forceLoginOrgUUID、autoMemoryDirectory、modelOverrides、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
-| PermissionsSection  | `PermissionsSection.tsx` | permissions（allow/deny/ask/defaultMode/additionalDirectories）                                 |
-| EnvSection          | `EnvSection.tsx`         | env（key-value map）                                                                            |
-| HooksSection        | `HooksSection.tsx`       | hooks（四種 type）、disableAllHooks                                                             |
+| Section | 渲染模式 | 涵蓋欄位 |
+| --- | --- | --- |
+| GeneralSection | **全 schema-driven**（`GENERAL_FIELD_ORDER` loop） | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
+| DisplaySection | **schema-driven**（`DISPLAY_FIELD_ORDER` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
+| AdvancedSection | **schema-driven**（`ADVANCED_FIELD_ORDER` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements 為 custom 手動渲染 | forceLoginMethod、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements |
+| PermissionsSection | 手動（custom） | permissions（allow/deny/ask/defaultMode/additionalDirectories） |
+| EnvSection | 手動（custom） | env（key-value map） |
+| HooksSection | **混合**：disableAllHooks 用 SchemaFieldRenderer；hooks 本體手動 | hooks（四種 type）、disableAllHooks |
 
 ## 設定頁參數參考
 
@@ -64,6 +65,15 @@ npm run watch              # concurrently watch extension + webview
 https://code.claude.com/docs/en/settings
 
 同步 docs 變更回 repo 前，先讀 [.claude/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.claude/skills/sync-settings-options/SKILL.md)
+
+## 新增 Setting Checklist
+
+1. **Schema**：`claude-settings-schema.ts` 加 key — 設 `type`/`section`/`controlType`；enum 加 `options`；number 加 `min`/`max`/`step`；有預設加 `default`
+2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
+3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）
+4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet（未設定 fallback）+ unknown（未知值 template）；text/number 加 `placeholder`）
+5. **custom 欄位**：`controlType: 'custom'` → Section 內 switch case 手動渲染；建獨立 sub-editor
+6. **驗證**：`npm run verify`（含 `check:schema`）
 
 ## 已知陷阱
 
@@ -76,7 +86,6 @@ https://code.claude.com/docs/en/settings
 - `scanAvailablePlugins()` 會讀 `plugin.json`（description/version 優先於 marketplace.json）；`author` 欄位可能是 string 或 `{ name, email }` object
 - `handleUpdateAll` 只更新 **enabled** plugin 的 **enabled** scope；disabled 的 skip
 - `ClaudeSettings.sandbox` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
-- `ClaudeSettings.modelOverrides` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
 - `spinnerVerbs` / `spinnerTipsOverride` clear 操作呼叫 `onDelete(key)`，非存空物件
 - `fileSuggestion` 儲存格式固定為 `{ type: 'command', command: string }`
 - `statusLine` 儲存格式固定為 `{ type: 'command'; command: string; padding?: number }`
@@ -86,6 +95,9 @@ https://code.claude.com/docs/en/settings
 - `permissions.disableBypassPermissionsMode` 可設為 `'disable'` 停用 bypass 模式
 - `sandbox` 額外子屬性：`enableWeakerNetworkIsolation`、`enableWeakerNestedSandbox`、`allowUnsandboxedCommands`、`ignoreViolations`、`network.allowAllUnixSockets`、`network.httpProxyPort`、`network.socksProxyPort`、`network.allowManagedDomainsOnly`
 - `spinnerVerbs.mode` 為 optional（schema 不要求）
+- `SchemaFieldRenderer` 的 `custom` controlType 回傳 `null`，Section 必須在 loop 中 switch-case 手動處理
+- 新增 schema key 後若忘記加到 `*_FIELD_ORDER`，欄位不會渲染（schema 有但 UI 無）
+- `getSchemaDefault()`/`getSchemaEnumOptions()` 對不存在的 key 拋 Error（fail-fast）
 
 ## 測試
 
