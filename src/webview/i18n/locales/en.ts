@@ -35,7 +35,7 @@ export const en = {
   'settings.display.teammateMode.notSet': '— not set —',
   'settings.display.teammateMode.unknown': 'Current value: {value} ⚠️',
   'settings.display.teammateMode.auto': 'Auto',
-  'settings.display.teammateMode.inProcess': 'In-Process',
+  'settings.display.teammateMode.in-process': 'In-Process',
   'settings.display.teammateMode.tmux': 'Tmux',
   'settings.display.spinnerVerbs.label': 'Spinner Verbs',
   'settings.display.spinnerVerbs.description': 'Customize the action words shown in the loading spinner',
@@ -172,6 +172,10 @@ export const en = {
   'settings.general.alwaysThinkingEnabled.description': 'Always enable extended thinking regardless of other settings',
   // Common
   'settings.common.reset': 'Reset',
+  'settings.common.save': 'Save',
+  'settings.common.clear': 'Clear',
+  'settings.common.minError': 'Must be at least {min}',
+  'settings.common.maxError': 'Must be at most {max}',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': 'Force Login Method',
   'settings.advanced.forceLoginMethod.description': 'Force a specific login method for Claude',

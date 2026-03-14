@@ -175,7 +175,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.display.teammateMode.notSet': '— 未設定 —',
   'settings.display.teammateMode.unknown': '現在の値：{value} ⚠️',
   'settings.display.teammateMode.auto': '自動',
-  'settings.display.teammateMode.inProcess': 'インプロセス',
+  'settings.display.teammateMode.in-process': 'インプロセス',
   'settings.display.teammateMode.tmux': 'Tmux',
   'settings.display.spinnerVerbs.label': 'スピナー動詞',
   'settings.display.spinnerVerbs.description': 'ローディングスピナーに表示するアクション語をカスタマイズ',
@@ -312,6 +312,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.general.alwaysThinkingEnabled.description': '他の設定に関わらず、常に深い思考（extended thinking）を有効化',
   // Common
   'settings.common.reset': 'リセット',
+  'settings.common.save': '保存',
+  'settings.common.clear': 'クリア',
+  'settings.common.minError': '{min} 以上にしてください',
+  'settings.common.maxError': '{max} 以下にしてください',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制ログイン方法',
   'settings.advanced.forceLoginMethod.description': 'Claude の特定のログイン方法を強制',

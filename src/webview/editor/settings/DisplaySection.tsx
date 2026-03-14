@@ -222,7 +222,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
 
   const teammateModeLabels: Record<string, string> = {
     auto: t('settings.display.teammateMode.auto'),
-    'in-process': t('settings.display.teammateMode.inProcess'),
+    'in-process': t('settings.display.teammateMode.in-process'),
     tmux: t('settings.display.teammateMode.tmux'),
   };
 

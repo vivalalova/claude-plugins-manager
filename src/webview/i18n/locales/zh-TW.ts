@@ -37,7 +37,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.display.teammateMode.notSet': '— 未設定 —',
   'settings.display.teammateMode.unknown': '目前值：{value} ⚠️',
   'settings.display.teammateMode.auto': '自動',
-  'settings.display.teammateMode.inProcess': '行程內',
+  'settings.display.teammateMode.in-process': '行程內',
   'settings.display.teammateMode.tmux': 'Tmux',
   'settings.display.spinnerVerbs.label': '載入動詞',
   'settings.display.spinnerVerbs.description': '自訂載入動畫中顯示的動作詞彙',
@@ -174,6 +174,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.general.alwaysThinkingEnabled.description': '永遠啟用深度思考（extended thinking），不受其他設定影響',
   // Common
   'settings.common.reset': '重設',
+  'settings.common.save': '儲存',
+  'settings.common.clear': '清除',
+  'settings.common.minError': '不可小於 {min}',
+  'settings.common.maxError': '不可大於 {max}',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制登入方式',
   'settings.advanced.forceLoginMethod.description': '強制 Claude 使用特定登入方式',
