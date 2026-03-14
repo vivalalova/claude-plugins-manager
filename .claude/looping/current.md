@@ -1,29 +1,35 @@
 ---
-title: HooksSection disableAllHooks boolean 用 SchemaFieldRenderer
+title: Schema 完整性測試 — controlType 覆蓋所有 key
 created: 2026-03-14
 priority: medium
-suggested_order: B04
-blockedBy: c01-schema-field-renderer
+suggested_order: T03
+blockedBy: a01-extend-schema-ui-metadata
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# HooksSection disableAllHooks boolean 用 SchemaFieldRenderer
+# Schema 完整性測試 — controlType 覆蓋所有 key
 
-`HooksSection` 整體是 custom editor，但 `disableAllHooks` 是一個獨立的 boolean toggle。將這個單一 boolean 改為用 `SchemaFieldRenderer` 渲染，保持一致性。
+新增 vitest 測試，斷言 `CLAUDE_SETTINGS_SCHEMA` 的每個 key 都有 `controlType`，且值屬於合法 enum。這是 A04 驗證腳本的 runtime 補充。
 
-## 改造範圍
+## 測試案例
 
-僅 `disableAllHooks` 的 `BooleanToggle` 呼叫改為 `SchemaFieldRenderer`。其餘 hooks 編輯器完全不動。
+1. 每個 key 都有 `controlType` 欄位
+2. `controlType` 值屬於 `['boolean', 'enum', 'text', 'number', 'tagInput', 'custom']`
+3. `controlType: 'enum'` 的 entry 都有 `options` 陣列且 length > 0
+4. `controlType: 'number'` 有 `min`/`max` 時，`min <= max`
+5. 所有 `section` 值屬於合法 enum
+
+測試位置建議：`src/shared/__tests__/claude-settings-schema.test.ts`
 
 ## User Stories
 
-- As a developer, I want even the simple boolean fields inside complex sections to use the schema renderer for consistency.
+- As a developer, I want a test that fails when someone adds a new setting key without specifying its controlType.
 
 ## 驗收條件
 
-- Given HooksSection renders, when I check `disableAllHooks` toggle, then 它由 SchemaFieldRenderer 渲染
-- Given HooksSection, when I check hooks editor, then 其餘 UI 完全不變
-- Given `npm run typecheck && npm test`, when I run them, then 全部通過
+- Given 正確的 schema, when I run test, then 全部通過
+- Given 新增一個沒有 controlType 的 key, when I run test, then 失敗並指出該 key
+- Given `npm run verify`, when I run it, then 全部通過

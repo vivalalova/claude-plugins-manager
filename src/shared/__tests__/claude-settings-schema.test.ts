@@ -90,6 +90,26 @@ describe('claude-settings-schema', () => {
       }
     }
   });
+
+  it('controlType 值屬於合法 ControlType', () => {
+    const validControlTypes = ['boolean', 'enum', 'text', 'number', 'tagInput', 'custom'];
+    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+      expect(
+        validControlTypes.includes(field.controlType),
+        `${key} 的 controlType "${field.controlType}" 不是合法值`,
+      ).toBe(true);
+    }
+  });
+
+  it('section 值屬於合法 SettingsSection', () => {
+    const validSections = ['general', 'display', 'advanced', 'permissions', 'env', 'hooks'];
+    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+      expect(
+        validSections.includes(field.section),
+        `${key} 的 section "${field.section}" 不是合法值`,
+      ).toBe(true);
+    }
+  });
 });
 
 describe('getSchemaEnumOptions', () => {
