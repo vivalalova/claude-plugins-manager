@@ -4,6 +4,10 @@ created: 2026-03-14
 priority: high
 suggested_order: C02
 blockedBy: c01-schema-field-renderer
+phase: needs-commit
+iteration: 1
+max_iterations: 3
+review_iterations: 0
 ---
 
 # SchemaFieldRenderer enum label i18n 自動組裝
