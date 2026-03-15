@@ -6,13 +6,13 @@
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
 npm test                   # vitest run
 npm run build              # esbuild 雙配置（extension + webview）
-npm run verify             # typecheck → check:schema → test → build（一鍵驗證）
+npm run verify             # typecheck → lint → check:schema → test → build（一鍵驗證）
 npm run check:schema       # 驗證 schema 與 ClaudeSettings interface 一致 + controlType/options 邏輯驗證
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
 ```
 
-驗證順序：`npm run verify`（= typecheck → check:schema → test → build）；部署前加 `install:ext`
+驗證順序：`npm run verify`（= typecheck → lint → check:schema → test → build）；部署前加 `install:ext`
 
 ## 架構
 
@@ -37,6 +37,12 @@ npm run watch              # concurrently watch extension + webview
 | FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
 | TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯                              |
 | ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑供 InfoPage 顯示 |
+
+### Service 依賴
+
+CliService ← PluginService, MarketplaceService, McpService, ExtensionInfoService
+SettingsFileService ← PluginService, McpService
+FileWatcherService → SettingsFileService.invalidateScanCache(), McpService.invalidateMetadataCache()
 
 ### 設定檔結構
 
@@ -70,10 +76,10 @@ https://code.claude.com/docs/en/settings
 
 1. **Schema**：`claude-settings-schema.ts` 加 key — 設 `type`/`section`/`controlType`；enum 加 `options`；number 加 `min`/`max`/`step`；有預設加 `default`
 2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
-3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）
-4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet（未設定 fallback）+ unknown（未知值 template）；text/number 加 `placeholder`）
+3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）（`check:schema` 自動驗證完整性）
+4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）
 5. **custom 欄位**：`controlType: 'custom'` → Section 內 switch case 手動渲染；建獨立 sub-editor
-6. **驗證**：`npm run verify`（含 `check:schema`）
+6. **驗證**：`npm run verify`（含 lint + check:schema FIELD_ORDER/i18n 驗證）
 
 ## 已知陷阱
 
@@ -81,22 +87,8 @@ https://code.claude.com/docs/en/settings
 - `enable`/`disable` 重複操作都會 exit 1，UI 必須靜默吞掉
 - CLI `marketplace list --json` 是精簡版，缺 `lastUpdated`/`autoUpdate`，完整資料要讀 `known_marketplaces.json`
 - `claude mcp list` 無 `--json`，需解析文字輸出
-- `tsconfig.json` 的 `exclude` 要加 `__tests__` 和 `__mocks__`，避免 vscode mock 型別衝突
-- Plugin contents 掃描：frontmatter 用簡易 regex 解析（非完整 YAML parser），足夠處理 `name`/`description`
-- `scanAvailablePlugins()` 會讀 `plugin.json`（description/version 優先於 marketplace.json）；`author` 欄位可能是 string 或 `{ name, email }` object
-- `handleUpdateAll` 只更新 **enabled** plugin 的 **enabled** scope；disabled 的 skip
-- `ClaudeSettings.sandbox` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
-- `spinnerVerbs` / `spinnerTipsOverride` clear 操作呼叫 `onDelete(key)`，非存空物件
-- `fileSuggestion` 儲存格式固定為 `{ type: 'command', command: string }`
-- `statusLine` 儲存格式固定為 `{ type: 'command'; command: string; padding?: number }`
-- `outputStyle` 為自由字串（TextSetting），如 `default`、`Explanatory`、`Learning`
-- `teammateMode` 使用 `auto | in-process | tmux`；舊值 `inline` / `iterm2` 視為 unknown value 顯示
-- `HookCommand` 四種 type 均有 `statusMessage?: string`；http type 額外有 `allowedEnvVars?: string[]`
-- `permissions.disableBypassPermissionsMode` 可設為 `'disable'` 停用 bypass 模式
-- `sandbox` 額外子屬性：`enableWeakerNetworkIsolation`、`enableWeakerNestedSandbox`、`allowUnsandboxedCommands`、`ignoreViolations`、`network.allowAllUnixSockets`、`network.httpProxyPort`、`network.socksProxyPort`、`network.allowManagedDomainsOnly`
-- `spinnerVerbs.mode` 為 optional（schema 不要求）
 - `SchemaFieldRenderer` 的 `custom` controlType 回傳 `null`，Section 必須在 loop 中 switch-case 手動處理
-- 新增 schema key 後若忘記加到 `*_FIELD_ORDER`，欄位不會渲染（schema 有但 UI 無）
+- `check:schema` 自動驗證 FIELD_ORDER 完整性 + i18n key 完整性
 - `getSchemaDefault()`/`getSchemaEnumOptions()` 對不存在的 key 拋 Error（fail-fast）
 
 ## 測試
