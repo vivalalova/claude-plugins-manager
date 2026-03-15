@@ -1,28 +1,29 @@
 ---
-title: Settings scope 切換 loading 狀態防護
+title: 更新 CLAUDE.md 文件
 created: 2026-03-15
-priority: medium
-suggested_order: C4
-phase: needs-commit
-iteration: 2
-max_iterations: 3
-review_iterations: 2
+priority: low
+suggested_order: Z99
+blockedBy: [c2-styles-css-modularize, c3-plugin-page-split, c1-mcp-per-server-test-connection]
 ---
 
-# Settings scope 切換 loading 狀態防護
+# 更新 CLAUDE.md 文件
 
-`SettingsPage.tsx` 切換 scope 時 `useEffect` 觸發 `fetchSettings(scope)`，fetch 期間舊 `settings` state 仍保留並渲染。使用者可能在此間隙誤操作（如按下 toggle），導致舊 scope 的值被存到新 scope。
+上述任務完成後，更新 CLAUDE.md 反映架構變更。
 
-## 修復方向
+## 更新項目
 
-scope 切換時立即 `setSettings({})` 清空舊值，或加 loading overlay 遮擋互動。前者更安全（保證 UI 不會顯示過期資料）。
+1. styles.css 拆分後的新結構說明（C2 完成後）
+2. PluginPage 拆分後的子元件清單（C3 完成後）
+3. 若 MCP per-server test 實現，更新 MCP service 描述（C1 完成後）
+4. 其他因任務執行而產生的架構變更
 
 ## User Stories
 
-- As a 使用者, I want 切換 scope 後不會看到上一個 scope 的舊值閃過, so that 不會因此誤存錯誤設定
+- As a 新進開發者, I want CLAUDE.md 反映最新架構, so that 快速上手專案
 
 ## 驗收條件
 
-- Given 從 user scope 切換到 project scope, when fetch 進行中, then UI 不顯示 user scope 的值
-- Given fetch 完成, when 渲染, then 顯示 project scope 的正確值
-- Given 修改完成, when `npm run verify`, then 全部通過
+- Given C2 完成, when grep `styles/` CLAUDE.md, then 出現子檔案結構說明（base.css/sidebar.css/... 至少 3 個）
+- Given C3 完成, when grep `PluginDialogs\|PluginToolbar` CLAUDE.md, then 出現子元件名稱
+- Given C1 完成且 testServer 實作, when grep `testServer` CLAUDE.md, then McpService 描述有對應說明
+- Given CLAUDE.md 更新, when `npm run verify`, then 全部通過
