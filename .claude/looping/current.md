@@ -1,30 +1,29 @@
 ---
-title: InfoPage 設定檔路徑存在性標示
+title: MarketplacePage 虛擬列表
 created: 2026-03-15
 priority: low
-suggested_order: B3
+suggested_order: B4
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# InfoPage 設定檔路徑存在性標示
+# MarketplacePage 虛擬列表
 
-InfoPage 列出 settings 相關路徑但不標示是否實際存在。應在 ExtensionInfoService 回傳各路徑的存在狀態，UI 端對不存在的路徑顯示視覺區分。
+PluginPage 已使用 `VirtualCardList` + `useVirtualScroll` hook 處理大量卡片渲染效能，但 MarketplacePage 直接渲染所有 `MarketplaceCard`。應套用相同的虛擬滾動機制。
 
 ## 規格
 
-- `ExtensionInfoService.getInfo()` 回傳的路徑資訊新增 `exists: boolean` 欄位
-- 使用 `fs.access` 或 `fs.stat` 檢查（不讀取內容）
-- UI：存在的路徑顯示正常色彩；不存在的路徑灰色 + 「不存在」標記
-- 不存在的路徑仍可點擊 Open（由 VSCode 處理 ENOENT）
+- 將 `MarketplacePage` 的卡片渲染改用 `VirtualCardList`
+- 保持現有 MarketplaceCard 介面不變
+- 虛擬化閾值沿用 PluginPage 的設定
 
 ## User Stories
 
-- As a 使用者, I want 一眼看出哪些設定檔已建立, so that 知道哪些 scope 有實際配置。
+- As a 使用者, I want marketplace 頁面即使有大量來源也能保持流暢捲動, so that UI 不卡頓。
 
 ## 驗收條件
 
-- Given `~/.claude/settings.json` 存在, when InfoPage 載入, then 該路徑顯示正常色彩
-- Given `.claude/settings.local.json` 不存在, when InfoPage 載入, then 該路徑顯示灰色 + 「不存在」標記
+- Given MarketplacePage 有 50+ marketplace 卡片, when 頁面載入, then DOM 節點數遠少於 50
+- Given 捲動到底部, when 更多卡片進入 viewport, then 新卡片正確渲染
