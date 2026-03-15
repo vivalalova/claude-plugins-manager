@@ -1,27 +1,33 @@
 ---
-title: enabledMcpjsonServers / disabledMcpjsonServers 加入 EXCLUDED_FROM_FIELD_ORDER
+title: Settings E2E 測試：settings.set / settings.delete 完整路徑
 created: 2026-03-15
 priority: high
-suggested_order: A3
+suggested_order: B1
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# enabledMcpjsonServers / disabledMcpjsonServers 加入 EXCLUDED_FROM_FIELD_ORDER
+# Settings E2E 測試：settings.set / settings.delete 完整路徑
 
-這兩個 key 已在 `claude-settings-schema.ts` 和 `ClaudeSettings` interface 定義，屬 `permissions` section，由 PermissionsSection 手動渲染。但未列入任何 `*_FIELD_ORDER` 陣列，也未列入 `EXCLUDED_FROM_FIELD_ORDER`（目前只有 `model`）。
+目前有 `toggle-scope.e2e.test.ts` 覆蓋 plugin scope toggle 的 E2E 路徑（MessageRouter → PluginService → SettingsFileService → filesystem），但 settings 的 `set`/`delete` 操作缺少同等級 E2E 測試。`SettingsFileService.settings.integration.test.ts` 只測 service 層，未經過 MessageRouter dispatch。
 
 ## 修復方向
 
-在 `field-orders.ts` 的 `EXCLUDED_FROM_FIELD_ORDER` Set 加入 `enabledMcpjsonServers` 和 `disabledMcpjsonServers`，附註原因：PermissionsSection 全手動渲染，無 schema-driven loop。
+新增 `settings-crud.e2e.test.ts`，參考 `toggle-scope.e2e.test.ts` 的 tmpdir + mock homedir 模式，覆蓋：
+
+1. user scope set/get/delete round-trip
+2. project scope set/get/delete round-trip
+3. local scope set/get/delete round-trip
+4. scope override 讀取優先級（local > project > user）
 
 ## User Stories
 
-- As a 維護者, I want check:schema 完整覆蓋所有 schema key, so that 新增 key 時不會遺漏 field order 配置
+- As a 維護者, I want 確保 settings 從 webview message 到磁碟寫入的完整路徑正確, so that MessageRouter 路由錯誤或參數傳遞問題能被測試抓到
 
 ## 驗收條件
 
-- Given 兩個 key 已加入 EXCLUDED_FROM_FIELD_ORDER, when `npm run check:schema`, then 無 FIELD_ORDER 完整性警告
-- Given 修改完成, when `npm run verify`, then 全部通過
+- Given settings-crud.e2e.test.ts, when `npm test`, then 全部通過
+- Given user/project/local 三種 scope, when 分別 set → get → delete, then 寫入磁碟的 JSON 正確
+- Given user/project/local 三層各設不同值給同一 key（如 `language: 'en'/'zh'/'ja'`）, when 讀取 merged settings, then 回傳 local scope 的值（'ja'）
