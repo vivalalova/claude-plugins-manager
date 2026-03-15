@@ -681,6 +681,43 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('切換 scope 時立即清空舊 settings，不顯示過期資料', async () => {
+    let resolveProject: (v: Record<string, unknown>) => void;
+    const projectFetchPromise = new Promise<Record<string, unknown>>((res) => { resolveProject = res; });
+
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project') return projectFetchPromise;
+      if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({ model: 'claude-opus-4-6' });
+      return Promise.resolve({});
+    });
+
+    renderPage();
+
+    // 先到 Model tab 確認 user scope 有值
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+    await waitFor(() => {
+      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
+      expect(modelSelect.value).toBe('claude-opus-4-6');
+    });
+
+    // 切到 Project scope，project fetch 尚未 resolve（模擬 loading 中）
+    fireEvent.click(screen.getByText('Project').closest('button')!);
+
+    // fetch 未完成期間，應顯示 loading 而非舊的 user scope 值
+    await waitFor(() => {
+      expect(screen.getByText('Loading settings...')).toBeTruthy();
+    });
+
+    // 允許 project fetch 完成（回 {}，model 未設定）
+    resolveProject!({});
+    await waitFor(() => {
+      expect(screen.queryByText('Loading settings...')).toBeNull();
+    });
+  });
+
   it('settings.refresh push message → 重新 fetch', async () => {
     const capture: { fn: ((msg: { type: string }) => void) | null } = { fn: null };
     mockOnPushMessage.mockImplementation(((h: (msg: { type: string }) => void) => {

@@ -1,36 +1,28 @@
 ---
-title: McpService.parseMcpList() 格式變體 integration test
+title: Settings scope 切換 loading 狀態防護
 created: 2026-03-15
 priority: medium
-suggested_order: B4
+suggested_order: C4
 phase: needs-commit
-iteration: 1
+iteration: 2
 max_iterations: 3
-review_iterations: 0
+review_iterations: 2
 ---
 
-# McpService.parseMcpList() 格式變體 integration test
+# Settings scope 切換 loading 狀態防護
 
-`parseMcpList()` 以 regex 解析 `claude mcp list` 文字輸出，格式依賴 CLI 版本。目前 integration test 覆蓋正常格式，但缺少邊界變體。
+`SettingsPage.tsx` 切換 scope 時 `useEffect` 觸發 `fetchSettings(scope)`，fetch 期間舊 `settings` state 仍保留並渲染。使用者可能在此間隙誤操作（如按下 toggle），導致舊 scope 的值被存到新 scope。
 
 ## 修復方向
 
-在 `McpService.integration.test.ts` 或獨立 `parseMcpList.test.ts` 補充：
-
-1. ANSI escape codes 嵌在 server name 中
-2. command 含冒號的 server（如 `npx -y @foo/bar:cmd`）
-3. 0 results（只有 header 無 server 行）
-4. 多行 header 變體
-5. 解析 0 results 時加 warning log（若 metadata 有資料）
+scope 切換時立即 `setSettings({})` 清空舊值，或加 loading overlay 遮擋互動。前者更安全（保證 UI 不會顯示過期資料）。
 
 ## User Stories
 
-- As a 維護者, I want CLI 輸出格式微調時解析器不會靜默丟失 server, so that MCP 狀態顯示始終正確
+- As a 使用者, I want 切換 scope 後不會看到上一個 scope 的舊值閃過, so that 不會因此誤存錯誤設定
 
 ## 驗收條件
 
-- Given ANSI escape codes 嵌入輸出, when parseMcpList(), then server name 正確擷取（不含 escape codes）
-- Given command 含冒號（如 `npx -y @foo/bar:cmd`）, when parseMcpList(), then command 欄位完整保留冒號後的部分
-- Given 0 results 輸出（只有 header）, when parseMcpList(), then 回傳空陣列且不拋錯
-- Given 0 results 且 metadata 有資料, when parseMcpList(), then 輸出 warning log
+- Given 從 user scope 切換到 project scope, when fetch 進行中, then UI 不顯示 user scope 的值
+- Given fetch 完成, when 渲染, then 顯示 project scope 的正確值
 - Given 修改完成, when `npm run verify`, then 全部通過

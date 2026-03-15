@@ -219,6 +219,8 @@ export function SettingsPage(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    setSettings({});
+    setUserSettings({});
     fetchSettings(scope);
   }, [scope, fetchSettings]);
 
