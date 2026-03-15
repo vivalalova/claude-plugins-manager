@@ -90,12 +90,24 @@ export function validateFieldOrders(schema: Record<string, SettingFieldSchema>):
     advanced: ADVANCED_FIELD_ORDER,
   };
 
+  // Forward: schema key → FIELD_ORDER
   for (const [key, field] of Object.entries(schema)) {
     const order = sectionToFieldOrder[field.section];
     if (!order) continue; // permissions/env/hooks — 手動渲染
-    if (EXCLUDED_FROM_FIELD_ORDER.has(key)) continue;
+    if (EXCLUDED_FROM_FIELD_ORDER.has(key as keyof import('../src/shared/types').ClaudeSettings)) continue;
     if (!order.includes(key)) {
       errors.push(`${key}: in schema section '${field.section}' but missing from ${field.section.toUpperCase()}_FIELD_ORDER`);
+    }
+  }
+
+  // Reverse: FIELD_ORDER key → schema (catch stale/typo entries)
+  for (const [section, order] of Object.entries(sectionToFieldOrder)) {
+    for (const key of order) {
+      if (!schema[key]) {
+        errors.push(`${key}: in ${section.toUpperCase()}_FIELD_ORDER but not found in schema`);
+      } else if (schema[key].section !== section) {
+        errors.push(`${key}: in ${section.toUpperCase()}_FIELD_ORDER but schema section is '${schema[key].section}'`);
+      }
     }
   }
 
@@ -110,7 +122,7 @@ export function validateI18nKeys(schema: Record<string, SettingFieldSchema>, loc
     // Skip manually-rendered sections, custom controls, and excluded keys
     if (['permissions', 'env', 'hooks'].includes(field.section)) continue;
     if (field.controlType === 'custom') continue;
-    if (EXCLUDED_FROM_FIELD_ORDER.has(key)) continue;
+    if (EXCLUDED_FROM_FIELD_ORDER.has(key as keyof import('../src/shared/types').ClaudeSettings)) continue;
 
     const prefix = `settings.${field.section}.${key}`;
     if (!localeKeys.has(`${prefix}.label`)) {

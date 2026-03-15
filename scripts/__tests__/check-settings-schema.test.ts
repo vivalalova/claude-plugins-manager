@@ -133,6 +133,22 @@ describe('validateFieldOrders', () => {
     const errors = validateFieldOrders(CLAUDE_SETTINGS_SCHEMA);
     expect(errors.some(e => e.includes('model'))).toBe(false);
   });
+
+  it('FIELD_ORDER key not in schema → error (reverse check)', () => {
+    // Remove a key from schema that exists in FIELD_ORDER
+    const { effortLevel: _, ...withoutEffort } = CLAUDE_SETTINGS_SCHEMA;
+    const errors = validateFieldOrders(withoutEffort);
+    expect(errors.some(e => e.includes('effortLevel') && e.includes('not found in schema'))).toBe(true);
+  });
+
+  it('FIELD_ORDER key with wrong section → error (reverse check)', () => {
+    const schema = {
+      ...CLAUDE_SETTINGS_SCHEMA,
+      effortLevel: { ...CLAUDE_SETTINGS_SCHEMA.effortLevel, section: 'display' as const },
+    };
+    const errors = validateFieldOrders(schema);
+    expect(errors.some(e => e.includes('effortLevel') && e.includes('GENERAL_FIELD_ORDER') && e.includes('display'))).toBe(true);
+  });
 });
 
 describe('validateI18nKeys', () => {
