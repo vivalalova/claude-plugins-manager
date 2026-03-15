@@ -5,7 +5,8 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
-import { GeneralSection, GENERAL_FIELD_ORDER } from '../GeneralSection';
+import { GeneralSection } from '../GeneralSection';
+import { GENERAL_FIELD_ORDER } from '../../../../shared/field-orders';
 import { ToastProvider } from '../../../components/Toast';
 import { I18nProvider } from '../../../i18n/I18nContext';
 

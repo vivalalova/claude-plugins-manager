@@ -3,27 +3,11 @@ import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { GENERAL_FIELD_ORDER } from '../../../shared/field-orders';
 
 // ---------------------------------------------------------------------------
 // GeneralSection
 // ---------------------------------------------------------------------------
-
-/** 欄位渲染順序（與改造前一致） */
-export const GENERAL_FIELD_ORDER: (keyof ClaudeSettings)[] = [
-  'effortLevel',
-  'language',
-  'availableModels',
-  'enableAllProjectMcpServers',
-  'includeGitInstructions',
-  'respectGitignore',
-  'fastMode',
-  'fastModePerSessionOptIn',
-  'autoMemoryEnabled',
-  'alwaysThinkingEnabled',
-  'outputStyle',
-  'autoUpdatesChannel',
-  'cleanupPeriodDays',
-];
 
 interface GeneralSectionProps {
   scope: PluginScope;

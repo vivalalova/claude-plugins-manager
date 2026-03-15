@@ -5,6 +5,7 @@ import { TagListSetting } from './components/SettingControls';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { useToast } from '../../components/Toast';
+import { DISPLAY_FIELD_ORDER } from '../../../shared/field-orders';
 
 interface DisplaySectionProps {
   scope: PluginScope;
@@ -210,17 +211,6 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 // ---------------------------------------------------------------------------
 // DisplaySection
 // ---------------------------------------------------------------------------
-
-/** 欄位渲染順序（與改造前一致） */
-export const DISPLAY_FIELD_ORDER: (keyof ClaudeSettings)[] = [
-  'teammateMode',
-  'showTurnDuration',
-  'spinnerTipsEnabled',
-  'terminalProgressBarEnabled',
-  'prefersReducedMotion',
-  'spinnerVerbs',
-  'spinnerTipsOverride',
-];
 
 export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
   const { t } = useI18n();

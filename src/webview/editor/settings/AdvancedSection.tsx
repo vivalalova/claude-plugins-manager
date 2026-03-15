@@ -8,27 +8,11 @@ import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { ADVANCED_FIELD_ORDER } from '../../../shared/field-orders';
 
 // ---------------------------------------------------------------------------
 // AdvancedSection
 // ---------------------------------------------------------------------------
-
-/** 欄位渲染順序（與改造前一致） */
-export const ADVANCED_FIELD_ORDER: (keyof ClaudeSettings)[] = [
-  'forceLoginMethod',
-  'attribution',
-  'statusLine',
-  'fileSuggestion',
-  'sandbox',
-  'companyAnnouncements',
-  'forceLoginOrgUUID',
-  'plansDirectory',
-  'apiKeyHelper',
-  'otelHeadersHelper',
-  'awsCredentialExport',
-  'awsAuthRefresh',
-  'skipWebFetchPreflight',
-];
 
 interface AdvancedSectionProps {
   scope: PluginScope;

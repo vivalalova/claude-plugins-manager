@@ -6,7 +6,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { I18nProvider } from '../../../i18n/I18nContext';
-import { AdvancedSection, ADVANCED_FIELD_ORDER } from '../AdvancedSection';
+import { AdvancedSection } from '../AdvancedSection';
+import { ADVANCED_FIELD_ORDER } from '../../../../shared/field-orders';
 import { ToastProvider } from '../../../components/Toast';
 
 vi.mock('../../../vscode', () => ({
