@@ -107,5 +107,5 @@ function main(): void {
 }
 
 // Auto-execute only when run directly (not imported by tests)
-const isDirectRun = process.argv[1]?.includes('check-settings-schema');
+const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
 if (isDirectRun) main();
