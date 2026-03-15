@@ -10,6 +10,12 @@ const CACHE_DIR = PLUGINS_CACHE_DIR;
 /** MyMemory API timeout（毫秒） */
 const API_TIMEOUT_MS = 15_000;
 
+/** callApi 最大重試次數（不含首次嘗試） */
+const API_MAX_RETRIES = 3;
+
+/** callApi 重試基礎退避時間（毫秒），指數退避：1s → 2s → 4s */
+const API_BASE_BACKOFF_MS = 1_000;
+
 /** 匿名呼叫字元上限（MyMemory 無 email 每日限制較低） */
 const MAX_CHARS_ANONYMOUS = 450;
 
@@ -117,7 +123,7 @@ export class TranslationService {
       .map((t, i) => `[${i + 1}] ${t.replace(/\n/g, ' ')}`)
       .join('\n');
 
-    const raw = await this.callApi(numbered, targetLang, email);
+    const raw = await this.callApiWithRetry(numbered, targetLang, email);
 
     // 解析回傳：`[1] 翻譯1\n[2] 翻譯2`
     const parsed = new Map<number, string>();
@@ -177,6 +183,42 @@ export class TranslationService {
       return json.responseData.translatedText;
     }
     throw new Error(`API status: ${json.responseStatus}`);
+  }
+
+  /** callApi with exponential backoff retry */
+  private async callApiWithRetry(text: string, targetLang: string, email?: string): Promise<string> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await this.sleep(API_BASE_BACKOFF_MS * (2 ** (attempt - 1)));
+      }
+      try {
+        return await this.callApi(text, targetLang, email);
+      } catch (error: unknown) {
+        lastError = error;
+        if (!TranslationService.isRetryableError(error)) throw error;
+      }
+    }
+    throw lastError;
+  }
+
+  private static isRetryableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    // timeout: AbortSignal.timeout throws TimeoutError or AbortError
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') return true;
+    // network error: fetch throws TypeError in Node.js
+    if (error instanceof TypeError) return true;
+    // HTTP 5xx → retry; 4xx (including 429) → no retry
+    const httpMatch = error.message.match(/API HTTP (\d{3})/);
+    if (httpMatch) return Number(httpMatch[1]) >= 500;
+    // API responseStatus 5xx → retry
+    const statusMatch = error.message.match(/API status: (\d{3})/);
+    if (statusMatch) return Number(statusMatch[1]) >= 500;
+    return false;
+  }
+
+  protected sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /** SHA-256 hash（前 16 字元） */

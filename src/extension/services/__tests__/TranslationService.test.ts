@@ -62,6 +62,11 @@ describe('TranslationService', () => {
     mockWriteFile.mockResolvedValue(undefined);
     mockMkdir.mockResolvedValue(undefined);
     service = new TranslationService();
+    // spy sleep to avoid real delays during retry
+    vi.spyOn(
+      service as unknown as { sleep: (ms: number) => Promise<void> },
+      'sleep',
+    ).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -316,6 +321,142 @@ describe('TranslationService', () => {
       // 429 後 break，只呼叫 1 次 API
       expect(callCount).toBe(1);
       expect(warning).toContain('quota exceeded');
+    });
+  });
+
+  describe('callApi — retry + exponential backoff', () => {
+    let sleepSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      sleepSpy = vi.spyOn(
+        service as unknown as { sleep: (ms: number) => Promise<void> },
+        'sleep',
+      ).mockResolvedValue(undefined);
+    });
+
+    it('503 第一次失敗、第二次成功 → 回傳翻譯結果', async () => {
+      let callCount = 0;
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            responseStatus: 200,
+            responseData: { translatedText: '[1] 翻譯A' },
+          }),
+        });
+      }));
+
+      const { translations } = await service.translate(['text A'], 'zh-TW');
+
+      expect(callCount).toBe(2);
+      expect(sleepSpy).toHaveBeenCalledTimes(1);
+      expect(sleepSpy).toHaveBeenCalledWith(1000);
+      expect(translations).toEqual({ 'text A': '翻譯A' });
+    });
+
+    it('連續 4 次 timeout → 最終 fallback 空結果', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+        Object.assign(new Error('signal timed out'), { name: 'TimeoutError' }),
+      ));
+
+      const { translations } = await service.translate(['text'], 'zh-TW');
+
+      expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(4);
+      expect(sleepSpy).toHaveBeenCalledTimes(3);
+      expect(sleepSpy.mock.calls.map((c) => c[0])).toEqual([1000, 2000, 4000]);
+      expect(translations).toEqual({});
+    });
+
+    it('network error（TypeError）→ retry 後成功', async () => {
+      let callCount = 0;
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.reject(new TypeError('fetch failed'));
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            responseStatus: 200,
+            responseData: { translatedText: '[1] 翻譯' },
+          }),
+        });
+      }));
+
+      const { translations } = await service.translate(['text'], 'zh-TW');
+
+      expect(callCount).toBe(2);
+      expect(sleepSpy).toHaveBeenCalledTimes(1);
+      expect(translations).toEqual({ text: '翻譯' });
+    });
+
+    it('HTTP 429 → 不 retry', async () => {
+      mockFetchHttpError(429);
+
+      const { translations, warning } = await service.translate(['text'], 'zh-TW');
+
+      expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+      expect(sleepSpy).not.toHaveBeenCalled();
+      expect(translations).toEqual({});
+      expect(warning).toContain('quota');
+    });
+
+    it('HTTP 400 → 不 retry', async () => {
+      mockFetchHttpError(400);
+
+      const { translations } = await service.translate(['text'], 'zh-TW');
+
+      expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+      expect(sleepSpy).not.toHaveBeenCalled();
+      expect(translations).toEqual({});
+    });
+
+    it('API responseStatus 429（body 內）→ 不 retry', async () => {
+      mockFetchResponse('', 429);
+
+      const { translations, warning } = await service.translate(['text'], 'zh-TW');
+
+      expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+      expect(sleepSpy).not.toHaveBeenCalled();
+      expect(translations).toEqual({});
+      expect(warning).toContain('quota');
+    });
+
+    it('API responseStatus 500（body 內）→ retry 後成功', async () => {
+      let callCount = 0;
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ responseStatus: 500 }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            responseStatus: 200,
+            responseData: { translatedText: '[1] 翻譯' },
+          }),
+        });
+      }));
+
+      const { translations } = await service.translate(['text'], 'zh-TW');
+
+      expect(callCount).toBe(2);
+      expect(sleepSpy).toHaveBeenCalledTimes(1);
+      expect(translations).toEqual({ text: '翻譯' });
+    });
+
+    it('指數退避間隔正確：1s → 2s → 4s', async () => {
+      mockFetchHttpError(503);
+
+      await service.translate(['text'], 'zh-TW');
+
+      expect(sleepSpy).toHaveBeenCalledTimes(3);
+      expect(sleepSpy.mock.calls.map((c) => c[0])).toEqual([1000, 2000, 4000]);
     });
   });
 });

@@ -154,4 +154,41 @@ describe('TranslationService integration', () => {
     expect(result.translations['persistent']).toBe('persistent_translated');
     expect(fetchMock2).not.toHaveBeenCalled(); // cache hit
   });
+
+  it('API 暫時性失敗後 retry 恢復 → 翻譯成功且 cache 寫入', async () => {
+    const sleepSpy = vi.spyOn(
+      svc as unknown as { sleep: (ms: number) => Promise<void> },
+      'sleep',
+    ).mockResolvedValue(undefined);
+
+    let callCount = 0;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (_url: string, init: { body: string }) => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.reject(new TypeError('fetch failed'));
+      }
+      const body = init.body;
+      const qMatch = body.match(/q=([^&]+)/);
+      const decoded = decodeURIComponent(qMatch?.[1] ?? '');
+      const translated = decoded.split('\n').map((line) => {
+        const m = line.match(/^\[(\d+)\]\s*(.+)/);
+        return m ? `[${m[1]}] ${m[2]}_translated` : line;
+      }).join('\n');
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          responseStatus: 200,
+          responseData: { translatedText: translated },
+        }),
+      };
+    }));
+
+    const result = await svc.translate(['retry-test'], 'ja');
+
+    expect(result.translations['retry-test']).toBe('retry-test_translated');
+    expect(callCount).toBe(2);
+    expect(sleepSpy).toHaveBeenCalledTimes(1);
+    expect(sleepSpy).toHaveBeenCalledWith(1000);
+    expect(existsSync(CACHE_PATH)).toBe(true);
+  });
 });

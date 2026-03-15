@@ -1,31 +1,33 @@
 ---
-title: Settings scope override 指示器
+title: TranslationService retry + exponential backoff
 created: 2026-03-15
-priority: high
-suggested_order: A2
+priority: medium
+suggested_order: A3
 phase: needs-commit
-iteration: 3
+iteration: 2
 max_iterations: 3
-review_iterations: 2
+review_iterations: 1
 ---
 
-# Settings scope override 指示器
+# TranslationService retry + exponential backoff
 
-Settings 頁面切換 user/project/local scope 時，無法一眼看出哪些欄位在其他 scope 有值、是否覆蓋上層設定。需在 SchemaFieldRenderer 層加入 override 指示器。
+`TranslationService.callApi()` 對暫時性錯誤（timeout、5xx、網路斷線）無 retry 機制，直接靜默跳過。應加入 exponential backoff retry。
 
-## 設計方向
+## 規格
 
-- 當前 scope 為 project/local 時，若同一 key 在 user scope 也有值，顯示「覆蓋 user 值」badge
-- 當前 scope 為 user 時，若同一 key 在 project/local 有覆蓋，顯示「被覆蓋」提示
-- 需擴充 MessageRouter 加入 `settings.readAll`（讀取三 scope 的 settings），或在切換 scope 時一併傳送其他 scope 的值
+- 最多 retry 3 次，間隔 1s → 2s → 4s
+- 429（quota exceeded）維持現有邏輯：break 停止後續批次，不 retry
+- HTTP 5xx / timeout / network error → retry
+- HTTP 4xx（非 429）→ 不 retry（client error）
+- retry 邏輯封裝在 `callApi` 內，不影響外部介面
 
 ## User Stories
 
-- As a project 管理者, I want 在 project scope 編輯 settings 時看到覆蓋關係, so that 不會無意遺漏或重複設定。
-- As a 開發者, I want 在 local scope 看到 user/project 各層的值, so that 理解最終生效的配置來源。
+- As a 使用者, I want 網路瞬斷時翻譯能自動重試, so that 不會留下未翻譯的 description。
 
 ## 驗收條件
 
-- Given user scope 設定 `effortLevel: 'high'`、project scope 設定 `effortLevel: 'low'`, when 切到 project scope, then effortLevel 欄位旁顯示「覆蓋 user 值」指示
-- Given 只有 user scope 有 `language: 'zh-TW'`、project scope 無設定, when 切到 project scope, then language 欄位無 override 指示
-- Given user scope 設定 `fastMode: true`、project scope 也設定 `fastMode: true`, when 切到 project scope, then fastMode 欄位仍顯示「覆蓋 user 值」（值相同但有明確設定）
+- Given API 第一次回傳 503、第二次回傳 200, when translate 執行, then 翻譯成功（retry 生效）
+- Given API 連續 4 次 timeout, when translate 執行, then 最終 fallback 空結果（最多 retry 3 次）
+- Given API 回傳 429, when translate 執行, then 不 retry、warning 回傳「quota」
+- Given API 回傳 400, when translate 執行, then 不 retry、靜默跳過
