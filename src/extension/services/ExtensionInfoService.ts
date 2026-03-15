@@ -1,8 +1,9 @@
 import { join } from 'path';
+import { existsSync } from 'fs';
 import { homedir } from 'os';
 import type { CliService } from './CliService';
 import { PLUGINS_CACHE_DIR, EXTENSION_ID } from '../constants';
-import type { ExtensionInfo } from '../../shared/types';
+import type { ExtensionInfo, PathInfo } from '../../shared/types';
 
 interface PackageJson {
   version: string;
@@ -26,6 +27,7 @@ export class ExtensionInfoService {
     const cliVersion = await this.getCliVersion();
     const claudeDir = join(homedir(), '.claude');
     const pluginsDir = join(claudeDir, 'plugins');
+    const toPathInfo = (p: string): PathInfo => ({ path: p, exists: existsSync(p) });
 
     return {
       extensionVersion: this.packageJson.version,
@@ -34,12 +36,12 @@ export class ExtensionInfoService {
       repoUrl: this.packageJson.repository?.url ?? null,
       cliPath: this.cli.claudePath,
       cliVersion,
-      cacheDirPath: PLUGINS_CACHE_DIR,
-      pluginsDirPath: pluginsDir,
-      installedPluginsPath: join(pluginsDir, 'installed_plugins.json'),
-      knownMarketplacesPath: join(pluginsDir, 'known_marketplaces.json'),
-      extensionPath: this.extensionPath,
-      preferencesPath: join(claudeDir, EXTENSION_ID, 'preferences.json'),
+      cacheDirPath: toPathInfo(PLUGINS_CACHE_DIR),
+      pluginsDirPath: toPathInfo(pluginsDir),
+      installedPluginsPath: toPathInfo(join(pluginsDir, 'installed_plugins.json')),
+      knownMarketplacesPath: toPathInfo(join(pluginsDir, 'known_marketplaces.json')),
+      extensionPath: toPathInfo(this.extensionPath),
+      preferencesPath: toPathInfo(join(claudeDir, EXTENSION_ID, 'preferences.json')),
     };
   }
 

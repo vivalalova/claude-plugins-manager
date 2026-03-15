@@ -359,6 +359,7 @@ export const en = {
   'info.path.knownMarketplaces': 'known_marketplaces.json',
   'info.path.extension': 'Extension Path',
   'info.path.preferences': 'Preferences',
+  'info.path.notExists': '(not exists)',
   'info.action.open': 'Open',
   'info.action.openFailed': 'Failed to open path',
   'info.action.clearCache': 'Clear Cache',

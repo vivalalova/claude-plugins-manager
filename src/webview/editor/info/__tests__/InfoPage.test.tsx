@@ -28,12 +28,12 @@ function makeInfo(overrides: Partial<ExtensionInfo> = {}): ExtensionInfo {
     repoUrl: 'https://github.com/vibeai/claude-plugins',
     cliPath: '/usr/local/bin/claude',
     cliVersion: '1.0.5',
-    cacheDirPath: '/Users/test/.claude/plugins/cache',
-    pluginsDirPath: '/Users/test/.claude/plugins',
-    installedPluginsPath: '/Users/test/.claude/plugins/installed_plugins.json',
-    knownMarketplacesPath: '/Users/test/.claude/plugins/known_marketplaces.json',
-    extensionPath: '/Users/test/.vscode/extensions/claude-plugins',
-    preferencesPath: '/Users/test/.claude/claude-plugins-manager/preferences.json',
+    cacheDirPath: { path: '/Users/test/.claude/plugins/cache', exists: true },
+    pluginsDirPath: { path: '/Users/test/.claude/plugins', exists: true },
+    installedPluginsPath: { path: '/Users/test/.claude/plugins/installed_plugins.json', exists: true },
+    knownMarketplacesPath: { path: '/Users/test/.claude/plugins/known_marketplaces.json', exists: true },
+    extensionPath: { path: '/Users/test/.vscode/extensions/claude-plugins', exists: true },
+    preferencesPath: { path: '/Users/test/.claude/claude-plugins-manager/preferences.json', exists: true },
     ...overrides,
   };
 }
@@ -217,5 +217,30 @@ describe('InfoPage', () => {
     await waitFor(() => screen.getByText('Claude Plugins Manager'));
 
     expect(screen.queryByText('https://github.com/vibeai/claude-plugins')).toBeNull();
+  });
+
+  it('exists=false 的路徑顯示 "(not exists)" badge + 灰色樣式', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo({
+      preferencesPath: { path: '/Users/test/.claude/prefs.json', exists: false },
+    }));
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('(not exists)')).toBeTruthy();
+      const missingRows = container.querySelectorAll('.info-path-row--missing');
+      expect(missingRows.length).toBe(1);
+    });
+  });
+
+  it('所有路徑 exists=true 時不顯示 "(not exists)" badge', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo());
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Open' }).length).toBe(6);
+      expect(screen.queryByText('(not exists)')).toBeNull();
+    });
   });
 });

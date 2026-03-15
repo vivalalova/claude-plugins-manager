@@ -1,30 +1,30 @@
 ---
-title: HooksSection exhaustive-deps 根治
+title: InfoPage 設定檔路徑存在性標示
 created: 2026-03-15
-priority: medium
-suggested_order: M1
+priority: low
+suggested_order: B3
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# HooksSection exhaustive-deps 根治
+# InfoPage 設定檔路徑存在性標示
 
-`HooksSection.tsx` 有 2 處 `eslint-disable-next-line react-hooks/exhaustive-deps` 抑制，代表 effect 依賴管理有潛在 stale closure 風險。應重構 effect 使其不需要抑制。
+InfoPage 列出 settings 相關路徑但不標示是否實際存在。應在 ExtensionInfoService 回傳各路徑的存在狀態，UI 端對不存在的路徑顯示視覺區分。
 
 ## 規格
 
-- 移除所有 `eslint-disable-next-line react-hooks/exhaustive-deps`
-- 使用 `useRef` 存最新值、或抽取 stable callback（`useCallback`）、或重組 effect 邏輯
-- 確保重構後行為不變（hook 解釋 cache、existing path 檢查等）
+- `ExtensionInfoService.getInfo()` 回傳的路徑資訊新增 `exists: boolean` 欄位
+- 使用 `fs.access` 或 `fs.stat` 檢查（不讀取內容）
+- UI：存在的路徑顯示正常色彩；不存在的路徑灰色 + 「不存在」標記
+- 不存在的路徑仍可點擊 Open（由 VSCode 處理 ENOENT）
 
 ## User Stories
 
-- As a 維護者, I want 消除 lint 抑制, so that effect 依賴正確、不會因漏掉依賴導致 stale closure bug。
+- As a 使用者, I want 一眼看出哪些設定檔已建立, so that 知道哪些 scope 有實際配置。
 
 ## 驗收條件
 
-- Given `HooksSection.tsx`, when `npm run lint`, then 無 exhaustive-deps 相關 disable 或 warning
-- Given HooksSection 渲染, when hook 內容變更, then AI 解釋正確更新（行為不 regress）
-- Given HooksSection 渲染, when existingPaths 變更, then UI 正確反映（行為不 regress）
+- Given `~/.claude/settings.json` 存在, when InfoPage 載入, then 該路徑顯示正常色彩
+- Given `.claude/settings.local.json` 不存在, when InfoPage 載入, then 該路徑顯示灰色 + 「不存在」標記

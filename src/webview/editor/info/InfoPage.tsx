@@ -66,13 +66,13 @@ export function InfoPage(): React.ReactElement {
     );
   }
 
-  const paths: Array<{ key: string; label: string; value: string; action?: 'clearCache' }> = [
-    { key: 'cacheDir', label: t('info.path.cacheDir'), value: info.cacheDirPath, action: 'clearCache' },
-    { key: 'pluginsDir', label: t('info.path.pluginsDir'), value: info.pluginsDirPath },
-    { key: 'installedPlugins', label: t('info.path.installedPlugins'), value: info.installedPluginsPath },
-    { key: 'knownMarketplaces', label: t('info.path.knownMarketplaces'), value: info.knownMarketplacesPath },
-    { key: 'extensionPath', label: t('info.path.extension'), value: info.extensionPath },
-    { key: 'preferences', label: t('info.path.preferences'), value: info.preferencesPath },
+  const paths: Array<{ key: string; label: string; value: string; exists: boolean; action?: 'clearCache' }> = [
+    { key: 'cacheDir', label: t('info.path.cacheDir'), value: info.cacheDirPath.path, exists: info.cacheDirPath.exists, action: 'clearCache' },
+    { key: 'pluginsDir', label: t('info.path.pluginsDir'), value: info.pluginsDirPath.path, exists: info.pluginsDirPath.exists },
+    { key: 'installedPlugins', label: t('info.path.installedPlugins'), value: info.installedPluginsPath.path, exists: info.installedPluginsPath.exists },
+    { key: 'knownMarketplaces', label: t('info.path.knownMarketplaces'), value: info.knownMarketplacesPath.path, exists: info.knownMarketplacesPath.exists },
+    { key: 'extensionPath', label: t('info.path.extension'), value: info.extensionPath.path, exists: info.extensionPath.exists },
+    { key: 'preferences', label: t('info.path.preferences'), value: info.preferencesPath.path, exists: info.preferencesPath.exists },
   ];
 
   return (
@@ -124,10 +124,13 @@ export function InfoPage(): React.ReactElement {
         <div className="settings-section info-section">
           <h3 className="settings-section-title">{t('info.section.paths')}</h3>
           <div className="info-path-list">
-            {paths.map(({ key, label, value, action }) => (
-              <div key={key} className="info-path-row">
+            {paths.map(({ key, label, value, exists, action }) => (
+              <div key={key} className={`info-path-row${exists ? '' : ' info-path-row--missing'}`}>
                 <div className="info-path-meta">
-                  <span className="info-path-label">{label}</span>
+                  <span className="info-path-label">
+                    {label}
+                    {!exists && <span className="info-path-badge-missing">{t('info.path.notExists')}</span>}
+                  </span>
                   <span className="info-path-value">{value}</span>
                 </div>
                 <div className="info-path-actions">

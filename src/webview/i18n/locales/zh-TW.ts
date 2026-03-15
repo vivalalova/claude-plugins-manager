@@ -362,6 +362,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'info.path.knownMarketplaces': 'known_marketplaces.json',
   'info.path.extension': 'Extension 路徑',
   'info.path.preferences': '偏好設定',
+  'info.path.notExists': '（不存在）',
   'info.action.open': '開啟',
   'info.action.openFailed': '開啟路徑失敗',
   'info.action.clearCache': '清除快取',

@@ -140,6 +140,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'info.path.knownMarketplaces': 'known_marketplaces.json',
   'info.path.extension': 'Extension パス',
   'info.path.preferences': '設定ファイル',
+  'info.path.notExists': '（存在しません）',
   'info.action.open': '開く',
   'info.action.openFailed': 'パスを開けませんでした',
   'info.action.clearCache': 'キャッシュをクリア',

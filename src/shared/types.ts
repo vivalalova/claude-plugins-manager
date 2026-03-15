@@ -338,6 +338,12 @@ export interface MergedPlugin {
   localInstall: InstalledPlugin | null;
 }
 
+/** 路徑 + 存在性 */
+export interface PathInfo {
+  path: string;
+  exists: boolean;
+}
+
 /** Extension Info 頁面資料 */
 export interface ExtensionInfo {
   extensionVersion: string;
@@ -346,10 +352,10 @@ export interface ExtensionInfo {
   repoUrl: string | null;
   cliPath: string | null;
   cliVersion: string | null;
-  cacheDirPath: string;
-  pluginsDirPath: string;
-  installedPluginsPath: string;
-  knownMarketplacesPath: string;
-  extensionPath: string;
-  preferencesPath: string;
+  cacheDirPath: PathInfo;
+  pluginsDirPath: PathInfo;
+  installedPluginsPath: PathInfo;
+  knownMarketplacesPath: PathInfo;
+  extensionPath: PathInfo;
+  preferencesPath: PathInfo;
 }
