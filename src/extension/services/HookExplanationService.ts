@@ -80,13 +80,18 @@ export class HookExplanationService {
       return explanation;
     })();
 
-    this.inflightRequests.set(key, explanationPromise);
+    // refresh 請求不加入 inflightRequests，避免污染 dedup map
+    if (!refresh) {
+      this.inflightRequests.set(key, explanationPromise);
+    }
 
     let explanation: string;
     try {
       explanation = await explanationPromise;
     } finally {
-      this.inflightRequests.delete(key);
+      if (!refresh) {
+        this.inflightRequests.delete(key);
+      }
     }
 
     await this.mergeEntry(key, { explanation, locale, createdAt: new Date().toISOString() });
