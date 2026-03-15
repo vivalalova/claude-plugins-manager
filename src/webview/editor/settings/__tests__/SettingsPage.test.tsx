@@ -681,8 +681,8 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('切換 scope 時立即清空舊 settings，不顯示過期資料', async () => {
-    let resolveProject: (v: Record<string, unknown>) => void;
+  it('切換到新 scope 時，fetch 期間顯示 loading，完成後渲染新 scope 的資料', async () => {
+    let resolveProject!: (v: Record<string, unknown>) => void;
     const projectFetchPromise = new Promise<Record<string, unknown>>((res) => { resolveProject = res; });
 
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
@@ -694,7 +694,7 @@ describe('SettingsPage', () => {
 
     renderPage();
 
-    // 先到 Model tab 確認 user scope 有值
+    // user scope 有 model 設定
     await waitFor(() => screen.getByText('Model'));
     fireEvent.click(screen.getByText('Model').closest('button')!);
     await waitFor(() => {
@@ -703,19 +703,24 @@ describe('SettingsPage', () => {
       expect(modelSelect.value).toBe('claude-opus-4-6');
     });
 
-    // 切到 Project scope，project fetch 尚未 resolve（模擬 loading 中）
+    // 切到 Project scope，project fetch 卡住
     fireEvent.click(screen.getByText('Project').closest('button')!);
 
-    // fetch 未完成期間，應顯示 loading 而非舊的 user scope 值
+    // fetch 期間顯示 loading，不顯示上一個 scope 的舊資料
     await waitFor(() => {
       expect(screen.getByText('Loading settings...')).toBeTruthy();
     });
 
-    // 允許 project fetch 完成（回 {}，model 未設定）
-    resolveProject!({});
+    // project fetch 完成（model 未設定）
+    resolveProject({});
     await waitFor(() => {
       expect(screen.queryByText('Loading settings...')).toBeNull();
     });
+
+    // fetch 完成後 model select 應為空（project scope 無 model 設定）
+    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
+    expect(modelSelect.value).toBe('');
   });
 
   it('settings.refresh push message → 重新 fetch', async () => {
