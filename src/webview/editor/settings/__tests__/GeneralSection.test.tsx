@@ -351,19 +351,11 @@ describe('GeneralSection — BooleanToggle Reset 按鈕', () => {
     });
   });
 
-  it('fastMode=false → Reset 按鈕顯示，點擊 → onDelete("fastMode")', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ fastMode: false }, vi.fn(), onDelete);
-
+  it('fastMode=false（等於 default）→ 無 Reset 按鈕', async () => {
+    renderSection({ fastMode: false });
     await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode' }));
     const field = screen.getByRole('checkbox', { name: 'Fast Mode' }).closest('.settings-field') as HTMLElement;
-    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
-    expect(resetBtn).toBeTruthy();
-    fireEvent.click(resetBtn);
-
-    await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('fastMode');
-    });
+    expect(within(field).queryByRole('button', { name: /Reset/ })).toBeNull();
   });
 });
 

@@ -18,6 +18,15 @@ export function getOverriddenScope(
 }
 
 // ---------------------------------------------------------------------------
+// Reset helper
+// ---------------------------------------------------------------------------
+
+/** 判斷是否應顯示 Reset 按鈕：有 default 且值與 default 不同 */
+export function shouldShowReset(value: unknown, defaultValue: unknown): boolean {
+  return defaultValue !== undefined && value !== undefined && value !== defaultValue;
+}
+
+// ---------------------------------------------------------------------------
 // OverrideBadge
 // ---------------------------------------------------------------------------
 
@@ -129,7 +138,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
           />
           <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
         </label>
-        {value !== undefined && (
+        {shouldShowReset(value, defaultValue) && (
           <button
             className="btn btn-secondary"
             onClick={() => void handleReset()}
@@ -180,7 +189,9 @@ export function EnumDropdown({
   onDelete,
 }: EnumDropdownProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
+  const resetLabel = t('settings.common.reset');
 
   const isUnknown = value !== undefined && !knownValues.includes(value);
   const selectValue = isUnknown ? '__unknown__' : (value ?? '');
@@ -207,23 +218,36 @@ export function EnumDropdown({
         <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
       </label>
       {description && <p className="settings-field-description">{description}</p>}
-      <select
-        id={settingKey}
-        className="select"
-        value={selectValue}
-        onChange={(e) => void handleChange(e.target.value)}
-        disabled={saving}
-      >
-        <option value="">{notSetLabel}</option>
-        {isUnknown && (
-          <option value="__unknown__" disabled>
-            {unknownTemplate.replace('{value}', value!)}
-          </option>
+      <div className="settings-model-row">
+        <select
+          id={settingKey}
+          className="select"
+          value={selectValue}
+          onChange={(e) => void handleChange(e.target.value)}
+          disabled={saving}
+        >
+          <option value="">{notSetLabel}</option>
+          {isUnknown && (
+            <option value="__unknown__" disabled>
+              {unknownTemplate.replace('{value}', value!)}
+            </option>
+          )}
+          {knownValues.map((v) => (
+            <option key={v} value={v}>{knownLabels[v] ?? v}</option>
+          ))}
+        </select>
+        {shouldShowReset(value, defaultValue) && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleChange('')}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
+          </button>
         )}
-        {knownValues.map((v) => (
-          <option key={v} value={v}>{knownLabels[v] ?? v}</option>
-        ))}
-      </select>
+      </div>
     </div>
   );
 }
@@ -262,8 +286,10 @@ export function TextSetting({
   onDelete,
 }: TextSettingProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value ?? '');
   const [saving, setSaving] = useState(false);
+  const resetLabel = t('settings.common.reset');
 
   useEffect(() => {
     setInputValue(value ?? '');
@@ -321,6 +347,17 @@ export function TextSetting({
             type="button"
           >
             {clearLabel}
+          </button>
+        )}
+        {shouldShowReset(value, defaultValue) && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
           </button>
         )}
       </div>
@@ -644,7 +681,9 @@ export function NumberSetting({
   onDelete,
 }: NumberSettingProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value !== undefined ? String(value) : '');
+  const resetLabel = t('settings.common.reset');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -717,6 +756,17 @@ export function NumberSetting({
             type="button"
           >
             {clearLabel}
+          </button>
+        )}
+        {shouldShowReset(value, defaultValue) && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
           </button>
         )}
       </div>

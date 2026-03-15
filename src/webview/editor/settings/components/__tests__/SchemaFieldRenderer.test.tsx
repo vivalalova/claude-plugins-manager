@@ -243,3 +243,101 @@ describe('SchemaFieldRenderer — override indicator', () => {
     });
   });
 });
+
+describe('SchemaFieldRenderer — Reset 按鈕', () => {
+  it('enum：value 與 default 不同 → Reset 按鈕顯示', async () => {
+    renderField('effortLevel', {
+      type: "'high' | 'medium' | 'low'",
+      default: 'high',
+      description: 'test',
+      section: 'general',
+      controlType: 'enum',
+      options: ['high', 'medium', 'low'] as const,
+    }, 'low');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
+    });
+  });
+
+  it('enum：value 未設定 → 無 Reset', async () => {
+    renderField('effortLevel', {
+      type: "'high' | 'medium' | 'low'",
+      default: 'high',
+      description: 'test',
+      section: 'general',
+      controlType: 'enum',
+      options: ['high', 'medium', 'low'] as const,
+    }, undefined);
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+    });
+  });
+
+  it('enum：value 等於 default → 無 Reset', async () => {
+    renderField('effortLevel', {
+      type: "'high' | 'medium' | 'low'",
+      default: 'high',
+      description: 'test',
+      section: 'general',
+      controlType: 'enum',
+      options: ['high', 'medium', 'low'] as const,
+    }, 'high');
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+    });
+  });
+
+  it('enum：點擊 Reset → onDelete 被呼叫', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderField('effortLevel', {
+      type: "'high' | 'medium' | 'low'",
+      default: 'high',
+      description: 'test',
+      section: 'general',
+      controlType: 'enum',
+      options: ['high', 'medium', 'low'] as const,
+    }, 'low', vi.fn().mockResolvedValue(undefined), onDelete);
+    fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('effortLevel'));
+  });
+
+  it('text：無 default → 無 Reset', async () => {
+    renderField('language', {
+      type: 'string',
+      description: 'test',
+      section: 'general',
+      controlType: 'text',
+    }, 'zh-TW');
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+    });
+  });
+
+  it('number：value 與 default 不同 → Reset 顯示', async () => {
+    renderField('cleanupPeriodDays', {
+      type: 'number',
+      default: 30,
+      description: 'test',
+      section: 'general',
+      controlType: 'number',
+      min: 0,
+      step: 1,
+    }, 60);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
+    });
+  });
+
+  it('boolean：value=false default=false → 無 Reset', async () => {
+    renderField('fastMode', {
+      type: 'boolean',
+      default: false,
+      description: 'test',
+      section: 'general',
+      controlType: 'boolean',
+    }, false);
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+    });
+  });
+});
