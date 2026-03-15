@@ -1,33 +1,35 @@
 ---
-title: Settings E2E 測試：settings.set / settings.delete 完整路徑
+title: SandboxEditor 獨立 component test
 created: 2026-03-15
-priority: high
-suggested_order: B1
+priority: medium
+suggested_order: B2
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# Settings E2E 測試：settings.set / settings.delete 完整路徑
+# SandboxEditor 獨立 component test
 
-目前有 `toggle-scope.e2e.test.ts` 覆蓋 plugin scope toggle 的 E2E 路徑（MessageRouter → PluginService → SettingsFileService → filesystem），但 settings 的 `set`/`delete` 操作缺少同等級 E2E 測試。`SettingsFileService.settings.integration.test.ts` 只測 service 層，未經過 MessageRouter dispatch。
+`SandboxEditor.tsx`（335 行）是近期新增的複雜 sub-editor，支援結構化模式和 JSON 雙模式切換。目前測試散在 `AdvancedSection.test.tsx`，覆蓋基本渲染和 save，但缺少獨立邊界測試。
 
 ## 修復方向
 
-新增 `settings-crud.e2e.test.ts`，參考 `toggle-scope.e2e.test.ts` 的 tmpdir + mock homedir 模式，覆蓋：
+新增 `SandboxEditor.test.tsx`，覆蓋：
 
-1. user scope set/get/delete round-trip
-2. project scope set/get/delete round-trip
-3. local scope set/get/delete round-trip
-4. scope override 讀取優先級（local > project > user）
+1. 結構化模式各 checkbox/path 新增刪除互動
+2. JSON 模式無效 JSON 輸入的錯誤提示
+3. 模式切換時資料保留/轉換正確性
+4. 空值 vs undefined vs `{}` 的行為差異
 
 ## User Stories
 
-- As a 維護者, I want 確保 settings 從 webview message 到磁碟寫入的完整路徑正確, so that MessageRouter 路由錯誤或參數傳遞問題能被測試抓到
+- As a 維護者, I want SandboxEditor 的複雜互動有獨立測試, so that 重構時模式切換和無效輸入不會壞掉
 
 ## 驗收條件
 
-- Given settings-crud.e2e.test.ts, when `npm test`, then 全部通過
-- Given user/project/local 三種 scope, when 分別 set → get → delete, then 寫入磁碟的 JSON 正確
-- Given user/project/local 三層各設不同值給同一 key（如 `language: 'en'/'zh'/'ja'`）, when 讀取 merged settings, then 回傳 local scope 的值（'ja'）
+- Given SandboxEditor.test.tsx, when `npm test`, then 全部通過
+- Given 結構化模式, when 新增/刪除 allow path, then onSave 收到正確結構
+- Given JSON 模式輸入無效 JSON, when blur, then 顯示錯誤提示且不觸發 onSave
+- Given 從結構化切換到 JSON, when 查看 JSON 內容, then 反映結構化模式的值
+- Given value 為 `undefined`（未設定）, when 渲染, then 結構化模式顯示空狀態不拋錯
