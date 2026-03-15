@@ -3,6 +3,10 @@ title: McpService.testServer() + UI loading 提示（Test Connection 單一 serv
 created: 2026-03-15
 priority: medium
 suggested_order: C1
+phase: needs-commit
+iteration: 1
+max_iterations: 3
+review_iterations: 0
 ---
 
 # McpService.testServer() + UI loading 提示（Test Connection 單一 server）

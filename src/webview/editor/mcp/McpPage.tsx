@@ -240,6 +240,7 @@ export function McpPage(): React.ReactElement {
             onAuthenticate={handleRefreshStatus}
             retrying={retrying}
             testing={testingServer === `${server.scope ?? 'none'}:${server.fullName}`}
+            anyTesting={testingServer !== null}
             testError={testErrors[`${server.scope ?? 'none'}:${server.fullName}`] ?? null}
             removing={removingServer === `${server.scope ?? 'none'}:${server.name}`}
           />

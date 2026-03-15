@@ -13,6 +13,8 @@ interface McpServerCardProps {
   onAuthenticate?: () => void;
   retrying?: boolean;
   testing?: boolean;
+  /** Any server is currently being tested (disables all Test Connection buttons) */
+  anyTesting?: boolean;
   testError?: string | null;
   removing?: boolean;
 }
@@ -27,6 +29,7 @@ export function McpServerCard({
   onAuthenticate,
   retrying,
   testing,
+  anyTesting,
   testError,
   removing,
 }: McpServerCardProps): React.ReactElement {
@@ -77,7 +80,7 @@ export function McpServerCard({
       )}
       <div className="card-actions">
         {isFailed && (
-          <button className="btn btn-primary" onClick={onTestConnection} disabled={testing || retrying}>
+          <button className="btn btn-primary" onClick={onTestConnection} disabled={testing || anyTesting || retrying}>
             {testing ? t('mcp.card.testing') : t('mcp.card.testConnection')}
           </button>
         )}

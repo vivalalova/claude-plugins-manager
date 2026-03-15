@@ -333,7 +333,7 @@ export const en = {
   'mcp.card.retry': 'Retry',
   'mcp.card.retrying': 'Retrying...',
   'mcp.card.testConnection': 'Test Connection',
-  'mcp.card.testing': 'Testing...',
+  'mcp.card.testing': 'Checking all servers...',
   'mcp.card.testFailed': 'Test failed: {error}',
   'mcp.card.checkStatus': 'Check Status',
   'mcp.card.checking': 'Checking...',

@@ -77,7 +77,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'mcp.card.retry': '再試行',
   'mcp.card.retrying': '再試行中...',
   'mcp.card.testConnection': '接続テスト',
-  'mcp.card.testing': 'テスト中...',
+  'mcp.card.testing': '全サーバーを確認中...',
   'mcp.card.testFailed': 'テスト失敗：{error}',
   'mcp.card.checkStatus': 'ステータス確認',
   'mcp.card.checking': '確認中...',

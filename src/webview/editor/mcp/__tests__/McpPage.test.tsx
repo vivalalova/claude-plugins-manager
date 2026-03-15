@@ -629,7 +629,7 @@ describe('McpPage — 核心流程', () => {
     });
   });
 
-  it('Test Connection 點擊 → 該 card 顯示 Testing... + disabled 直到完成', async () => {
+  it('Test Connection 點擊 → 該 card 顯示 "Checking all servers..." + disabled 直到完成', async () => {
     let resolveRefresh!: (data: McpServer[]) => void;
 
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
@@ -651,9 +651,9 @@ describe('McpPage — 核心流程', () => {
       fireEvent.click(screen.getByText('Test Connection'));
     });
 
-    // Testing... + disabled
+    // Checking all servers... + disabled
     await waitFor(() => {
-      const btn = screen.getByRole('button', { name: 'Testing...' });
+      const btn = screen.getByRole('button', { name: 'Checking all servers...' });
       expect(btn).toBeTruthy();
       expect((btn as HTMLButtonElement).disabled).toBe(true);
     });
@@ -665,8 +665,64 @@ describe('McpPage — 核心流程', () => {
 
     // Testing 按鈕消失（因為 server 已 connected，不再顯示 Test Connection）
     await waitFor(() => {
-      expect(screen.queryByText('Testing...')).toBeNull();
+      expect(screen.queryByText('Checking all servers...')).toBeNull();
       expect(screen.queryByText('Test Connection')).toBeNull();
+    });
+  });
+
+  it('Test Connection 進行中 → 其他 failed server 的 Test Connection 按鈕也 disabled', async () => {
+    let resolveRefresh!: (data: McpServer[]) => void;
+
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') {
+        return [
+          makeServer('fail-a', 'failed'),
+          makeServer('fail-b', 'failed'),
+        ];
+      }
+      if (req.type === 'mcp.refreshStatus') {
+        return new Promise<McpServer[]>((resolve) => { resolveRefresh = resolve; });
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('fail-a')).toBeTruthy();
+      expect(screen.getByText('fail-b')).toBeTruthy();
+    });
+
+    // 兩個 Test Connection 按鈕都可點
+    const buttons = screen.getAllByRole('button', { name: 'Test Connection' });
+    expect(buttons).toHaveLength(2);
+    expect((buttons[0] as HTMLButtonElement).disabled).toBe(false);
+    expect((buttons[1] as HTMLButtonElement).disabled).toBe(false);
+
+    // 點擊 fail-a 的 Test Connection
+    const cardA = screen.getByText('fail-a').closest('.card') as HTMLElement;
+    await act(async () => {
+      fireEvent.click(within(cardA).getByText('Test Connection'));
+    });
+
+    // fail-a 顯示 "Checking all servers..."，fail-b 的 Test Connection disabled
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Checking all servers...' })).toBeTruthy();
+      const cardB = screen.getByText('fail-b').closest('.card') as HTMLElement;
+      const btnB = within(cardB).getByRole('button', { name: 'Test Connection' });
+      expect((btnB as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    // resolve → 恢復
+    await act(async () => {
+      resolveRefresh([makeServer('fail-a', 'connected'), makeServer('fail-b', 'failed')]);
+    });
+
+    // fail-b 的 Test Connection 恢復可用
+    await waitFor(() => {
+      const cardB = screen.getByText('fail-b').closest('.card') as HTMLElement;
+      const btnB = within(cardB).getByRole('button', { name: 'Test Connection' });
+      expect((btnB as HTMLButtonElement).disabled).toBe(false);
     });
   });
 

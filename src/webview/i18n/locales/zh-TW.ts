@@ -335,7 +335,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'mcp.card.retry': '重試',
   'mcp.card.retrying': '重試中...',
   'mcp.card.testConnection': '測試連線',
-  'mcp.card.testing': '測試中...',
+  'mcp.card.testing': '正在檢查所有 server 狀態...',
   'mcp.card.testFailed': '測試失敗：{error}',
   'mcp.card.checkStatus': '檢查狀態',
   'mcp.card.checking': '檢查中...',
