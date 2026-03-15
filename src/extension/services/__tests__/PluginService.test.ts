@@ -25,7 +25,6 @@ function createMockSettings(): SettingsFileService & Record<string, ReturnType<t
     getSettingsPath: vi.fn(),
     readEnabledPlugins: vi.fn().mockResolvedValue({}),
     readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
-    readScopedEnabledPlugins: vi.fn().mockResolvedValue({}),
     setPluginEnabled: vi.fn().mockResolvedValue(undefined),
     readInstalledPlugins: vi.fn().mockResolvedValue({ version: 2, plugins: {} }),
     writeInstalledPlugins: vi.fn().mockResolvedValue(undefined),

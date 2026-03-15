@@ -106,7 +106,7 @@ export class SettingsFileService {
   }
 
   /** 讀取 project/local scope 的 enabledPlugins，無 workspace 時回傳 `{}` */
-  async readScopedEnabledPlugins(scope: Extract<PluginScope, 'project' | 'local'>): Promise<EnabledPluginsMap> {
+  private async readScopedEnabledPlugins(scope: Extract<PluginScope, 'project' | 'local'>): Promise<EnabledPluginsMap> {
     try {
       return await this.readEnabledPlugins(scope);
     } catch (error) {
