@@ -1,32 +1,32 @@
 ---
-title: Settings 重置為 schema default 按鈕
+title: MCP per-server 測試連線按鈕
 created: 2026-03-15
 priority: medium
-suggested_order: B1
+suggested_order: B2
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# Settings 重置為 schema default 按鈕
+# MCP per-server 測試連線按鈕
 
-SchemaFieldRenderer 的子控件應統一支援「重置為 schema default」功能。目前 `BooleanToggle` 已有 Reset 按鈕（當值不等於 default 時顯示），需推廣至 `EnumDropdown`、`TextSetting`、`NumberSetting`。
+MCP 頁面目前只能被動等待 polling 更新 server 狀態。應在 McpServerCard 上加「Test Connection」按鈕，主動觸發單一 server 的連線測試。
 
-## 規格
+## 設計方向
 
-- 有明確 `schema.default` 的欄位，當用戶設定了非 default 值時，顯示 Reset 按鈕
-- 點擊 Reset → 呼叫 `onDelete(key)` 移除該 key（使其回歸 default）
-- 無 `schema.default` 的欄位（如 `language`）不顯示 Reset 按鈕
-- SchemaFieldRenderer 統一傳遞 `defaultValue={schema.default}` 給所有子控件
+- McpService 新增 `testConnection(name: string): Promise<McpServer>` 方法
+- 實作方式：呼叫 `claude mcp list` 解析單一 server 結果，或直接 `claude mcp serve` 測試
+- MessageRouter 新增 `mcp.testConnection` route
+- McpServerCard 加 Test 按鈕 + loading 狀態
+- Test 結果更新該 server 的 status，不影響其他 server
 
 ## User Stories
 
-- As a 使用者, I want 能一鍵將某個設定恢復為預設值, so that 不需手動查文件找 default。
+- As a 使用者, I want 新增 MCP server 後能立即測試連線, so that 不需等待下一次 poll cycle。
 
 ## 驗收條件
 
-- Given `effortLevel` 設為 `'low'`（default 為 `'high'`）, when 畫面渲染, then EnumDropdown 旁顯示 Reset 按鈕
-- Given 點擊 Reset, when 操作完成, then `onDelete('effortLevel')` 被呼叫
-- Given `effortLevel` 未設定（使用 default）, when 畫面渲染, then 無 Reset 按鈕
-- Given `language` 欄位（無 schema default）, when 任何值, then 不顯示 Reset 按鈕
+- Given 一個 status=failed 的 MCP server, when 點擊 Test Connection, then 按鈕顯示 loading 狀態
+- Given Test Connection 成功, when 結果回傳, then server status 更新為 connected
+- Given Test Connection 失敗, when 結果回傳, then 顯示錯誤訊息

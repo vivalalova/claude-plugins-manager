@@ -31,7 +31,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
         onAuthenticate={noop}
       />,
     );
@@ -46,7 +46,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
         onAuthenticate={noop}
       />,
     );
@@ -61,7 +61,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
         onAuthenticate={noop}
       />,
     );
@@ -77,7 +77,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
         onAuthenticate={onAuthenticate}
       />,
     );
@@ -93,7 +93,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
       />,
     );
 
@@ -101,19 +101,19 @@ describe('McpServerCard — needs-auth 狀態', () => {
     expect(screen.queryByRole('button', { name: 'Check Status' })).toBeNull();
   });
 
-  it('failed server 不顯示 Check Status 按鈕（顯示 Retry）', () => {
+  it('failed server 不顯示 Check Status 按鈕（顯示 Test Connection）', () => {
     renderWithI18n(
       <McpServerCard
         server={makeServer({ status: 'failed' })}
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
       />,
     );
 
     expect(screen.queryByRole('button', { name: 'Check Status' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Test Connection' })).toBeTruthy();
   });
 
   it('card-auth-guide 有 role="status"', () => {
@@ -123,7 +123,7 @@ describe('McpServerCard — needs-auth 狀態', () => {
         onEdit={noop}
         onRemove={noop}
         onViewDetail={noop}
-        onRetry={noop}
+        onTestConnection={noop}
         onAuthenticate={noop}
       />,
     );

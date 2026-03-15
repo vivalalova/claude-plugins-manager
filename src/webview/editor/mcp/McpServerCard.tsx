@@ -9,9 +9,11 @@ interface McpServerCardProps {
   onEdit: () => void;
   onRemove: () => void;
   onViewDetail: () => void;
-  onRetry: () => void;
+  onTestConnection: () => void;
   onAuthenticate?: () => void;
   retrying?: boolean;
+  testing?: boolean;
+  testError?: string | null;
   removing?: boolean;
 }
 
@@ -21,9 +23,11 @@ export function McpServerCard({
   onEdit,
   onRemove,
   onViewDetail,
-  onRetry,
+  onTestConnection,
   onAuthenticate,
   retrying,
+  testing,
+  testError,
   removing,
 }: McpServerCardProps): React.ReactElement {
   const { t } = useI18n();
@@ -68,10 +72,13 @@ export function McpServerCard({
           <div style={{ fontSize: 11, marginTop: 2 }}>{server.fullName}</div>
         )}
       </div>
+      {testError && (
+        <div className="card-error">{t('mcp.card.testFailed' as Parameters<typeof t>[0], { error: testError })}</div>
+      )}
       <div className="card-actions">
         {isFailed && (
-          <button className="btn btn-primary" onClick={onRetry} disabled={retrying}>
-            {retrying ? t('mcp.card.retrying') : t('mcp.card.retry')}
+          <button className="btn btn-primary" onClick={onTestConnection} disabled={testing || retrying}>
+            {testing ? t('mcp.card.testing') : t('mcp.card.testConnection')}
           </button>
         )}
         {isNeedsAuth && onAuthenticate && (

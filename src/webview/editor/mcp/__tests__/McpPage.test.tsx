@@ -629,6 +629,99 @@ describe('McpPage — 核心流程', () => {
     });
   });
 
+  it('Test Connection 點擊 → 該 card 顯示 Testing... + disabled 直到完成', async () => {
+    let resolveRefresh!: (data: McpServer[]) => void;
+
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') return [makeServer('fail-srv', 'failed')];
+      if (req.type === 'mcp.refreshStatus') {
+        return new Promise<McpServer[]>((resolve) => { resolveRefresh = resolve; });
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('fail-srv')).toBeTruthy();
+    });
+
+    // 點擊 Test Connection
+    await act(async () => {
+      fireEvent.click(screen.getByText('Test Connection'));
+    });
+
+    // Testing... + disabled
+    await waitFor(() => {
+      const btn = screen.getByRole('button', { name: 'Testing...' });
+      expect(btn).toBeTruthy();
+      expect((btn as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    // resolve → server now connected
+    await act(async () => {
+      resolveRefresh([makeServer('fail-srv', 'connected')]);
+    });
+
+    // Testing 按鈕消失（因為 server 已 connected，不再顯示 Test Connection）
+    await waitFor(() => {
+      expect(screen.queryByText('Testing...')).toBeNull();
+      expect(screen.queryByText('Test Connection')).toBeNull();
+    });
+  });
+
+  it('Test Connection 失敗 → card 內顯示 per-card error', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') return [makeServer('fail-srv', 'failed')];
+      if (req.type === 'mcp.refreshStatus') {
+        // 仍然 failed
+        return [makeServer('fail-srv', 'failed')];
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('fail-srv')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Test Connection'));
+    });
+
+    // per-card error 顯示
+    await waitFor(() => {
+      expect(screen.getByText(/Test failed.*Connection failed/)).toBeTruthy();
+    });
+
+    // Test Connection 按鈕恢復可用
+    const btn = screen.getByRole('button', { name: 'Test Connection' });
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('Test Connection 異常 → card 內顯示 error message', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'mcp.list') return [makeServer('fail-srv', 'failed')];
+      if (req.type === 'mcp.refreshStatus') throw new Error('CLI timeout');
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('fail-srv')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Test Connection'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Test failed.*CLI timeout/)).toBeTruthy();
+    });
+  });
+
   it('載入失敗顯示 ErrorBanner，可 dismiss', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') throw new Error('Connection refused');

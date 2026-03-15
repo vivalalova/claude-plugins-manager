@@ -81,7 +81,7 @@ describe('McpPage — Status Summary + Error Indicator', () => {
     expect(screen.queryByText(/Pending/)).toBeNull();
   });
 
-  it('failed server card 顯示紅色錯誤訊息 + Retry 按鈕', async () => {
+  it('failed server card 顯示錯誤訊息 + Test Connection 按鈕', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') {
         return [makeServer('bad-srv', 'failed')];
@@ -92,11 +92,11 @@ describe('McpPage — Status Summary + Error Indicator', () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('Connection failed')).toBeTruthy();
-      expect(screen.getByText('Retry')).toBeTruthy();
+      expect(screen.getByText('Test Connection')).toBeTruthy();
     });
   });
 
-  it('connected server card 不顯示 Retry 按鈕', async () => {
+  it('connected server card 不顯示 Test Connection 按鈕', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') {
         return [makeServer('good-srv', 'connected')];
@@ -108,10 +108,10 @@ describe('McpPage — Status Summary + Error Indicator', () => {
     await waitFor(() => {
       expect(screen.getByText('good-srv')).toBeTruthy();
     });
-    expect(screen.queryByText('Retry')).toBeNull();
+    expect(screen.queryByText('Test Connection')).toBeNull();
   });
 
-  it('點擊 Retry → 呼叫 mcp.refreshStatus', async () => {
+  it('點擊 Test Connection → 呼叫 mcp.refreshStatus', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'mcp.list') {
         return [makeServer('bad-srv', 'failed')];
@@ -124,11 +124,11 @@ describe('McpPage — Status Summary + Error Indicator', () => {
 
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Retry')).toBeTruthy();
+      expect(screen.getByText('Test Connection')).toBeTruthy();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Retry'));
+      fireEvent.click(screen.getByText('Test Connection'));
     });
 
     const refreshCalls = mockSendRequest.mock.calls
