@@ -4,12 +4,14 @@ import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { TagListSetting } from './components/SettingControls';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getOverriddenScope } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
 import { DISPLAY_FIELD_ORDER } from '../../../shared/field-orders';
 
 interface DisplaySectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  userSettings?: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -212,7 +214,7 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 // DisplaySection
 // ---------------------------------------------------------------------------
 
-export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
+export function DisplaySection({ scope, settings, userSettings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
   const { t } = useI18n();
 
   return (
@@ -222,6 +224,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
       {DISPLAY_FIELD_ORDER.map((key) => {
         const schema = CLAUDE_SETTINGS_SCHEMA[key];
         if (!schema) return null;
+        const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
 
         if (schema.controlType === 'custom') {
           switch (key) {
@@ -257,6 +260,7 @@ export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySec
             schema={schema}
             value={(settings as Record<string, unknown>)[key]}
             scope={scope}
+            overriddenScope={overriddenScope}
             onSave={onSave}
             onDelete={onDelete}
           />

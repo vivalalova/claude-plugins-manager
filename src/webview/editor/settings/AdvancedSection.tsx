@@ -8,6 +8,7 @@ import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getOverriddenScope } from './components/SettingControls';
 import { ADVANCED_FIELD_ORDER } from '../../../shared/field-orders';
 
 // ---------------------------------------------------------------------------
@@ -17,11 +18,12 @@ import { ADVANCED_FIELD_ORDER } from '../../../shared/field-orders';
 interface AdvancedSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  userSettings?: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
+export function AdvancedSection({ scope, settings, userSettings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
   const { t } = useI18n();
 
   return (
@@ -31,6 +33,7 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
       {ADVANCED_FIELD_ORDER.map((key) => {
         const schema = CLAUDE_SETTINGS_SCHEMA[key];
         if (!schema) return null;
+        const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
 
         if (schema.controlType === 'custom') {
           switch (key) {
@@ -70,6 +73,7 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
             schema={schema}
             value={(settings as Record<string, unknown>)[key]}
             scope={scope}
+            overriddenScope={overriddenScope}
             onSave={onSave}
             onDelete={onDelete}
           />

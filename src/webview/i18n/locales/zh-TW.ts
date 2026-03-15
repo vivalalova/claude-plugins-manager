@@ -174,6 +174,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.common.clear': '清除',
   'settings.common.minError': '不可小於 {min}',
   'settings.common.maxError': '不可大於 {max}',
+  'settings.common.overrides': '覆寫 {scope}',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制登入方式',
   'settings.advanced.forceLoginMethod.description': '強制 Claude 使用特定登入方式',

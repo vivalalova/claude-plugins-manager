@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/types';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getOverriddenScope } from './components/SettingControls';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -166,11 +167,12 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
 interface HooksSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  userSettings?: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function HooksSection({ scope, settings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
+export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
   const { t, locale } = useI18n();
   const { addToast } = useToast();
   const [opening, setOpening] = useState(false);
@@ -299,6 +301,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
         schema={CLAUDE_SETTINGS_SCHEMA.disableAllHooks}
         value={settings.disableAllHooks}
         scope={scope}
+        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'disableAllHooks')}
         onSave={onSave}
         onDelete={onDelete}
       />

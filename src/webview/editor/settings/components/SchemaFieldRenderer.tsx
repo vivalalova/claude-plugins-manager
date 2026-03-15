@@ -10,11 +10,12 @@ export interface SchemaFieldRendererProps {
   schema: SettingFieldSchema;
   value: unknown;
   scope: PluginScope;
+  overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, onDelete }: SchemaFieldRendererProps): React.ReactElement | null {
+export function SchemaFieldRenderer({ settingKey, schema, value, scope, overriddenScope, onSave, onDelete }: SchemaFieldRendererProps): React.ReactElement | null {
   const { t } = useI18n();
   const tk = (suffix: string): string =>
     t(`settings.${schema.section}.${settingKey}.${suffix}` as Parameters<typeof t>[0]);
@@ -30,6 +31,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, 
           value={value as boolean | undefined}
           settingKey={settingKey}
           defaultValue={getSchemaDefault<boolean>(settingKey)}
+          overriddenScope={overriddenScope}
           onSave={onSave}
           onDelete={onDelete}
         />
@@ -52,6 +54,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, 
           unknownTemplate={tk('unknown')}
           settingKey={settingKey}
           defaultValue={getSchemaDefault<string>(settingKey)}
+          overriddenScope={overriddenScope}
           onSave={onSave}
           onDelete={onDelete}
         />
@@ -69,6 +72,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, 
           clearLabel={tc('clear')}
           settingKey={settingKey}
           defaultValue={getSchemaDefault<string>(settingKey)}
+          overriddenScope={overriddenScope}
           scope={scope}
           onSave={onSave}
           onDelete={onDelete}
@@ -86,6 +90,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, 
           clearLabel={tc('clear')}
           settingKey={settingKey}
           defaultValue={getSchemaDefault<number>(settingKey)}
+          overriddenScope={overriddenScope}
           scope={scope}
           min={schema.min}
           max={schema.max}
@@ -109,6 +114,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, 
           addLabel={tk('add')}
           duplicateError={tk('duplicate')}
           settingKey={settingKey}
+          overriddenScope={overriddenScope}
           onSave={onSave}
         />
       );

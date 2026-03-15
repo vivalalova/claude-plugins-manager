@@ -187,6 +187,7 @@ export function SettingsPage(): React.ReactElement {
   const [scope, setScope] = useState<PluginScope>('user');
   const [activeNav, setActiveNav] = useState<SettingsNavItem>('general');
   const [settings, setSettings] = useState<ClaudeSettings>({});
+  const [userSettings, setUserSettings] = useState<ClaudeSettings>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasWorkspace, setHasWorkspace] = useState(false);
@@ -201,9 +202,15 @@ export function SettingsPage(): React.ReactElement {
   const fetchSettings = useCallback(async (targetScope: PluginScope, silent = false) => {
     if (!silent) { setLoading(true); setError(null); }
     try {
-      const data = await sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope });
+      const [data, userData] = await Promise.all([
+        sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope }),
+        targetScope !== 'user'
+          ? sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'user' })
+          : Promise.resolve({} as ClaudeSettings),
+      ]);
       setSettings(data);
-      setError(null); // 成功即清錯，不論 silent（避免舊 error banner 殘留）
+      setUserSettings(userData);
+      setError(null);
     } catch (e) {
       if (!silent) setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -322,6 +329,7 @@ export function SettingsPage(): React.ReactElement {
                 <HooksSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -330,6 +338,7 @@ export function SettingsPage(): React.ReactElement {
                 <GeneralSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -338,6 +347,7 @@ export function SettingsPage(): React.ReactElement {
                 <DisplaySection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -346,6 +356,7 @@ export function SettingsPage(): React.ReactElement {
                 <AdvancedSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />

@@ -3,6 +3,10 @@ title: Settings scope override 指示器
 created: 2026-03-15
 priority: high
 suggested_order: A2
+phase: needs-commit
+iteration: 3
+max_iterations: 3
+review_iterations: 2
 ---
 
 # Settings scope override 指示器

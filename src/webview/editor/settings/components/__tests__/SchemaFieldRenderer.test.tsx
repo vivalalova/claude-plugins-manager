@@ -179,3 +179,67 @@ describe('SchemaFieldRenderer', () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith('fastMode'));
   });
 });
+
+describe('SchemaFieldRenderer — override indicator', () => {
+  const renderFieldWithOverride = (
+    settingKey: string,
+    schema: SettingFieldSchema,
+    value: unknown,
+    overriddenScope?: 'user' | 'project' | 'local',
+  ) =>
+    renderWithI18n(
+      <ToastProvider>
+        <SchemaFieldRenderer
+          settingKey={settingKey}
+          schema={schema}
+          value={value}
+          scope="project"
+          overriddenScope={overriddenScope}
+          onSave={vi.fn().mockResolvedValue(undefined)}
+          onDelete={vi.fn().mockResolvedValue(undefined)}
+        />
+      </ToastProvider>,
+    );
+
+  it('overriddenScope=user → override badge 顯示', async () => {
+    renderFieldWithOverride('fastMode', {
+      type: 'boolean',
+      default: false,
+      description: 'test',
+      section: 'general',
+      controlType: 'boolean',
+    }, true, 'user');
+    await waitFor(() => {
+      expect(screen.getByText(/Overrides/i)).toBeTruthy();
+      expect(screen.getByText(/Overrides/i).classList.contains('settings-override-badge')).toBe(true);
+    });
+  });
+
+  it('overriddenScope=undefined → 無 override badge', async () => {
+    renderFieldWithOverride('fastMode', {
+      type: 'boolean',
+      default: false,
+      description: 'test',
+      section: 'general',
+      controlType: 'boolean',
+    }, true, undefined);
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox')).toBeTruthy();
+      expect(screen.queryByText(/Overrides/i)).toBeNull();
+    });
+  });
+
+  it('enum + overriddenScope=user → override badge 顯示', async () => {
+    renderFieldWithOverride('effortLevel', {
+      type: "'high' | 'medium' | 'low'",
+      default: 'high',
+      description: 'test',
+      section: 'general',
+      controlType: 'enum',
+      options: ['high', 'medium', 'low'] as const,
+    }, 'low', 'user');
+    await waitFor(() => {
+      expect(screen.getByText(/Overrides/i)).toBeTruthy();
+    });
+  });
+});

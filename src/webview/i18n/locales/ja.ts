@@ -312,6 +312,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.common.clear': 'クリア',
   'settings.common.minError': '{min} 以上にしてください',
   'settings.common.maxError': '{max} 以下にしてください',
+  'settings.common.overrides': '{scope} を上書き',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制ログイン方法',
   'settings.advanced.forceLoginMethod.description': 'Claude の特定のログイン方法を強制',

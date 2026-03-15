@@ -1881,6 +1881,18 @@ body.vscode-light .btn-danger:hover:not(:disabled) {
   margin-left: 4px;
 }
 
+.settings-override-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border-radius: 3px;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .settings-toggle-row {
   display: flex;
   gap: 8px;

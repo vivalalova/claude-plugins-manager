@@ -172,6 +172,7 @@ export const en = {
   'settings.common.clear': 'Clear',
   'settings.common.minError': 'Must be at least {min}',
   'settings.common.maxError': 'Must be at most {max}',
+  'settings.common.overrides': 'Overrides {scope}',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': 'Force Login Method',
   'settings.advanced.forceLoginMethod.description': 'Force a specific login method for Claude',
