@@ -697,7 +697,7 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
     expect(input.value).toBe('bash ~/edited-but-unsaved.sh');
 
     rerender(
-      <I18nProvider>
+      <I18nProvider locale="en">
         <ToastProvider>
           <AdvancedSection
             scope="project"
