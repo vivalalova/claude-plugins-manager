@@ -1,0 +1,175 @@
+/* ----------------------------------------------------------------
+ * Claude Plugins Manager — VSCode-native 精密風格
+ * 使用 VSCode theme CSS variables，自動適配 light / dark
+ * ---------------------------------------------------------------- */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  line-height: 1.6;
+}
+
+/* ----------------------------------------------------------------
+ * Animations
+ * ---------------------------------------------------------------- */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ----------------------------------------------------------------
+ * Utility
+ * ---------------------------------------------------------------- */
+
+.error-banner {
+  background: var(--vscode-inputValidation-errorBackground);
+  color: var(--vscode-inputValidation-errorForeground);
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+.error-banner .btn-dismiss {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  gap: 8px;
+}
+
+.empty-state-icon {
+  opacity: 0.5;
+}
+
+.empty-state-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.empty-state-description {
+  font-size: 12px;
+  max-width: 320px;
+}
+
+.empty-state-action {
+  margin-top: 4px;
+}
+
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: color-mix(in srgb, black 50%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  animation: fadeSlideIn 0.15s ease-out;
+}
+
+.confirm-dialog {
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px color-mix(in srgb, black 20%, transparent);
+}
+
+.confirm-dialog-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.confirm-dialog-message {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ----------------------------------------------------------------
+ * Light Theme — depth adjustments
+ * ---------------------------------------------------------------- */
+
+/* Cards: 微陰影創造層次（dark 背景足夠深，不需 shadow）
+   composite shadow 保留 card--failed / card--needs-auth 的 inset 邊框 */
+body.vscode-light .card {
+  box-shadow: 0 1px 3px color-mix(in srgb, black 6%, transparent);
+}
+body.vscode-light .card.card--failed {
+  box-shadow: inset 3px 0 0 var(--vscode-testing-iconFailed, #f44336), 0 1px 3px color-mix(in srgb, black 6%, transparent);
+}
+body.vscode-light .card.card--needs-auth {
+  box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9800), 0 1px 3px color-mix(in srgb, black 6%, transparent);
+}
+
+/* Section toggle */
+body.vscode-light .section-toggle {
+  box-shadow: 0 1px 2px color-mix(in srgb, black 4%, transparent);
+}
+
+/* Danger button: light mode 用 outline 風格 */
+body.vscode-light .btn-danger {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--vscode-errorForeground, #c62828) 30%, transparent);
+}
+
+body.vscode-light .btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vscode-errorForeground, #c62828) 8%, transparent);
+  border-color: color-mix(in srgb, var(--vscode-errorForeground, #c62828) 50%, transparent);
+}

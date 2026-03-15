@@ -1,0 +1,29 @@
+/* ----------------------------------------------------------------
+ * Editor Pages
+ * ---------------------------------------------------------------- */
+
+.page-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 28px 32px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.page-actions {
+  display: flex;
+  gap: 8px;
+}

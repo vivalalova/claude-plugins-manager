@@ -3,11 +3,21 @@
  * 沒有 standalone hardcoded color 值（只允許 var() fallback）。
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
-const CSS_PATH = join(__dirname, '..', 'styles.css');
-const css = readFileSync(CSS_PATH, 'utf-8');
+/** 讀取 styles.css 主檔 + styles/ 子目錄所有 CSS，合併為完整內容 */
+function loadAllCss(): string {
+  const mainCss = readFileSync(join(__dirname, '..', 'styles.css'), 'utf-8');
+  const stylesDir = join(__dirname, '..', 'styles');
+  const subFiles = readdirSync(stylesDir)
+    .filter((f) => f.endsWith('.css'))
+    .sort()
+    .map((f) => readFileSync(join(stylesDir, f), 'utf-8'));
+  return [mainCss, ...subFiles].join('\n');
+}
+
+const css = loadAllCss();
 
 /** 移除 CSS comments */
 function stripComments(src: string): string {

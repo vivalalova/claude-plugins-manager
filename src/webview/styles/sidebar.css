@@ -1,0 +1,97 @@
+/* ----------------------------------------------------------------
+ * Sidebar
+ * ---------------------------------------------------------------- */
+
+.sidebar-container {
+  padding: 12px 8px;
+}
+
+.sidebar-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--vscode-sideBarSectionHeader-foreground);
+  padding: 0 8px 12px;
+}
+
+.sidebar-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.sidebar-button:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.sidebar-button:active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  transform: scale(0.98);
+}
+
+.sidebar-button-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-button-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-button-label {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.sidebar-button-badge,
+.sidebar-update-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.sidebar-button-badge {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.sidebar-update-badge {
+  background: var(--vscode-editorWarning-foreground, #cca700);
+  color: var(--vscode-editor-background, #1e1e1e);
+}
+
+.sidebar-button-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

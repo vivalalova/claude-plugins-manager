@@ -1,0 +1,327 @@
+/* ----------------------------------------------------------------
+ * Buttons
+ * ---------------------------------------------------------------- */
+
+.btn {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s, transform 0.1s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.btn-secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.btn-danger {
+  background: color-mix(in srgb, var(--vscode-errorForeground, #f44336) 12%, transparent);
+  color: var(--vscode-errorForeground, #f44336);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vscode-errorForeground, #f44336) 20%, transparent);
+}
+
+.btn-icon {
+  background: transparent;
+  color: var(--vscode-foreground);
+  padding: 4px 6px;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+/* ----------------------------------------------------------------
+ * Marketplace Preview Dialog
+ * ---------------------------------------------------------------- */
+
+.confirm-dialog--preview {
+  max-width: 520px;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.preview-plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.preview-plugin-item {
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--vscode-foreground) 5%, transparent);
+}
+
+.preview-plugin-name {
+  font-weight: 500;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-plugin-version {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.preview-plugin-desc {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 2px;
+}
+
+/* ----------------------------------------------------------------
+ * Toast notifications — fixed bottom-right
+ * ---------------------------------------------------------------- */
+
+.toast-container {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column-reverse; /* 新 toast 在下 */
+  gap: 8px;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 360px;
+  box-shadow: 0 4px 12px color-mix(in srgb, black 15%, transparent);
+  animation: toastSlideIn 0.2s ease-out;
+  background: var(--vscode-notifications-background);
+  color: var(--vscode-notifications-foreground);
+  border: 1px solid var(--vscode-notifications-border);
+}
+
+.toast-item--exiting {
+  animation: toastFadeOut 0.3s ease-in forwards;
+}
+
+.toast-item__icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.toast-item--success .toast-item__icon { color: var(--vscode-testing-iconPassed); }
+.toast-item--error .toast-item__icon { color: var(--vscode-testing-iconFailed); }
+.toast-item--info .toast-item__icon { color: var(--vscode-notificationsInfoIcon-foreground); }
+
+.toast-item__message {
+  flex: 1;
+  word-break: break-word;
+}
+
+.toast-item__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--vscode-notifications-foreground);
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 2px 4px;
+  font-size: 12px;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.toast-item__close:hover,
+.toast-item__close:focus-visible {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.toast-item__close:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+/* ----------------------------------------------------------------
+ * Skeleton loading placeholders
+ * ---------------------------------------------------------------- */
+
+.skeleton {
+  background: var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.2));
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.skeleton--text,
+.skeleton--rect {
+  border-radius: 4px;
+}
+
+.skeleton--circle {
+  border-radius: 50%;
+}
+
+.skeleton-card {
+  pointer-events: none;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* ----------------------------------------------------------------
+ * JSON syntax highlighting
+ * ---------------------------------------------------------------- */
+
+.json-highlight {
+  background: var(--vscode-textCodeBlock-background);
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 60vh;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  padding: 8px 0;
+}
+
+.json-highlight-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.json-line-number {
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  text-align: right;
+  padding: 0 12px 0 8px;
+  user-select: none;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.json-line-content {
+  padding: 0 12px 0 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.json-token--key {
+  color: var(--vscode-symbolIcon-propertyForeground, #9cdcfe);
+}
+
+.json-token--string {
+  color: var(--vscode-debugTokenExpression-string, #ce9178);
+}
+
+.json-token--number {
+  color: var(--vscode-debugTokenExpression-number, #b5cea8);
+}
+
+.json-token--boolean {
+  color: var(--vscode-debugTokenExpression-boolean, #569cd6);
+}
+
+.json-token--null {
+  color: var(--vscode-debugTokenExpression-value, #569cd6);
+  font-style: italic;
+}
+
+.json-token--punctuation {
+  color: var(--vscode-foreground);
+}
+
+/* JSON token 顏色由 --vscode-debugTokenExpression-* / --vscode-symbolIcon-*
+   自動適配 light/dark/high-contrast，無需額外覆寫 */
+
+/* ----------------------------------------------------------------
+ * Keyboard Help Overlay
+ * ---------------------------------------------------------------- */
+
+.keyboard-help {
+  max-width: 400px;
+}
+
+.keyboard-help-list {
+  margin: 16px 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  align-items: center;
+}
+
+.keyboard-help-key {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  background: var(--vscode-keybindingLabel-background, rgba(128, 128, 128, 0.17));
+  border: 1px solid var(--vscode-keybindingLabel-border, rgba(51, 51, 51, 0.6));
+  color: var(--vscode-keybindingLabel-foreground, var(--vscode-foreground));
+  min-width: 24px;
+  text-align: center;
+}
+
+.keyboard-help-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--vscode-foreground);
+}
