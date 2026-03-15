@@ -41,6 +41,7 @@ export interface SettingFieldSchema {
  */
 export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   // ── General ──
+  // model 不列入 GENERAL_FIELD_ORDER — 由 CLI 自動管理，UI 不直接暴露
   model: {
     type: 'string',
     description: '使用的 Claude 模型 ID',
@@ -142,13 +143,13 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
   enabledMcpjsonServers: {
     type: 'string[]',
     description: '允許自動啟用的 .mcp.json server 名稱清單',
-    section: 'general',
+    section: 'permissions',
     controlType: 'tagInput',
   },
   disabledMcpjsonServers: {
     type: 'string[]',
     description: '禁止自動啟用的 .mcp.json server 名稱清單',
-    section: 'general',
+    section: 'permissions',
     controlType: 'tagInput',
   },
 
