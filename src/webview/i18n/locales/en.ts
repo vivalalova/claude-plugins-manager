@@ -61,6 +61,8 @@ export const en = {
   'settings.model.clear': 'Clear',
   'settings.model.save': 'Save',
   'settings.model.outsideWhitelist': 'Current model is not in availableModels whitelist',
+  'settings.model.saved': 'Model saved',
+  'settings.model.cleared': 'Model cleared',
   'settings.loading': 'Loading settings...',
   'settings.error.load': 'Failed to load settings',
   // Permissions section

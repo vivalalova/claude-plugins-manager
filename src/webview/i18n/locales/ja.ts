@@ -201,6 +201,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.model.clear': 'クリア',
   'settings.model.save': '保存',
   'settings.model.outsideWhitelist': '現在のモデルは availableModels ホワイトリストにありません',
+  'settings.model.saved': 'モデルを保存しました',
+  'settings.model.cleared': 'モデルをクリアしました',
   'settings.loading': '設定を読み込み中...',
   'settings.error.load': '設定の読み込みに失敗しました',
   // Permissions section

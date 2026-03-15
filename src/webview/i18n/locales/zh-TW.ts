@@ -63,6 +63,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.model.clear': '清除',
   'settings.model.save': '儲存',
   'settings.model.outsideWhitelist': '目前使用的模型不在白名單內',
+  'settings.model.saved': '模型已儲存',
+  'settings.model.cleared': '模型已清除',
   'settings.loading': '載入設定中...',
   'settings.error.load': '載入設定失敗',
   // Permissions section

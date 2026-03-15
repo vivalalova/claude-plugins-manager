@@ -319,6 +319,17 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
 };
 
 /**
+ * Model dropdown 的 fallback 選項。
+ * 當 availableModels 未設定時，UI 使用此清單作為建議值。
+ * Source code 內建靜態定義，UI 直接 import。
+ */
+export const KNOWN_MODEL_OPTIONS = [
+  'claude-opus-4-6',
+  'claude-sonnet-4-6',
+  'claude-haiku-4-5-20251001',
+] as const;
+
+/**
  * 從 schema 取得欄位的預設值。
  * 若 key 不存在，拋出 Error（fail-fast）；無預設則回傳 undefined。
  */
