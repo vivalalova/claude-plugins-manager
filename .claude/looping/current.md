@@ -1,32 +1,30 @@
 ---
-title: MCP per-server 測試連線按鈕
+title: HooksSection exhaustive-deps 根治
 created: 2026-03-15
 priority: medium
-suggested_order: B2
+suggested_order: M1
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
 ---
 
-# MCP per-server 測試連線按鈕
+# HooksSection exhaustive-deps 根治
 
-MCP 頁面目前只能被動等待 polling 更新 server 狀態。應在 McpServerCard 上加「Test Connection」按鈕，主動觸發單一 server 的連線測試。
+`HooksSection.tsx` 有 2 處 `eslint-disable-next-line react-hooks/exhaustive-deps` 抑制，代表 effect 依賴管理有潛在 stale closure 風險。應重構 effect 使其不需要抑制。
 
-## 設計方向
+## 規格
 
-- McpService 新增 `testConnection(name: string): Promise<McpServer>` 方法
-- 實作方式：呼叫 `claude mcp list` 解析單一 server 結果，或直接 `claude mcp serve` 測試
-- MessageRouter 新增 `mcp.testConnection` route
-- McpServerCard 加 Test 按鈕 + loading 狀態
-- Test 結果更新該 server 的 status，不影響其他 server
+- 移除所有 `eslint-disable-next-line react-hooks/exhaustive-deps`
+- 使用 `useRef` 存最新值、或抽取 stable callback（`useCallback`）、或重組 effect 邏輯
+- 確保重構後行為不變（hook 解釋 cache、existing path 檢查等）
 
 ## User Stories
 
-- As a 使用者, I want 新增 MCP server 後能立即測試連線, so that 不需等待下一次 poll cycle。
+- As a 維護者, I want 消除 lint 抑制, so that effect 依賴正確、不會因漏掉依賴導致 stale closure bug。
 
 ## 驗收條件
 
-- Given 一個 status=failed 的 MCP server, when 點擊 Test Connection, then 按鈕顯示 loading 狀態
-- Given Test Connection 成功, when 結果回傳, then server status 更新為 connected
-- Given Test Connection 失敗, when 結果回傳, then 顯示錯誤訊息
+- Given `HooksSection.tsx`, when `npm run lint`, then 無 exhaustive-deps 相關 disable 或 warning
+- Given HooksSection 渲染, when hook 內容變更, then AI 解釋正確更新（行為不 regress）
+- Given HooksSection 渲染, when existingPaths 變更, then UI 正確反映（行為不 regress）

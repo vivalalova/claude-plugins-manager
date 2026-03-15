@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
@@ -181,8 +181,24 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
   const [explanations, setExplanations] = useState<Map<string, string>>(new Map());
   const [explaining, setExplaining] = useState<ReadonlySet<string>>(new Set());
 
-  const hooksData = settings.hooks ?? {};
+  const hooksData = useMemo(() => settings.hooks ?? {}, [settings.hooks]);
   const eventTypes = Object.keys(hooksData);
+
+  // Fingerprint for deep-equality effect triggering (avoids re-fire on reference-only changes)
+  const hooksFingerprint = useMemo(() => {
+    const keys = Object.keys(hooksData).sort();
+    if (keys.length === 0) return '';
+    return keys.map((k) => {
+      const matchers = hooksData[k] ?? [];
+      return `${k}:${matchers.map((m) =>
+        `${m.matcher ?? ''}[${m.hooks.map((h) => getHookContent(h)).join(',')}]`,
+      ).join('|')}`;
+    }).join(';');
+  }, [hooksData]);
+
+  // Ref for locale — effect reads latest value without triggering re-run
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   useEffect(() => {
     const allPaths: string[] = [];
@@ -211,8 +227,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
       }
     })();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.hooks]);
+  }, [hooksFingerprint, hooksData]);
 
   // mount 時觸發過期快取清理（fire-and-forget）
   useEffect(() => {
@@ -227,7 +242,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
         for (const hook of group.hooks) {
           const content = getHookContent(hook);
           const fp = hook.type === 'command' ? extractFilePath(hook.command) ?? undefined : undefined;
-          items.push({ hookContent: content, locale, filePath: fp });
+          items.push({ hookContent: content, locale: localeRef.current, filePath: fp });
         }
       }
     }
@@ -242,8 +257,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.hooks]);
+  }, [hooksFingerprint, hooksData]);
 
   const handleExplain = async (hookContent: string, eventType: string, filePath: string | null): Promise<void> => {
     const key = `${filePath ?? hookContent}:${locale}`;
