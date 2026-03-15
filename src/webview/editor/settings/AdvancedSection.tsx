@@ -62,8 +62,8 @@ export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedS
                   description={t('settings.advanced.fileSuggestion.description')}
                   value={settings.fileSuggestion?.command}
                   placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
-                  saveLabel={t('settings.advanced.fileSuggestion.save')}
-                  clearLabel={t('settings.advanced.fileSuggestion.clear')}
+                  saveLabel={t('settings.common.save')}
+                  clearLabel={t('settings.common.clear')}
                   settingKey="fileSuggestion"
                   scope={scope}
                   onSave={async (_key, value) => onSave('fileSuggestion', { type: 'command', command: value as string })}

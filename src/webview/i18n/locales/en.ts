@@ -214,8 +214,6 @@ export const en = {
   'settings.advanced.fileSuggestion.description': 'Custom command for @ file autocomplete suggestions',
   'settings.advanced.fileSuggestion.command.label': 'Command',
   'settings.advanced.fileSuggestion.command.placeholder': 'e.g. bash ~/suggest.sh',
-  'settings.advanced.fileSuggestion.save': 'Save',
-  'settings.advanced.fileSuggestion.clear': 'Clear',
   'settings.advanced.sandbox.label': 'Sandbox',
   'settings.advanced.sandbox.description': 'Configure OS-level sandbox for bash commands (filesystem & network restrictions)',
   'settings.advanced.sandbox.placeholder': 'e.g. { "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }',

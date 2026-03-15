@@ -354,8 +354,6 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.fileSuggestion.description': '@ファイル自動補完の提案に使用するカスタムコマンド',
   'settings.advanced.fileSuggestion.command.label': 'コマンド',
   'settings.advanced.fileSuggestion.command.placeholder': '例: bash ~/suggest.sh',
-  'settings.advanced.fileSuggestion.save': '保存',
-  'settings.advanced.fileSuggestion.clear': 'クリア',
   'settings.advanced.sandbox.label': 'サンドボックス',
   'settings.advanced.sandbox.description': 'bash コマンドの OS レベルサンドボックスを設定（ファイルシステム・ネットワーク制限）',
   'settings.advanced.sandbox.placeholder': '例: { "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }',

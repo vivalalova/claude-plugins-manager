@@ -216,8 +216,6 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.fileSuggestion.description': '自訂 @ 檔案自動完成建議的命令',
   'settings.advanced.fileSuggestion.command.label': '命令',
   'settings.advanced.fileSuggestion.command.placeholder': '例：bash ~/suggest.sh',
-  'settings.advanced.fileSuggestion.save': '儲存',
-  'settings.advanced.fileSuggestion.clear': '清除',
   'settings.advanced.sandbox.label': 'Sandbox',
   'settings.advanced.sandbox.description': '設定 bash 指令的 OS 層級沙箱（檔案系統與網路限制）',
   'settings.advanced.sandbox.placeholder': '例：{ "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }',
