@@ -4,6 +4,10 @@ created: 2026-03-15
 priority: low
 suggested_order: Z99
 blockedBy: [c2-styles-css-modularize, c3-plugin-page-split, c1-mcp-per-server-test-connection]
+phase: needs-commit
+iteration: 1
+max_iterations: 3
+review_iterations: 0
 ---
 
 # 更新 CLAUDE.md 文件

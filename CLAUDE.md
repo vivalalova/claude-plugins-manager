@@ -19,12 +19,14 @@ npm run watch              # concurrently watch extension + webview
 - **Extension Host**（Node.js）：`src/extension/`
   — Services 直接讀寫 Claude Code 設定檔 + CLI 輔助
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
+- **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / settings.css / common.css）
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
 - **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
 - **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
+- **PluginPage 子元件**：`PluginPage.tsx`（state + layout）→ `PluginToolbar.tsx`（搜尋 + filter）、`PluginSections.tsx`（section 渲染 + drag/drop）、`PluginDialogs.tsx`（BulkEnableScopeDialog / TranslateDialog / KeyboardHelpOverlay）
 - **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）
 
 ### Services
@@ -35,7 +37,7 @@ npm run watch              # concurrently watch extension + webview
 | SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔（含 `readScopedEnabledPlugins` / `readAllEnabledPlugins` 共用 helper）、掃描 marketplace/plugin 內容 |
 | PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable          |
 | MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate                       |
-| McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢（僅 MCP panel 可見時執行）、per-server Test Connection |
+| McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢（僅 MCP panel 可見時執行）、Test Connection（全量 refresh，CLI 不支援 per-server 查詢；UI 顯示「Checking all servers...」+ 其他按鈕 disabled） |
 | FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
 | TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯；callApiWithRetry 含 retry + exponential backoff |
 | ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑（`PathInfo` 含 `exists` 檢測）供 InfoPage 顯示 |
