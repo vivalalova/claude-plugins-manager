@@ -118,7 +118,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, onSave, 
 
     default: {
       const _exhaustive: never = schema.controlType;
-      return _exhaustive;
+      throw new Error(`Unexpected controlType: ${_exhaustive}`);
     }
   }
 }

@@ -40,7 +40,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     try {
       parsed = JSON.parse(trimmed);
     } catch (e) {
-      setError(t('settings.advanced.sandbox.invalidJson').replace('{error}', e instanceof Error ? e.message : String(e)));
+      setError(t('settings.advanced.sandbox.invalidJson' as Parameters<typeof t>[0], { error: e instanceof Error ? e.message : String(e) }));
       return;
     }
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
