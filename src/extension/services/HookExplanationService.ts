@@ -23,6 +23,7 @@ type CacheFile = Record<string, CacheEntry>;
  */
 export class HookExplanationService {
   private writeLock: Promise<void> = Promise.resolve();
+  private inflightRequests = new Map<string, Promise<string>>();
 
   constructor(private readonly cli: CliService) {}
 
@@ -37,34 +38,55 @@ export class HookExplanationService {
       }
     }
 
-    let contentForPrompt = hookContent;
-    if (filePath) {
-      const resolved = filePath.startsWith('~/')
-        ? join(homedir(), filePath.slice(2))
-        : filePath;
-      try {
-        contentForPrompt = await readFile(resolved, 'utf-8');
-      } catch {
-        // 檔案不可讀，fallback 用原始 hookContent
+    if (!refresh) {
+      const inflight = this.inflightRequests.get(key);
+      if (inflight) {
+        const explanation = await inflight;
+        return { explanation, fromCache: false };
       }
     }
 
-    const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${contentForPrompt}`;
-    const explanation = (await this.cli.exec(
-      [
-        '--model', 'sonnet',
-        '--print',
-        '--system-prompt', 'You are a concise assistant that explains hook scripts. Format your response with clear structure: use **bold** for key terms, `backticks` for code/commands/paths, and bullet lists (- item) for multiple points. Keep it brief (2-4 sentences or a short list).',
-        '--no-session-persistence',
-        '--setting-sources', '',
-        '--settings', '{"disableAllHooks":true}',
-        prompt,
-      ],
-      { timeout: 120_000 },
-    )).trim();
+    const explanationPromise = (async () => {
+      let contentForPrompt = hookContent;
+      if (filePath) {
+        const resolved = filePath.startsWith('~/')
+          ? join(homedir(), filePath.slice(2))
+          : filePath;
+        try {
+          contentForPrompt = await readFile(resolved, 'utf-8');
+        } catch {
+          // 檔案不可讀，fallback 用原始 hookContent
+        }
+      }
 
-    if (!explanation) {
-      throw new Error('Hook explanation was empty');
+      const prompt = `請用 ${locale} 解釋這個在 ${eventType} 時機觸發的 hook 的用途，簡短兩句話：\n${contentForPrompt}`;
+      const explanation = (await this.cli.exec(
+        [
+          '--model', 'sonnet',
+          '--print',
+          '--system-prompt', 'You are a concise assistant that explains hook scripts. Format your response with clear structure: use **bold** for key terms, `backticks` for code/commands/paths, and bullet lists (- item) for multiple points. Keep it brief (2-4 sentences or a short list).',
+          '--no-session-persistence',
+          '--setting-sources', '',
+          '--settings', '{"disableAllHooks":true}',
+          prompt,
+        ],
+        { timeout: 120_000 },
+      )).trim();
+
+      if (!explanation) {
+        throw new Error('Hook explanation was empty');
+      }
+
+      return explanation;
+    })();
+
+    this.inflightRequests.set(key, explanationPromise);
+
+    let explanation: string;
+    try {
+      explanation = await explanationPromise;
+    } finally {
+      this.inflightRequests.delete(key);
     }
 
     await this.mergeEntry(key, { explanation, locale, createdAt: new Date().toISOString() });
