@@ -720,50 +720,102 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
 
 const SANDBOX_PLACEHOLDER = 'e.g. { "enabled": true, "filesystem": { "allowWrite": ["/tmp"] } }';
 
-describe('AdvancedSection — SandboxEditor 渲染', () => {
-  it('sandbox 未設定 → textarea 為空', async () => {
+/** Switch sandbox editor to JSON mode (default is Structured) */
+async function switchToJsonMode(): Promise<void> {
+  await waitFor(() => expect(screen.getByText('Sandbox')).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+  await waitFor(() => expect(screen.getByPlaceholderText(SANDBOX_PLACEHOLDER)).toBeTruthy());
+}
+
+describe('AdvancedSection — SandboxEditor 結構化模式', () => {
+  it('sandbox 未設定 → 結構化模式為預設，顯示 checkbox 未勾選', async () => {
     renderSection({});
     await waitFor(() => {
-      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
-      expect(ta.value).toBe('');
+      expect(screen.getByText('Enable Sandbox')).toBeTruthy();
+      const cb = screen.getByRole('checkbox', { name: 'Enable Sandbox' }) as HTMLInputElement;
+      expect(cb.checked).toBe(false);
     });
   });
 
-  it('sandbox 有值 → textarea 顯示格式化 JSON', async () => {
-    const sb = { enabled: true, filesystem: { allowWrite: ['/tmp'] } };
-    renderSection({ sandbox: sb });
+  it('sandbox 有值 → 結構化模式正確解析顯示', async () => {
+    renderSection({ sandbox: { enabled: true, filesystem: { allowWrite: ['/tmp'] } } });
     await waitFor(() => {
-      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
-      expect(ta.value).toBe(JSON.stringify(sb, null, 2));
+      const cb = screen.getByRole('checkbox', { name: 'Enable Sandbox' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+      expect(screen.getByText('/tmp')).toBeTruthy();
     });
   });
 
-  it('sandbox 未設定 → Clear 按鈕不顯示', async () => {
-    renderSection({});
+  it('toggle enabled → onSave("sandbox", { enabled: true })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Enable Sandbox' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Sandbox' }));
     await waitFor(() => {
-      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
-      const field = ta.closest('.settings-field') as HTMLElement;
-      expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+      expect(onSave).toHaveBeenCalledWith('sandbox', { enabled: true });
     });
   });
 
-  it('sandbox 有值 → Clear 按鈕顯示', async () => {
+  it('mode 切換 Structured → JSON → Structured 保持同步', async () => {
     renderSection({ sandbox: { enabled: true } });
+    await waitFor(() => screen.getByText('Enable Sandbox'));
+
+    // Switch to JSON
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
     await waitFor(() => {
-      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
-      const field = ta.closest('.settings-field') as HTMLElement;
-      expect(within(field).getByRole('button', { name: 'Clear' })).toBeTruthy();
+      const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
+      expect(ta.value).toContain('"enabled": true');
+    });
+
+    // Switch back to Structured
+    fireEvent.click(screen.getByRole('button', { name: 'Structured' }));
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Enable Sandbox' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
     });
   });
 });
 
-describe('AdvancedSection — SandboxEditor Save 行為', () => {
-  it('textarea 為空, 按 Save → onDelete("sandbox")', async () => {
+describe('AdvancedSection — SandboxEditor JSON 模式渲染', () => {
+  it('sandbox 未設定 → JSON mode textarea 為空', async () => {
+    renderSection({});
+    await switchToJsonMode();
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
+    expect(ta.value).toBe('');
+  });
+
+  it('sandbox 有值 → JSON mode textarea 顯示格式化 JSON', async () => {
+    const sb = { enabled: true, filesystem: { allowWrite: ['/tmp'] } };
+    renderSection({ sandbox: sb });
+    await switchToJsonMode();
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER) as HTMLTextAreaElement;
+    expect(ta.value).toBe(JSON.stringify(sb, null, 2));
+  });
+
+  it('sandbox 未設定 → JSON mode Clear 按鈕不顯示', async () => {
+    renderSection({});
+    await switchToJsonMode();
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    const field = ta.closest('.settings-field') as HTMLElement;
+    expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
+  });
+
+  it('sandbox 有值 → JSON mode Clear 按鈕顯示', async () => {
+    renderSection({ sandbox: { enabled: true } });
+    await switchToJsonMode();
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    const field = ta.closest('.settings-field') as HTMLElement;
+    expect(within(field).getByRole('button', { name: 'Clear' })).toBeTruthy();
+  });
+});
+
+describe('AdvancedSection — SandboxEditor JSON Save 行為', () => {
+  it('JSON mode: textarea 為空, 按 Save → onDelete("sandbox")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave, onDelete);
+    await switchToJsonMode();
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
     const field = ta.closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
@@ -774,14 +826,13 @@ describe('AdvancedSection — SandboxEditor Save 行為', () => {
     });
   });
 
-  it('輸入有效 JSON object, 按 Save → onSave("sandbox", parsedObject)', async () => {
+  it('JSON mode: 輸入有效 JSON object, 按 Save → onSave("sandbox", parsedObject)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
+    await switchToJsonMode();
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
-    const json = '{"enabled":true}';
-    fireEvent.change(ta, { target: { value: json } });
+    fireEvent.change(ta, { target: { value: '{"enabled":true}' } });
     const field = ta.closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
@@ -790,12 +841,12 @@ describe('AdvancedSection — SandboxEditor Save 行為', () => {
     });
   });
 
-  it('輸入只有空白, 按 Save → onDelete("sandbox")', async () => {
+  it('JSON mode: 輸入只有空白, 按 Save → onDelete("sandbox")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ sandbox: { enabled: true } }, onSave, onDelete);
+    await switchToJsonMode();
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
     fireEvent.change(ta, { target: { value: '   ' } });
     const field = ta.closest('.settings-field') as HTMLElement;
@@ -808,13 +859,13 @@ describe('AdvancedSection — SandboxEditor Save 行為', () => {
   });
 });
 
-describe('AdvancedSection — SandboxEditor 驗證', () => {
-  it('輸入非法 JSON, 按 Save → 顯示 error, onSave/onDelete 不呼叫', async () => {
+describe('AdvancedSection — SandboxEditor JSON 驗證', () => {
+  it('JSON mode: 輸入非法 JSON → 顯示 error', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave, onDelete);
+    await switchToJsonMode();
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
     fireEvent.change(ta, { target: { value: '{invalid}' } });
     const field = ta.closest('.settings-field') as HTMLElement;
@@ -827,12 +878,11 @@ describe('AdvancedSection — SandboxEditor 驗證', () => {
     });
   });
 
-  it('輸入合法 JSON 但為 array, 按 Save → 顯示 invalidObject error', async () => {
+  it('JSON mode: 輸入 array → 顯示 invalidObject error', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave, onDelete);
+    renderSection({}, onSave);
+    await switchToJsonMode();
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
     fireEvent.change(ta, { target: { value: '[1,2,3]' } });
     const field = ta.closest('.settings-field') as HTMLElement;
@@ -845,10 +895,10 @@ describe('AdvancedSection — SandboxEditor 驗證', () => {
     });
   });
 
-  it('error 顯示後, 修改 textarea → error 清除', async () => {
+  it('JSON mode: error 顯示後修改 textarea → error 清除', async () => {
     renderSection({});
+    await switchToJsonMode();
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
     const field = ta.closest('.settings-field') as HTMLElement;
     fireEvent.change(ta, { target: { value: '{bad' } });
@@ -862,14 +912,12 @@ describe('AdvancedSection — SandboxEditor 驗證', () => {
 });
 
 describe('AdvancedSection — SandboxEditor Clear', () => {
-  it('sandbox 有值, 按 Clear → onDelete("sandbox")', async () => {
+  it('結構化模式: sandbox 有值, 按 Clear → onDelete("sandbox")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ sandbox: { enabled: true } }, vi.fn(), onDelete);
 
-    await waitFor(() => screen.getByPlaceholderText(SANDBOX_PLACEHOLDER));
-    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
-    const field = ta.closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+    await waitFor(() => screen.getByText('Enable Sandbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('sandbox');
