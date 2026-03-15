@@ -7,6 +7,8 @@ import type { ClaudeSettings } from './types';
 /** 刻意排除不放入 FIELD_ORDER 的 schema key（附原因） */
 export const EXCLUDED_FROM_FIELD_ORDER = new Set<keyof ClaudeSettings>([
   'model', // CLI 自動管理，UI 不直接暴露
+  'enabledMcpjsonServers', // PermissionsSection 手動渲染，無 schema-driven loop
+  'disabledMcpjsonServers', // PermissionsSection 手動渲染，無 schema-driven loop
 ]);
 
 export const GENERAL_FIELD_ORDER: (keyof ClaudeSettings)[] = [

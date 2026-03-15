@@ -1,30 +1,27 @@
 ---
-title: extension/types.ts re-export barrel 清理
+title: enabledMcpjsonServers / disabledMcpjsonServers 加入 EXCLUDED_FROM_FIELD_ORDER
 created: 2026-03-15
 priority: high
-suggested_order: A2
+suggested_order: A3
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# extension/types.ts re-export barrel 清理
+# enabledMcpjsonServers / disabledMcpjsonServers 加入 EXCLUDED_FROM_FIELD_ORDER
 
-`src/extension/types.ts` 將 shared/types.ts 的 27 個型別 re-export，違反 universal.md #6。目前 6 個 extension 檔案從 `../types`（barrel）import，另外 6 個直接從 `../../shared/types` import，路徑不一致。
+這兩個 key 已在 `claude-settings-schema.ts` 和 `ClaudeSettings` interface 定義，屬 `permissions` section，由 PermissionsSection 手動渲染。但未列入任何 `*_FIELD_ORDER` 陣列，也未列入 `EXCLUDED_FROM_FIELD_ORDER`（目前只有 `model`）。
 
 ## 修復方向
 
-1. 刪除 `extension/types.ts` 的 re-export block，僅保留 `CliError` class
-2. 所有 extension service 統一改為直接 `from '../../shared/types'`（或對應相對路徑）
-3. `CliError` 維持從 `extension/types.ts` import
+在 `field-orders.ts` 的 `EXCLUDED_FROM_FIELD_ORDER` Set 加入 `enabledMcpjsonServers` 和 `disabledMcpjsonServers`，附註原因：PermissionsSection 全手動渲染，無 schema-driven loop。
 
 ## User Stories
 
-- As a 維護者, I want import 路徑統一指向 source of truth, so that 新增型別不需同步兩處
+- As a 維護者, I want check:schema 完整覆蓋所有 schema key, so that 新增 key 時不會遺漏 field order 配置
 
 ## 驗收條件
 
-- Given 刪除 re-export 後, when `grep -r "from '.*extension/types'" src/extension/` (排除 CliError import 所在行), then 0 結果
-- Given 刪除 re-export 後, when `grep -r "from '../../shared/types'" src/extension/`, then 原本走 barrel 的 6 個檔案全部出現
+- Given 兩個 key 已加入 EXCLUDED_FROM_FIELD_ORDER, when `npm run check:schema`, then 無 FIELD_ORDER 完整性警告
 - Given 修改完成, when `npm run verify`, then 全部通過
