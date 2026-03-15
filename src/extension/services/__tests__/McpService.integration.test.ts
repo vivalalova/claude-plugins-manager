@@ -275,6 +275,123 @@ describe('McpService（integration / 真實 filesystem）', () => {
       expect(servers).toHaveLength(1);
       expect(servers[0].name).toBe('valid-server');
     });
+
+    it('ANSI escape codes 嵌在 server name 中間 → 正確擷取名稱不含 escape codes', async () => {
+      // ANSI codes 夾在 name 和 status 文字內部（非包覆整行）
+      const bold = '\u001b[1m';
+      const reset = '\u001b[0m';
+      const green = '\u001b[32m';
+      const cliOutput = [
+        'Checking MCP server health...',
+        '',
+        `${bold}inline-bold${reset}: npx -y mcp-tool - ${green}✓ Connected${reset}`,
+      ].join('\n');
+
+      const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+      const servers = await svc.list();
+
+      expect(servers).toHaveLength(1);
+      expect(servers[0].name).toBe('inline-bold');
+      expect(servers[0].fullName).toBe('inline-bold');
+      expect(servers[0].status).toBe('connected');
+      // command 不含 escape codes
+      // eslint-disable-next-line no-control-regex -- 驗證 ANSI escape codes 已被清除
+      expect(servers[0].command).not.toMatch(new RegExp('\u001b'));
+    });
+
+    it('command 含冒號（如 npx -y @foo/bar:cmd）→ command 欄位完整保留冒號', async () => {
+      const cliOutput = [
+        'Checking MCP server health...',
+        '',
+        'colon-server: npx -y @foo/bar:cmd -- --flag - ✓ Connected',
+      ].join('\n');
+
+      const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+      const servers = await svc.list();
+
+      expect(servers).toHaveLength(1);
+      expect(servers[0].name).toBe('colon-server');
+      expect(servers[0].command).toBe('npx -y @foo/bar:cmd -- --flag');
+      expect(servers[0].status).toBe('connected');
+    });
+
+    it('plugin fullName 含多個冒號 + command 含冒號 → name 取最後一段、command 完整保留', async () => {
+      const cliOutput = [
+        'Checking MCP server health...',
+        '',
+        'plugin:my-plugin:mcp-srv: npx -y @scope/pkg:bin -- arg - ✓ Connected',
+      ].join('\n');
+
+      const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+      const servers = await svc.list();
+
+      expect(servers).toHaveLength(1);
+      expect(servers[0].fullName).toBe('plugin:my-plugin:mcp-srv');
+      expect(servers[0].name).toBe('mcp-srv');
+      expect(servers[0].command).toBe('npx -y @scope/pkg:bin -- arg');
+    });
+
+    it('僅有 header 行（"Checking..."）無 server 行 → 回傳空陣列不拋錯', async () => {
+      const cliOutput = 'Checking MCP server health...';
+
+      const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+      const servers = await svc.list();
+
+      expect(servers).toEqual([]);
+    });
+
+    it('header + 空白行，無 server → 回傳空陣列不拋錯', async () => {
+      const cliOutput = ['Checking MCP server health...', '', '   '].join('\n');
+
+      const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+      const servers = await svc.list();
+
+      expect(servers).toEqual([]);
+    });
+
+    it('0 results 且 metadata 有資料 → 輸出 warning log', async () => {
+      writeClaudeJson({
+        mcpServers: {
+          'meta-server': { command: 'npx', args: ['-y', 'mcp-meta'] },
+        },
+      });
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      try {
+        // CLI 回傳只有 header，無 server 行
+        const cliOutput = 'Checking MCP server health...';
+        const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+        const servers = await svc.list();
+
+        expect(servers).toEqual([]);
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('[McpService]'),
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('0 results 且 metadata 無資料 → 不觸發 warning log', async () => {
+      // 無 ~/.claude.json，無 metadata
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      try {
+        const cliOutput = 'Checking MCP server health...';
+        const svc = new McpService(createMockCli(cliOutput), createMockSettings());
+        const servers = await svc.list();
+
+        expect(servers).toEqual([]);
+        // 不應該有 [McpService] warning
+        const mcpWarnings = warnSpy.mock.calls.filter((args) =>
+          typeof args[0] === 'string' && args[0].includes('[McpService]'),
+        );
+        expect(mcpWarnings).toHaveLength(0);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
   });
 
   /* ═══════ listFromFiles — plugin MCP ═══════ */

@@ -83,6 +83,9 @@ export class McpService {
       this.buildServerMetadata(),
     ]);
     const servers = this.parseMcpList(output);
+    if (servers.length === 0 && metaMap.size > 0) {
+      console.warn('[McpService] CLI returned 0 servers but metadata has entries; CLI output may be unavailable or format changed');
+    }
     for (const server of servers) {
       const [resolvedFullName, meta] = this.resolveServerMetadata(server, metaMap);
       if (meta) {

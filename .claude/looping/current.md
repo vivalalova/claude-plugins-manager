@@ -1,29 +1,36 @@
 ---
-title: HookExplanationService 同 key 並發 dedup + 測試
+title: McpService.parseMcpList() 格式變體 integration test
 created: 2026-03-15
 priority: medium
-suggested_order: B3
+suggested_order: B4
 phase: needs-commit
 iteration: 1
 max_iterations: 3
 review_iterations: 0
 ---
 
-# HookExplanationService 同 key 並發 dedup + 測試
+# McpService.parseMcpList() 格式變體 integration test
 
-目前 `HookExplanationService.explain()` 對同一個 hookContent+locale 的並發請求會各自呼叫 CLI（浪費 API）。`writeLock` 只保護 write 不互相覆蓋，但 CLI call 本身無 dedup。現有 integration test 測試的是不同 key 的並發寫入，未覆蓋同 key 場景。
+`parseMcpList()` 以 regex 解析 `claude mcp list` 文字輸出，格式依賴 CLI 版本。目前 integration test 覆蓋正常格式，但缺少邊界變體。
 
 ## 修復方向
 
-1. 加 `private inflightRequests = new Map<string, Promise<...>>()` 做 inflight dedup — 相同 key 複用同一個 Promise
-2. 補 integration test：同 key 並發 3 次 → CLI 只呼叫 1 次、結果全部相同
+在 `McpService.integration.test.ts` 或獨立 `parseMcpList.test.ts` 補充：
+
+1. ANSI escape codes 嵌在 server name 中
+2. command 含冒號的 server（如 `npx -y @foo/bar:cmd`）
+3. 0 results（只有 header 無 server 行）
+4. 多行 header 變體
+5. 解析 0 results 時加 warning log（若 metadata 有資料）
 
 ## User Stories
 
-- As a 使用者, I want 快速連點多次 explain 按鈕不會觸發多次 AI 請求, so that 回應更快且不浪費資源
+- As a 維護者, I want CLI 輸出格式微調時解析器不會靜默丟失 server, so that MCP 狀態顯示始終正確
 
 ## 驗收條件
 
-- Given 同一 hookContent+locale 並發 3 次 explain, when 全部完成, then CLI 只呼叫 1 次
-- Given inflight request 完成後, when 再次 explain 同 key, then 命中 cache 不呼叫 CLI
+- Given ANSI escape codes 嵌入輸出, when parseMcpList(), then server name 正確擷取（不含 escape codes）
+- Given command 含冒號（如 `npx -y @foo/bar:cmd`）, when parseMcpList(), then command 欄位完整保留冒號後的部分
+- Given 0 results 輸出（只有 header）, when parseMcpList(), then 回傳空陣列且不拋錯
+- Given 0 results 且 metadata 有資料, when parseMcpList(), then 輸出 warning log
 - Given 修改完成, when `npm run verify`, then 全部通過
