@@ -60,6 +60,8 @@ export class EditorPanelManager {
   openPanel(category: PanelCategory): void {
     if (category === 'mcp') {
       this.mcpService.startPolling();
+    } else if (this.currentCategory === 'mcp') {
+      this.mcpService.stopPolling();
     }
 
     if (this.panel) {
@@ -99,6 +101,9 @@ export class EditorPanelManager {
     );
 
     panel.onDidDispose(() => {
+      if (this.currentCategory === 'mcp') {
+        this.mcpService.stopPolling();
+      }
       this.panel = undefined;
       this.currentCategory = undefined;
     });

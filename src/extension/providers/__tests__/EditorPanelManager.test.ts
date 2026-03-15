@@ -30,6 +30,7 @@ function createMockPanel() {
 function createManager() {
   const mcpService = {
     startPolling: vi.fn(),
+    stopPolling: vi.fn(),
     onStatusChange: new EventEmitter<unknown[]>(),
     onPollUnavailable: new EventEmitter<void>(),
   };
@@ -97,5 +98,76 @@ describe('EditorPanelManager', () => {
     manager.openPanel('plugin');
 
     expect(mcpService.startPolling).not.toHaveBeenCalled();
+  });
+
+  it('MCP → Plugin：停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('mcp');
+    manager.openPanel('plugin');
+
+    expect(mcpService.stopPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('Plugin → MCP → Settings：啟動再停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('plugin');
+    manager.openPanel('mcp');
+    manager.openPanel('settings');
+
+    expect(mcpService.startPolling).toHaveBeenCalledTimes(1);
+    expect(mcpService.stopPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('MCP → MCP：不停止 polling（idempotent start）', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('mcp');
+    manager.openPanel('mcp');
+
+    expect(mcpService.startPolling).toHaveBeenCalledTimes(2);
+    expect(mcpService.stopPolling).not.toHaveBeenCalled();
+  });
+
+  it('Panel close while on MCP：停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('mcp');
+    panel.dispose();
+
+    expect(mcpService.stopPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('Panel close while on Plugin：不停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('plugin');
+    panel.dispose();
+
+    expect(mcpService.stopPolling).not.toHaveBeenCalled();
+  });
+
+  it('非 MCP 間切換：無 polling interaction', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('plugin');
+    manager.openPanel('settings');
+    manager.openPanel('marketplace');
+
+    expect(mcpService.startPolling).not.toHaveBeenCalled();
+    expect(mcpService.stopPolling).not.toHaveBeenCalled();
   });
 });
