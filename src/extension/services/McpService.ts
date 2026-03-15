@@ -35,7 +35,7 @@ export class McpService {
 
   constructor(
     private readonly cli: CliService,
-    private readonly settings?: Pick<SettingsFileService, 'readEnabledPlugins' | 'readAllEnabledPlugins'>,
+    private readonly settings?: Pick<SettingsFileService, 'readAllEnabledPlugins'>,
   ) {}
 
   /** 使 metadata cache 失效，下次 buildServerMetadata() 將重新從 disk 讀取 */

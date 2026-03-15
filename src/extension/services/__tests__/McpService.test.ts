@@ -27,9 +27,8 @@ function enoent(): NodeJS.ErrnoException {
   return error;
 }
 
-function createMockSettings(): Pick<SettingsFileService, 'readEnabledPlugins' | 'readAllEnabledPlugins'> {
+function createMockSettings(): Pick<SettingsFileService, 'readAllEnabledPlugins'> {
   return {
-    readEnabledPlugins: vi.fn().mockResolvedValue({}),
     readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
   };
 }

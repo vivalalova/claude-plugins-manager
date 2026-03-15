@@ -38,9 +38,8 @@ function createMockCli(output = ''): CliService {
   } as unknown as CliService;
 }
 
-function createMockSettings(): Pick<import('../SettingsFileService').SettingsFileService, 'readEnabledPlugins' | 'readAllEnabledPlugins'> {
+function createMockSettings(): Pick<import('../SettingsFileService').SettingsFileService, 'readAllEnabledPlugins'> {
   return {
-    readEnabledPlugins: vi.fn().mockResolvedValue({}),
     readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
   };
 }
@@ -377,9 +376,6 @@ describe('McpService（integration / 真實 filesystem）', () => {
       });
 
       const settings = createMockSettings();
-      // plugin 未在 enabled map 中 → disabled
-      (settings.readEnabledPlugins as ReturnType<typeof vi.fn>).mockResolvedValue({});
-
       const svc = new McpService(createMockCli(), settings);
       const servers = await svc.listFromFiles();
 
