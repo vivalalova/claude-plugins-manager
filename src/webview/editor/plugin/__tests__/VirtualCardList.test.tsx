@@ -157,11 +157,10 @@ describe('VirtualCardList', () => {
     expect(container.querySelectorAll('.card').length).toBeGreaterThan(0);
   });
 
-  it('500 items 渲染時間 < 500ms', () => {
+  it('500 items → 虛擬化生效，DOM 節點數遠少於 500', () => {
     const items = makeItems(500);
-    const start = performance.now();
 
-    render(
+    const { container } = render(
       <VirtualCardList
         items={items}
         renderItem={(item) => <div className="card" key={item.id}>{item.name}</div>}
@@ -170,9 +169,16 @@ describe('VirtualCardList', () => {
       />,
     );
 
-    const elapsed = performance.now() - start;
-    // CI 環境可能較慢，500ms 足夠寬鬆
-    expect(elapsed).toBeLessThan(500);
+    // useLayoutEffect 觸發 scrollTick → 虛擬化生效
+    act(() => { window.dispatchEvent(new Event('scroll')); });
+
+    // 虛擬化後只渲染 viewport + overscan 個節點，遠少於 500
+    const cards = container.querySelectorAll('.card');
+    expect(cards.length).toBeLessThan(500);
+    expect(cards.length).toBeGreaterThan(0);
+
+    // 確認 virtual class 已掛上
+    expect(container.querySelector('.card-list--virtual')).not.toBeNull();
   });
 
   it('非虛擬模式重新排序後，state 仍跟隨 item key 而不是 index', () => {
