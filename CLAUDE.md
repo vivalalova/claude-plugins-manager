@@ -20,7 +20,7 @@ npm run watch              # concurrently watch extension + webview
   — Services 直接讀寫 Claude Code 設定檔 + CLI 輔助
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options；`npm run check:schema` 驗證一致性 + 邏輯約束
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
 - **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）

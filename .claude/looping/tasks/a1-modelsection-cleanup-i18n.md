@@ -9,7 +9,7 @@ suggested_order: A1
 
 `SettingsPage.tsx` 的 `ModelSection` 有兩個問題：
 
-1. `KNOWN_MODELS` 硬編碼 3 個模型名稱（claude-opus-4-6 等），與 schema 系統分離。應將 model fallback 清單統一到 `claude-settings-schema.ts`（如 `options` 或獨立常數），source code 內建而非動態抓取。
+1. `KNOWN_MODELS` 硬編碼 3 個模型名稱（claude-opus-4-6 等），與 schema 系統分離。應將 model fallback 清單統一到 `claude-settings-schema.ts` 的 `model` entry（如 `options` 欄位），直接打包進 source code。注意：schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取。
 2. `addToast('Model saved', 'success')` / `addToast('Model cleared', 'success')` 為硬編碼英文，應改用 `t()` i18n key，三語言檔同步新增。
 
 ## User Stories
