@@ -9,7 +9,7 @@ import type {
   PluginListResponse,
   PluginScope,
   PluginInstallEntry,
-} from '../types';
+} from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { escapeShellArg, getWorkspacePath } from '../utils/workspace';

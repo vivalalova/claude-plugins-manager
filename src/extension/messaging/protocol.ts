@@ -1,4 +1,4 @@
-import type { McpAddParams, McpScope, McpServer, PluginScope } from '../types';
+import type { McpAddParams, McpScope, McpServer, PluginScope } from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Webview → Extension（Request）

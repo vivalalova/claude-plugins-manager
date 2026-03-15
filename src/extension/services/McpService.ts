@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { MCP_POLL_INTERVAL_MS } from '../constants';
-import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../types';
+import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { getWorkspacePath } from '../utils/workspace';

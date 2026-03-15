@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { execFile } from 'child_process';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
-import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../types';
+import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../../shared/types';
 import type { CliService } from './CliService';
 import { escapeShellArg } from '../utils/workspace';
 
