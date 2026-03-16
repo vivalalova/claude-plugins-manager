@@ -31,6 +31,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.clearSearch': '検索をクリア',
   'plugin.page.retry': '再試行',
   'plugin.page.retryTranslation': '翻訳を再試行',
+  'plugin.page.quotaExceeded': '翻訳クォータ超過（IP単位の1日制限）。明日再試行するか、別のネットワークをお試しください。',
   // Plugin section
   'plugin.section.enableAll': 'すべて有効化',
   'plugin.section.disableAll': 'すべて無効化',
@@ -60,7 +61,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'translate.title': '翻訳',
   'translate.emailLabel': 'メール（MyMemory API）',
   'translate.emailPlaceholder': 'your@email.com',
-  'translate.emailHint': 'メールアドレスは MyMemory API に送信され、1日のクォータが増加します。',
+  'translate.emailHint': 'MyMemory API に必要です。クォータは IP 単位で、メール単位ではありません。',
   'translate.languageLabel': '言語',
   'translate.noTranslation': '原文（翻訳なし）',
   'translate.cancel': 'キャンセル',

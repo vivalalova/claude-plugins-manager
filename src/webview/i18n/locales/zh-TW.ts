@@ -289,6 +289,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.clearSearch': '清除搜尋',
   'plugin.page.retry': '重試',
   'plugin.page.retryTranslation': '重試翻譯',
+  'plugin.page.quotaExceeded': '翻譯配額已用完（每日 IP 限制）。請隔天再試，或換網路。',
   // Plugin section
   'plugin.section.enableAll': '全部啟用',
   'plugin.section.disableAll': '全部停用',
@@ -318,7 +319,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'translate.title': '翻譯',
   'translate.emailLabel': 'Email（MyMemory API）',
   'translate.emailPlaceholder': 'your@email.com',
-  'translate.emailHint': 'Email 會傳送給 MyMemory API 以提高每日配額。',
+  'translate.emailHint': 'MyMemory API 需要提供 Email。配額依 IP 計算，非依 Email。',
   'translate.languageLabel': '語言',
   'translate.noTranslation': '原文（不翻譯）',
   'translate.cancel': '取消',

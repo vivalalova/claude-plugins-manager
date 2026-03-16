@@ -299,6 +299,7 @@ export const en = {
   'plugin.page.goToMarketplace': 'Go to Marketplace',
   'plugin.page.retry': 'Retry',
   'plugin.page.retryTranslation': 'Retry Translation',
+  'plugin.page.quotaExceeded': 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.',
   // PluginCard
   'plugin.card.updateAvailable': 'Update available',
   'plugin.card.github': 'GitHub',
@@ -316,7 +317,7 @@ export const en = {
   'translate.title': 'Translate',
   'translate.emailLabel': 'Email (MyMemory API)',
   'translate.emailPlaceholder': 'your@email.com',
-  'translate.emailHint': 'Email is sent to MyMemory API to increase daily quota.',
+  'translate.emailHint': 'Required by MyMemory API. Quota is per-IP, not per-email.',
   'translate.languageLabel': 'Language',
   'translate.noTranslation': 'Original (No Translation)',
   'translate.cancel': 'Cancel',

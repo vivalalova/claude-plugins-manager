@@ -280,7 +280,7 @@ export function PluginPage(): React.ReactElement {
       )}
       {translateWarning && (
         <ErrorBanner
-          message={translateWarning}
+          message={t('plugin.page.quotaExceeded')}
           onDismiss={() => setTranslateWarning(null)}
           action={
             <button
