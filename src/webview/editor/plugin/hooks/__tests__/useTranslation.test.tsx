@@ -91,13 +91,13 @@ describe('useTranslation', () => {
     localStorage.setItem('plugin.translateEmail', 'warn@example.com');
     mockSendRequest.mockResolvedValue({
       translations: {},
-      warning: 'Daily translation quota exceeded',
+      warning: 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.',
     });
 
     const { result } = renderHook(() => useTranslation([makePlugin('gamma@mp', 'Gamma description')]));
 
     await waitFor(() => {
-      expect(result.current.translateWarning).toBe('Daily translation quota exceeded');
+      expect(result.current.translateWarning).toContain('per-IP');
     });
     expect(result.current.queuedTexts.size).toBe(0);
     expect(result.current.activeTexts.size).toBe(0);

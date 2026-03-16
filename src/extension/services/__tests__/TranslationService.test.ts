@@ -240,7 +240,23 @@ describe('TranslationService', () => {
 
       const { translations, warning } = await service.translate(['text'], 'zh-TW');
       expect(translations).toEqual({});
-      expect(warning).toContain('quota exceeded');
+      expect(warning).toContain('per-IP');
+    });
+
+    it('MYMEMORY WARNING 假翻譯視為 429、不 cache', async () => {
+      const warningText = 'MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY.';
+      mockFetchResponse(warningText, 200);
+
+      const { translations, warning } = await service.translate(['text'], 'zh-TW');
+      expect(translations).toEqual({});
+      expect(warning).toContain('per-IP');
+
+      // 確認沒有 cache 垃圾
+      vi.clearAllMocks();
+      mockFetchResponse('[1] 正確翻譯');
+      const result2 = await service.translate(['text'], 'zh-TW');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(result2.translations).toEqual({ text: '正確翻譯' });
     });
 
     it('API 回傳非 429 錯誤時無 warning（靜默跳過）', async () => {
@@ -320,7 +336,7 @@ describe('TranslationService', () => {
 
       // 429 後 break，只呼叫 1 次 API
       expect(callCount).toBe(1);
-      expect(warning).toContain('quota exceeded');
+      expect(warning).toContain('per-IP');
     });
   });
 
@@ -400,7 +416,7 @@ describe('TranslationService', () => {
       expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
       expect(sleepSpy).not.toHaveBeenCalled();
       expect(translations).toEqual({});
-      expect(warning).toContain('quota');
+      expect(warning).toContain('per-IP');
     });
 
     it('HTTP 400 → 不 retry', async () => {
@@ -421,7 +437,7 @@ describe('TranslationService', () => {
       expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
       expect(sleepSpy).not.toHaveBeenCalled();
       expect(translations).toEqual({});
-      expect(warning).toContain('quota');
+      expect(warning).toContain('per-IP');
     });
 
     it('API responseStatus 500（body 內）→ retry 後成功', async () => {

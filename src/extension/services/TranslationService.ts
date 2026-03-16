@@ -98,7 +98,7 @@ export class TranslationService {
       } catch (e) {
         const msg = e instanceof Error ? e.message : '';
         if (msg.includes('429')) {
-          warning = 'Daily translation quota exceeded. Remaining texts will use cache when available.';
+          warning = 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.';
           break; // 429 = 今日額度用完，不必再試
         }
         // 其他錯誤：子批次失敗不影響其他批次
@@ -180,7 +180,11 @@ export class TranslationService {
     };
 
     if (json.responseStatus === 200 && json.responseData?.translatedText) {
-      return json.responseData.translatedText;
+      const translated = json.responseData.translatedText;
+      if (translated.startsWith('MYMEMORY WARNING')) {
+        throw new Error('API status: 429: ' + translated);
+      }
+      return translated;
     }
     throw new Error(`API status: ${json.responseStatus}`);
   }
