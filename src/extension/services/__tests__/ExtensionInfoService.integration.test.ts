@@ -49,7 +49,7 @@ describe('ExtensionInfoService — integration', () => {
 
   it('路徑欄位正確組合 homedir', async () => {
     const cli = makeCli();
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     const info = await service.getInfo();
     const claudeDir = join(homedir(), '.claude');
@@ -61,7 +61,7 @@ describe('ExtensionInfoService — integration', () => {
 
   it('CLI 不存在時 cliVersion 為 null，不拋例外', async () => {
     const cli = makeCli(null);
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     const info = await service.getInfo();
 
@@ -77,6 +77,7 @@ describe('ExtensionInfoService — integration', () => {
       cli as CliService,
       { version: '1.0.0' },
       extensionPath,
+      cacheDir,
     );
 
     const info = await service.getInfo();
@@ -88,7 +89,7 @@ describe('ExtensionInfoService — integration', () => {
 
   it('getInfo() 呼叫 cli.exec 帶 --version 參數', async () => {
     const cli = makeCli();
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     await service.getInfo();
 

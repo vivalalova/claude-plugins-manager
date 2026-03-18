@@ -16,7 +16,7 @@ type CacheFile = Record<string, CacheEntry>;
 
 /**
  * Hook 內容 AI 解釋 service。
- * 以 filePath:contentHash:locale（或 hash:0:locale）為 key 持久化快取至 ~/.claude/plugins/cache/hook-explanations.json。
+ * 以 filePath:contentHash:locale（或 hash:0:locale）為 key 持久化快取至 cacheDir/hook-explanations.json。
  * 寫入採 read-merge-write 避免並行 explain 互相覆蓋。
  */
 export class HookExplanationService {

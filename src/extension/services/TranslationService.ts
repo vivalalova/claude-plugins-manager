@@ -43,6 +43,12 @@ export class TranslationService {
 
   constructor(private readonly cacheDir: string) {}
 
+  /** 清除 in-memory cache（磁碟 cache 被刪除後呼叫） */
+  invalidateCache(): void {
+    this.cache = null;
+    this.dirCreated = false;
+  }
+
   /**
    * 批次翻譯。回傳 translations map + 可選 warning。
    * 已 cache 的直接回傳，未 cache 的合併成單次 API 呼叫。

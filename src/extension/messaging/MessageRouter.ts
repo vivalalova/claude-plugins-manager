@@ -175,6 +175,7 @@ export class MessageRouter {
       case 'extension.clearCache': {
         await rmAsync(this.cacheDir, { recursive: true, force: true });
         await mkdirAsync(this.cacheDir, { recursive: true });
+        this.translation.invalidateCache();
         return { cleared: true, path: this.cacheDir };
       }
 

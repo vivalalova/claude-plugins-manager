@@ -40,6 +40,7 @@ function createMockServices() {
     },
     translation: {
       translate: vi.fn().mockResolvedValue([]),
+      invalidateCache: vi.fn(),
     },
     settings: {
       readPreferences: vi.fn().mockResolvedValue({}),
