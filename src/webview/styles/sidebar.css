@@ -62,7 +62,6 @@
   font-size: 13px;
 }
 
-.sidebar-button-badge,
 .sidebar-update-badge {
   display: inline-flex;
   align-items: center;
@@ -76,14 +75,6 @@
   font-weight: 600;
   line-height: 1;
   vertical-align: middle;
-}
-
-.sidebar-button-badge {
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-}
-
-.sidebar-update-badge {
   background: var(--vscode-editorWarning-foreground, #cca700);
   color: var(--vscode-editor-background, #1e1e1e);
 }

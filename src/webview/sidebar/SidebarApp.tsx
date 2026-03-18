@@ -2,22 +2,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { postMessage, sendRequest, onPushMessage } from '../vscode';
 import { mergePlugins } from '../editor/plugin/hooks/usePluginData';
 import { hasPluginUpdate, isPluginEnabled } from '../editor/plugin/filterUtils';
-import type { Marketplace, PluginListResponse, McpServer } from '../../shared/types';
+import type { PluginListResponse, McpServer } from '../../shared/types';
 import { useI18n } from '../i18n/I18nContext';
 
 type CategoryId = 'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info';
 
-interface Counts {
-  marketplace: number;
-  plugin: number;
-  mcp: number;
+/** Badge 只顯示需要注意的數量（可更新 / 有問題） */
+interface AttentionCounts {
+  pluginUpdates: number;
+  mcpIssues: number;
 }
 
-/** Sidebar：三個分類按鈕，點擊打開對應 Editor 頁面 */
+function countMcpIssues(servers: McpServer[]): number {
+  return servers.filter((s) => s.status === 'failed' || s.status === 'needs-auth').length;
+}
+
+/** Sidebar：分類按鈕，點擊打開對應 Editor 頁面 */
 export function SidebarApp(): React.ReactElement {
   const { t } = useI18n();
-  const [counts, setCounts] = useState<Counts | null>(null);
-  const [pluginUpdates, setPluginUpdates] = useState(0);
+  const [attention, setAttention] = useState<AttentionCounts | null>(null);
 
   const categories = [
     {
@@ -52,63 +55,61 @@ export function SidebarApp(): React.ReactElement {
     },
   ];
 
-  const fetchCounts = useCallback(async () => {
-    const [mktResult, pluginResult, mcpResult] = await Promise.allSettled([
-      sendRequest<Marketplace[]>({ type: 'marketplace.list' }),
+  const fetchAttention = useCallback(async () => {
+    const [pluginResult, mcpResult] = await Promise.allSettled([
       sendRequest<PluginListResponse>({ type: 'plugin.listAvailable' }),
       sendRequest<McpServer[]>({ type: 'mcp.list' }),
     ]);
-    let pluginCount = 0;
-    let updateCount = 0;
+    let pluginUpdates = 0;
     if (pluginResult.status === 'fulfilled') {
       const { installed, available } = pluginResult.value;
-      pluginCount = installed.length;
       const merged = mergePlugins(installed, available);
-      updateCount = merged.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length;
+      pluginUpdates = merged.filter((p) => isPluginEnabled(p) && hasPluginUpdate(p)).length;
     }
-    setCounts((prev) => ({
-      marketplace: mktResult.status === 'fulfilled' ? mktResult.value.length : (prev?.marketplace ?? 0),
-      plugin: pluginResult.status === 'fulfilled' ? pluginCount : (prev?.plugin ?? 0),
-      mcp: mcpResult.status === 'fulfilled' ? mcpResult.value.length : (prev?.mcp ?? 0),
+    let mcpIssues = 0;
+    if (mcpResult.status === 'fulfilled') {
+      mcpIssues = countMcpIssues(mcpResult.value);
+    }
+    setAttention((prev) => ({
+      pluginUpdates: pluginResult.status === 'fulfilled' ? pluginUpdates : (prev?.pluginUpdates ?? 0),
+      mcpIssues: mcpResult.status === 'fulfilled' ? mcpIssues : (prev?.mcpIssues ?? 0),
     }));
-    if (pluginResult.status === 'fulfilled') {
-      setPluginUpdates(updateCount);
-    }
   }, []);
 
   useEffect(() => {
-    fetchCounts();
-  }, [fetchCounts]);
+    fetchAttention();
+  }, [fetchAttention]);
 
   useEffect(() => {
     return onPushMessage((msg) => {
       if (msg.type === 'marketplace.refresh' || msg.type === 'plugin.refresh') {
-        fetchCounts();
+        fetchAttention();
       } else if (msg.type === 'mcp.statusUpdate' && Array.isArray(msg.servers)) {
-        const mcpCount = (msg.servers as McpServer[]).length;
-        setCounts((prev) => prev
-          ? { ...prev, mcp: mcpCount }
-          : { marketplace: 0, plugin: 0, mcp: mcpCount },
+        const issues = countMcpIssues(msg.servers as McpServer[]);
+        setAttention((prev) => prev
+          ? { ...prev, mcpIssues: issues }
+          : { pluginUpdates: 0, mcpIssues: issues },
         );
       }
     });
-  }, [fetchCounts]);
+  }, [fetchAttention]);
 
   const handleClick = (category: string): void => {
     postMessage({ type: 'sidebar.openCategory', category });
   };
 
-  const getCount = (id: CategoryId): number => {
-    if (!counts || id === 'settings' || id === 'info') return 0;
-    return counts[id] ?? 0;
+  const getBadgeCount = (id: CategoryId): number => {
+    if (!attention) return 0;
+    if (id === 'plugin') return attention.pluginUpdates;
+    if (id === 'mcp') return attention.mcpIssues;
+    return 0;
   };
 
   return (
     <div className="sidebar-container">
       <div className="sidebar-buttons">
         {categories.map((cat) => {
-          const count = getCount(cat.id);
-          const updates = cat.id === 'plugin' ? pluginUpdates : 0;
+          const badgeCount = getBadgeCount(cat.id);
           return (
             <button
               key={cat.id}
@@ -120,9 +121,7 @@ export function SidebarApp(): React.ReactElement {
               <div className="sidebar-button-text">
                 <span className="sidebar-button-label">
                   {cat.label}
-                  {updates > 0
-                    ? <span className="sidebar-update-badge">{updates}</span>
-                    : count > 0 && <span className="sidebar-button-badge">{count}</span>}
+                  {badgeCount > 0 && <span className="sidebar-update-badge">{badgeCount}</span>}
                 </span>
                 <span className="sidebar-button-desc">{cat.description}</span>
               </div>
