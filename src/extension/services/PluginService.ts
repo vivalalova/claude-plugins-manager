@@ -281,7 +281,7 @@ export class PluginService {
     } catch (error) {
       // 只有「already up to date」類錯誤才更新 timestamp，避免隱藏真正需要重試的失敗
       const msg = error instanceof Error ? error.message : '';
-      if (/already up.to.date|up-to-date|no updates/i.test(msg)) {
+      if (/already up[\s-]to[\s-]date|up-to-date|no updates available/i.test(msg)) {
         await this.settings.updateInstallEntryTimestamp(plugin, scope);
       }
       throw error;

@@ -312,8 +312,10 @@ export class McpService {
       readFile(join(entry.installPath, '.claude-plugin', 'plugin.json'), 'utf-8').catch(() => '{}'),
     ]);
 
-    const mcpConfig = JSON.parse(mcpRaw);
-    const pluginMeta = JSON.parse(metaRaw);
+    let mcpConfig: Record<string, unknown>;
+    let pluginMeta: Record<string, unknown>;
+    try { mcpConfig = JSON.parse(mcpRaw); } catch { mcpConfig = {}; }
+    try { pluginMeta = JSON.parse(metaRaw); } catch { pluginMeta = {}; }
 
     const detail = {
       name: mcpServerName,

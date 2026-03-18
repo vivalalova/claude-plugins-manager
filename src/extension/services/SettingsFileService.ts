@@ -195,17 +195,19 @@ export class SettingsFileService {
     pluginId: string,
     entry: PluginInstallEntry,
   ): Promise<void> {
-    const data = await this.readInstalledPlugins();
-    const entries = data.plugins[pluginId] ?? [];
-    // 避免重複（同 scope + 同 projectPath）
-    const exists = entries.some(
-      (e) => e.scope === entry.scope && e.projectPath === entry.projectPath,
-    );
-    if (!exists) {
-      entries.push(entry);
-      data.plugins[pluginId] = entries;
-      await this.writeInstalledPlugins(data);
-    }
+    return this.enqueueSettingsWrite(INSTALLED_PLUGINS_PATH, async () => {
+      const data = await this.readInstalledPlugins();
+      const entries = data.plugins[pluginId] ?? [];
+      // 避免重複（同 scope + 同 projectPath）
+      const exists = entries.some(
+        (e) => e.scope === entry.scope && e.projectPath === entry.projectPath,
+      );
+      if (!exists) {
+        entries.push(entry);
+        data.plugins[pluginId] = entries;
+        await this.writeInstalledPlugins(data);
+      }
+    });
   }
 
   /** 移除一筆安裝 entry（by scope + projectPath） */
@@ -214,17 +216,19 @@ export class SettingsFileService {
     scope: PluginScope,
     projectPath?: string,
   ): Promise<void> {
-    const data = await this.readInstalledPlugins();
-    const entries = data.plugins[pluginId];
-    if (!entries) return;
+    return this.enqueueSettingsWrite(INSTALLED_PLUGINS_PATH, async () => {
+      const data = await this.readInstalledPlugins();
+      const entries = data.plugins[pluginId];
+      if (!entries) return;
 
-    data.plugins[pluginId] = entries.filter(
-      (e) => !(e.scope === scope && e.projectPath === projectPath),
-    );
-    if (data.plugins[pluginId].length === 0) {
-      delete data.plugins[pluginId];
-    }
-    await this.writeInstalledPlugins(data);
+      data.plugins[pluginId] = entries.filter(
+        (e) => !(e.scope === scope && e.projectPath === projectPath),
+      );
+      if (data.plugins[pluginId].length === 0) {
+        delete data.plugins[pluginId];
+      }
+      await this.writeInstalledPlugins(data);
+    });
   }
 
   /** 更新指定 plugin 的 installed entries 的 lastUpdated 時間戳 */
@@ -232,17 +236,19 @@ export class SettingsFileService {
     pluginId: string,
     scope?: PluginScope,
   ): Promise<void> {
-    const data = await this.readInstalledPlugins();
-    const entries = data.plugins[pluginId];
-    if (!entries) return;
+    return this.enqueueSettingsWrite(INSTALLED_PLUGINS_PATH, async () => {
+      const data = await this.readInstalledPlugins();
+      const entries = data.plugins[pluginId];
+      if (!entries) return;
 
-    const now = new Date().toISOString();
-    for (const entry of entries) {
-      if (!scope || entry.scope === scope) {
-        entry.lastUpdated = now;
+      const now = new Date().toISOString();
+      for (const entry of entries) {
+        if (!scope || entry.scope === scope) {
+          entry.lastUpdated = now;
+        }
       }
-    }
-    await this.writeInstalledPlugins(data);
+      await this.writeInstalledPlugins(data);
+    });
   }
 
   /**
