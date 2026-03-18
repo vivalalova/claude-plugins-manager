@@ -28,6 +28,18 @@ const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
  */
 export class SettingsFileService {
   private scanInflight: Promise<AvailablePlugin[]> | null = null;
+  private readonly settingsWriteQueues = new Map<string, Promise<void>>();
+
+  /**
+   * 序列化同一檔案的 read-modify-write 操作，避免並發寫入互相覆蓋。
+   * 與 prefWriteQueue 相同模式，但以檔案路徑為 key。
+   */
+  private enqueueSettingsWrite(filePath: string, fn: () => Promise<void>): Promise<void> {
+    const prev = this.settingsWriteQueues.get(filePath) ?? Promise.resolve();
+    const task = prev.then(fn);
+    this.settingsWriteQueues.set(filePath, task.catch(() => {}));
+    return task;
+  }
 
   /** 清除掃描快取，下次 scanAvailablePlugins 將重新掃描 */
   invalidateScanCache(): void {
@@ -64,12 +76,14 @@ export class SettingsFileService {
    */
   async setSetting(scope: PluginScope, key: string, value: unknown): Promise<void> {
     const path = this.getSettingsPath(scope);
-    const settings = await this.readJson<Record<string, unknown>>(path);
-    settings[key] = value;
-    if (scope !== 'user') {
-      await mkdir(dirname(path), { recursive: true });
-    }
-    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    return this.enqueueSettingsWrite(path, async () => {
+      const settings = await this.readJson<Record<string, unknown>>(path);
+      settings[key] = value;
+      if (scope !== 'user') {
+        await mkdir(dirname(path), { recursive: true });
+      }
+      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    });
   }
 
   /**
@@ -78,10 +92,12 @@ export class SettingsFileService {
    */
   async deleteSetting(scope: PluginScope, key: string): Promise<void> {
     const path = this.getSettingsPath(scope);
-    const settings = await this.readJson<Record<string, unknown>>(path);
-    if (!(key in settings)) return;
-    delete settings[key];
-    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    return this.enqueueSettingsWrite(path, async () => {
+      const settings = await this.readJson<Record<string, unknown>>(path);
+      if (!(key in settings)) return;
+      delete settings[key];
+      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    });
   }
 
   /** 讀取指定 settings 檔的 enabledPlugins */
@@ -120,12 +136,14 @@ export class SettingsFileService {
   /** 清除指定 scope 的所有 enabledPlugins（單次 read-write） */
   async clearAllEnabledPlugins(scope: PluginScope): Promise<void> {
     const path = this.getSettingsPath(scope);
-    const settings = await this.readJson<Record<string, unknown>>(path);
-    settings.enabledPlugins = {};
-    if (scope !== 'user') {
-      await mkdir(dirname(path), { recursive: true });
-    }
-    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    return this.enqueueSettingsWrite(path, async () => {
+      const settings = await this.readJson<Record<string, unknown>>(path);
+      settings.enabledPlugins = {};
+      if (scope !== 'user') {
+        await mkdir(dirname(path), { recursive: true });
+      }
+      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    });
   }
 
   /** 寫入單一 plugin 的 enabled 狀態到指定 scope 的 settings 檔 */
@@ -135,23 +153,25 @@ export class SettingsFileService {
     enabled: boolean,
   ): Promise<void> {
     const path = this.getSettingsPath(scope);
-    const settings = await this.readJson<Record<string, unknown>>(path);
-    const plugins = (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
+    return this.enqueueSettingsWrite(path, async () => {
+      const settings = await this.readJson<Record<string, unknown>>(path);
+      const plugins = (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
 
-    if (enabled) {
-      plugins[pluginId] = true;
-    } else {
-      delete plugins[pluginId];
-    }
+      if (enabled) {
+        plugins[pluginId] = true;
+      } else {
+        delete plugins[pluginId];
+      }
 
-    settings.enabledPlugins = plugins;
+      settings.enabledPlugins = plugins;
 
-    // project/local scope 可能尚未建立 .claude/ 目錄
-    if (scope !== 'user') {
-      await mkdir(dirname(path), { recursive: true });
-    }
+      // project/local scope 可能尚未建立 .claude/ 目錄
+      if (scope !== 'user') {
+        await mkdir(dirname(path), { recursive: true });
+      }
 
-    await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    });
   }
 
   /** 讀取 installed_plugins.json */
@@ -233,7 +253,10 @@ export class SettingsFileService {
     if (this.scanInflight) {
       return this.scanInflight;
     }
-    this.scanInflight = this.doScan();
+    this.scanInflight = this.doScan().catch((err) => {
+      this.scanInflight = null;
+      throw err;
+    });
     return this.scanInflight;
   }
 
@@ -302,8 +325,11 @@ export class SettingsFileService {
               } satisfies AvailablePlugin;
             }),
           );
-        } catch {
-          // marketplace 目錄可能不存在或格式錯誤，跳過
+        } catch (scanErr) {
+          // marketplace 目錄可能不存在，其他錯誤記 log 協助 debug
+          if ((scanErr as NodeJS.ErrnoException).code !== 'ENOENT') {
+            console.warn(`[SettingsFileService] marketplace scan error (${mpName}):`, scanErr);
+          }
           return [] as AvailablePlugin[];
         }
       }),

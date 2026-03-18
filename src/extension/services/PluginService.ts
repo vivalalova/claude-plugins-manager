@@ -279,8 +279,11 @@ export class PluginService {
     try {
       await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
     } catch (error) {
-      // CLI 失敗仍更新 timestamp，避免 hasPluginUpdate 永久誤判（如 already up to date）
-      await this.settings.updateInstallEntryTimestamp(plugin, scope);
+      // 只有「already up to date」類錯誤才更新 timestamp，避免隱藏真正需要重試的失敗
+      const msg = error instanceof Error ? error.message : '';
+      if (/already up.to.date|up-to-date|no updates/i.test(msg)) {
+        await this.settings.updateInstallEntryTimestamp(plugin, scope);
+      }
       throw error;
     }
     await this.settings.updateInstallEntryTimestamp(plugin, scope);

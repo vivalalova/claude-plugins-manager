@@ -135,13 +135,13 @@ export class HookExplanationService {
         : filePath;
       try {
         const content = await readFile(resolved, 'utf-8');
-        const hash = createHash('sha256').update(content).digest('hex').slice(0, 8);
+        const hash = createHash('sha256').update(content).digest('hex').slice(0, 16);
         return `${resolved}:${hash}:${locale}`;
       } catch {
         // file not accessible, fall through to hash
       }
     }
-    const hash = createHash('sha256').update(hookContent).digest('hex').slice(0, 8);
+    const hash = createHash('sha256').update(hookContent).digest('hex').slice(0, 16);
     return `${hash}:0:${locale}`;
   }
 

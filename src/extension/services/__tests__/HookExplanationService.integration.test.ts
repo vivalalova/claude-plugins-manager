@@ -20,7 +20,7 @@ async function writeCache(cachePath: string, data: Record<string, unknown>): Pro
 }
 
 function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 8);
+  return createHash('sha256').update(content).digest('hex').slice(0, 16);
 }
 
 // ---------------------------------------------------------------------------

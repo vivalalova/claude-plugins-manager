@@ -76,9 +76,17 @@ function inlineMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
+/** 只保留已知安全的 HTML tag，strip 其餘（defense-in-depth） */
+const ALLOWED_TAG_RE = /^<\/?(strong|em|code|ul|li|p|br\s*\/?)>$/i;
+function stripUnallowedTags(html: string): string {
+  return html.replace(/<\/?[a-z][a-z0-9]*[^>]*\/?>/gi, (tag) =>
+    ALLOWED_TAG_RE.test(tag) ? tag : '',
+  );
+}
+
 /** 簡易 markdown → HTML：bold, code, list, paragraph */
 function renderSimpleMarkdown(text: string): string {
-  return text
+  const raw = text
     .trim()
     .split(/\n\s*\n/)
     .map(block => {
@@ -93,6 +101,7 @@ function renderSimpleMarkdown(text: string): string {
     })
     .filter(Boolean)
     .join('');
+  return stripUnallowedTags(raw);
 }
 
 // ---------------------------------------------------------------------------

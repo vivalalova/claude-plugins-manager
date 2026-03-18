@@ -52,7 +52,13 @@ export class MarketplaceService {
    * 直接讀 config file 而非 CLI，因為 CLI 輸出缺少這些欄位。
    */
   async list(): Promise<Marketplace[]> {
-    const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
+    let raw: string;
+    try {
+      raw = await fs.readFile(CONFIG_PATH, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw err;
+    }
     const config: RawMarketplaceConfig = JSON.parse(raw);
 
     return Object.entries(config).map(([name, entry]) => ({

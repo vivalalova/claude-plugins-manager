@@ -112,13 +112,6 @@ export class EditorPanelManager {
     this.currentCategory = category;
   }
 
-  /** 推送訊息到 panel（僅在 category 匹配時） */
-  postToPanel(category: PanelCategory, message: unknown): void {
-    if (this.currentCategory === category) {
-      this.panel?.webview.postMessage(message);
-    }
-  }
-
   /** 釋放資源 */
   dispose(): void {
     for (const d of this.pushDisposables) d.dispose();

@@ -285,9 +285,14 @@ export class McpService {
     }
     const [, pluginKey, mcpServerName] = match;
     const installedPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
-    const installed = JSON.parse(await readFile(installedPath, 'utf-8'));
+    let installed: { plugins: Record<string, unknown> };
+    try {
+      installed = JSON.parse(await readFile(installedPath, 'utf-8'));
+    } catch {
+      throw new Error(`Cannot read installed plugins: ${installedPath}`);
+    }
 
-    if (!(pluginKey in installed.plugins)) {
+    if (!installed.plugins || !(pluginKey in installed.plugins)) {
       throw new Error(`Plugin not found: ${pluginKey}`);
     }
 

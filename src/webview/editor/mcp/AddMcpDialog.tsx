@@ -122,15 +122,36 @@ export function AddMcpDialog({
 
     setAdding(true);
     try {
-      // 編輯模式：先移除舊 server
       if (isEdit && editServer) {
+        // 編輯模式：先移除舊 server，add 失敗時 rollback 還原
         await sendRequest({
           type: 'mcp.remove',
           name: editServer.name,
           scope: editServer.scope,
         });
+        try {
+          await sendRequest({ type: 'mcp.add', params });
+        } catch (addErr) {
+          // Rollback：用原始設定重新加回
+          try {
+            await sendRequest({
+              type: 'mcp.add',
+              params: {
+                name: editServer.name,
+                commandOrUrl: editServer.commandOrUrl,
+                args: editServer.args,
+                transport: editServer.transport,
+                scope: editServer.scope,
+                env: editServer.env,
+                headers: editServer.headers,
+              } as McpAddParams,
+            });
+          } catch { /* rollback 失敗時無法回復，錯誤已在 addErr 報告 */ }
+          throw addErr;
+        }
+      } else {
+        await sendRequest({ type: 'mcp.add', params });
       }
-      await sendRequest({ type: 'mcp.add', params });
       onAdded();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
