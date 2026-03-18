@@ -214,8 +214,8 @@ export class TranslationService {
     if (!(error instanceof Error)) return false;
     // timeout: AbortSignal.timeout throws TimeoutError or AbortError
     if (error.name === 'TimeoutError' || error.name === 'AbortError') return true;
-    // network error: fetch throws TypeError in Node.js
-    if (error instanceof TypeError) return true;
+    // network error: fetch throws TypeError with specific messages in Node.js
+    if (error instanceof TypeError && /fetch|network|ECONNREFUSED|ENOTFOUND/i.test(error.message)) return true;
     // HTTP 5xx → retry; 4xx (including 429) → no retry
     const httpMatch = error.message.match(/API HTTP (\d{3})/);
     if (httpMatch) return Number(httpMatch[1]) >= 500;

@@ -25,6 +25,12 @@ export class HookExplanationService {
 
   constructor(private readonly cli: CliService, private readonly cacheDir: string) {}
 
+  /** 清除 in-memory 狀態（磁碟 cache 被外部刪除後呼叫） */
+  invalidateCache(): void {
+    this.writeLock = Promise.resolve();
+    this.inflightRequests.clear();
+  }
+
   async explain(hookContent: string, eventType: string, locale: string, filePath?: string, refresh?: boolean): Promise<{ explanation: string; fromCache: boolean }> {
     const cache = await this.readCache();
     const key = await this.cacheKey(hookContent, locale, filePath);

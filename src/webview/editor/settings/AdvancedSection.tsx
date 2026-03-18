@@ -62,6 +62,7 @@ export function AdvancedSection({ scope, settings, userSettings, onSave, onDelet
             case 'companyAnnouncements':
               return <CompanyAnnouncementsEditor key={key} scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
             default:
+              console.warn(`[AdvancedSection] Unhandled custom key: ${key}`);
               return null;
           }
         }

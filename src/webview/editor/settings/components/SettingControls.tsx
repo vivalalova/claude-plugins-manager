@@ -339,17 +339,7 @@ export function TextSetting({
           placeholder={placeholder}
           disabled={saving}
         />
-        {value && (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={saving}
-            type="button"
-          >
-            {clearLabel}
-          </button>
-        )}
-        {shouldShowReset(value, defaultValue) && (
+        {shouldShowReset(value, defaultValue) ? (
           <button
             className="btn btn-secondary"
             onClick={() => void handleClear()}
@@ -359,7 +349,16 @@ export function TextSetting({
           >
             {resetLabel}
           </button>
-        )}
+        ) : value ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+          >
+            {clearLabel}
+          </button>
+        ) : null}
       </div>
       <div className="settings-actions">
         <button
@@ -748,17 +747,7 @@ export function NumberSetting({
           step={step}
           disabled={saving}
         />
-        {value !== undefined && (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={saving}
-            type="button"
-          >
-            {clearLabel}
-          </button>
-        )}
-        {shouldShowReset(value, defaultValue) && (
+        {shouldShowReset(value, defaultValue) ? (
           <button
             className="btn btn-secondary"
             onClick={() => void handleClear()}
@@ -768,7 +757,16 @@ export function NumberSetting({
           >
             {resetLabel}
           </button>
-        )}
+        ) : value !== undefined ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+          >
+            {clearLabel}
+          </button>
+        ) : null}
       </div>
       {validationError && <span className="perm-add-error" role="alert">{validationError}</span>}
       <div className="settings-actions">

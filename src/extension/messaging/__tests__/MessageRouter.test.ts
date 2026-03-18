@@ -49,6 +49,7 @@ function createMockServices() {
     hookExplanation: {
       explain: vi.fn().mockResolvedValue({ explanation: 'test explanation', fromCache: false }),
       cleanExpired: vi.fn().mockResolvedValue(undefined),
+      invalidateCache: vi.fn(),
     },
     extensionInfo: {
       getInfo: vi.fn().mockResolvedValue({ extensionVersion: '0.1.2', cliPath: '/usr/local/bin/claude', cliVersion: '1.0.0' }),
