@@ -89,6 +89,8 @@ describe('Settings CRUD（E2E：MessageRouter → SettingsFileService → Filesy
 
     settingsSvc = new SettingsFileService();
     const stubs = createStubServices();
+    const cacheDir = join(SUITE_TMP, `cache-${testIdx}`);
+    mkdirSync(cacheDir, { recursive: true });
     router = new MessageRouter(
       stubs.marketplace,
       stubs.plugin,
@@ -97,6 +99,7 @@ describe('Settings CRUD（E2E：MessageRouter → SettingsFileService → Filesy
       settingsSvc,
       stubs.hookExplanation,
       stubs.extensionInfo,
+      cacheDir,
     );
   });
 

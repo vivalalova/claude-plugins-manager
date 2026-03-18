@@ -47,6 +47,7 @@ export class TranslationService {
   invalidateCache(): void {
     this.cache = null;
     this.dirCreated = false;
+    this.pendingSave = Promise.resolve();
   }
 
   /**

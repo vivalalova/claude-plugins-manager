@@ -32,7 +32,6 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
     const net = { ...obj.network } as Record<string, unknown>;
     for (const k of Object.keys(net)) {
       if (Array.isArray(net[k]) && (net[k] as unknown[]).length === 0) delete net[k];
-      if (net[k] === false) delete net[k];
       if (net[k] === undefined) delete net[k];
     }
     if (Object.keys(net).length === 0) delete clean.network;
@@ -43,7 +42,7 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
   if (Array.isArray(clean.excludedCommands) && (clean.excludedCommands as unknown[]).length === 0) delete clean.excludedCommands;
   if (clean.ignoreViolations && Object.keys(clean.ignoreViolations as object).length === 0) delete clean.ignoreViolations;
   for (const k of ['enabled', 'autoAllowBashIfSandboxed', 'enableWeakerNetworkIsolation', 'enableWeakerNestedSandbox', 'allowUnsandboxedCommands']) {
-    if (clean[k] === false) delete clean[k];
+    if (clean[k] === undefined) delete clean[k];
   }
 
   return Object.keys(clean).length === 0 ? undefined : clean as SandboxValue;

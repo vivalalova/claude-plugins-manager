@@ -123,13 +123,13 @@ describe('SandboxEditor — 結構化模式 checkbox', () => {
     });
   });
 
-  it('sandbox.enabled=true, toggle off → onDelete("sandbox")（cleanSandbox 返回 undefined）', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderEditor({ enabled: true }, vi.fn(), onDelete);
+  it('sandbox.enabled=true, toggle off → onSave("sandbox", { enabled: false })（false 值保留以支援 scope override）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor({ enabled: true }, onSave);
     await waitFor(() => screen.getByRole('checkbox', { name: 'Enable Sandbox' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Sandbox' }));
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('sandbox');
+      expect(onSave).toHaveBeenCalledWith('sandbox', { enabled: false });
     });
   });
 

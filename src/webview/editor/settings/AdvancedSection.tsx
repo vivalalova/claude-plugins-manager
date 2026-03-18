@@ -53,6 +53,7 @@ export function AdvancedSection({ scope, settings, userSettings, onSave, onDelet
                   clearLabel={t('settings.common.clear')}
                   settingKey="fileSuggestion"
                   scope={scope}
+                  overriddenScope={overriddenScope}
                   onSave={async (_key, value) => onSave('fileSuggestion', { type: 'command', command: value as string })}
                   onDelete={async () => onDelete('fileSuggestion')}
                 />
