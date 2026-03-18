@@ -39,7 +39,7 @@ describe('HookExplanationService — integration', () => {
 
     cli = makeCli();
 
-    service = new HookExplanationService(cli as CliService);
+    service = new HookExplanationService(cli as CliService, tmpDir);
     // Redirect to tmpDir by overriding private methods
     const svc = service as unknown as {
       readCache: () => Promise<Record<string, unknown>>;

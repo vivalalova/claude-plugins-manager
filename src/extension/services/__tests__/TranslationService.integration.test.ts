@@ -3,28 +3,16 @@
  * 用真實 filesystem（tmpdir）驗證 cache 操作，mock fetch（不呼叫真實 API）。
  */
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, rmSync, existsSync, readFileSync, mkdtempSync } from 'fs';
 import { join } from 'path';
-
-/* ── 建立 suite 共用的 tmpdir，mock os.homedir 指向它 ── */
-const { SUITE_TMP, SUITE_HOME } = vi.hoisted(() => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const os = require('os');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require('fs');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const path = require('path');
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'trans-int-'));
-  const homeDir = path.join(tmpDir, 'home');
-  fs.mkdirSync(homeDir, { recursive: true });
-  return { SUITE_TMP: tmpDir, SUITE_HOME: homeDir };
-});
-
-vi.mock('os', () => ({ homedir: () => SUITE_HOME }));
+import { tmpdir } from 'os';
 
 import { TranslationService } from '../TranslationService';
 
-const CACHE_PATH = join(SUITE_HOME, '.claude', 'plugins', '.cache', 'translations.json');
+/* ── 建立 suite 共用的 tmpdir ── */
+const SUITE_TMP = mkdtempSync(join(tmpdir(), 'trans-int-'));
+const SUITE_CACHE_DIR = join(SUITE_TMP, 'cache');
+const CACHE_PATH = join(SUITE_CACHE_DIR, 'translations.json');
 
 afterAll(() => {
   rmSync(SUITE_TMP, { recursive: true, force: true });
@@ -62,11 +50,9 @@ describe('TranslationService integration', () => {
 
   beforeEach(() => {
     // 清理 cache 目錄，每個 test 從乾淨狀態開始
-    const cacheDir = join(SUITE_HOME, '.claude', 'plugins', '.cache');
-    if (existsSync(cacheDir)) rmSync(cacheDir, { recursive: true, force: true });
-    // 確保 home 存在
-    mkdirSync(SUITE_HOME, { recursive: true });
-    svc = new TranslationService();
+    if (existsSync(SUITE_CACHE_DIR)) rmSync(SUITE_CACHE_DIR, { recursive: true, force: true });
+    mkdirSync(SUITE_TMP, { recursive: true });
+    svc = new TranslationService(SUITE_CACHE_DIR);
     vi.restoreAllMocks();
   });
 
@@ -148,7 +134,7 @@ describe('TranslationService integration', () => {
 
     // 第二個 instance 讀取 cache
     const fetchMock2 = mockFetchTranslate();
-    const svc2 = new TranslationService();
+    const svc2 = new TranslationService(SUITE_CACHE_DIR);
     const result = await svc2.translate(['persistent'], 'ja');
 
     expect(result.translations['persistent']).toBe('persistent_translated');

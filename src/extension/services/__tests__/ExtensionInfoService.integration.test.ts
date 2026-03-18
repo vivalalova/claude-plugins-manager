@@ -21,11 +21,12 @@ const packageJson = {
 };
 
 const extensionPath = '/Users/test/.vscode/extensions/claude-plugins';
+const cacheDir = '/Users/test/.vscode-server/globalStorage/lova.claude-plugins-manager';
 
 describe('ExtensionInfoService — integration', () => {
   it('getInfo() 回傳所有必填欄位，型別正確', async () => {
     const cli = makeCli();
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     const info = await service.getInfo();
 

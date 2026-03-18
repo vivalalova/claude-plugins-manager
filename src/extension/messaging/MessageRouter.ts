@@ -11,7 +11,6 @@ import type { SettingsFileService } from '../services/SettingsFileService';
 import type { HookExplanationService } from '../services/HookExplanationService';
 import type { ExtensionInfoService } from '../services/ExtensionInfoService';
 import type { RequestMessage, ResponseMessage } from './protocol';
-import { PLUGINS_CACHE_DIR } from '../constants';
 
 type PostFn = (msg: ResponseMessage) => void;
 
@@ -28,6 +27,7 @@ export class MessageRouter {
     private readonly settings: SettingsFileService,
     private readonly hookExplanation: HookExplanationService,
     private readonly extensionInfo: ExtensionInfoService,
+    private readonly cacheDir: string,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -173,9 +173,9 @@ export class MessageRouter {
       }
 
       case 'extension.clearCache': {
-        await rmAsync(PLUGINS_CACHE_DIR, { recursive: true, force: true });
-        await mkdirAsync(PLUGINS_CACHE_DIR, { recursive: true });
-        return { cleared: true, path: PLUGINS_CACHE_DIR };
+        await rmAsync(this.cacheDir, { recursive: true, force: true });
+        await mkdirAsync(this.cacheDir, { recursive: true });
+        return { cleared: true, path: this.cacheDir };
       }
 
       case 'settings.openInEditor': {

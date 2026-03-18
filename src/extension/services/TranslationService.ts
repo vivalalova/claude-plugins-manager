@@ -2,10 +2,6 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { createHash } from 'crypto';
 import { TRANSLATE_LANGS } from '../../shared/types';
-import { PLUGINS_CACHE_DIR } from '../constants';
-
-/** 翻譯 cache 目錄 */
-const CACHE_DIR = PLUGINS_CACHE_DIR;
 
 /** MyMemory API timeout（毫秒） */
 const API_TIMEOUT_MS = 15_000;
@@ -44,6 +40,8 @@ export class TranslationService {
   private cache: TranslationCache | null = null;
   private pendingSave: Promise<void> = Promise.resolve();
   private dirCreated = false;
+
+  constructor(private readonly cacheDir: string) {}
 
   /**
    * 批次翻譯。回傳 translations map + 可選 warning。
@@ -246,7 +244,7 @@ export class TranslationService {
   private saveCache(cache: TranslationCache): Promise<void> {
     this.pendingSave = this.pendingSave.then(async () => {
       if (!this.dirCreated) {
-        await mkdir(CACHE_DIR, { recursive: true });
+        await mkdir(this.cacheDir, { recursive: true });
         this.dirCreated = true;
       }
       await writeFile(this.cachePath(), JSON.stringify(cache, null, 2));
@@ -256,6 +254,6 @@ export class TranslationService {
 
   /** Cache 檔案路徑 */
   private cachePath(): string {
-    return join(CACHE_DIR, 'translations.json');
+    return join(this.cacheDir, 'translations.json');
   }
 }

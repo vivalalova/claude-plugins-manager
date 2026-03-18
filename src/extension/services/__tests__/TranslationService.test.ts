@@ -61,7 +61,7 @@ describe('TranslationService', () => {
     mockReadFile.mockRejectedValue(new Error('ENOENT'));
     mockWriteFile.mockResolvedValue(undefined);
     mockMkdir.mockResolvedValue(undefined);
-    service = new TranslationService();
+    service = new TranslationService('/tmp/test-cache');
     // spy sleep to avoid real delays during retry
     vi.spyOn(
       service as unknown as { sleep: (ms: number) => Promise<void> },

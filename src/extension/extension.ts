@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import { join } from 'path';
+import { homedir } from 'os';
+import { mkdir, cp, rm, readdir } from 'fs/promises';
 import { COMMANDS } from './constants';
 import { CliService } from './services/CliService';
 import { MarketplaceService } from './services/MarketplaceService';
@@ -13,22 +16,45 @@ import { MessageRouter } from './messaging/MessageRouter';
 import { SidebarViewProvider } from './providers/SidebarViewProvider';
 import { EditorPanelManager } from './providers/EditorPanelManager';
 
+/** 將舊 cache 目錄遷移至新 globalStorage 目錄 */
+async function migrateCacheIfNeeded(oldCacheDir: string, newCacheDir: string): Promise<void> {
+  try {
+    const oldEntries = await readdir(oldCacheDir);
+    if (oldEntries.length === 0) return;
+
+    const newEntries = await readdir(newCacheDir).catch(() => []);
+    if (newEntries.length > 0) return; // new dir already has content, skip
+
+    await cp(oldCacheDir, newCacheDir, { recursive: true });
+    await rm(oldCacheDir, { recursive: true, force: true });
+  } catch {
+    // old dir doesn't exist or migration failed — safe to ignore
+  }
+}
+
 /** Extension 啟動進入點 */
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const globalStoragePath = context.globalStorageUri.fsPath;
+  await mkdir(globalStoragePath, { recursive: true });
+
+  const oldCacheDir = join(homedir(), '.claude', 'plugins', '.cache');
+  await migrateCacheIfNeeded(oldCacheDir, globalStoragePath);
+
   const cli = new CliService();
   const marketplaceService = new MarketplaceService(cli);
   const settingsFileService = new SettingsFileService();
   const pluginService = new PluginService(cli, settingsFileService);
   const mcpService = new McpService(cli, settingsFileService);
-  const translationService = new TranslationService();
+  const translationService = new TranslationService(globalStoragePath);
   const fileWatcherService = new FileWatcherService();
-  const hookExplanationService = new HookExplanationService(cli);
+  const hookExplanationService = new HookExplanationService(cli, globalStoragePath);
   const extensionInfoService = new ExtensionInfoService(
     cli,
     context.extension.packageJSON as { version: string; displayName?: string; publisher?: string; repository?: { url?: string } },
     context.extensionUri.fsPath,
+    globalStoragePath,
   );
-  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, hookExplanationService, extensionInfoService);
+  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, hookExplanationService, extensionInfoService, globalStoragePath);
   // Marketplace 檔案變更 → invalidate scan cache（plugin settings 變更不影響 marketplace 掃描）
   fileWatcherService.onMarketplaceFilesChanged(() => settingsFileService.invalidateScanCache());
   // plugin settings 也會影響 plugin-provided MCP 的 enabled 狀態

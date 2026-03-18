@@ -2,7 +2,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { homedir } from 'os';
 import type { CliService } from './CliService';
-import { PLUGINS_CACHE_DIR, EXTENSION_ID } from '../constants';
+import { EXTENSION_ID } from '../constants';
 import type { ExtensionInfo, PathInfo } from '../../shared/types';
 
 interface PackageJson {
@@ -21,6 +21,7 @@ export class ExtensionInfoService {
     private readonly cli: CliService,
     private readonly packageJson: PackageJson,
     private readonly extensionPath: string,
+    private readonly cacheDir: string,
   ) {}
 
   async getInfo(): Promise<ExtensionInfo> {
@@ -36,7 +37,7 @@ export class ExtensionInfoService {
       repoUrl: this.packageJson.repository?.url ?? null,
       cliPath: this.cli.claudePath,
       cliVersion,
-      cacheDirPath: toPathInfo(PLUGINS_CACHE_DIR),
+      cacheDirPath: toPathInfo(this.cacheDir),
       pluginsDirPath: toPathInfo(pluginsDir),
       installedPluginsPath: toPathInfo(join(pluginsDir, 'installed_plugins.json')),
       knownMarketplacesPath: toPathInfo(join(pluginsDir, 'known_marketplaces.json')),

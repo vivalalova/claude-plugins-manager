@@ -3,9 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { createHash } from 'crypto';
 import type { CliService } from './CliService';
-import { PLUGINS_CACHE_DIR } from '../constants';
 
-const CACHE_PATH = join(PLUGINS_CACHE_DIR, 'hook-explanations.json');
 const CACHE_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 180 days
 
 interface CacheEntry {
@@ -25,7 +23,7 @@ export class HookExplanationService {
   private writeLock: Promise<void> = Promise.resolve();
   private inflightRequests = new Map<string, Promise<string>>();
 
-  constructor(private readonly cli: CliService) {}
+  constructor(private readonly cli: CliService, private readonly cacheDir: string) {}
 
   async explain(hookContent: string, eventType: string, locale: string, filePath?: string, refresh?: boolean): Promise<{ explanation: string; fromCache: boolean }> {
     const cache = await this.readCache();
@@ -145,9 +143,13 @@ export class HookExplanationService {
     return Date.now() - new Date(entry.createdAt).getTime() <= CACHE_TTL_MS;
   }
 
+  private get cachePath(): string {
+    return join(this.cacheDir, 'hook-explanations.json');
+  }
+
   private async readCache(): Promise<CacheFile> {
     try {
-      const raw = await readFile(CACHE_PATH, 'utf-8');
+      const raw = await readFile(this.cachePath, 'utf-8');
       return JSON.parse(raw) as CacheFile;
     } catch (e: unknown) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') return {};
@@ -171,7 +173,7 @@ export class HookExplanationService {
   }
 
   private async writeCache(cache: CacheFile): Promise<void> {
-    await mkdir(PLUGINS_CACHE_DIR, { recursive: true });
-    await writeFile(CACHE_PATH, JSON.stringify(cache, null, 2), 'utf-8');
+    await mkdir(this.cacheDir, { recursive: true });
+    await writeFile(this.cachePath, JSON.stringify(cache, null, 2), 'utf-8');
   }
 }

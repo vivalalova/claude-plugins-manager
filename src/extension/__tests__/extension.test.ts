@@ -2,6 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { commands, window, mockWorkspaceFoldersChangeEmitter } from 'vscode';
 import { COMMANDS } from '../constants';
 
+vi.mock('fs/promises', () => ({
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  cp: vi.fn().mockResolvedValue(undefined),
+  rm: vi.fn().mockResolvedValue(undefined),
+  readdir: vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })),
+}));
+
 const state = vi.hoisted(() => ({
   marketplaceHandlers: [] as Array<() => void>,
   pluginHandlers: [] as Array<() => void>,
@@ -72,6 +79,10 @@ vi.mock('../services/FileWatcherService', () => ({
   }),
 }));
 
+vi.mock('../services/HookExplanationService', () => ({
+  HookExplanationService: vi.fn().mockImplementation(function HookExplanationServiceMock() {}),
+}));
+
 vi.mock('../messaging/MessageRouter', () => ({
   MessageRouter: vi.fn().mockImplementation(function MessageRouterMock() {
     this.handle = vi.fn();
@@ -110,14 +121,15 @@ describe('activate', () => {
     commands.registerCommand.mockImplementation(() => ({ dispose: vi.fn() }));
   });
 
-  it('註冊 sidebar、commands，並把檔案/ workspace 事件綁到對應服務', () => {
+  it('註冊 sidebar、commands，並把檔案/ workspace 事件綁到對應服務', async () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
+      globalStorageUri: { fsPath: '/tmp/test-global-storage' },
       extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
 
-    activate(context as never);
+    await activate(context as never);
 
     expect(window.registerWebviewViewProvider).toHaveBeenCalledWith(
       'mock.sidebar.view',
@@ -145,14 +157,15 @@ describe('activate', () => {
     expect(state.mcpTriggerPoll).toHaveBeenCalledTimes(2);
   });
 
-  it('subscriptions 內的 cleanup disposable 會釋放 manager/provider/service/fileWatcher', () => {
+  it('subscriptions 內的 cleanup disposable 會釋放 manager/provider/service/fileWatcher', async () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
+      globalStorageUri: { fsPath: '/tmp/test-global-storage' },
       extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
 
-    activate(context as never);
+    await activate(context as never);
 
     for (const disposable of context.subscriptions) {
       disposable.dispose?.();
@@ -164,14 +177,15 @@ describe('activate', () => {
     expect(state.fileWatcherDispose).toHaveBeenCalledTimes(1);
   });
 
-  it('workspace folder listener 會加入 subscriptions，dispose 後不再觸發 mcp cache invalidate', () => {
+  it('workspace folder listener 會加入 subscriptions，dispose 後不再觸發 mcp cache invalidate', async () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
+      globalStorageUri: { fsPath: '/tmp/test-global-storage' },
       extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
 
-    activate(context as never);
+    await activate(context as never);
 
     expect(context.subscriptions).toHaveLength(11);
 

@@ -1,9 +1,3 @@
-import { join } from 'path';
-import { homedir } from 'os';
-
-/** Plugin 快取目錄（翻譯、hook 解釋等跨 project 快取） */
-export const PLUGINS_CACHE_DIR = join(homedir(), '.claude', 'plugins', '.cache');
-
 /** Extension 識別碼，用於所有 view/command 前綴 */
 export const EXTENSION_ID = 'claude-plugins-manager';
 

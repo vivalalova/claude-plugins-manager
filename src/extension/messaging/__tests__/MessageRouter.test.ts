@@ -70,6 +70,7 @@ describe('MessageRouter', () => {
       services.settings as unknown as SettingsFileService,
       services.hookExplanation as unknown as HookExplanationService,
       services.extensionInfo as never,
+      '/tmp/test-cache',
     );
     posted = [];
   });
