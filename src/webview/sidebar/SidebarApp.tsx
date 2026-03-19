@@ -5,7 +5,7 @@ import { hasPluginUpdate, isPluginEnabled } from '../editor/plugin/filterUtils';
 import type { PluginListResponse, McpServer } from '../../shared/types';
 import { useI18n } from '../i18n/I18nContext';
 
-type CategoryId = 'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info';
+type CategoryId = 'marketplace' | 'plugin' | 'mcp' | 'skill' | 'settings' | 'info';
 
 /** Badge 只顯示需要注意的數量（可更新 / 有問題） */
 interface AttentionCounts {
@@ -40,6 +40,12 @@ export function SidebarApp(): React.ReactElement {
       label: t('sidebar.mcp'),
       icon: '⚡',
       description: t('sidebar.mcp.desc'),
+    },
+    {
+      id: 'skill' as CategoryId,
+      label: t('sidebar.skills'),
+      icon: '🧩',
+      description: t('sidebar.skills.desc'),
     },
     {
       id: 'settings' as CategoryId,

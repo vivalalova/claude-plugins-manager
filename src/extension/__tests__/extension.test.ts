@@ -83,6 +83,10 @@ vi.mock('../services/HookExplanationService', () => ({
   HookExplanationService: vi.fn().mockImplementation(function HookExplanationServiceMock() {}),
 }));
 
+vi.mock('../services/SkillService', () => ({
+  SkillService: vi.fn().mockImplementation(function SkillServiceMock() {}),
+}));
+
 vi.mock('../messaging/MessageRouter', () => ({
   MessageRouter: vi.fn().mockImplementation(function MessageRouterMock() {
     this.handle = vi.fn();
@@ -135,8 +139,8 @@ describe('activate', () => {
       'mock.sidebar.view',
       state.sidebarProviderInstance,
     );
-    expect(commands.registerCommand).toHaveBeenCalledTimes(5);
-    expect(context.subscriptions).toHaveLength(11);
+    expect(commands.registerCommand).toHaveBeenCalledTimes(6);
+    expect(context.subscriptions).toHaveLength(12);
 
     const commandCalls = commands.registerCommand.mock.calls;
     commandCalls.find(([id]) => id === COMMANDS.openMarketplace)?.[1]();
@@ -187,7 +191,7 @@ describe('activate', () => {
 
     await activate(context as never);
 
-    expect(context.subscriptions).toHaveLength(11);
+    expect(context.subscriptions).toHaveLength(12);
 
     for (const disposable of context.subscriptions) {
       disposable.dispose?.();

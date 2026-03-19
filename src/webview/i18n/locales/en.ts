@@ -6,6 +6,8 @@ export const en = {
   'sidebar.plugins.desc': 'Install, enable, and configure plugins',
   'sidebar.mcp': 'MCP Servers',
   'sidebar.mcp.desc': 'Manage MCP server connections',
+  'sidebar.skills': 'Skills',
+  'sidebar.skills.desc': 'Manage agent skills',
   'sidebar.settings': 'Settings',
   'sidebar.settings.desc': 'Configure Claude Code settings per scope',
   'sidebar.info': 'Extension Info',

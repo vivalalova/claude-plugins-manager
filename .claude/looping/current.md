@@ -1,91 +1,79 @@
 ---
-title: 實作 SkillService 封裝 npx skills CLI + skills.sh 解析
+title: FileWatcher 監控 skills + MessageRouter 路由 + extension.ts 接線
 created: 2026-03-16
 priority: critical
-suggested_order: B1
-blockedBy: a2-types-protocol-constants
+suggested_order: B2
+blockedBy: b1-skill-service
 phase: needs-commit
 iteration: 2
 max_iterations: 3
-review_iterations: 3
+review_iterations: 1
 ---
 
-# 實作 SkillService 封裝 npx skills CLI + skills.sh 解析
+# FileWatcher 監控 skills + MessageRouter 路由 + extension.ts 接線
 
-建立 `src/extension/services/SkillService.ts`，封裝所有 `npx skills` CLI 操作和 skills.sh HTML 解析。
+擴充 FileWatcherService、MessageRouter、EditorPanelManager 和 extension.ts，完成 skills 功能的 Extension Host 端完整串接。
 
 ## User Stories
 
-- As a 使用者, I want 在 VSCode 內管理 skills, so that 不需切到終端機手動執行 npx skills
-- As a 使用者, I want 瀏覽 skills.sh registry, so that 我能發現並安裝高品質的 skills
+- As a 使用者, I want 在終端機手動 npx skills add 後 VSCode 自動刷新, so that 不需手動 reload
 
 ## 實作內容
 
-### npx 路徑搜尋
+### 1. FileWatcherService 擴充
 
-`npx` 不同於 `claude`，需要獨立的路徑搜尋邏輯：
-- 候選：`~/.nvm/versions/node/*/bin/npx`（取最新版）、`/usr/local/bin/npx`、`/opt/homebrew/bin/npx`、PATH 中的 npx
-- 參考 CliService 的路徑搜尋模式，但不直接擴充 CliService（職責分離）
-- 快取找到的路徑，避免每次 spawn 都重新搜尋
+- 新增 `_onSkillFilesChanged` EventEmitter + 公開 `onSkillFilesChanged` event
+- `setupWatchers()` 新增監控 `~/.claude/skills/**`（glob pattern）
+- `rebuildWorkspaceWatchers()` 新增監控 workspace `.claude/skills/**`
+- debounce 500ms（與現有一致）
+- skills 目錄可能不存在 → watcher 需容忍（VSCode FileSystemWatcher 本身容忍不存在路徑）
 
-### CLI 封裝方法
+### 2. MessageRouter 擴充
 
-| 方法 | CLI 命令 | 回傳 |
-|------|----------|------|
-| `list(scope?)` | `npx skills list --json [--global]` | `AgentSkill[]` |
-| `add(source, scope)` | `npx skills add <source> --yes --all [--global]` | `void` |
-| `remove(name, scope)` | `npx skills remove <name> --yes --all [--global]` | `void` |
-| `find(query)` | `npx skills find <query>` | `SkillSearchResult[]`（文字解析） |
-| `check()` | `npx skills check` | 更新資訊文字 |
-| `update()` | `npx skills update` | `void` |
-| `getDetail(skillPath)` | 讀取 SKILL.md | `{ frontmatter, body }` |
+- constructor 新增 `private readonly skillService: SkillService`
+- `dispatch()` 新增 `skill.*` switch cases：
+  - `skill.list` → `skillService.list(msg.scope)`
+  - `skill.add` → `skillService.add(msg.source, msg.scope)`
+  - `skill.remove` → `skillService.remove(msg.name, msg.scope)`
+  - `skill.find` → `skillService.find(msg.query)`
+  - `skill.check` → `skillService.check()`
+  - `skill.update` → `skillService.update()`
+  - `skill.getDetail` → `skillService.getDetail(msg.path)`
+  - `skill.registry` → `skillService.fetchRegistry(msg.sort, msg.query)`
+  - `skill.openFile` → `vscode.commands.executeCommand('vscode.open', Uri.file(msg.path))`
 
-注意：
-- scope mapping：`global` → `--global` flag，`project` → 預設（需 cwd = workspace path）
-- `add`/`remove` 必須 `--yes --all` 避免互動式 TUI
-- `find` 輸出需去除 ANSI escape codes 後 regex 解析
-- 所有 CLI spawn 的 env 不需清除 `CLAUDECODE`（不是 claude 子命令）
+### 3. EditorPanelManager 擴充
 
-### skills.sh Registry 解析
+- constructor 訂閱 `fileWatcherService.onSkillFilesChanged`
+- handler：當 `currentCategory === 'skill'` 時 postMessage `{ type: 'skill.refresh' }`
 
-| 方法 | URL | 回傳 |
-|------|-----|------|
-| `fetchRegistry(sort, query?)` | `https://skills.sh/[trending\|hot]?q=keyword` | `RegistrySkill[]` |
+### 4. extension.ts 擴充
 
-解析策略：
-- Fetch HTML → regex 提取 skill rows
-- 每個 row 的 CSS 結構：`<a href="/owner/repo/skill">` 包含 rank + name + repo + installs
-- 去除 HTML tags 後提取文字
-- 搜尋用 `/?q=keyword`（`/search?q=` 會 redirect 回 `/?q=`）
-- `/trending` 和 `/hot` 是獨立路由
+- 實例化 `SkillService`（傳入 workspace path）
+- 傳入 `MessageRouter` constructor
+- 註冊 `claude-plugins-manager.openSkill` command → `editorPanelManager.show('skill')`
 
-### 測試（TDD）
+### 5. SidebarViewProvider 擴充
 
-先寫 `src/extension/services/__tests__/SkillService.integration.test.ts`：
+- categories 陣列新增 `'skill'` entry
+- sidebar tab 新增 Skills 按鈕（位於 MCP 和 Settings 之間）
 
-1. **list 解析**：mock execFile 回傳 JSON stdout → 驗證解析為 AgentSkill[]
-2. **list 空結果**：mock 空陣列 → 回傳 []
-3. **add 參數**：驗證 global scope 帶 `--global`，project scope 帶 `cwd`
-4. **remove 參數**：同上
-5. **find 文字解析**：mock CLI 文字輸出（含 ANSI codes）→ 驗證解析為 SkillSearchResult[]
-6. **find 空結果**：mock 無結果輸出 → 回傳 []
-7. **registry HTML 解析**：mock HTML → 驗證解析為 RegistrySkill[]
-8. **registry 搜尋**：mock search HTML → 驗證 query 傳遞正確
-9. **npx 路徑搜尋**：mock fs.existsSync → 驗證候選路徑順序
-10. **getDetail**：真實 filesystem，建臨時 SKILL.md → 驗證 frontmatter + body 分離
+### 測試
+
+- FileWatcherService：驗證 `onSkillFilesChanged` event 觸發
+- MessageRouter：`skill.*` dispatch 路由到正確 service 方法
 
 ## 驗收條件
 
-- Given SkillService 已實作
-- When 呼叫 `list()` 方法
-- Then 回傳與 `npx skills list --json` 相同的結構化資料
-- Given 呼叫 `find('test')`
-- When CLI 回傳文字結果
-- Then 去除 ANSI codes 後正確解析為 SkillSearchResult[]
-- Given 呼叫 `fetchRegistry('trending')`
-- When fetch skills.sh/trending HTML
-- Then 解析出 RegistrySkill[] 含 rank、name、repo、installs
-- Given 呼叫 `add('vercel-labs/agent-skills', 'global')`
-- When CLI 執行
-- Then 使用 `--yes --all --global` flags，無互動式 prompt
-- Integration test 全部通過
+- Given 在 `~/.claude/skills/` 下新增或刪除一個 skill 目錄
+- When FileWatcher 偵測到變更
+- Then debounce 後觸發 `onSkillFilesChanged` event
+- Given webview 發送 `skill.list` request
+- When MessageRouter 收到
+- Then 正確路由到 SkillService.list() 並回傳結果
+- Given EditorPanelManager 的 currentCategory 為 'skill'
+- When skills 目錄變更
+- Then webview 收到 `skill.refresh` push message
+- Given extension 啟動
+- When 命令面板執行 `openSkill`
+- Then editor panel 以 'skill' category 開啟

@@ -6,6 +6,7 @@ import type { McpService } from '../../services/McpService';
 import type { TranslationService } from '../../services/TranslationService';
 import type { SettingsFileService } from '../../services/SettingsFileService';
 import type { HookExplanationService } from '../../services/HookExplanationService';
+import type { SkillService } from '../../services/SkillService';
 import type { RequestMessage, ResponseMessage } from '../protocol';
 
 function createMockServices() {
@@ -54,6 +55,16 @@ function createMockServices() {
     extensionInfo: {
       getInfo: vi.fn().mockResolvedValue({ extensionVersion: '0.1.2', cliPath: '/usr/local/bin/claude', cliVersion: '1.0.0' }),
     },
+    skill: {
+      list: vi.fn().mockResolvedValue([]),
+      add: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn().mockResolvedValue(undefined),
+      find: vi.fn().mockResolvedValue([]),
+      check: vi.fn().mockResolvedValue('No skills tracked'),
+      update: vi.fn().mockResolvedValue(undefined),
+      getDetail: vi.fn().mockResolvedValue({ frontmatter: {}, body: '' }),
+      fetchRegistry: vi.fn().mockResolvedValue([]),
+    },
   };
 }
 
@@ -73,6 +84,7 @@ describe('MessageRouter', () => {
       services.hookExplanation as unknown as HookExplanationService,
       services.extensionInfo as never,
       '/tmp/test-cache',
+      services.skill as unknown as SkillService,
     );
     posted = [];
   });
@@ -262,6 +274,85 @@ describe('MessageRouter', () => {
       );
 
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'cc1', data: { cleared: true } });
+    });
+  });
+
+  describe('skill 路由', () => {
+    it('skill.list → 帶 scope 參數', async () => {
+      await router.handle(
+        { type: 'skill.list', requestId: 's1', scope: 'global' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.list).toHaveBeenCalledWith('global');
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 's1' });
+    });
+
+    it('skill.add → 帶 source 和 scope', async () => {
+      await router.handle(
+        { type: 'skill.add', requestId: 's2', source: 'owner/repo', scope: 'global' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.add).toHaveBeenCalledWith('owner/repo', 'global');
+    });
+
+    it('skill.remove → 帶 name 和 scope', async () => {
+      await router.handle(
+        { type: 'skill.remove', requestId: 's3', name: 'my-skill', scope: 'project' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.remove).toHaveBeenCalledWith('my-skill', 'project');
+    });
+
+    it('skill.find → 帶 query', async () => {
+      await router.handle(
+        { type: 'skill.find', requestId: 's4', query: 'browser' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.find).toHaveBeenCalledWith('browser');
+    });
+
+    it('skill.check → 呼叫 check()', async () => {
+      await router.handle(
+        { type: 'skill.check', requestId: 's5' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.check).toHaveBeenCalled();
+    });
+
+    it('skill.update → 呼叫 update()', async () => {
+      await router.handle(
+        { type: 'skill.update', requestId: 's6' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.update).toHaveBeenCalled();
+    });
+
+    it('skill.getDetail → 帶 path', async () => {
+      await router.handle(
+        { type: 'skill.getDetail', requestId: 's7', path: '/path/to/skill' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.getDetail).toHaveBeenCalledWith('/path/to/skill');
+    });
+
+    it('skill.registry → 帶 sort 和 query', async () => {
+      await router.handle(
+        { type: 'skill.registry', requestId: 's8', sort: 'trending', query: 'test' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.fetchRegistry).toHaveBeenCalledWith('trending', 'test');
+    });
+
+    it('skill.openFile → 呼叫 vscode.open', async () => {
+      const vscode = await import('vscode');
+      await router.handle(
+        { type: 'skill.openFile', requestId: 's9', path: '/path/to/SKILL.md' } as RequestMessage,
+        post,
+      );
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'vscode.open',
+        expect.objectContaining({ fsPath: '/path/to/SKILL.md' }),
+      );
     });
   });
 

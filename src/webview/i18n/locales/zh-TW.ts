@@ -8,6 +8,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'sidebar.plugins.desc': '安裝、啟用及設定外掛',
   'sidebar.mcp': 'MCP 伺服器',
   'sidebar.mcp.desc': '管理 MCP 伺服器連線',
+  'sidebar.skills': 'Skills',
+  'sidebar.skills.desc': '管理 Agent Skills',
   'sidebar.settings': '設定',
   'sidebar.settings.desc': '依 scope 設定 Claude Code',
   'sidebar.info': 'Extension 資訊',

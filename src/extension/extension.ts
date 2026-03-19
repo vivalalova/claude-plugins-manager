@@ -12,6 +12,7 @@ import { TranslationService } from './services/TranslationService';
 import { FileWatcherService } from './services/FileWatcherService';
 import { HookExplanationService } from './services/HookExplanationService';
 import { ExtensionInfoService } from './services/ExtensionInfoService';
+import { SkillService } from './services/SkillService';
 import { MessageRouter } from './messaging/MessageRouter';
 import { SidebarViewProvider } from './providers/SidebarViewProvider';
 import { EditorPanelManager } from './providers/EditorPanelManager';
@@ -57,7 +58,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.extensionUri.fsPath,
     cacheDir,
   );
-  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, hookExplanationService, extensionInfoService, cacheDir);
+  const skillService = new SkillService();
+  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, hookExplanationService, extensionInfoService, cacheDir, skillService);
   // Marketplace 檔案變更 → invalidate scan cache（plugin settings 變更不影響 marketplace 掃描）
   fileWatcherService.onMarketplaceFilesChanged(() => settingsFileService.invalidateScanCache());
   // plugin settings 也會影響 plugin-provided MCP 的 enabled 狀態
@@ -106,6 +108,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand(
       COMMANDS.openSettings,
       () => editorManager.openPanel('settings'),
+    ),
+    vscode.commands.registerCommand(
+      COMMANDS.openSkill,
+      () => editorManager.openPanel('skill'),
     ),
     vscode.commands.registerCommand(
       COMMANDS.openInfo,

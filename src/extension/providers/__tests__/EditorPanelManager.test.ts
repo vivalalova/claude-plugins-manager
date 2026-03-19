@@ -38,6 +38,7 @@ function createManager() {
     onPluginFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     onMarketplaceFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     onSettingsFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
+    onSkillFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
   };
   const router = {
     handle: vi.fn(),
@@ -156,6 +157,36 @@ describe('EditorPanelManager', () => {
     panel.dispose();
 
     expect(mcpService.stopPolling).not.toHaveBeenCalled();
+  });
+
+  it('skill 檔案變更 + category=skill → push skill.refresh', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, fileWatcherService } = createManager();
+
+    manager.openPanel('skill');
+
+    // 取得 onSkillFilesChanged 的 callback 並觸發
+    const callback = vi.mocked(fileWatcherService.onSkillFilesChanged).mock.calls[0][0] as () => void;
+    // 模擬 panel.visible
+    Object.defineProperty(panel, 'visible', { value: true });
+    callback();
+
+    expect(panel.webview.postMessage).toHaveBeenCalledWith({ type: 'skill.refresh' });
+  });
+
+  it('skill 檔案變更 + category≠skill → 不 push', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, fileWatcherService } = createManager();
+
+    manager.openPanel('plugin');
+
+    const callback = vi.mocked(fileWatcherService.onSkillFilesChanged).mock.calls[0][0] as () => void;
+    Object.defineProperty(panel, 'visible', { value: true });
+    callback();
+
+    expect(panel.webview.postMessage).not.toHaveBeenCalledWith({ type: 'skill.refresh' });
   });
 
   it('非 MCP 間切換：無 polling interaction', () => {

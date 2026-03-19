@@ -10,6 +10,7 @@ import type { TranslationService } from '../services/TranslationService';
 import type { SettingsFileService } from '../services/SettingsFileService';
 import type { HookExplanationService } from '../services/HookExplanationService';
 import type { ExtensionInfoService } from '../services/ExtensionInfoService';
+import type { SkillService } from '../services/SkillService';
 import type { RequestMessage, ResponseMessage } from './protocol';
 
 type PostFn = (msg: ResponseMessage) => void;
@@ -28,6 +29,7 @@ export class MessageRouter {
     private readonly hookExplanation: HookExplanationService,
     private readonly extensionInfo: ExtensionInfoService,
     private readonly cacheDir: string,
+    private readonly skill: SkillService,
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -178,6 +180,29 @@ export class MessageRouter {
         this.translation.invalidateCache();
         this.hookExplanation.invalidateCache();
         return { cleared: true, path: this.cacheDir };
+      }
+
+      // Skill
+      case 'skill.list':
+        return this.skill.list(message.scope);
+      case 'skill.add':
+        return this.skill.add(message.source, message.scope);
+      case 'skill.remove':
+        return this.skill.remove(message.name, message.scope);
+      case 'skill.find':
+        return this.skill.find(message.query);
+      case 'skill.check':
+        return this.skill.check();
+      case 'skill.update':
+        return this.skill.update();
+      case 'skill.getDetail':
+        return this.skill.getDetail(message.path);
+      case 'skill.registry':
+        return this.skill.fetchRegistry(message.sort, message.query);
+      case 'skill.openFile': {
+        const resolved = this.expandTildePath(message.path);
+        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
+        return;
       }
 
       case 'settings.openInEditor': {

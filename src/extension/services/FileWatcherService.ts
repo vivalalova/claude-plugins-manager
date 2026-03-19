@@ -11,6 +11,7 @@ enum FileChangeCategory {
   Marketplace = 'marketplace',
   Mcp = 'mcp',
   Settings = 'settings',
+  Skill = 'skill',
 }
 
 /**
@@ -38,6 +39,10 @@ export class FileWatcherService implements vscode.Disposable {
   /** Settings 相關檔案變更（settings.json、settings.local.json） */
   private readonly _onSettingsFilesChanged = new vscode.EventEmitter<void>();
   readonly onSettingsFilesChanged = this._onSettingsFilesChanged.event;
+
+  /** Skill 相關檔案變更（~/.claude/skills/**、workspace .claude/skills/**） */
+  private readonly _onSkillFilesChanged = new vscode.EventEmitter<void>();
+  readonly onSkillFilesChanged = this._onSkillFilesChanged.event;
 
   constructor() {
     this.setupWatchers();
@@ -88,6 +93,18 @@ export class FileWatcherService implements vscode.Disposable {
 
     // workspace .mcp.json → MCP metadata refresh（project scope）
     this.watchWorkspaceFile('.mcp.json', FileChangeCategory.Mcp);
+
+    // ~/.claude/skills/** → skill refresh
+    this.watchDir(join(home, '.claude', 'skills'), '**/*', FileChangeCategory.Skill);
+
+    // workspace .claude/skills/** → skill refresh
+    this.watchWorkspaceFile('.claude/skills/**/*', FileChangeCategory.Skill);
+  }
+
+  /** 監控絕對路徑目錄（glob pattern） */
+  private watchDir(absoluteDir: string, glob: string, category: FileChangeCategory): void {
+    const pattern = new vscode.RelativePattern(vscode.Uri.file(absoluteDir), glob);
+    this.createWatcher(pattern, category);
   }
 
   /** 監控絕對路徑檔案 */
@@ -117,6 +134,7 @@ export class FileWatcherService implements vscode.Disposable {
     this.watchWorkspaceFile('.claude/settings.json', FileChangeCategory.Settings);
     this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Settings);
     this.watchWorkspaceFile('.mcp.json', FileChangeCategory.Mcp);
+    this.watchWorkspaceFile('.claude/skills/**/*', FileChangeCategory.Skill);
   }
 
   /** 建立 watcher 並綁定 change/create/delete 事件 */
@@ -150,6 +168,8 @@ export class FileWatcherService implements vscode.Disposable {
           this._onMarketplaceFilesChanged.fire();
         } else if (category === FileChangeCategory.Settings) {
           this._onSettingsFilesChanged.fire();
+        } else if (category === FileChangeCategory.Skill) {
+          this._onSkillFilesChanged.fire();
         } else {
           this._onMcpFilesChanged.fire();
         }
@@ -167,6 +187,7 @@ export class FileWatcherService implements vscode.Disposable {
     this._onMarketplaceFilesChanged.dispose();
     this._onMcpFilesChanged.dispose();
     this._onSettingsFilesChanged.dispose();
+    this._onSkillFilesChanged.dispose();
     for (const d of this.disposables) d.dispose();
   }
 }

@@ -43,6 +43,11 @@ export class EditorPanelManager {
           this.panel.webview.postMessage({ type: 'marketplace.refresh' });
         }
       }),
+      this.fileWatcherService.onSkillFilesChanged(() => {
+        if (this.panel?.visible && this.currentCategory === 'skill') {
+          this.panel.webview.postMessage({ type: 'skill.refresh' });
+        }
+      }),
       // settings.json 變更：同時推 plugin.refresh（不加 guard，確保 Plugin 頁感知外部編輯）
       // 和 settings.refresh（只推給 Settings 頁）
       this.fileWatcherService.onSettingsFilesChanged(() => {

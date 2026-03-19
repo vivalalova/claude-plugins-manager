@@ -8,6 +8,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'sidebar.plugins.desc': 'プラグインのインストール・有効化・設定',
   'sidebar.mcp': 'MCPサーバー',
   'sidebar.mcp.desc': 'MCP サーバー接続を管理',
+  'sidebar.skills': 'スキル',
+  'sidebar.skills.desc': 'エージェントスキルを管理',
   'sidebar.settings': '設定',
   'sidebar.settings.desc': 'スコープごとに Claude Code を設定',
   'sidebar.info': 'Extension 情報',
