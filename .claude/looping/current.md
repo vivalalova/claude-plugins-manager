@@ -3,6 +3,10 @@ title: npx skills CLI 行為文件 + skills.sh HTML 結構文件
 created: 2026-03-16
 priority: critical
 suggested_order: A1
+phase: needs-commit
+iteration: 1
+max_iterations: 3
+review_iterations: 0
 ---
 
 # npx skills CLI 行為文件 + skills.sh HTML 結構文件
