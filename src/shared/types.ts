@@ -359,3 +359,43 @@ export interface ExtensionInfo {
   extensionPath: PathInfo;
   preferencesPath: PathInfo;
 }
+
+// ---------------------------------------------------------------------------
+// Agent Skills
+// ---------------------------------------------------------------------------
+
+/** Skill scope（CLI 僅支援 global + project，無 local） */
+export type SkillScope = 'global' | 'project';
+
+/** 對應 npx skills list --json 的結構 + SKILL.md frontmatter */
+export interface AgentSkill {
+  name: string;
+  path: string;
+  scope: SkillScope;
+  agents: string[];
+  description?: string;
+  model?: string;
+  context?: string;
+  allowedTools?: string[];
+}
+
+/** skills.sh registry 列表項目 */
+export interface RegistrySkill {
+  rank: number;
+  name: string;
+  repo: string;
+  installs: string;
+  url: string;
+}
+
+/** skills.sh registry 排序方式 */
+export type RegistrySort = 'all-time' | 'trending' | 'hot';
+
+/** npx skills find 文字解析結果 */
+export interface SkillSearchResult {
+  fullId: string;
+  name: string;
+  repo: string;
+  installs?: string;
+  url?: string;
+}

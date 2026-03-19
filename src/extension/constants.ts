@@ -9,18 +9,20 @@ export const COMMANDS = {
   openMarketplace: `${EXTENSION_ID}.openMarketplace`,
   openPlugin: `${EXTENSION_ID}.openPlugin`,
   openMcp: `${EXTENSION_ID}.openMcp`,
+  openSkill: `${EXTENSION_ID}.openSkill`,
   openSettings: `${EXTENSION_ID}.openSettings`,
   openInfo: `${EXTENSION_ID}.openInfo`,
 } as const;
 
 /** Editor panel 分類 */
-export type PanelCategory = 'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info';
+export type PanelCategory = 'marketplace' | 'plugin' | 'mcp' | 'skill' | 'settings' | 'info';
 
 /** 分類對應的顯示名稱 */
 export const PANEL_TITLES: Record<PanelCategory, string> = {
   marketplace: 'Marketplaces Manager',
   plugin: 'Plugins Manager',
   mcp: 'MCP Servers Manager',
+  skill: 'Skills Manager',
   settings: 'Settings',
   info: 'Extension Info',
 };

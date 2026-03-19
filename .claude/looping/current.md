@@ -1,83 +1,99 @@
 ---
-title: npx skills CLI 行為文件 + skills.sh HTML 結構文件
+title: 定義 AgentSkill 型別、Protocol messages、Constants
 created: 2026-03-16
 priority: critical
-suggested_order: A1
+suggested_order: A2
+blockedBy: a1-verify-npx-skills-cli
 phase: needs-commit
-iteration: 1
+iteration: 2
 max_iterations: 3
-review_iterations: 0
+review_iterations: 1
 ---
 
-# npx skills CLI 行為文件 + skills.sh HTML 結構文件
+# 定義 AgentSkill 型別、Protocol messages、Constants
 
-手動執行所有 `npx skills` 子命令，記錄實際 input/output 格式、exit code、edge case，產出行為文件供後續 task 參考。
+在 shared 層建立所有 agent-skills 相關的型別定義、通訊協議、常數，為後續 Service 和 UI 任務建立基礎。
 
 ## User Stories
 
-- As a 開發者, I want 一份完整的 CLI 行為文件, so that 後續所有 task 能基於事實而非猜測實作
+- As a 開發者, I want 統一的型別定義, so that extension host 和 webview 之間通訊有型別安全保障
 
-## 需要驗證的項目
+## 實作內容
 
-### 基本命令
+### 1. `src/shared/types.ts` 新增
 
-1. `npx skills list --json` — 回傳格式、欄位名稱
-2. `npx skills list --json --global` — global scope 結果差異
-3. `npx skills find <query>` — 輸出格式（含 ANSI escape codes？）、`--json` 是否有效
-4. `npx skills add <source> --yes --all --global` — 非互動安裝行為、exit code
-5. `npx skills add <source> --yes --all`（project scope）— cwd 行為
-6. `npx skills remove <name> --yes --all --global` — 行為、exit code
-7. `npx skills check` — 輸出格式
-8. `npx skills update` — 輸出格式
-9. `npx skills init` — 產生什麼
+```typescript
+// Scope：只有 global + project（CLI 限制）
+export type SkillScope = 'global' | 'project';
 
-### Edge Cases
+// 對應 npx skills list --json 的結構 + SKILL.md frontmatter
+export interface AgentSkill {
+  name: string;
+  path: string;
+  scope: SkillScope;
+  agents: string[];
+  description?: string;
+  model?: string;
+  context?: string;
+  allowedTools?: string[];
+}
 
-1. 重複 `add` 同一個 skill — exit code？錯誤訊息？
-2. `remove` 不存在的 skill — exit code？
-3. `list` 空目錄 — 回傳空陣列？
-4. `find ""` 空查詢 — 行為？
-5. `add` 無效來源 — 錯誤格式？
+// skills.sh registry 列表項目
+export interface RegistrySkill {
+  rank: number;
+  name: string;
+  repo: string;       // "owner/repo"
+  installs: string;   // "561.5K"
+  url: string;        // "/owner/repo/skill-name"
+}
 
-### 環境
+// skills.sh registry 排序方式
+export type RegistrySort = 'all-time' | 'trending' | 'hot';
 
-1. `which npx` 路徑確認
-2. Extension Host 模擬：`env -i PATH=/usr/bin:/bin npx skills list` — 是否 ENOENT？
-3. npx 候選路徑：`~/.nvm/versions/node/*/bin/npx`、`/usr/local/bin/npx`、`/opt/homebrew/bin/npx`
-
-### skills.sh 網站資料
-
-1. 確認 HTML 結構穩定性：`/`、`/trending`、`/hot`、`/?q=keyword` 的 HTML skill row 格式
-2. 每頁回傳幾筆？有無分頁機制？
-3. 搜尋是 `/?q=` 還是 `/search?q=`（確認 redirect 行為）
-
-## 產出
-
-將驗證結果寫入 `memory/skills_cli_behavior.md`，格式：
-
-```markdown
-## npx skills list
-- 支援 --json：是
-- 回傳格式：[{ name, path, scope, agents }]
-- global flag：--global
-...
-
-## npx skills find
-- 支援 --json：是/否
-- stdout 範例（含 ANSI codes raw）：<貼實際輸出>
-- 每個結果的欄位結構：{ fullId, installs, url }（或實際格式）
-- ANSI strip regex 驗證有效
-- 空結果輸出：<貼實際輸出>
+// npx skills find 文字解析結果
+export interface SkillSearchResult {
+  fullId: string;     // "owner/repo@skill-name"
+  name: string;
+  repo: string;       // "owner/repo"
+  installs?: string;
+  url?: string;
+}
 ```
+
+### 2. `src/extension/messaging/protocol.ts` 新增
+
+RequestMessage：
+- `skill.list` — 列出已安裝 skills（可選 scope filter）
+- `skill.add` — 安裝 skill（source + scope）
+- `skill.remove` — 移除 skill（name + scope）
+- `skill.find` — `npx skills find` 文字搜尋
+- `skill.check` — 檢查更新
+- `skill.update` — 更新所有 skills
+- `skill.getDetail` — 取得 SKILL.md 完整內容
+- `skill.registry` — 從 skills.sh 取得 registry 列表（sort + 可選 query）
+- `skill.openFile` — 在 VSCode 中打開 SKILL.md
+
+PushMessage：
+- `skill.refresh` — skills 檔案變更通知
+
+### 3. `src/extension/constants.ts` 修改
+
+- `PanelCategory` union 加入 `'skill'`
+- `COMMANDS` 加入 `openSkill`
+- `PANEL_TITLES` 加入 `skill` entry
+
+### 4. `package.json` 修改
+
+- `contributes.commands` 加入 `claude-plugins-manager.openSkill`
 
 ## 驗收條件
 
-- Given 所有 `npx skills` 子命令
-- When 逐一在終端機執行並記錄 stdout/stderr/exit code
-- Then 產出完整 CLI 行為 memory 檔案，涵蓋每個命令的引數、JSON 支援、scope 行為、edge case
-- Given `npx skills find <query>` stdout（含 ANSI codes）
-- When 驗證解析邏輯
-- Then 記錄每個 result row 的欄位結構（fullId、installs、url）、ANSI strip regex、空結果輸出格式
-- Given skills.sh HTML
-- When fetch `/`、`/trending`、`/hot`、`/?q=test`
-- Then 記錄 HTML 結構（CSS selector for skill row、name、repo、installs）和分頁機制
+- Given 新增型別到 `src/shared/types.ts`
+- When 執行 `npm run typecheck`
+- Then 無型別錯誤，新型別可被 extension 和 webview 雙方 import
+- Given Protocol 新增 `skill.*` messages
+- When MessageRouter 參考這些型別
+- Then 型別推導正確，requestId 自動帶入
+- Given Constants 新增 `'skill'` PanelCategory
+- When EditorPanelManager 使用
+- Then switch-case 涵蓋新 category

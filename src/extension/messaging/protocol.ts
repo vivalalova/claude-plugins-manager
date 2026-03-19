@@ -1,4 +1,4 @@
-import type { McpAddParams, McpScope, McpServer, PluginScope } from '../../shared/types';
+import type { McpAddParams, McpScope, McpServer, PluginScope, RegistrySort, SkillScope } from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Webview → Extension（Request）
@@ -47,7 +47,16 @@ export type RequestMessage =
   | { type: 'hooks.cleanExpiredExplanations'; requestId: string }
   | { type: 'extension.getInfo'; requestId: string }
   | { type: 'extension.revealPath'; requestId: string; path: string }
-  | { type: 'extension.clearCache'; requestId: string };
+  | { type: 'extension.clearCache'; requestId: string }
+  | { type: 'skill.list'; requestId: string; scope?: SkillScope }
+  | { type: 'skill.add'; requestId: string; source: string; scope: SkillScope }
+  | { type: 'skill.remove'; requestId: string; name: string; scope: SkillScope }
+  | { type: 'skill.find'; requestId: string; query: string }
+  | { type: 'skill.check'; requestId: string }
+  | { type: 'skill.update'; requestId: string }
+  | { type: 'skill.getDetail'; requestId: string; path: string }
+  | { type: 'skill.registry'; requestId: string; sort: RegistrySort; query?: string }
+  | { type: 'skill.openFile'; requestId: string; path: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Response）
@@ -72,4 +81,5 @@ export type PushMessage =
   | { type: 'mcp.pollUnavailable' }
   | { type: 'plugin.refresh' }
   | { type: 'marketplace.refresh' }
-  | { type: 'settings.refresh' };
+  | { type: 'settings.refresh' }
+  | { type: 'skill.refresh' };

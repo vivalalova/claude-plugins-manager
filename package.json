@@ -66,6 +66,11 @@
         "category": "Claude Code"
       },
       {
+        "command": "claude-plugins-manager.openSkill",
+        "title": "Open Skills Manager",
+        "category": "Claude Code"
+      },
+      {
         "command": "claude-plugins-manager.openSettings",
         "title": "Open Settings Manager",
         "category": "Claude Code"
