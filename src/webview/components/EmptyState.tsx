@@ -71,6 +71,15 @@ export function ServerIcon(): React.ReactElement {
   );
 }
 
+/** Skill/puzzle icon */
+export function SkillIcon(): React.ReactElement {
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 8h8v6a4 4 0 0 0 8 0V8h4a2 2 0 0 1 2 2v10h-6a4 4 0 0 0 0 8h6v10a2 2 0 0 1-2 2H30v-6a4 4 0 0 0-8 0v6H12a2 2 0 0 1-2-2V30h6a4 4 0 0 0 0-8h-6V12a2 2 0 0 1 2-2h8v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** Filter/search icon — magnifying glass with X */
 export function NoResultsIcon(): React.ReactElement {
   return (

@@ -99,6 +99,31 @@ export function MarketplaceCardSkeleton(): React.ReactElement {
   );
 }
 
+/** Skills 頁面的 skeleton 卡片列表 */
+export function SkillCardSkeleton(): React.ReactElement {
+  const { t } = useI18n();
+  return (
+    <div className="card-list" role="status" aria-label={t('skeleton.skills')}>
+      {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+        <div key={i} className="card skeleton-card">
+          <div className="card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Skeleton variant="text" width={120} height={16} />
+              <Skeleton variant="rect" width={50} height={18} />
+            </div>
+            <Skeleton variant="rect" width={60} height={24} />
+          </div>
+          <Skeleton variant="text" width="80%" height={12} />
+          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+            <Skeleton variant="rect" width={70} height={18} />
+            <Skeleton variant="rect" width={50} height={18} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** MCP 頁面的 skeleton 卡片列表 */
 export function McpCardSkeleton(): React.ReactElement {
   const { t } = useI18n();

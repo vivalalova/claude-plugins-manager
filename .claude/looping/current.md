@@ -1,79 +1,132 @@
 ---
-title: FileWatcher 監控 skills + MessageRouter 路由 + extension.ts 接線
+title: SkillsPage 基礎 UI — 已安裝列表 + add/remove + i18n + sidebar
 created: 2026-03-16
-priority: critical
-suggested_order: B2
-blockedBy: b1-skill-service
+priority: high
+suggested_order: C1
+blockedBy: b2-filewatcher-router-extension
 phase: needs-commit
 iteration: 2
 max_iterations: 3
-review_iterations: 1
+review_iterations: 2
+max_review_iterations: 2
 ---
 
-# FileWatcher 監控 skills + MessageRouter 路由 + extension.ts 接線
+# SkillsPage 基礎 UI — 已安裝列表 + add/remove + i18n + sidebar
 
-擴充 FileWatcherService、MessageRouter、EditorPanelManager 和 extension.ts，完成 skills 功能的 Extension Host 端完整串接。
+建立 SkillsPage 及子元件，顯示已安裝 skills 列表，支援 add/remove 操作，含完整 i18n 和 sidebar 入口。
 
 ## User Stories
 
-- As a 使用者, I want 在終端機手動 npx skills add 後 VSCode 自動刷新, so that 不需手動 reload
+- As a 使用者, I want 在 sidebar 看到 Skills 入口並進入管理頁面, so that 我能查看所有已安裝 skills
+- As a 使用者, I want 一鍵安裝和移除 skill, so that 不需手動操作 CLI
 
 ## 實作內容
 
-### 1. FileWatcherService 擴充
+### 元件結構（參考 PluginPage 拆分模式）
 
-- 新增 `_onSkillFilesChanged` EventEmitter + 公開 `onSkillFilesChanged` event
-- `setupWatchers()` 新增監控 `~/.claude/skills/**`（glob pattern）
-- `rebuildWorkspaceWatchers()` 新增監控 workspace `.claude/skills/**`
-- debounce 500ms（與現有一致）
-- skills 目錄可能不存在 → watcher 需容忍（VSCode FileSystemWatcher 本身容忍不存在路徑）
+```
+src/webview/editor/skill/
+├── SkillsPage.tsx        # state + layout
+├── SkillToolbar.tsx       # scope filter tabs (Global/Project) + search + Add button
+├── SkillSections.tsx      # 按 scope 分組的 skill 卡片列表
+├── SkillCard.tsx          # 單一 skill 卡片
+├── SkillDialogs.tsx       # AddSkillDialog + RemoveConfirmDialog
+└── __tests__/
+    └── SkillsPage.test.tsx
+```
 
-### 2. MessageRouter 擴充
+### SkillsPage.tsx
 
-- constructor 新增 `private readonly skillService: SkillService`
-- `dispatch()` 新增 `skill.*` switch cases：
-  - `skill.list` → `skillService.list(msg.scope)`
-  - `skill.add` → `skillService.add(msg.source, msg.scope)`
-  - `skill.remove` → `skillService.remove(msg.name, msg.scope)`
-  - `skill.find` → `skillService.find(msg.query)`
-  - `skill.check` → `skillService.check()`
-  - `skill.update` → `skillService.update()`
-  - `skill.getDetail` → `skillService.getDetail(msg.path)`
-  - `skill.registry` → `skillService.fetchRegistry(msg.sort, msg.query)`
-  - `skill.openFile` → `vscode.commands.executeCommand('vscode.open', Uri.file(msg.path))`
+State：
+- `skills: AgentSkill[]` — 已安裝 skills
+- `loading: boolean`
+- `error: string | null`
+- `searchQuery: string`
+- `scopeFilter: SkillScope | 'all'`
 
-### 3. EditorPanelManager 擴充
+載入：`useEffect` → `sendRequest({ type: 'skill.list' })`
+刷新：`onPushMessage('skill.refresh')` → 重新 fetch
 
-- constructor 訂閱 `fileWatcherService.onSkillFilesChanged`
-- handler：當 `currentCategory === 'skill'` 時 postMessage `{ type: 'skill.refresh' }`
+### SkillToolbar.tsx
 
-### 4. extension.ts 擴充
+- Scope filter：`All` / `Global` / `Project` tab 切換
+- Search：本地 filter（by name/description）
+- `+ Add Skill` 按鈕 → 開啟 AddSkillDialog
 
-- 實例化 `SkillService`（傳入 workspace path）
-- 傳入 `MessageRouter` constructor
-- 註冊 `claude-plugins-manager.openSkill` command → `editorPanelManager.show('skill')`
+### SkillSections.tsx
 
-### 5. SidebarViewProvider 擴充
+- 按 scope 分組：Global Skills / Project Skills
+- 空 scope 顯示空狀態文字
+- 全部為空顯示引導畫面（指向 Add Skill 或 Registry tab）
 
-- categories 陣列新增 `'skill'` entry
-- sidebar tab 新增 Skills 按鈕（位於 MCP 和 Settings 之間）
+### SkillCard.tsx
 
-### 測試
+- 顯示：name、description、scope badge、agents tags
+- 操作：Remove 按鈕（帶 confirm dialog）
+- 點擊卡片可展開/收合 detail（後續 C2 實作，此階段不需）
 
-- FileWatcherService：驗證 `onSkillFilesChanged` event 觸發
-- MessageRouter：`skill.*` dispatch 路由到正確 service 方法
+### SkillDialogs.tsx
+
+AddSkillDialog：
+- 輸入框：接受 `owner/repo`、`owner/repo@skill`、GitHub URL
+- Scope 選擇：Global / Project（radio buttons）
+- Project scope 需開啟 workspace 才可選
+- Submit → `skill.add` → 關閉 dialog → 刷新列表
+- Loading + error 狀態
+
+RemoveConfirmDialog：
+- 顯示 skill name + scope
+- 確認 → `skill.remove` → 刷新列表
+
+### EditorApp.tsx 修改
+
+```tsx
+case 'skill': return <SkillsPage />;
+```
+
+### CSS
+
+新增 `src/webview/styles/skills.css`：
+- 主要複用 `cards.css` 的 `.card`、`.card-list`、`.scope-badge` 等
+- 僅新增 skills 特有樣式（如 agents tag list）
+
+`src/webview/styles.css` 加入 `@import './styles/skills.css';`
+
+### i18n（三語言同步）
+
+`en.ts` / `zh-TW.ts` / `ja.ts` 新增 `skill.*` namespace：
+- `skill.title` / `skill.empty` / `skill.loading`
+- `skill.scope.global` / `skill.scope.project` / `skill.scope.all`
+- `skill.add.title` / `skill.add.source` / `skill.add.sourcePlaceholder` / `skill.add.scopeLabel`
+- `skill.remove.confirm` / `skill.remove.confirmMessage`
+- `skill.search.placeholder` / `skill.search.noResults`
+- `skill.card.agents` / `skill.card.noDescription`
+- `skill.error.add` / `skill.error.remove` / `skill.error.load`
+- `sidebar.skill` / `sidebar.skill.desc`
+
+### 測試（TDD）
+
+`SkillsPage.test.tsx`：
+1. loading 狀態 → skeleton 顯示
+2. 空狀態 → empty state 元件顯示
+3. 有 skills → SkillCard 正確渲染（name、scope badge、agents）
+4. scope filter 切換 → 過濾正確
+5. search 過濾 → 依 name/description 過濾
+6. Add Skill dialog → 正確送出 `skill.add` message
+7. Remove 按鈕 → confirm dialog → `skill.remove` message
+8. `skill.refresh` push → 觸發 re-fetch
 
 ## 驗收條件
 
-- Given 在 `~/.claude/skills/` 下新增或刪除一個 skill 目錄
-- When FileWatcher 偵測到變更
-- Then debounce 後觸發 `onSkillFilesChanged` event
-- Given webview 發送 `skill.list` request
-- When MessageRouter 收到
-- Then 正確路由到 SkillService.list() 並回傳結果
-- Given EditorPanelManager 的 currentCategory 為 'skill'
-- When skills 目錄變更
-- Then webview 收到 `skill.refresh` push message
-- Given extension 啟動
-- When 命令面板執行 `openSkill`
-- Then editor panel 以 'skill' category 開啟
+- Given 使用者從 sidebar 點擊 Skills
+- When editor panel 開啟
+- Then 顯示已安裝 skills 列表，按 Global / Project 分組
+- Given 使用者點擊 Add Skill 並輸入 `vercel-labs/agent-skills`
+- When 選擇 Global scope 並提交
+- Then 呼叫 `skill.add`，安裝完成後列表刷新
+- Given 使用者點擊 Remove 按鈕
+- When 確認 dialog
+- Then 呼叫 `skill.remove`，移除後列表刷新
+- `npm run typecheck` 和 `npm run build` 通過
+- 三語言 i18n key 完整
+- Component test 全部通過
