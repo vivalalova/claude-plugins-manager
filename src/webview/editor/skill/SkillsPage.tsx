@@ -47,6 +47,11 @@ export function SkillsPage(): React.ReactElement {
   const [onlineLoading, setOnlineLoading] = useState(false);
   const [onlineError, setOnlineError] = useState<string | null>(null);
 
+  // --- Check/Update state ---
+  const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [checkResult, setCheckResult] = useState<string | null>(null);
+
   // --- Registry state ---
   const [registrySort, setRegistrySort] = useState<RegistrySort>('all-time');
   const [registryResults, setRegistryResults] = useState<RegistrySkill[]>([]);
@@ -206,6 +211,39 @@ export function SkillsPage(): React.ReactElement {
     sendRequest<void>({ type: 'skill.openFile', path }).catch(() => {});
   };
 
+  const handleCheckUpdates = async (): Promise<void> => {
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const result = await sendRequest<string>({ type: 'skill.check' });
+      if (result.includes('No skills tracked') || result.includes('up to date') || result.includes('up-to-date')) {
+        addToast(t('skill.check.upToDate'), 'success');
+        setCheckResult(null);
+      } else {
+        setCheckResult(result);
+      }
+    } catch (e) {
+      addToast(t('skill.check.error') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleUpdateAll = async (): Promise<void> => {
+    setUpdating(true);
+    try {
+      await sendRequest<void>({ type: 'skill.update' }, 90_000);
+      setCheckResult(null);
+      registryCacheRef.current.clear();
+      await fetchList();
+      addToast(t('skill.update.done'), 'success');
+    } catch (e) {
+      addToast(t('skill.update.error') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   // --- Render helpers ---
   const renderOnlineContent = (): React.ReactNode => {
     const query = search.trim();
@@ -271,6 +309,11 @@ export function SkillsPage(): React.ReactElement {
         onAddClick={() => setShowAddDialog(true)}
         registrySort={registrySort}
         onRegistrySortChange={setRegistrySort}
+        checking={checking}
+        onCheckUpdates={handleCheckUpdates}
+        updating={updating}
+        onUpdateAll={handleUpdateAll}
+        checkResult={checkResult}
       />
 
       {pageTab === 'installed' && renderInstalledContent()}

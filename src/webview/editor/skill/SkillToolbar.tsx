@@ -14,6 +14,11 @@ interface SkillToolbarProps {
   onAddClick: () => void;
   registrySort: RegistrySort;
   onRegistrySortChange: (sort: RegistrySort) => void;
+  checking: boolean;
+  onCheckUpdates: () => void;
+  updating: boolean;
+  onUpdateAll: () => void;
+  checkResult: string | null;
 }
 
 const SCOPE_OPTIONS: Array<{ value: SkillScope | null; labelKey: string }> = [
@@ -45,6 +50,11 @@ export function SkillToolbar({
   onAddClick,
   registrySort,
   onRegistrySortChange,
+  checking,
+  onCheckUpdates,
+  updating,
+  onUpdateAll,
+  checkResult,
 }: SkillToolbarProps): React.ReactElement {
   const { t } = useI18n();
 
@@ -102,6 +112,14 @@ export function SkillToolbar({
           <button className="btn btn-primary" onClick={onAddClick}>
             {t('skill.page.add')}
           </button>
+          <button className="btn btn-sm" onClick={onCheckUpdates} disabled={checking || updating}>
+            {checking ? t('skill.check.checking') : t('skill.check.button')}
+          </button>
+          {checkResult && (
+            <button className="btn btn-sm btn-primary" onClick={onUpdateAll} disabled={updating}>
+              {updating ? t('skill.update.updating') : t('skill.update.button')}
+            </button>
+          )}
         </>
       )}
       {pageTab === 'registry' && (

@@ -1,112 +1,70 @@
 ---
-title: skills.sh Registry 排行榜（All Time / Trending / Hot）
+title: Skills Check Updates + Update All 功能
 created: 2026-03-16
-priority: medium
-suggested_order: D2
+priority: low
+suggested_order: D3
 blockedBy: c1-skills-page-ui
 phase: needs-commit
 iteration: 2
 max_iterations: 3
 review_iterations: 1
-max_review_iterations: 2
+max_review_iterations: 1
 ---
 
-# skills.sh Registry 排行榜（All Time / Trending / Hot）
+# Skills Check Updates + Update All 功能
 
-在 SkillsPage 新增 Registry tab，顯示 skills.sh 的排行榜（All Time / Trending / Hot 三個分類），支援搜尋和一鍵安裝。
+在 SkillsPage toolbar 加入 Check Updates 和 Update All 按鈕，讓使用者一鍵檢查和更新所有 skills。
 
 ## User Stories
 
-- As a 使用者, I want 瀏覽 skills.sh 的熱門排行榜, so that 我能發現高品質的 skills 並快速安裝
+- As a 使用者, I want 一鍵檢查 skills 是否有新版本並批次更新, so that 保持 skills 為最新
 
 ## 實作內容
 
 ### UI 設計
 
-SkillsPage 新增兩個主 tab：
-- **Installed**（預設）：現有的已安裝 skills 列表
-- **Registry**：skills.sh 排行榜
+SkillToolbar（Installed tab）新增：
+- **Check Updates** 按鈕：呼叫 `skill.check`
+  - 檢查中顯示 loading spinner
+  - 結果：badge 顯示可更新數量 / "All up to date" toast
+- **Update All** 按鈕（當有可用更新時顯示）：呼叫 `skill.update`
+  - 更新中顯示 progress
+  - 完成後刷新列表
 
-Registry tab 內部結構：
-```
-┌──────────────────────────────────────────┐
-│ 🔍 Search skills...                      │
-├──────────────────────────────────────────┤
-│ All Time (88,712)  Trending (24h)  Hot   │
-├──────────────────────────────────────────┤
-│ #  SKILL                        INSTALLS │
-│ 1  find-skills                   561.5K  │
-│    vercel-labs/skills       [Install ▾]  │
-│ 2  vercel-react-best-practices   xxx     │
-│    vercel-labs/agent-skills [Install ▾]  │
-│ ...                                      │
-└──────────────────────────────────────────┘
-```
+### SkillService 方法
 
-### 資料來源
+`check()` 和 `update()` 已在 B1 定義。此 task 負責：
+- 解析 `check` 輸出，提取可更新 skill 數量
+- 更新完成後觸發 `skill.refresh`
 
-呼叫 `skill.registry` message → SkillService.fetchRegistry()：
-- `sort: 'all-time'` → fetch `https://skills.sh/`
-- `sort: 'trending'` → fetch `https://skills.sh/trending`
-- `sort: 'hot'` → fetch `https://skills.sh/hot`
-- `query` → append `?q=keyword`
+### 狀態管理
 
-回傳 `RegistrySkill[]`。
-
-### Registry 卡片 / Row
-
-每個 RegistrySkill 顯示：
-- Rank（#）
-- Skill name
-- Repo（owner/repo）
-- Install count
-- Install 按鈕（下拉選 scope：Global / Project）
-- 已安裝的 skill 顯示 "Installed" badge 而非 Install 按鈕
-
-### Sort Tab 切換
-
-- 三個 tab：All Time / Trending (24h) / Hot
-- 切換時 loading → fetch → 顯示結果
-- 快取前次結果避免重複 fetch（但不持久化）
-
-### 搜尋
-
-- Registry 內搜尋框：debounce 500ms → 帶 `?q=keyword` 重新 fetch
-- Loading + 空結果狀態
-
-### 錯誤處理
-
-- skills.sh 不可達 → ErrorBanner + retry 按鈕
-- HTML 格式變更導致解析失敗 → 顯示友善錯誤，建議直接訪問 skills.sh
+- `updateAvailable: number` — 可更新數量
+- `checking: boolean` — 檢查中
+- `updating: boolean` — 更新中
 
 ### i18n 補充
 
-- `skill.registry.title` / `skill.registry.allTime` / `skill.registry.trending` / `skill.registry.hot`
-- `skill.registry.search` / `skill.registry.installs`
-- `skill.registry.installed` / `skill.registry.installTo`
-- `skill.registry.loading` / `skill.registry.error` / `skill.registry.retry`
-- `skill.tab.installed` / `skill.tab.registry`
+- `skill.check.button` / `skill.check.checking` / `skill.check.upToDate`
+- `skill.check.available` — "{count} updates available"
+- `skill.update.button` / `skill.update.updating` / `skill.update.done`
+- `skill.update.error`
 
 ### 測試
 
-- Sort tab 切換 → 正確 fetch 對應 URL
-- 搜尋 → debounce + 正確 query
-- Install 按鈕 → `skill.add` message
-- 已安裝 skill → 顯示 Installed badge
-- Error → ErrorBanner 顯示 + retry
-- HTML 解析 → mock HTML → 驗證 RegistrySkill[] 解析正確
+- Check → loading → 結果顯示
+- Update All → loading → 完成 → 列表刷新
+- 無更新 → "All up to date" 文字
+- 錯誤 → ErrorBanner
 
 ## 驗收條件
 
-- Given 使用者切換到 Registry tab
-- When 頁面載入
-- Then 顯示 All Time 排行榜，含 rank、name、repo、installs
-- Given 使用者切換到 Trending tab
-- When fetch skills.sh/trending
-- Then 顯示趨勢排行榜
-- Given 使用者在 Registry 搜尋框輸入 "react"
-- When debounce 後 fetch
-- Then 顯示篩選結果
-- Given 某個 registry skill 已安裝
-- When 列表渲染
-- Then 該 skill 顯示 "Installed" badge
+- Given 使用者點擊 Check Updates
+- When CLI 回報有可用更新
+- Then UI 顯示更新數量
+- Given 使用者點擊 Update All
+- When 更新執行中
+- Then 顯示進度指示，完成後列表刷新
+- Given 所有 skills 已是最新
+- When 點擊 Check Updates
+- Then 顯示 "All up to date"

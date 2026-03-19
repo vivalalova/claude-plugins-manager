@@ -469,4 +469,97 @@ describe('SkillsPage', () => {
       }, { timeout: 3000 });
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Check Updates + Update All
+  // -------------------------------------------------------------------------
+
+  describe('Check Updates + Update All', () => {
+    it('Check Updates → up to date → toast', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.check') return 'No skills tracked in lock file.';
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('Check Updates'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'skill.check' }),
+        );
+      });
+    });
+
+    it('Check Updates → has updates → Update All 按鈕出現', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.check') return 'Updates available for 2 skills';
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('Check Updates'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Update All')).toBeTruthy();
+      });
+    });
+
+    it('Update All → 呼叫 skill.update → 完成後刷新', async () => {
+      let checkCalled = false;
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.check') { checkCalled = true; return 'Updates available'; }
+        if (req.type === 'skill.update') return undefined;
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      // 先 check
+      fireEvent.click(screen.getByText('Check Updates'));
+      await waitFor(() => expect(checkCalled).toBe(true));
+      await waitFor(() => expect(screen.getByText('Update All')).toBeTruthy());
+
+      // 再 update
+      fireEvent.click(screen.getByText('Update All'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'skill.update' }),
+          90_000,
+        );
+      });
+    });
+
+    it('Check Updates 失敗 → error toast', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.check') throw new Error('CLI not found');
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('Check Updates'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'skill.check' }),
+        );
+      });
+    });
+  });
 });
