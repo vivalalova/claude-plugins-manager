@@ -85,3 +85,20 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.registry-rank {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  min-width: 28px;
+  flex-shrink: 0;
+}
+
+.registry-installed-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: var(--vscode-testing-iconPassed, #388a34);
+  color: var(--vscode-button-foreground);
+}

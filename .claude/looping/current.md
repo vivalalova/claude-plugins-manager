@@ -1,8 +1,8 @@
 ---
-title: 線上搜尋功能（npx skills find 文字解析）
+title: skills.sh Registry 排行榜（All Time / Trending / Hot）
 created: 2026-03-16
-priority: high
-suggested_order: D1
+priority: medium
+suggested_order: D2
 blockedBy: c1-skills-page-ui
 phase: needs-commit
 iteration: 2
@@ -11,72 +11,102 @@ review_iterations: 1
 max_review_iterations: 2
 ---
 
-# 線上搜尋功能（npx skills find 文字解析）
+# skills.sh Registry 排行榜（All Time / Trending / Hot）
 
-在 SkillsPage 的 toolbar 加入線上搜尋模式，透過 `skill.find` 呼叫 `npx skills find`。
+在 SkillsPage 新增 Registry tab，顯示 skills.sh 的排行榜（All Time / Trending / Hot 三個分類），支援搜尋和一鍵安裝。
 
 ## User Stories
 
-- As a 使用者, I want 在 VSCode 內搜尋線上 skills, so that 不用開瀏覽器去 skills.sh 找
+- As a 使用者, I want 瀏覽 skills.sh 的熱門排行榜, so that 我能發現高品質的 skills 並快速安裝
 
 ## 實作內容
 
 ### UI 設計
 
-SkillToolbar 新增搜尋模式切換：
-- **Local** 模式（預設）：過濾已安裝 skills（即時 filter，不走 API）
-- **Online** 模式：打 `skill.find` API，搜尋 skills.sh registry
+SkillsPage 新增兩個主 tab：
+- **Installed**（預設）：現有的已安裝 skills 列表
+- **Registry**：skills.sh 排行榜
 
-搜尋框行為：
-- Online 模式：debounce 500ms → 送 `skill.find` request
-- 最少 2 字元才觸發搜尋
-- Loading spinner 在搜尋進行中
-- 結果顯示為卡片列表
+Registry tab 內部結構：
+```
+┌──────────────────────────────────────────┐
+│ 🔍 Search skills...                      │
+├──────────────────────────────────────────┤
+│ All Time (88,712)  Trending (24h)  Hot   │
+├──────────────────────────────────────────┤
+│ #  SKILL                        INSTALLS │
+│ 1  find-skills                   561.5K  │
+│    vercel-labs/skills       [Install ▾]  │
+│ 2  vercel-react-best-practices   xxx     │
+│    vercel-labs/agent-skills [Install ▾]  │
+│ ...                                      │
+└──────────────────────────────────────────┘
+```
 
-### 搜尋結果卡片
+### 資料來源
 
-每個 `SkillSearchResult` 顯示：
-- Skill 全名（如 `vercel-labs/agent-skills@find-skills`）
-- 安裝數量
-- skills.sh URL（可點擊，在外部瀏覽器開啟）
+呼叫 `skill.registry` message → SkillService.fetchRegistry()：
+- `sort: 'all-time'` → fetch `https://skills.sh/`
+- `sort: 'trending'` → fetch `https://skills.sh/trending`
+- `sort: 'hot'` → fetch `https://skills.sh/hot`
+- `query` → append `?q=keyword`
+
+回傳 `RegistrySkill[]`。
+
+### Registry 卡片 / Row
+
+每個 RegistrySkill 顯示：
+- Rank（#）
+- Skill name
+- Repo（owner/repo）
+- Install count
 - Install 按鈕（下拉選 scope：Global / Project）
+- 已安裝的 skill 顯示 "Installed" badge 而非 Install 按鈕
 
-### 文字解析（SkillService.find）
+### Sort Tab 切換
 
-`npx skills find <query>` 輸出格式（已在 A1 驗證）：
-- 含 ANSI escape codes → 用 regex `\x1B\[[0-9;]*m` 去除
-- 跳過 ASCII art banner 行
-- 按行配對解析 skill 資訊
+- 三個 tab：All Time / Trending (24h) / Hot
+- 切換時 loading → fetch → 顯示結果
+- 快取前次結果避免重複 fetch（但不持久化）
+
+### 搜尋
+
+- Registry 內搜尋框：debounce 500ms → 帶 `?q=keyword` 重新 fetch
+- Loading + 空結果狀態
 
 ### 錯誤處理
 
-- CLI 不可用 → 顯示 ErrorBanner，提示安裝 `npx skills`
-- 搜尋超時 → 顯示超時錯誤
-- 無結果 → 顯示 "No results found"
+- skills.sh 不可達 → ErrorBanner + retry 按鈕
+- HTML 格式變更導致解析失敗 → 顯示友善錯誤，建議直接訪問 skills.sh
 
 ### i18n 補充
 
-- `skill.search.online` / `skill.search.local`
-- `skill.search.minChars` — "輸入至少 2 個字元"
-- `skill.search.searching` / `skill.search.noOnlineResults`
-- `skill.search.installTo` — "安裝到..."
+- `skill.registry.title` / `skill.registry.allTime` / `skill.registry.trending` / `skill.registry.hot`
+- `skill.registry.search` / `skill.registry.installs`
+- `skill.registry.installed` / `skill.registry.installTo`
+- `skill.registry.loading` / `skill.registry.error` / `skill.registry.retry`
+- `skill.tab.installed` / `skill.tab.registry`
 
 ### 測試
 
-- 搜尋模式切換 → UI 正確切換
-- debounce → 驗證只在停止輸入 500ms 後送出 request
-- 結果渲染 → 卡片顯示正確資訊
-- Install 按鈕 → 觸發 `skill.add` message
-- 空結果 → 顯示空狀態
+- Sort tab 切換 → 正確 fetch 對應 URL
+- 搜尋 → debounce + 正確 query
+- Install 按鈕 → `skill.add` message
+- 已安裝 skill → 顯示 Installed badge
+- Error → ErrorBanner 顯示 + retry
+- HTML 解析 → mock HTML → 驗證 RegistrySkill[] 解析正確
 
 ## 驗收條件
 
-- Given 使用者切換到 Online 搜尋模式並輸入 "react"
-- When debounce 後送出 `skill.find` request
-- Then 顯示搜尋結果列表，每個結果含 fullId、安裝數、URL、Install 按鈕
-- Given 搜尋結果中點擊 Install → Global
-- When 呼叫 `skill.add`
-- Then 安裝成功後，已安裝列表刷新，該 skill 出現在 Global 區段
-- Given CLI 輸出包含 ANSI escape codes
-- When 解析
-- Then 正確提取所有搜尋結果，忽略非資料行
+- Given 使用者切換到 Registry tab
+- When 頁面載入
+- Then 顯示 All Time 排行榜，含 rank、name、repo、installs
+- Given 使用者切換到 Trending tab
+- When fetch skills.sh/trending
+- Then 顯示趨勢排行榜
+- Given 使用者在 Registry 搜尋框輸入 "react"
+- When debounce 後 fetch
+- Then 顯示篩選結果
+- Given 某個 registry skill 已安裝
+- When 列表渲染
+- Then 該 skill 顯示 "Installed" badge

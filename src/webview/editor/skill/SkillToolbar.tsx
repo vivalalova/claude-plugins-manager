@@ -1,17 +1,19 @@
 import React from 'react';
-import type { SkillScope } from '../../../shared/types';
+import type { RegistrySort, SkillScope } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 
-type SearchMode = 'local' | 'online';
+export type PageTab = 'installed' | 'online' | 'registry';
 
 interface SkillToolbarProps {
   search: string;
   onSearchChange: (value: string) => void;
-  searchMode: SearchMode;
-  onSearchModeChange: (mode: SearchMode) => void;
+  pageTab: PageTab;
+  onPageTabChange: (tab: PageTab) => void;
   scopeFilter: SkillScope | null;
   onScopeFilterChange: (scope: SkillScope | null) => void;
   onAddClick: () => void;
+  registrySort: RegistrySort;
+  onRegistrySortChange: (sort: RegistrySort) => void;
 }
 
 const SCOPE_OPTIONS: Array<{ value: SkillScope | null; labelKey: string }> = [
@@ -20,37 +22,48 @@ const SCOPE_OPTIONS: Array<{ value: SkillScope | null; labelKey: string }> = [
   { value: 'project', labelKey: 'skill.add.scopeProject' },
 ];
 
-const MODE_OPTIONS: Array<{ value: SearchMode; labelKey: string }> = [
-  { value: 'local', labelKey: 'skill.search.modeLocal' },
+const TAB_OPTIONS: Array<{ value: PageTab; labelKey: string }> = [
+  { value: 'installed', labelKey: 'skill.tab.installed' },
   { value: 'online', labelKey: 'skill.search.modeOnline' },
+  { value: 'registry', labelKey: 'skill.tab.registry' },
 ];
 
-/** Skills toolbar — search mode toggle + search + scope filter / add button */
+const SORT_OPTIONS: Array<{ value: RegistrySort; labelKey: string }> = [
+  { value: 'all-time', labelKey: 'skill.registry.allTime' },
+  { value: 'trending', labelKey: 'skill.registry.trending' },
+  { value: 'hot', labelKey: 'skill.registry.hot' },
+];
+
+/** Skills toolbar — page tab + search + contextual controls */
 export function SkillToolbar({
   search,
   onSearchChange,
-  searchMode,
-  onSearchModeChange,
+  pageTab,
+  onPageTabChange,
   scopeFilter,
   onScopeFilterChange,
   onAddClick,
+  registrySort,
+  onRegistrySortChange,
 }: SkillToolbarProps): React.ReactElement {
   const { t } = useI18n();
 
-  const placeholder = searchMode === 'online'
+  const placeholder = pageTab === 'online'
     ? t('skill.search.placeholder')
-    : t('skill.page.searchPlaceholder');
+    : pageTab === 'registry'
+      ? t('skill.registry.searchPlaceholder')
+      : t('skill.page.searchPlaceholder');
 
   return (
     <div className="search-row">
       <div className="filter-chips">
-        {MODE_OPTIONS.map((opt) => (
+        {TAB_OPTIONS.map((opt) => (
           <button
             key={opt.value}
-            className={`filter-chip${searchMode === opt.value ? ' filter-chip--active' : ''}`}
-            onClick={() => onSearchModeChange(opt.value)}
+            className={`filter-chip${pageTab === opt.value ? ' filter-chip--active' : ''}`}
+            onClick={() => onPageTabChange(opt.value)}
           >
-            {t(opt.labelKey as 'skill.search.modeLocal')}
+            {t(opt.labelKey as 'skill.tab.installed')}
           </button>
         ))}
       </div>
@@ -73,7 +86,7 @@ export function SkillToolbar({
           </button>
         )}
       </div>
-      {searchMode === 'local' && (
+      {pageTab === 'installed' && (
         <>
           <div className="filter-chips">
             {SCOPE_OPTIONS.map((opt) => (
@@ -90,6 +103,19 @@ export function SkillToolbar({
             {t('skill.page.add')}
           </button>
         </>
+      )}
+      {pageTab === 'registry' && (
+        <div className="filter-chips">
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              className={`filter-chip${registrySort === opt.value ? ' filter-chip--active' : ''}`}
+              onClick={() => onRegistrySortChange(opt.value)}
+            >
+              {t(opt.labelKey as 'skill.registry.allTime')}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

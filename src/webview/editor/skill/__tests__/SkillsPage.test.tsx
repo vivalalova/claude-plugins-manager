@@ -18,7 +18,7 @@ vi.mock('../../../vscode', () => ({
 
 import { SkillsPage } from '../SkillsPage';
 import { ToastProvider } from '../../../components/Toast';
-import type { AgentSkill, SkillSearchResult } from '../../../../shared/types';
+import type { AgentSkill, RegistrySkill, SkillSearchResult } from '../../../../shared/types';
 
 const renderPage = () => renderWithI18n(<ToastProvider><SkillsPage /></ToastProvider>);
 
@@ -266,7 +266,7 @@ describe('SkillsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Local')).toBeTruthy();
+        expect(screen.getByText('Installed')).toBeTruthy();
         expect(screen.getByText('Online')).toBeTruthy();
       });
 
@@ -280,7 +280,7 @@ describe('SkillsPage', () => {
       setupOnlineMocks();
       renderPage();
 
-      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
       fireEvent.click(screen.getByText('Online'));
 
       // 輸入 1 字
@@ -294,7 +294,7 @@ describe('SkillsPage', () => {
       setupOnlineMocks();
       renderPage();
 
-      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
       fireEvent.click(screen.getByText('Online'));
 
       const input = screen.getByPlaceholderText('Search skills online...');
@@ -315,7 +315,7 @@ describe('SkillsPage', () => {
       setupOnlineMocks();
       renderPage();
 
-      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
       fireEvent.click(screen.getByText('Online'));
 
       const input = screen.getByPlaceholderText('Search skills online...');
@@ -347,7 +347,7 @@ describe('SkillsPage', () => {
       });
 
       renderPage();
-      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
       fireEvent.click(screen.getByText('Online'));
 
       const input = screen.getByPlaceholderText('Search skills online...');
@@ -362,7 +362,7 @@ describe('SkillsPage', () => {
       setupOnlineMocks();
       renderPage();
 
-      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
 
       const input = screen.getByPlaceholderText('Search skills...');
       fireEvent.change(input, { target: { value: 'some text' } });
@@ -371,6 +371,102 @@ describe('SkillsPage', () => {
 
       const onlineInput = screen.getByPlaceholderText('Search skills online...');
       expect((onlineInput as HTMLInputElement).value).toBe('');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Registry
+  // -------------------------------------------------------------------------
+
+  describe('Registry 排行榜', () => {
+    const mockRegistryResults: RegistrySkill[] = [
+      { rank: 1, name: 'find-skills', repo: 'vercel-labs/skills', installs: '618.0K', url: 'https://skills.sh/vercel-labs/skills/find-skills' },
+      { rank: 2, name: 'test-skill', repo: 'owner/repo', installs: '7.7K', url: 'https://skills.sh/owner/repo/test-skill' },
+    ];
+
+    function setupRegistryMocks(installed: AgentSkill[] = []): void {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return installed;
+        if (req.type === 'workspace.getFolders') return [{ name: 'ws' }];
+        if (req.type === 'skill.registry') return mockRegistryResults;
+        if (req.type === 'skill.add') return undefined;
+        if (req.type === 'openExternal') return undefined;
+        return undefined;
+      });
+    }
+
+    it('Registry tab → 顯示 sort tabs + 載入排行榜', async () => {
+      setupRegistryMocks();
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      await waitFor(() => {
+        expect(screen.getByText('find-skills')).toBeTruthy();
+        expect(screen.getByText('test-skill')).toBeTruthy();
+      }, { timeout: 3000 });
+
+      // Sort tabs 顯示
+      expect(screen.getByText('All Time')).toBeTruthy();
+      expect(screen.getByText('Trending')).toBeTruthy();
+      expect(screen.getByText('Hot')).toBeTruthy();
+
+      // Rank + installs
+      expect(screen.getByText('#1')).toBeTruthy();
+      expect(screen.getByText('#2')).toBeTruthy();
+      expect(screen.getByText('618.0K installs')).toBeTruthy();
+    });
+
+    it('Sort tab 切換 → 重新 fetch', async () => {
+      setupRegistryMocks();
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      await waitFor(() => expect(screen.getByText('find-skills')).toBeTruthy(), { timeout: 3000 });
+
+      // 切到 Trending
+      fireEvent.click(screen.getByText('Trending'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'skill.registry', sort: 'trending' }),
+        );
+      });
+    });
+
+    it('已安裝 skill → 顯示 Installed badge', async () => {
+      setupRegistryMocks([makeSkill('find-skills', 'global')]);
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      await waitFor(() => expect(screen.getByText('find-skills')).toBeTruthy(), { timeout: 3000 });
+
+      // find-skills 已安裝 → 顯示 "Installed" badge（注意有多個 "Installed" 文字）
+      const installedBadges = screen.getAllByText('Installed');
+      // 至少 2 個：tab chip + badge
+      expect(installedBadges.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('Registry error → 顯示 error banner', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.registry') throw new Error('skills.sh unavailable');
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      await waitFor(() => {
+        expect(screen.getByText('skills.sh unavailable')).toBeTruthy();
+      }, { timeout: 3000 });
     });
   });
 });
