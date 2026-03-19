@@ -1,26 +1,32 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { SkillCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, SkillIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { SkillToolbar } from './SkillToolbar';
 import { SkillSections } from './SkillSections';
+import { SkillSearchResultCard } from './SkillSearchResultCard';
 import { AddSkillDialog, RemoveConfirmDialog } from './SkillDialogs';
 import { useToast } from '../../components/Toast';
-import type { AgentSkill, SkillScope } from '../../../shared/types';
+import { useDebouncedValue } from '../../hooks/useDebounce';
+import type { AgentSkill, SkillScope, SkillSearchResult } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
+
+type SearchMode = 'local' | 'online';
 
 /**
  * Skills 管理頁面。
- * 顯示已安裝 skills 列表，支援 add/remove，按 scope 分組。
+ * Local 模式：已安裝 skills 列表 + add/remove。
+ * Online 模式：npx skills find 線上搜尋 + install。
  */
 export function SkillsPage(): React.ReactElement {
   const { t } = useI18n();
   const { addToast } = useToast();
+
+  // --- Local mode state ---
   const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
   const [scopeFilter, setScopeFilter] = useState<SkillScope | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingSkill, setAddingSkill] = useState(false);
@@ -28,6 +34,19 @@ export function SkillsPage(): React.ReactElement {
   const [removingSkills, setRemovingSkills] = useState<Set<string>>(new Set());
   const [hasWorkspace, setHasWorkspace] = useState(false);
 
+  // --- Shared state ---
+  const [search, setSearch] = useState('');
+  const [searchMode, setSearchMode] = useState<SearchMode>('local');
+
+  // --- Online mode state ---
+  const [onlineResults, setOnlineResults] = useState<SkillSearchResult[]>([]);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [installingSkills, setInstallingSkills] = useState<Set<string>>(new Set());
+  const [debouncedSearch, flushSearch] = useDebouncedValue(search, 500);
+  const searchIdRef = useRef(0);
+
+  // --- Fetch installed list ---
   const fetchList = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -48,16 +67,54 @@ export function SkillsPage(): React.ReactElement {
       .catch(() => {});
   }, [fetchList]);
 
-  // 訂閱 skill.refresh push
   useEffect(() => {
     return onPushMessage((msg) => {
-      if (msg.type === 'skill.refresh') {
-        fetchList();
-      }
+      if (msg.type === 'skill.refresh') fetchList();
     });
   }, [fetchList]);
 
-  // 過濾 + 分組
+  // --- Online search effect ---
+  useEffect(() => {
+    if (searchMode !== 'online') return;
+    const query = debouncedSearch.trim();
+    if (query.length < 2) {
+      setOnlineResults([]);
+      setOnlineError(null);
+      return;
+    }
+
+    const id = ++searchIdRef.current;
+    setOnlineLoading(true);
+    setOnlineError(null);
+
+    sendRequest<SkillSearchResult[]>({ type: 'skill.find', query })
+      .then((results) => {
+        if (searchIdRef.current === id) {
+          setOnlineResults(results);
+        }
+      })
+      .catch((e) => {
+        if (searchIdRef.current === id) {
+          setOnlineError(e instanceof Error ? e.message : String(e));
+        }
+      })
+      .finally(() => {
+        if (searchIdRef.current === id) {
+          setOnlineLoading(false);
+        }
+      });
+  }, [debouncedSearch, searchMode]);
+
+  // --- Mode switch ---
+  const handleModeChange = (mode: SearchMode): void => {
+    setSearchMode(mode);
+    setSearch('');
+    flushSearch('');
+    setOnlineResults([]);
+    setOnlineError(null);
+  };
+
+  // --- Local filter ---
   const filtered = useMemo(() => {
     let result = skills;
     if (scopeFilter) {
@@ -76,6 +133,7 @@ export function SkillsPage(): React.ReactElement {
   const globalSkills = useMemo(() => filtered.filter((s) => s.scope === 'global'), [filtered]);
   const projectSkills = useMemo(() => filtered.filter((s) => s.scope === 'project'), [filtered]);
 
+  // --- Handlers ---
   const handleAdd = async (source: string, scope: SkillScope): Promise<void> => {
     setAddingSkill(true);
     try {
@@ -99,16 +157,105 @@ export function SkillsPage(): React.ReactElement {
     } catch (e) {
       addToast(t('skill.error.remove') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
     } finally {
-      setRemovingSkills((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
+      setRemovingSkills((prev) => { const next = new Set(prev); next.delete(key); return next; });
     }
+  };
+
+  const handleInstallFromSearch = async (source: string, scope: SkillScope): Promise<void> => {
+    setInstallingSkills((prev) => new Set(prev).add(source));
+    try {
+      await sendRequest<void>({ type: 'skill.add', source, scope }, 90_000);
+      await fetchList();
+      addToast(`Installed ${source}`, 'success');
+    } catch (e) {
+      addToast(t('skill.error.add') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+    } finally {
+      setInstallingSkills((prev) => { const next = new Set(prev); next.delete(source); return next; });
+    }
+  };
+
+  const handleViewOnline = (url: string): void => {
+    sendRequest<void>({ type: 'openExternal', url }).catch(() => {});
   };
 
   const handleOpenFile = (path: string): void => {
     sendRequest<void>({ type: 'skill.openFile', path }).catch(() => {});
+  };
+
+  // --- Render ---
+  const renderOnlineContent = (): React.ReactNode => {
+    const query = search.trim();
+
+    if (onlineError) {
+      return <ErrorBanner message={onlineError} onDismiss={() => setOnlineError(null)} />;
+    }
+
+    if (onlineLoading) {
+      return <SkillCardSkeleton />;
+    }
+
+    if (query.length < 2) {
+      return <div className="skill-search-hint">{t('skill.search.minChars')}</div>;
+    }
+
+    if (onlineResults.length === 0) {
+      return (
+        <EmptyState
+          icon={<NoResultsIcon />}
+          title={t('skill.search.noResults').replace('{query}', query)}
+        />
+      );
+    }
+
+    return (
+      <div className="card-list">
+        {onlineResults.map((result) => (
+          <SkillSearchResultCard
+            key={result.fullId}
+            result={result}
+            installing={installingSkills.has(result.fullId)}
+            hasWorkspace={hasWorkspace}
+            onInstall={handleInstallFromSearch}
+            onViewOnline={handleViewOnline}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderLocalContent = (): React.ReactNode => {
+    if (loading) return <SkillCardSkeleton />;
+
+    if (skills.length === 0) {
+      return (
+        <EmptyState
+          icon={<SkillIcon />}
+          title={t('skill.page.noSkills')}
+          description={t('skill.page.noSkillsDesc')}
+          action={{ label: t('skill.page.add'), onClick: () => setShowAddDialog(true) }}
+        />
+      );
+    }
+
+    if (filtered.length === 0) {
+      return (
+        <EmptyState
+          icon={<NoResultsIcon />}
+          title={t('skill.page.noResults')}
+          action={{ label: t('skill.page.clearFilters'), onClick: () => { setSearch(''); setScopeFilter(null); } }}
+        />
+      );
+    }
+
+    return (
+      <SkillSections
+        globalSkills={globalSkills}
+        projectSkills={projectSkills}
+        removingSkills={removingSkills}
+        onRemove={(name, scope) => setConfirmRemove({ name, scope })}
+        onOpenFile={handleOpenFile}
+      />
+    );
   };
 
   return (
@@ -125,35 +272,14 @@ export function SkillsPage(): React.ReactElement {
       <SkillToolbar
         search={search}
         onSearchChange={setSearch}
+        searchMode={searchMode}
+        onSearchModeChange={handleModeChange}
         scopeFilter={scopeFilter}
         onScopeFilterChange={setScopeFilter}
         onAddClick={() => setShowAddDialog(true)}
       />
 
-      {loading ? (
-        <SkillCardSkeleton />
-      ) : skills.length === 0 ? (
-        <EmptyState
-          icon={<SkillIcon />}
-          title={t('skill.page.noSkills')}
-          description={t('skill.page.noSkillsDesc')}
-          action={{ label: t('skill.page.add'), onClick: () => setShowAddDialog(true) }}
-        />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<NoResultsIcon />}
-          title={t('skill.page.noResults')}
-          action={{ label: t('skill.page.clearFilters'), onClick: () => { setSearch(''); setScopeFilter(null); } }}
-        />
-      ) : (
-        <SkillSections
-          globalSkills={globalSkills}
-          projectSkills={projectSkills}
-          removingSkills={removingSkills}
-          onRemove={(name, scope) => setConfirmRemove({ name, scope })}
-          onOpenFile={handleOpenFile}
-        />
-      )}
+      {searchMode === 'online' ? renderOnlineContent() : renderLocalContent()}
 
       <AddSkillDialog
         open={showAddDialog}

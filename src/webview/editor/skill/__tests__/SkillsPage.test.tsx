@@ -18,7 +18,7 @@ vi.mock('../../../vscode', () => ({
 
 import { SkillsPage } from '../SkillsPage';
 import { ToastProvider } from '../../../components/Toast';
-import type { AgentSkill } from '../../../../shared/types';
+import type { AgentSkill, SkillSearchResult } from '../../../../shared/types';
 
 const renderPage = () => renderWithI18n(<ToastProvider><SkillsPage /></ToastProvider>);
 
@@ -237,6 +237,140 @@ describe('SkillsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeTruthy();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Online search
+  // -------------------------------------------------------------------------
+
+  describe('Online 搜尋模式', () => {
+    const mockSearchResults: SkillSearchResult[] = [
+      { fullId: 'owner/repo@test-skill', name: 'test-skill', repo: 'owner/repo', installs: '7.7K', url: 'https://skills.sh/owner/repo/test-skill' },
+      { fullId: 'vercel/skills@find', name: 'find', repo: 'vercel/skills', installs: '618.0K', url: 'https://skills.sh/vercel/skills/find' },
+    ];
+
+    function setupOnlineMocks(): void {
+      mockSendRequest.mockImplementation(async (req: { type: string; query?: string }) => {
+        if (req.type === 'skill.list') return [];
+        if (req.type === 'workspace.getFolders') return [{ name: 'ws' }];
+        if (req.type === 'skill.find') return mockSearchResults;
+        if (req.type === 'skill.add') return undefined;
+        if (req.type === 'openExternal') return undefined;
+        return undefined;
+      });
+    }
+
+    it('搜尋模式切換 → Online chip 可點擊', async () => {
+      setupOnlineMocks();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Local')).toBeTruthy();
+        expect(screen.getByText('Online')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Online'));
+
+      // Online 模式下不顯示 scope filter 和 Add 按鈕
+      expect(screen.queryByText('Add Skill')).toBeNull();
+    });
+
+    it('Online 模式 + 輸入 < 2 字元 → 顯示提示', async () => {
+      setupOnlineMocks();
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      fireEvent.click(screen.getByText('Online'));
+
+      // 輸入 1 字
+      const input = screen.getByPlaceholderText('Search skills online...');
+      fireEvent.change(input, { target: { value: 'a' } });
+
+      expect(screen.getByText('Enter at least 2 characters')).toBeTruthy();
+    });
+
+    it('Online 模式 + 搜尋結果渲染正確', async () => {
+      setupOnlineMocks();
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      fireEvent.click(screen.getByText('Online'));
+
+      const input = screen.getByPlaceholderText('Search skills online...');
+      fireEvent.change(input, { target: { value: 'test' } });
+
+      // 等待 debounce(500ms) + API resolve
+      await waitFor(() => {
+        expect(screen.getByText('test-skill')).toBeTruthy();
+        expect(screen.getByText('find')).toBeTruthy();
+      }, { timeout: 3000 });
+
+      expect(screen.getByText('owner/repo')).toBeTruthy();
+      expect(screen.getByText('vercel/skills')).toBeTruthy();
+      expect(screen.getByText('7.7K installs')).toBeTruthy();
+    });
+
+    it('Install 按鈕 → scope picker → skill.add', async () => {
+      setupOnlineMocks();
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      fireEvent.click(screen.getByText('Online'));
+
+      const input = screen.getByPlaceholderText('Search skills online...');
+      fireEvent.change(input, { target: { value: 'test' } });
+
+      await waitFor(() => expect(screen.getByText('test-skill')).toBeTruthy(), { timeout: 3000 });
+
+      // 點 Install → scope picker
+      const installButtons = screen.getAllByText('Install');
+      fireEvent.click(installButtons[0]);
+
+      await waitFor(() => expect(screen.getByText('Global')).toBeTruthy());
+      fireEvent.click(screen.getByText('Global'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'skill.add', source: 'owner/repo@test-skill', scope: 'global' }),
+          90_000,
+        );
+      });
+    });
+
+    it('Online 空結果 → empty state', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.find') return [];
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+      fireEvent.click(screen.getByText('Online'));
+
+      const input = screen.getByPlaceholderText('Search skills online...');
+      fireEvent.change(input, { target: { value: 'nonexistent' } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/No skills found for/)).toBeTruthy();
+      }, { timeout: 3000 });
+    });
+
+    it('模式切換清除搜尋', async () => {
+      setupOnlineMocks();
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Local')).toBeTruthy());
+
+      const input = screen.getByPlaceholderText('Search skills...');
+      fireEvent.change(input, { target: { value: 'some text' } });
+
+      fireEvent.click(screen.getByText('Online'));
+
+      const onlineInput = screen.getByPlaceholderText('Search skills online...');
+      expect((onlineInput as HTMLInputElement).value).toBe('');
     });
   });
 });
