@@ -44,3 +44,12 @@ export const CLI_RETRYABLE_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'EAI_AGAI
 
 /** MCP 狀態輪詢間隔（毫秒）— fallback，主要由 FileWatcher 驅動 */
 export const MCP_POLL_INTERVAL_MS = 60_000;
+
+/** npx skills CLI timeout（毫秒）— find/check 等連網操作 */
+export const SKILL_CLI_TIMEOUT_MS = 30_000;
+
+/** npx skills add timeout（毫秒）— git clone 可能較慢 */
+export const SKILL_CLI_LONG_TIMEOUT_MS = 60_000;
+
+/** skills.sh registry base URL */
+export const SKILL_REGISTRY_URL = 'https://skills.sh';

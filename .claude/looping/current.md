@@ -1,99 +1,91 @@
 ---
-title: 定義 AgentSkill 型別、Protocol messages、Constants
+title: 實作 SkillService 封裝 npx skills CLI + skills.sh 解析
 created: 2026-03-16
 priority: critical
-suggested_order: A2
-blockedBy: a1-verify-npx-skills-cli
+suggested_order: B1
+blockedBy: a2-types-protocol-constants
 phase: needs-commit
 iteration: 2
 max_iterations: 3
-review_iterations: 1
+review_iterations: 3
 ---
 
-# 定義 AgentSkill 型別、Protocol messages、Constants
+# 實作 SkillService 封裝 npx skills CLI + skills.sh 解析
 
-在 shared 層建立所有 agent-skills 相關的型別定義、通訊協議、常數，為後續 Service 和 UI 任務建立基礎。
+建立 `src/extension/services/SkillService.ts`，封裝所有 `npx skills` CLI 操作和 skills.sh HTML 解析。
 
 ## User Stories
 
-- As a 開發者, I want 統一的型別定義, so that extension host 和 webview 之間通訊有型別安全保障
+- As a 使用者, I want 在 VSCode 內管理 skills, so that 不需切到終端機手動執行 npx skills
+- As a 使用者, I want 瀏覽 skills.sh registry, so that 我能發現並安裝高品質的 skills
 
 ## 實作內容
 
-### 1. `src/shared/types.ts` 新增
+### npx 路徑搜尋
 
-```typescript
-// Scope：只有 global + project（CLI 限制）
-export type SkillScope = 'global' | 'project';
+`npx` 不同於 `claude`，需要獨立的路徑搜尋邏輯：
+- 候選：`~/.nvm/versions/node/*/bin/npx`（取最新版）、`/usr/local/bin/npx`、`/opt/homebrew/bin/npx`、PATH 中的 npx
+- 參考 CliService 的路徑搜尋模式，但不直接擴充 CliService（職責分離）
+- 快取找到的路徑，避免每次 spawn 都重新搜尋
 
-// 對應 npx skills list --json 的結構 + SKILL.md frontmatter
-export interface AgentSkill {
-  name: string;
-  path: string;
-  scope: SkillScope;
-  agents: string[];
-  description?: string;
-  model?: string;
-  context?: string;
-  allowedTools?: string[];
-}
+### CLI 封裝方法
 
-// skills.sh registry 列表項目
-export interface RegistrySkill {
-  rank: number;
-  name: string;
-  repo: string;       // "owner/repo"
-  installs: string;   // "561.5K"
-  url: string;        // "/owner/repo/skill-name"
-}
+| 方法 | CLI 命令 | 回傳 |
+|------|----------|------|
+| `list(scope?)` | `npx skills list --json [--global]` | `AgentSkill[]` |
+| `add(source, scope)` | `npx skills add <source> --yes --all [--global]` | `void` |
+| `remove(name, scope)` | `npx skills remove <name> --yes --all [--global]` | `void` |
+| `find(query)` | `npx skills find <query>` | `SkillSearchResult[]`（文字解析） |
+| `check()` | `npx skills check` | 更新資訊文字 |
+| `update()` | `npx skills update` | `void` |
+| `getDetail(skillPath)` | 讀取 SKILL.md | `{ frontmatter, body }` |
 
-// skills.sh registry 排序方式
-export type RegistrySort = 'all-time' | 'trending' | 'hot';
+注意：
+- scope mapping：`global` → `--global` flag，`project` → 預設（需 cwd = workspace path）
+- `add`/`remove` 必須 `--yes --all` 避免互動式 TUI
+- `find` 輸出需去除 ANSI escape codes 後 regex 解析
+- 所有 CLI spawn 的 env 不需清除 `CLAUDECODE`（不是 claude 子命令）
 
-// npx skills find 文字解析結果
-export interface SkillSearchResult {
-  fullId: string;     // "owner/repo@skill-name"
-  name: string;
-  repo: string;       // "owner/repo"
-  installs?: string;
-  url?: string;
-}
-```
+### skills.sh Registry 解析
 
-### 2. `src/extension/messaging/protocol.ts` 新增
+| 方法 | URL | 回傳 |
+|------|-----|------|
+| `fetchRegistry(sort, query?)` | `https://skills.sh/[trending\|hot]?q=keyword` | `RegistrySkill[]` |
 
-RequestMessage：
-- `skill.list` — 列出已安裝 skills（可選 scope filter）
-- `skill.add` — 安裝 skill（source + scope）
-- `skill.remove` — 移除 skill（name + scope）
-- `skill.find` — `npx skills find` 文字搜尋
-- `skill.check` — 檢查更新
-- `skill.update` — 更新所有 skills
-- `skill.getDetail` — 取得 SKILL.md 完整內容
-- `skill.registry` — 從 skills.sh 取得 registry 列表（sort + 可選 query）
-- `skill.openFile` — 在 VSCode 中打開 SKILL.md
+解析策略：
+- Fetch HTML → regex 提取 skill rows
+- 每個 row 的 CSS 結構：`<a href="/owner/repo/skill">` 包含 rank + name + repo + installs
+- 去除 HTML tags 後提取文字
+- 搜尋用 `/?q=keyword`（`/search?q=` 會 redirect 回 `/?q=`）
+- `/trending` 和 `/hot` 是獨立路由
 
-PushMessage：
-- `skill.refresh` — skills 檔案變更通知
+### 測試（TDD）
 
-### 3. `src/extension/constants.ts` 修改
+先寫 `src/extension/services/__tests__/SkillService.integration.test.ts`：
 
-- `PanelCategory` union 加入 `'skill'`
-- `COMMANDS` 加入 `openSkill`
-- `PANEL_TITLES` 加入 `skill` entry
-
-### 4. `package.json` 修改
-
-- `contributes.commands` 加入 `claude-plugins-manager.openSkill`
+1. **list 解析**：mock execFile 回傳 JSON stdout → 驗證解析為 AgentSkill[]
+2. **list 空結果**：mock 空陣列 → 回傳 []
+3. **add 參數**：驗證 global scope 帶 `--global`，project scope 帶 `cwd`
+4. **remove 參數**：同上
+5. **find 文字解析**：mock CLI 文字輸出（含 ANSI codes）→ 驗證解析為 SkillSearchResult[]
+6. **find 空結果**：mock 無結果輸出 → 回傳 []
+7. **registry HTML 解析**：mock HTML → 驗證解析為 RegistrySkill[]
+8. **registry 搜尋**：mock search HTML → 驗證 query 傳遞正確
+9. **npx 路徑搜尋**：mock fs.existsSync → 驗證候選路徑順序
+10. **getDetail**：真實 filesystem，建臨時 SKILL.md → 驗證 frontmatter + body 分離
 
 ## 驗收條件
 
-- Given 新增型別到 `src/shared/types.ts`
-- When 執行 `npm run typecheck`
-- Then 無型別錯誤，新型別可被 extension 和 webview 雙方 import
-- Given Protocol 新增 `skill.*` messages
-- When MessageRouter 參考這些型別
-- Then 型別推導正確，requestId 自動帶入
-- Given Constants 新增 `'skill'` PanelCategory
-- When EditorPanelManager 使用
-- Then switch-case 涵蓋新 category
+- Given SkillService 已實作
+- When 呼叫 `list()` 方法
+- Then 回傳與 `npx skills list --json` 相同的結構化資料
+- Given 呼叫 `find('test')`
+- When CLI 回傳文字結果
+- Then 去除 ANSI codes 後正確解析為 SkillSearchResult[]
+- Given 呼叫 `fetchRegistry('trending')`
+- When fetch skills.sh/trending HTML
+- Then 解析出 RegistrySkill[] 含 rank、name、repo、installs
+- Given 呼叫 `add('vercel-labs/agent-skills', 'global')`
+- When CLI 執行
+- Then 使用 `--yes --all --global` flags，無互動式 prompt
+- Integration test 全部通過
