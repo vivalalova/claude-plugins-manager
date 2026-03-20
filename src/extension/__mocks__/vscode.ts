@@ -38,8 +38,8 @@ export class Uri {
   }
 
   static parse(value: string): { scheme: string; toString: () => string } {
-    const match = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)
-    const scheme = match ? match[1] : '';
+    const match = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+    const scheme = match ? match[1].toLowerCase() : '';
     return { scheme, toString: () => value };
   }
 }

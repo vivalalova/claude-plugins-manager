@@ -371,9 +371,9 @@ export class McpService {
         map.set(name, { scope: 'user', config });
       }
 
-      // local scope（預設 scope）：先查當前 workspace，再查 "/" fallback
+      // local scope（預設 scope）："/" fallback 先載入，workspace 後載入覆蓋（map.set last-write-wins）
       // local 覆蓋 user（優先級：project > local > user）
-      const projectPaths = workspacePath ? [workspacePath, '/'] : ['/'];
+      const projectPaths = workspacePath ? ['/', workspacePath] : ['/'];
       for (const pp of projectPaths) {
         const projectData = claudeJson.projects?.[pp];
         for (const [name, config] of Object.entries(projectData?.mcpServers ?? {})) {

@@ -166,6 +166,31 @@ describe('McpService（integration / 真實 filesystem）', () => {
       expect(localServer!.scope).toBe('local');
     });
 
+    it('同名 local server：workspace project entry 優先於 "/" fallback', async () => {
+      writeClaudeJson({
+        projects: {
+          [workspaceDir]: {
+            mcpServers: {
+              'shared-local': { command: 'node', args: ['workspace.js'] },
+            },
+          },
+          '/': {
+            mcpServers: {
+              'shared-local': { command: 'node', args: ['fallback.js'] },
+            },
+          },
+        },
+      });
+
+      const svc = new McpService(createMockCli(), createMockSettings());
+      const servers = await svc.listFromFiles();
+
+      const sharedLocal = servers.find((s) => s.name === 'shared-local');
+      expect(sharedLocal).toBeDefined();
+      expect(sharedLocal!.scope).toBe('local');
+      expect(sharedLocal!.config?.args).toEqual(['workspace.js']);
+    });
+
     it('同名 server：user scope 先建立，project scope 覆蓋', async () => {
       writeClaudeJson({
         mcpServers: {

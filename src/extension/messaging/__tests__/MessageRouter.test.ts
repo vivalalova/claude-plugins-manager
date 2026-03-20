@@ -74,6 +74,7 @@ describe('MessageRouter', () => {
   let posted: ResponseMessage[];
 
   beforeEach(() => {
+    vi.clearAllMocks();
     services = createMockServices();
     router = new MessageRouter(
       services.marketplace as unknown as MarketplaceService,
@@ -189,6 +190,31 @@ describe('MessageRouter', () => {
       expect(vscode.env.openExternal).toHaveBeenCalled();
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'r-ext' });
     });
+
+    it('openExternal → 非 http/https scheme 回傳 error', async () => {
+      const vscode = await import('vscode');
+
+      await router.handle(
+        { type: 'openExternal', requestId: 'r-ext-block', url: 'file:///etc/passwd' } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.env.openExternal).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'r-ext-block' });
+      expect((posted[0] as { error: string }).error).toContain('only http/https allowed');
+    });
+
+    it('openExternal → scheme 大小寫不同仍允許 https', async () => {
+      const vscode = await import('vscode');
+
+      await router.handle(
+        { type: 'openExternal', requestId: 'r-ext-upper', url: 'HTTPS://github.com/example/repo' } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.env.openExternal).toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'r-ext-upper' });
+    });
   });
 
   describe('特殊訊息', () => {
@@ -223,6 +249,16 @@ describe('MessageRouter', () => {
 
       // fire-and-forget: response 仍回傳，但不等待 cleanExpired 完成
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'he2' });
+    });
+
+    it('hooks.openFile → 不允許的路徑回傳 error', async () => {
+      await router.handle(
+        { type: 'hooks.openFile', requestId: 'he3', path: '/etc/passwd' } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'he3' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
   });
 
