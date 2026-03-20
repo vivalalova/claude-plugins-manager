@@ -319,6 +319,23 @@ describe('MarketplaceService', () => {
   });
 
   describe('importScript()', () => {
+    it('malformed 行（未閉合引號）被跳過，其餘行仍正常解析', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = [
+        "claude plugin marketplace add 'unterminated",
+        "claude plugin marketplace add '/Users/dev/good-path'",
+      ].join('\n');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/marketplaces.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      const results = await svc.importScript();
+
+      expect(results).toEqual(['Added: /Users/dev/good-path']);
+    });
+
     it('single-quoted local path 含空白時可完整解析', async () => {
       const { window: vscWindow } = await import('vscode');
       const { workspace: vscWorkspace } = await import('vscode');

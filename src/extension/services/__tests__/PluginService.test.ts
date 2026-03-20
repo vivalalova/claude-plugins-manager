@@ -799,5 +799,61 @@ describe('PluginService', () => {
       expect(results[0]).toContain('alpha@mp1');
       expect(results[1]).toContain('beta@mp1');
     });
+
+    it('malformed 行（未閉合引號）被跳過，其餘行仍正常解析', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = [
+        "claude plugin install 'unterminated",
+        "claude plugin install 'good-plugin@mp1' --scope user",
+      ].join('\n');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toContain('good-plugin@mp1');
+    });
+
+    it('--scope=value 格式可正確解析 scope', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = "claude plugin install 'my-plugin@mp1' --scope=project";
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toContain('my-plugin@mp1');
+      expect(results[0]).toContain('project');
+    });
+
+    it('shell-escaped single quote plugin ID 可完整 round-trip 解析', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      const script = "claude plugin install 'team'\\''s-plugin@mp1' --scope project";
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/plugins.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const results = await svc.importScript();
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toContain("team's-plugin@mp1");
+      expect(results[0]).toContain('project');
+    });
   });
 });

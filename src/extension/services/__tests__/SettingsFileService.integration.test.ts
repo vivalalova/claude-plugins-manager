@@ -422,5 +422,54 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin).toBeDefined();
       expect(plugin!.contents?.mcpServers).toEqual(['wrapped-server']);
     });
+
+    it('skills 目錄直接包含 root-level SKILL.md 時，contents.skills 仍應列出該 skill', async () => {
+      const mpName = `scan-mp-root-skill-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const pluginDir = join(mpDir, 'plugins', 'root-skill');
+      const skillsDir = join(pluginDir, 'skills');
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(skillsDir, { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'root-skill',
+            description: 'has root skill',
+            version: '1.0.0',
+            source: './plugins/root-skill',
+          }],
+        }),
+      );
+
+      await writeFile(
+        join(skillsDir, 'SKILL.md'),
+        [
+          '---',
+          'name: root-skill',
+          'description: Root level skill',
+          '---',
+          '',
+          '# Root Skill',
+        ].join('\n'),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `root-skill@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.contents?.skills).toEqual([
+        { name: 'root-skill', description: 'Root level skill' },
+      ]);
+    });
   });
 });

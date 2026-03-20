@@ -13,6 +13,7 @@ import type {
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { escapeShellArg, getWorkspacePath } from '../utils/workspace';
+import { parseShellToken } from '../utils/shellTokenParser';
 
 /**
  * Plugin CRUD。
@@ -243,12 +244,34 @@ export class PluginService {
     const content = Buffer.from(rawFile).toString('utf-8');
 
     const VALID_SCOPES = new Set<PluginScope>(['user', 'project', 'local']);
-    const installRegex = /claude\s+plugin\s+install\s+(?:'([^']+)'|"([^"]+)"|(\S+))(?:\s+--scope\s+(\w+))?/g;
     const entries: Array<{ plugin: string; scope: PluginScope }> = [];
-    let match: RegExpExecArray | null;
-    while ((match = installRegex.exec(content)) !== null) {
-      const plugin = match[1] ?? match[2] ?? match[3];
-      const rawScope = match[4] ?? 'user';
+    const prefix = 'claude plugin install ';
+
+    for (const rawLine of content.split('\n')) {
+      const line = rawLine.trim();
+      if (!line.startsWith(prefix)) continue;
+
+      let parsedPlugin;
+      try {
+        parsedPlugin = parseShellToken(line.slice(prefix.length).trim());
+      } catch {
+        continue; // skip malformed plugin token
+      }
+      if (!parsedPlugin) continue;
+      const plugin = parsedPlugin.token;
+
+      let rawScope = 'user';
+      const rest = parsedPlugin.rest.trim();
+      const scopeMatch = rest.match(/^--scope(?:=|\s+)(.*)/);
+      if (scopeMatch) {
+        try {
+          const parsedScope = parseShellToken(scopeMatch[1].trim());
+          rawScope = parsedScope?.token ?? 'user';
+        } catch {
+          // malformed scope value → fallback user
+        }
+      }
+
       const scope: PluginScope = VALID_SCOPES.has(rawScope as PluginScope) ? (rawScope as PluginScope) : 'user';
       entries.push({ plugin, scope });
     }
@@ -315,4 +338,5 @@ export class PluginService {
       return null;
     }
   }
+
 }

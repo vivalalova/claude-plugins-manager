@@ -245,4 +245,17 @@ describe('InfoPage', () => {
       expect(screen.queryByText('(not exists)')).toBeNull();
     });
   });
+
+  it('path 僅共用 home prefix 但不在 home 內時，不應錯誤縮成 ~ 路徑', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo({
+      cacheDirPath: { path: '/Users/tester/.claude/plugins/cache', exists: true },
+    }));
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('/Users/tester/.claude/plugins/cache')).toBeTruthy();
+      expect(screen.queryByText('~er/.claude/plugins/cache')).toBeNull();
+    });
+  });
 });

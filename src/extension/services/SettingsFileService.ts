@@ -460,6 +460,19 @@ export class SettingsFileService {
    * 掃描 skills 目錄：每個子目錄有 SKILL.md，或者根目錄有 SKILL.md。
    */
   private async scanSkillsDir(dir: string): Promise<PluginContentItem[]> {
+    const rootSkillPath = join(dir, 'SKILL.md');
+    try {
+      await stat(rootSkillPath);
+      const fm = await this.parseFrontmatter(rootSkillPath);
+      return [{
+        name: fm.name || 'SKILL',
+        description: fm.description ?? '',
+      }];
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      // ENOENT: fall through to directory-based scan
+    }
+
     let entries: string[];
     try {
       entries = await readdir(dir);
@@ -477,7 +490,8 @@ export class SettingsFileService {
             name: fm.name || entry,
             description: fm.description ?? '',
           };
-        } catch {
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
           return null;
         }
       }),

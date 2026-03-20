@@ -69,7 +69,13 @@ export function InfoPage(): React.ReactElement {
   /** 將 home dir 絕對路徑替換為 ~/ 以精簡顯示 */
   const shortenHome = (p: string): string => {
     const home = info.homeDirPrefix;
-    return home && p.startsWith(home) ? '~' + p.slice(home.length) : p;
+    if (!home) {
+      return p;
+    }
+    if (p === home) {
+      return '~';
+    }
+    return p.startsWith(home + '/') ? '~' + p.slice(home.length) : p;
   };
 
   const paths: Array<{ key: string; label: string; display: string; fullPath: string; exists: boolean; action?: 'clearCache' }> = [
