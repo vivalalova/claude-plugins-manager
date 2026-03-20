@@ -215,8 +215,8 @@ export function SkillsPage(): React.ReactElement {
     sendRequest<void>({ type: 'openExternal', url }).catch(() => {});
   };
 
-  const handleOpenFile = (path: string): void => {
-    sendRequest<void>({ type: 'skill.openFile', path }).catch(() => {});
+  const handleOpenFile = (skillDir: string): void => {
+    sendRequest<void>({ type: 'skill.openFile', path: skillDir + '/SKILL.md' }).catch(() => {});
   };
 
   const handleCheckUpdates = async (): Promise<void> => {

@@ -616,7 +616,7 @@ describe('SkillsPage', () => {
 
       await waitFor(() => {
         expect(mockSendRequest).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'skill.openFile', path: '/mock/.claude/skills/my-skill' }),
+          expect.objectContaining({ type: 'skill.openFile', path: '/mock/.claude/skills/my-skill/SKILL.md' }),
         );
       });
     });
