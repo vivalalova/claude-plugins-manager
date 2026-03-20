@@ -360,8 +360,9 @@ export class SkillService {
 
   /** 從 skills.sh HTML 解析 initialSkills JSON */
   private parseRegistryHtml(html: string): RegistrySkill[] {
-    // Next.js RSC embeds data in __next_f.push scripts
-    const match = /initialSkills:(\[.*?\])/.exec(html);
+    // Next.js RSC 將資料嵌入 __next_f.push([1,"..."]) 的 JS 字串中，
+    // 雙引號被 escape 為 \"，因此 key 格式為 \"initialSkills\":[...]
+    const match = /\\"initialSkills\\":([\s\S]*)/.exec(html);
     if (!match) {
       throw new SkillError(
         'Failed to parse skills.sh: initialSkills not found in HTML. The page structure may have changed.',
@@ -371,8 +372,31 @@ export class SkillService {
       );
     }
 
-    // The JSON is escaped within the JS string
-    const jsonStr = match[1].replace(/\\"/g, '"');
+    // 以 balanced brackets 找到陣列結尾（陣列內容同樣是 escaped JSON）
+    const raw = match[1];
+    let depth = 0;
+    let endIdx = 0;
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i] === '[') depth++;
+      else if (raw[i] === ']') {
+        depth--;
+        if (depth === 0) {
+          endIdx = i + 1;
+          break;
+        }
+      }
+    }
+    if (endIdx === 0) {
+      throw new SkillError(
+        'Failed to parse skills.sh: initialSkills array is malformed.',
+        'parseRegistryHtml',
+        null,
+        '',
+      );
+    }
+
+    // Unescape JS string（\\\" → "）後解析 JSON
+    const jsonStr = raw.slice(0, endIdx).replace(/\\"/g, '"');
     const items = JSON.parse(jsonStr) as Array<{
       source: string;
       skillId: string;

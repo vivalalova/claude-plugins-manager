@@ -394,6 +394,7 @@ export const en = {
   'info.section.paths': 'Directories & Files',
   'info.path.cacheDir': 'Cache Directory',
   'info.path.pluginsDir': 'Plugins Directory',
+  'info.path.dataDir': 'Data Directory',
   'info.path.installedPlugins': 'installed_plugins.json',
   'info.path.knownMarketplaces': 'known_marketplaces.json',
   'info.path.extension': 'Extension Path',

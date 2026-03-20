@@ -397,6 +397,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'info.section.paths': '目錄與檔案',
   'info.path.cacheDir': '快取目錄',
   'info.path.pluginsDir': '外掛目錄',
+  'info.path.dataDir': '資料目錄',
   'info.path.installedPlugins': 'installed_plugins.json',
   'info.path.knownMarketplaces': 'known_marketplaces.json',
   'info.path.extension': 'Extension 路徑',

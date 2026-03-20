@@ -354,10 +354,13 @@ export interface ExtensionInfo {
   cliVersion: string | null;
   cacheDirPath: PathInfo;
   pluginsDirPath: PathInfo;
+  dataDirPath: PathInfo;
   installedPluginsPath: PathInfo;
   knownMarketplacesPath: PathInfo;
   extensionPath: PathInfo;
   preferencesPath: PathInfo;
+  /** home dir 前綴（用於 UI 顯示 ~/ 縮寫） */
+  homeDirPrefix: string;
 }
 
 // ---------------------------------------------------------------------------

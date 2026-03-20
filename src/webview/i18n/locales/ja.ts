@@ -139,6 +139,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'info.section.paths': 'ディレクトリとファイル',
   'info.path.cacheDir': 'キャッシュディレクトリ',
   'info.path.pluginsDir': 'プラグインディレクトリ',
+  'info.path.dataDir': 'データディレクトリ',
   'info.path.installedPlugins': 'installed_plugins.json',
   'info.path.knownMarketplaces': 'known_marketplaces.json',
   'info.path.extension': 'Extension パス',

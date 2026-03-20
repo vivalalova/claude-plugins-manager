@@ -115,6 +115,13 @@ Version: 1.4.5 | 測試日: 2026-03-19
 | `/hot` | Hot | 1H 安裝數 + 變化量 |
 | `/?q=<keyword>` | 搜尋 | relevance + publisher + installs |
 
+## initialSkills 解析方式
+
+- 資料嵌入 `self.__next_f.push([1,"..."])` 的 JS 字串
+- 雙引號 escape 為 `\"`，所以 key 格式是 `\"initialSkills\":[...]`
+- **舊 regex `/initialSkills:(\[.*?\])/` 已失效**（key 帶 escaped quotes）
+- 正確 regex：`/\\"initialSkills\\":([\s\S]*)/` + balanced bracket 找陣列結尾 + `replace(/\\"/g, '"')` unescape 後 JSON.parse
+
 ## Skill Row DOM 結構
 
 ### All Time / Trending（相同結構）

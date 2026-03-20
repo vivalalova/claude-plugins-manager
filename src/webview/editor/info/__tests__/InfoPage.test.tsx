@@ -30,10 +30,12 @@ function makeInfo(overrides: Partial<ExtensionInfo> = {}): ExtensionInfo {
     cliVersion: '1.0.5',
     cacheDirPath: { path: '/Users/test/.claude/plugins/cache', exists: true },
     pluginsDirPath: { path: '/Users/test/.claude/plugins', exists: true },
+    dataDirPath: { path: '/Users/test/.claude/plugins/data', exists: true },
     installedPluginsPath: { path: '/Users/test/.claude/plugins/installed_plugins.json', exists: true },
     knownMarketplacesPath: { path: '/Users/test/.claude/plugins/known_marketplaces.json', exists: true },
     extensionPath: { path: '/Users/test/.vscode/extensions/claude-plugins', exists: true },
     preferencesPath: { path: '/Users/test/.claude/claude-plugins-manager/preferences.json', exists: true },
+    homeDirPrefix: '/Users/test',
     ...overrides,
   };
 }
@@ -93,7 +95,7 @@ describe('InfoPage', () => {
       expect(screen.getByText('Extension Path')).toBeTruthy();
       // 6 paths → 6+ "Open" buttons
       const openBtns = screen.getAllByRole('button', { name: 'Open' });
-      expect(openBtns.length).toBe(6);
+      expect(openBtns.length).toBe(7);
     });
   });
 
@@ -239,7 +241,7 @@ describe('InfoPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: 'Open' }).length).toBe(6);
+      expect(screen.getAllByRole('button', { name: 'Open' }).length).toBe(7);
       expect(screen.queryByText('(not exists)')).toBeNull();
     });
   });

@@ -66,13 +66,20 @@ export function InfoPage(): React.ReactElement {
     );
   }
 
-  const paths: Array<{ key: string; label: string; value: string; exists: boolean; action?: 'clearCache' }> = [
-    { key: 'cacheDir', label: t('info.path.cacheDir'), value: info.cacheDirPath.path, exists: info.cacheDirPath.exists, action: 'clearCache' },
-    { key: 'pluginsDir', label: t('info.path.pluginsDir'), value: info.pluginsDirPath.path, exists: info.pluginsDirPath.exists },
-    { key: 'installedPlugins', label: t('info.path.installedPlugins'), value: info.installedPluginsPath.path, exists: info.installedPluginsPath.exists },
-    { key: 'knownMarketplaces', label: t('info.path.knownMarketplaces'), value: info.knownMarketplacesPath.path, exists: info.knownMarketplacesPath.exists },
-    { key: 'extensionPath', label: t('info.path.extension'), value: info.extensionPath.path, exists: info.extensionPath.exists },
-    { key: 'preferences', label: t('info.path.preferences'), value: info.preferencesPath.path, exists: info.preferencesPath.exists },
+  /** 將 home dir 絕對路徑替換為 ~/ 以精簡顯示 */
+  const shortenHome = (p: string): string => {
+    const home = info.homeDirPrefix;
+    return home && p.startsWith(home) ? '~' + p.slice(home.length) : p;
+  };
+
+  const paths: Array<{ key: string; label: string; display: string; fullPath: string; exists: boolean; action?: 'clearCache' }> = [
+    { key: 'cacheDir', label: t('info.path.cacheDir'), display: shortenHome(info.cacheDirPath.path), fullPath: info.cacheDirPath.path, exists: info.cacheDirPath.exists, action: 'clearCache' },
+    { key: 'pluginsDir', label: t('info.path.pluginsDir'), display: shortenHome(info.pluginsDirPath.path), fullPath: info.pluginsDirPath.path, exists: info.pluginsDirPath.exists },
+    { key: 'dataDir', label: t('info.path.dataDir'), display: shortenHome(info.dataDirPath.path), fullPath: info.dataDirPath.path, exists: info.dataDirPath.exists },
+    { key: 'installedPlugins', label: t('info.path.installedPlugins'), display: shortenHome(info.installedPluginsPath.path), fullPath: info.installedPluginsPath.path, exists: info.installedPluginsPath.exists },
+    { key: 'knownMarketplaces', label: t('info.path.knownMarketplaces'), display: shortenHome(info.knownMarketplacesPath.path), fullPath: info.knownMarketplacesPath.path, exists: info.knownMarketplacesPath.exists },
+    { key: 'extensionPath', label: t('info.path.extension'), display: shortenHome(info.extensionPath.path), fullPath: info.extensionPath.path, exists: info.extensionPath.exists },
+    { key: 'preferences', label: t('info.path.preferences'), display: shortenHome(info.preferencesPath.path), fullPath: info.preferencesPath.path, exists: info.preferencesPath.exists },
   ];
 
   return (
@@ -124,19 +131,19 @@ export function InfoPage(): React.ReactElement {
         <div className="settings-section info-section">
           <h3 className="settings-section-title">{t('info.section.paths')}</h3>
           <div className="info-path-list">
-            {paths.map(({ key, label, value, exists, action }) => (
+            {paths.map(({ key, label, display, fullPath, exists, action }) => (
               <div key={key} className={`info-path-row${exists ? '' : ' info-path-row--missing'}`}>
                 <div className="info-path-meta">
                   <span className="info-path-label">
                     {label}
                     {!exists && <span className="info-path-badge-missing">{t('info.path.notExists')}</span>}
                   </span>
-                  <span className="info-path-value">{value}</span>
+                  <span className="info-path-value">{display}</span>
                 </div>
                 <div className="info-path-actions">
                   <button
                     className="btn btn-secondary info-path-btn"
-                    onClick={() => handleOpen(value)}
+                    onClick={() => handleOpen(fullPath)}
                   >
                     {t('info.action.open')}
                   </button>

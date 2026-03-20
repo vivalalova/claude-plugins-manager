@@ -39,10 +39,12 @@ export class ExtensionInfoService {
       cliVersion,
       cacheDirPath: toPathInfo(this.cacheDir),
       pluginsDirPath: toPathInfo(pluginsDir),
+      dataDirPath: toPathInfo(join(pluginsDir, 'data')),
       installedPluginsPath: toPathInfo(join(pluginsDir, 'installed_plugins.json')),
       knownMarketplacesPath: toPathInfo(join(pluginsDir, 'known_marketplaces.json')),
       extensionPath: toPathInfo(this.extensionPath),
       preferencesPath: toPathInfo(join(claudeDir, EXTENSION_ID, 'preferences.json')),
+      homeDirPrefix: homedir(),
     };
   }
 

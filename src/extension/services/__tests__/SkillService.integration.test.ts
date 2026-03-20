@@ -126,12 +126,14 @@ allowed-tools: Read, Write, Bash
 This is the body of the skill.
 `;
 
+// 真實 HTML 格式：Next.js RSC 將資料嵌入 JS 字串，雙引號 escape 為 \"
+// 格式：self.__next_f.push([1,"...\"initialSkills\":[{\"source\":\"...\"}]..."])
 const SAMPLE_REGISTRY_HTML = `<!DOCTYPE html><html><head></head><body>
-<script>self.__next_f.push([1,"initialSkills:[{\\"source\\":\\"vercel-labs/skills\\",\\"skillId\\":\\"find-skills\\",\\"name\\":\\"find-skills\\",\\"installs\\":618000},{\\"source\\":\\"owner/repo\\",\\"skillId\\":\\"test-skill\\",\\"name\\":\\"test-skill\\",\\"installs\\":7700}]"])</script>
+<script>self.__next_f.push([1,"17:[\\"$\\",\\"$L1f\\",null,{\\"initialSkills\\":[{\\"source\\":\\"vercel-labs/skills\\",\\"skillId\\":\\"find-skills\\",\\"name\\":\\"find-skills\\",\\"installs\\":618000},{\\"source\\":\\"owner/repo\\",\\"skillId\\":\\"test-skill\\",\\"name\\":\\"test-skill\\",\\"installs\\":7700}],\\"otherProp\\":true}]"])</script>
 </body></html>`;
 
 const SAMPLE_REGISTRY_EMPTY_HTML = `<!DOCTYPE html><html><head></head><body>
-<script>self.__next_f.push([1,"initialSkills:[]"])</script>
+<script>self.__next_f.push([1,"17:[\\"$\\",\\"$L1f\\",null,{\\"initialSkills\\":[],\\"otherProp\\":true}]"])</script>
 </body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -505,7 +507,15 @@ describe('SkillService', () => {
 
     it('HTML 中無 initialSkills → 拋錯', async () => {
       fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve('<html></html>') });
-      await expect(service.fetchRegistry('all-time')).rejects.toThrow();
+      await expect(service.fetchRegistry('all-time')).rejects.toThrow('initialSkills not found');
+    });
+
+    it('initialSkills 陣列括號不閉合（malformed）→ 拋錯', async () => {
+      // 真實格式：\\\" 為 literal backslash+quote；陣列有 [ 但沒有對應的 ]，不含其他 ] 字元
+      const BQ = '\\"'; // backslash + quote（2 chars），符合 HTML 中的 escaped quote
+      const malformedHtml = `<html><body>${BQ}initialSkills${BQ}:[{${BQ}source${BQ}:${BQ}a/b${BQ}`;
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(malformedHtml) });
+      await expect(service.fetchRegistry('all-time')).rejects.toThrow('malformed');
     });
 
     it('fetch 失敗 → 拋錯', async () => {
