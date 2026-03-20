@@ -3,55 +3,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import type { SkillScope } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
-
-// ---------------------------------------------------------------------------
-// AddSkillDialog
-// ---------------------------------------------------------------------------
-
-/** skills CLI 支援的所有 agents。visible: 是否預設顯示於 UI（常用的優先顯示）。 */
-const ALL_AGENTS: ReadonlyArray<{ name: string; label: string; visible: boolean }> = [
-  { name: 'claude-code', label: 'Claude Code', visible: true },
-  { name: 'cursor', label: 'Cursor', visible: true },
-  { name: 'gemini-cli', label: 'Gemini CLI', visible: true },
-  { name: 'github-copilot', label: 'GitHub Copilot', visible: true },
-  { name: 'codex', label: 'Codex', visible: true },
-  { name: 'windsurf', label: 'Windsurf', visible: true },
-  { name: 'cline', label: 'Cline', visible: true },
-  { name: 'roo', label: 'Roo Code', visible: true },
-  { name: 'amp', label: 'Amp', visible: false },
-  { name: 'antigravity', label: 'Antigravity', visible: false },
-  { name: 'augment', label: 'Augment', visible: false },
-  { name: 'openclaw', label: 'OpenClaw', visible: false },
-  { name: 'codebuddy', label: 'CodeBuddy', visible: false },
-  { name: 'command-code', label: 'Command Code', visible: false },
-  { name: 'continue', label: 'Continue', visible: false },
-  { name: 'cortex', label: 'Cortex Code', visible: false },
-  { name: 'crush', label: 'Crush', visible: false },
-  { name: 'droid', label: 'Droid', visible: false },
-  { name: 'goose', label: 'Goose', visible: false },
-  { name: 'iflow-cli', label: 'iFlow CLI', visible: false },
-  { name: 'junie', label: 'Junie', visible: false },
-  { name: 'kilo', label: 'Kilo Code', visible: false },
-  { name: 'kimi-cli', label: 'Kimi Code CLI', visible: false },
-  { name: 'kiro-cli', label: 'Kiro CLI', visible: false },
-  { name: 'kode', label: 'Kode', visible: false },
-  { name: 'mcpjam', label: 'MCPJam', visible: false },
-  { name: 'mistral-vibe', label: 'Mistral Vibe', visible: false },
-  { name: 'mux', label: 'Mux', visible: false },
-  { name: 'neovate', label: 'Neovate', visible: false },
-  { name: 'opencode', label: 'OpenCode', visible: false },
-  { name: 'openhands', label: 'OpenHands', visible: false },
-  { name: 'pi', label: 'Pi', visible: false },
-  { name: 'pochi', label: 'Pochi', visible: false },
-  { name: 'qoder', label: 'Qoder', visible: false },
-  { name: 'qwen-code', label: 'Qwen Code', visible: false },
-  { name: 'replit', label: 'Replit', visible: false },
-  { name: 'trae', label: 'Trae', visible: false },
-  { name: 'trae-cn', label: 'Trae CN', visible: false },
-  { name: 'warp', label: 'Warp', visible: false },
-  { name: 'zencoder', label: 'Zencoder', visible: false },
-  { name: 'adal', label: 'AdaL', visible: false },
-];
+import { ALL_AGENTS } from './agents';
 
 interface AddSkillDialogProps {
   open: boolean;
