@@ -23,7 +23,7 @@ const FRONTMATTER_FIELDS = ['name', 'description', 'model', 'context', 'allowed-
 /** Skill detail overlay — 顯示 SKILL.md frontmatter + body */
 export function SkillDetailPanel({
   skillName,
-  skillPath,
+  skillPath: _skillPath,
   detail,
   loading,
   onClose,
