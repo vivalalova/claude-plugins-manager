@@ -327,8 +327,8 @@ describe('SkillsPage', () => {
 
       fireEvent.click(screen.getByText('Online'));
 
-      // Online 模式下不顯示 scope filter 和 Add 按鈕
-      expect(screen.queryByText('Add Skill')).toBeNull();
+      // Online 模式下不顯示 scope filter chips
+      expect(screen.queryByText('All')).toBeNull();
     });
 
     it('Online 模式 + 輸入 < 2 字元 → 顯示提示', async () => {
@@ -366,7 +366,7 @@ describe('SkillsPage', () => {
       expect(screen.getByText('7.7K installs')).toBeTruthy();
     });
 
-    it('Install 按鈕 → scope picker → skill.add', async () => {
+    it('Install 按鈕 → scope picker → AddSkillDialog 預填 → skill.add', async () => {
       setupOnlineMocks();
       renderPage();
 
@@ -384,6 +384,19 @@ describe('SkillsPage', () => {
 
       await waitFor(() => expect(screen.getByText('Global')).toBeTruthy());
       fireEvent.click(screen.getByText('Global'));
+
+      // AddSkillDialog 應開啟，source 預填為 owner/repo@test-skill
+      await waitFor(() => {
+        const sourceInput = screen.getByPlaceholderText('owner/repo or GitHub URL');
+        expect((sourceInput as HTMLInputElement).value).toBe('owner/repo@test-skill');
+      });
+
+      // scope radio 預填為 global
+      const globalRadio = screen.getByRole('radio', { name: /global/i });
+      expect((globalRadio as HTMLInputElement).checked).toBe(true);
+
+      // 確認提交
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
       await waitFor(() => {
         expect(mockSendRequest).toHaveBeenCalledWith(

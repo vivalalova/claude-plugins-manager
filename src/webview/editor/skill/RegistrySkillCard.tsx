@@ -26,14 +26,14 @@ export const RegistrySkillCard = React.memo(function RegistrySkillCard({
   return (
     <div className="card" tabIndex={0} role="group" aria-label={skill.name}>
       <div className="card-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div className="card-name-with-rank">
           <span className="registry-rank">#{skill.rank}</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <div className="card-name-column">
             <span className="card-name">{skill.name}</span>
             <span className="skill-search-repo">{skill.repo}</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+        <div className="card-header-right">
           <button className="btn btn-sm" onClick={() => onViewOnline(skill.url)}>
             {t('skill.search.viewOnline')}
           </button>

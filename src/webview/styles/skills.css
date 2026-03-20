@@ -1,5 +1,19 @@
 /* Skills page specific styles — mostly reuses cards.css */
 
+.card-name-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.card-name-with-rank {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .skill-agents {
   display: flex;
   flex-wrap: wrap;
@@ -202,6 +216,75 @@
   max-height: 280px;
   overflow-y: auto;
   margin: 0;
+}
+
+/* ---- Dialog form ---- */
+
+.skill-dialog-field {
+  margin-bottom: 12px;
+}
+
+.skill-dialog-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.skill-dialog-input {
+  width: 100%;
+}
+
+.skill-dialog-error {
+  color: var(--vscode-errorForeground);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.skill-dialog-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 6px;
+}
+
+.skill-dialog-radio-group {
+  display: flex;
+  gap: 12px;
+}
+
+.skill-dialog-radio {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.skill-dialog-radio--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.skill-dialog-agents-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.skill-dialog-agent-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.skill-dialog-toggle-link {
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 0;
+  color: var(--vscode-textLink-foreground);
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 /* ---- Footer actions ---- */

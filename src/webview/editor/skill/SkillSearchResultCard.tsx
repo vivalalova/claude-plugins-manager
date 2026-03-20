@@ -24,11 +24,11 @@ export const SkillSearchResultCard = React.memo(function SkillSearchResultCard({
   return (
     <div className="card" tabIndex={0} role="group" aria-label={result.name}>
       <div className="card-header">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <div className="card-name-column">
           <span className="card-name">{result.name}</span>
           <span className="skill-search-repo">{result.repo}</span>
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+        <div className="card-header-right">
           {result.url && (
             <button className="btn btn-sm" onClick={() => onViewOnline(result.url!)}>
               {t('skill.search.viewOnline')}
@@ -41,11 +41,11 @@ export const SkillSearchResultCard = React.memo(function SkillSearchResultCard({
           />
         </div>
       </div>
-      <div className="skill-meta">
-        {result.installs && (
+      {result.installs && (
+        <div className="skill-meta">
           <span>{t('skill.search.installs').replace('{count}', result.installs)}</span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 });

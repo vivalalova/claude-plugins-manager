@@ -11,14 +11,8 @@ interface SkillToolbarProps {
   onPageTabChange: (tab: PageTab) => void;
   scopeFilter: SkillScope | null;
   onScopeFilterChange: (scope: SkillScope | null) => void;
-  onAddClick: () => void;
   registrySort: RegistrySort;
   onRegistrySortChange: (sort: RegistrySort) => void;
-  checking: boolean;
-  onCheckUpdates: () => void;
-  updating: boolean;
-  onUpdateAll: () => void;
-  checkResult: string | null;
 }
 
 const SCOPE_OPTIONS: Array<{ value: SkillScope | null; labelKey: string }> = [
@@ -39,7 +33,7 @@ const SORT_OPTIONS: Array<{ value: RegistrySort; labelKey: string }> = [
   { value: 'hot', labelKey: 'skill.registry.hot' },
 ];
 
-/** Skills toolbar — page tab + search + contextual controls */
+/** Skills toolbar — two-row layout matching PluginToolbar */
 export function SkillToolbar({
   search,
   onSearchChange,
@@ -47,14 +41,8 @@ export function SkillToolbar({
   onPageTabChange,
   scopeFilter,
   onScopeFilterChange,
-  onAddClick,
   registrySort,
   onRegistrySortChange,
-  checking,
-  onCheckUpdates,
-  updating,
-  onUpdateAll,
-  checkResult,
 }: SkillToolbarProps): React.ReactElement {
   const { t } = useI18n();
 
@@ -65,7 +53,29 @@ export function SkillToolbar({
       : t('skill.page.searchPlaceholder');
 
   return (
-    <div className="search-row">
+    <>
+      <div className="search-row">
+        <div className="search-input-wrapper">
+          <input
+            type="text"
+            className="search-bar"
+            placeholder={placeholder}
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+          {search && (
+            <button
+              className="search-clear-btn"
+              onClick={() => onSearchChange('')}
+              title={t('skill.page.clearSearch')}
+              aria-label={t('skill.page.clearSearch')}
+            >
+              &#x2715;
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="filter-chips">
         {TAB_OPTIONS.map((opt) => (
           <button
@@ -76,29 +86,9 @@ export function SkillToolbar({
             {t(opt.labelKey as 'skill.tab.installed')}
           </button>
         ))}
-      </div>
-      <div className="search-input-wrapper">
-        <input
-          type="text"
-          className="search-bar"
-          placeholder={placeholder}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
-        {search && (
-          <button
-            className="search-clear-btn"
-            onClick={() => onSearchChange('')}
-            title={t('skill.page.clearSearch')}
-            aria-label={t('skill.page.clearSearch')}
-          >
-            ×
-          </button>
-        )}
-      </div>
-      {pageTab === 'installed' && (
-        <>
-          <div className="filter-chips">
+        {pageTab === 'installed' && (
+          <>
+            <span className="filter-separator" aria-hidden="true" />
             {SCOPE_OPTIONS.map((opt) => (
               <button
                 key={opt.value ?? 'all'}
@@ -108,33 +98,23 @@ export function SkillToolbar({
                 {t(opt.labelKey as 'skill.page.scopeAll')}
               </button>
             ))}
-          </div>
-          <button className="btn btn-primary" onClick={onAddClick}>
-            {t('skill.page.add')}
-          </button>
-          <button className="btn btn-sm" onClick={onCheckUpdates} disabled={checking || updating}>
-            {checking ? t('skill.check.checking') : t('skill.check.button')}
-          </button>
-          {checkResult && (
-            <button className="btn btn-sm btn-primary" onClick={onUpdateAll} disabled={updating}>
-              {updating ? t('skill.update.updating') : t('skill.update.button')}
-            </button>
-          )}
-        </>
-      )}
-      {pageTab === 'registry' && (
-        <div className="filter-chips">
-          {SORT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              className={`filter-chip${registrySort === opt.value ? ' filter-chip--active' : ''}`}
-              onClick={() => onRegistrySortChange(opt.value)}
-            >
-              {t(opt.labelKey as 'skill.registry.allTime')}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+          </>
+        )}
+        {pageTab === 'registry' && (
+          <>
+            <span className="filter-separator" aria-hidden="true" />
+            {SORT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`filter-chip${registrySort === opt.value ? ' filter-chip--active' : ''}`}
+                onClick={() => onRegistrySortChange(opt.value)}
+              >
+                {t(opt.labelKey as 'skill.registry.allTime')}
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+    </>
   );
 }
