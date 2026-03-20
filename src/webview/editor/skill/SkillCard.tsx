@@ -8,6 +8,7 @@ interface SkillCardProps {
   removing: boolean;
   onRemove: () => void;
   onOpenFile: () => void;
+  onViewDetail: () => void;
 }
 
 /** 單一 skill 卡片 */
@@ -16,6 +17,7 @@ export const SkillCard = React.memo(function SkillCard({
   removing,
   onRemove,
   onOpenFile,
+  onViewDetail,
 }: SkillCardProps): React.ReactElement {
   const { t } = useI18n();
 
@@ -27,6 +29,9 @@ export const SkillCard = React.memo(function SkillCard({
           <ScopeBadge scope={skill.scope} />
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
+          <button className="btn btn-sm" onClick={onViewDetail}>
+            {t('skill.card.viewDetail')}
+          </button>
           <button className="btn btn-sm" onClick={onOpenFile} title={t('skill.card.openFile')}>
             {t('skill.card.openFile')}
           </button>

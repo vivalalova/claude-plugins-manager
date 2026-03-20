@@ -9,6 +9,7 @@ import { SkillSections } from './SkillSections';
 import { SkillSearchResultCard } from './SkillSearchResultCard';
 import { RegistrySkillCard } from './RegistrySkillCard';
 import { AddSkillDialog, RemoveConfirmDialog } from './SkillDialogs';
+import { SkillDetailPanel } from './SkillDetailPanel';
 import { useToast } from '../../components/Toast';
 import { useDebouncedValue } from '../../hooks/useDebounce';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../../shared/types';
@@ -51,6 +52,11 @@ export function SkillsPage(): React.ReactElement {
   const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
+
+  // --- Detail state ---
+  const [detailSkill, setDetailSkill] = useState<AgentSkill | null>(null);
+  const [detailData, setDetailData] = useState<{ frontmatter: Record<string, string>; body: string } | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // --- Registry state ---
   const [registrySort, setRegistrySort] = useState<RegistrySort>('all-time');
@@ -244,6 +250,29 @@ export function SkillsPage(): React.ReactElement {
     }
   };
 
+  const handleViewDetail = async (skill: AgentSkill): Promise<void> => {
+    setDetailSkill(skill);
+    setDetailData(null);
+    setDetailLoading(true);
+    try {
+      const data = await sendRequest<{ frontmatter: Record<string, string>; body: string }>({ type: 'skill.getDetail', path: skill.path });
+      setDetailData(data);
+    } catch {
+      setDetailData({ frontmatter: {}, body: '' });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleCopyPath = (): void => {
+    if (detailSkill) {
+      const mdPath = detailSkill.path + '/SKILL.md';
+      navigator.clipboard.writeText(mdPath).then(() => {
+        addToast(t('skill.detail.copied'), 'success');
+      }).catch(() => {});
+    }
+  };
+
   // --- Render helpers ---
   const renderOnlineContent = (): React.ReactNode => {
     const query = search.trim();
@@ -285,7 +314,7 @@ export function SkillsPage(): React.ReactElement {
     if (loading) return <SkillCardSkeleton />;
     if (skills.length === 0) return <EmptyState icon={<SkillIcon />} title={t('skill.page.noSkills')} description={t('skill.page.noSkillsDesc')} action={{ label: t('skill.page.add'), onClick: () => setShowAddDialog(true) }} />;
     if (filtered.length === 0) return <EmptyState icon={<NoResultsIcon />} title={t('skill.page.noResults')} action={{ label: t('skill.page.clearFilters'), onClick: () => { setSearch(''); setScopeFilter(null); } }} />;
-    return <SkillSections globalSkills={globalSkills} projectSkills={projectSkills} removingSkills={removingSkills} onRemove={(name, scope) => setConfirmRemove({ name, scope })} onOpenFile={handleOpenFile} />;
+    return <SkillSections globalSkills={globalSkills} projectSkills={projectSkills} removingSkills={removingSkills} onRemove={(name, scope) => setConfirmRemove({ name, scope })} onOpenFile={handleOpenFile} onViewDetail={handleViewDetail} />;
   };
 
   return (
@@ -334,6 +363,18 @@ export function SkillsPage(): React.ReactElement {
           skillScope={confirmRemove.scope}
           onConfirm={() => handleRemove(confirmRemove.name, confirmRemove.scope)}
           onCancel={() => setConfirmRemove(null)}
+        />
+      )}
+
+      {detailSkill && (
+        <SkillDetailPanel
+          skillName={detailSkill.name}
+          skillPath={detailSkill.path}
+          detail={detailData}
+          loading={detailLoading}
+          onClose={() => setDetailSkill(null)}
+          onOpenInEditor={() => handleOpenFile(detailSkill.path)}
+          onCopyPath={handleCopyPath}
         />
       )}
     </div>

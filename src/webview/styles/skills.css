@@ -102,3 +102,60 @@
   background: var(--vscode-testing-iconPassed, #388a34);
   color: var(--vscode-button-foreground);
 }
+
+.skill-detail-dialog {
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.skill-detail-section {
+  margin-top: 12px;
+}
+
+.skill-detail-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 6px;
+}
+
+.skill-detail-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skill-detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.skill-detail-label {
+  min-width: 100px;
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+  font-weight: 500;
+}
+
+.skill-detail-value {
+  color: var(--vscode-foreground);
+  word-break: break-word;
+}
+
+.skill-detail-body {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-foreground);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+}

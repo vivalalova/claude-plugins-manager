@@ -562,4 +562,84 @@ describe('SkillsPage', () => {
       });
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Skill Detail Panel
+  // -------------------------------------------------------------------------
+
+  describe('Skill Detail Panel', () => {
+    it('View 按鈕 → detail panel 顯示 frontmatter + body', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global', 'A great skill')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.getDetail') return {
+          frontmatter: { name: 'my-skill', description: 'A great skill', model: 'sonnet' },
+          body: '# My Skill\n\nThis is the body.',
+        };
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      // 點擊 View
+      fireEvent.click(screen.getByText('View'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Configuration')).toBeTruthy();
+        expect(screen.getByText('Content')).toBeTruthy();
+      });
+
+      // frontmatter 欄位
+      expect(screen.getByText('sonnet')).toBeTruthy();
+
+      // body 內容
+      expect(screen.getByText(/# My Skill/)).toBeTruthy();
+    });
+
+    it('Open in Editor → 呼叫 skill.openFile', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.getDetail') return { frontmatter: {}, body: 'test' };
+        if (req.type === 'skill.openFile') return undefined;
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('View'));
+      await waitFor(() => expect(screen.getByText('Open in Editor')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('Open in Editor'));
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'skill.openFile', path: '/mock/.claude/skills/my-skill' }),
+        );
+      });
+    });
+
+    it('Close 按鈕 → detail panel 關閉', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'skill.list') return [makeSkill('my-skill', 'global')];
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'skill.getDetail') return { frontmatter: {}, body: 'test' };
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('my-skill')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('View'));
+      await waitFor(() => expect(screen.getByText('Close')).toBeTruthy());
+
+      fireEvent.click(screen.getByText('Close'));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Configuration')).toBeNull();
+      });
+    });
+  });
 });

@@ -9,6 +9,7 @@ interface SkillSectionsProps {
   removingSkills: Set<string>;
   onRemove: (name: string, scope: AgentSkill['scope']) => void;
   onOpenFile: (path: string) => void;
+  onViewDetail: (skill: AgentSkill) => void;
 }
 
 /** 按 scope 分組顯示 skill cards */
@@ -18,6 +19,7 @@ export function SkillSections({
   removingSkills,
   onRemove,
   onOpenFile,
+  onViewDetail,
 }: SkillSectionsProps): React.ReactElement {
   const { t } = useI18n();
 
@@ -36,6 +38,7 @@ export function SkillSections({
               removing={removingSkills.has(`${skill.scope}:${skill.name}`)}
               onRemove={() => onRemove(skill.name, skill.scope)}
               onOpenFile={() => onOpenFile(skill.path)}
+              onViewDetail={() => onViewDetail(skill)}
             />
           ))}
         </div>

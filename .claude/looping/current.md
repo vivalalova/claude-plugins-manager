@@ -1,8 +1,8 @@
 ---
-title: Skills Check Updates + Update All 功能
+title: Skill Detail 面板顯示 SKILL.md 完整內容
 created: 2026-03-16
-priority: low
-suggested_order: D3
+priority: medium
+suggested_order: C2
 blockedBy: c1-skills-page-ui
 phase: needs-commit
 iteration: 2
@@ -11,60 +11,53 @@ review_iterations: 1
 max_review_iterations: 1
 ---
 
-# Skills Check Updates + Update All 功能
+# Skill Detail 面板顯示 SKILL.md 完整內容
 
-在 SkillsPage toolbar 加入 Check Updates 和 Update All 按鈕，讓使用者一鍵檢查和更新所有 skills。
+在 SkillsPage 中加入 detail panel，點擊 skill 卡片的 View 按鈕後展開顯示 SKILL.md 完整內容。
 
 ## User Stories
 
-- As a 使用者, I want 一鍵檢查 skills 是否有新版本並批次更新, so that 保持 skills 為最新
+- As a 使用者, I want 快速查看 skill 的完整指令和配置, so that 不用離開 VSCode 到 finder 找檔案
 
 ## 實作內容
 
-### UI 設計
+### Detail Panel
 
-SkillToolbar（Installed tab）新增：
-- **Check Updates** 按鈕：呼叫 `skill.check`
-  - 檢查中顯示 loading spinner
-  - 結果：badge 顯示可更新數量 / "All up to date" toast
-- **Update All** 按鈕（當有可用更新時顯示）：呼叫 `skill.update`
-  - 更新中顯示 progress
-  - 完成後刷新列表
+參考 McpPage 的 detail view 模式：
+- 點擊 SkillCard 的 View 按鈕 → 呼叫 `skill.getDetail` → 展開 detail panel
+- 再次點擊或點擊 Close → 收合
 
-### SkillService 方法
+### 內容區塊
 
-`check()` 和 `update()` 已在 B1 定義。此 task 負責：
-- 解析 `check` 輸出，提取可更新 skill 數量
-- 更新完成後觸發 `skill.refresh`
+1. **Frontmatter metadata table**：name、description、context、model、allowed-tools
+   - 每個欄位一行，label + value
+   - 缺失欄位不顯示
+2. **SKILL.md body**：原始 markdown 文字
+   - 使用 `<pre>` 包裹，保持格式
+   - 不需 markdown 渲染器（保持簡單，與 McpPage 的 detailText 一致）
+3. **操作按鈕**：
+   - `Open in Editor` → 呼叫 `skill.openFile`，VSCode 打開 SKILL.md
+   - `Copy Path` → 複製 SKILL.md 檔案路徑到剪貼簿；webview 中用 `navigator.clipboard.writeText(path)`
 
-### 狀態管理
+### Protocol
 
-- `updateAvailable: number` — 可更新數量
-- `checking: boolean` — 檢查中
-- `updating: boolean` — 更新中
+- `skill.getDetail` request 已在 A2 定義
+- `skill.openFile` request 已在 A2 定義
 
 ### i18n 補充
 
-- `skill.check.button` / `skill.check.checking` / `skill.check.upToDate`
-- `skill.check.available` — "{count} updates available"
-- `skill.update.button` / `skill.update.updating` / `skill.update.done`
-- `skill.update.error`
-
-### 測試
-
-- Check → loading → 結果顯示
-- Update All → loading → 完成 → 列表刷新
-- 無更新 → "All up to date" 文字
-- 錯誤 → ErrorBanner
+- `skill.detail.title` / `skill.detail.frontmatter` / `skill.detail.body`
+- `skill.detail.openInEditor` / `skill.detail.copyPath` / `skill.detail.copied`
+- `skill.detail.noContent`
 
 ## 驗收條件
 
-- Given 使用者點擊 Check Updates
-- When CLI 回報有可用更新
-- Then UI 顯示更新數量
-- Given 使用者點擊 Update All
-- When 更新執行中
-- Then 顯示進度指示，完成後列表刷新
-- Given 所有 skills 已是最新
-- When 點擊 Check Updates
-- Then 顯示 "All up to date"
+- Given 使用者點擊 skill 卡片的 View 按鈕
+- When detail panel 展開
+- Then 顯示 SKILL.md 的 frontmatter metadata（表格）和 body 內容（pre-formatted）
+- Given 使用者點擊 Open in Editor
+- When 呼叫 extension host
+- Then VSCode 打開對應的 SKILL.md 檔案
+- Given 使用者點擊 Copy Path
+- When 執行複製
+- Then 剪貼簿中有 SKILL.md 的絕對路徑
