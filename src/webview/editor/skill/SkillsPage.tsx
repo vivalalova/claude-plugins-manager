@@ -148,7 +148,9 @@ export function SkillsPage(): React.ReactElement {
     flushSearch('');
     setOnlineResults([]);
     setOnlineError(null);
+    setOnlineLoading(false);
     setRegistryError(null);
+    setRegistryLoading(false);
   };
 
   // --- Local filter ---
@@ -201,7 +203,7 @@ export function SkillsPage(): React.ReactElement {
       await sendRequest<void>({ type: 'skill.add', source, scope }, 90_000);
       registryCacheRef.current.clear();
       await fetchList();
-      addToast(`Installed ${source}`, 'success');
+      addToast(t('skill.search.installDone').replace('{source}', source), 'success');
     } catch (e) {
       addToast(t('skill.error.add') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
     } finally {

@@ -191,6 +191,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'skill.search.viewOnline': 'skills.sh で表示',
   'skill.search.install': 'インストール',
   'skill.search.installing': 'インストール中...',
+  'skill.search.installDone': '{source} をインストールしました',
   'skill.tab.installed': 'インストール済み',
   'skill.tab.registry': 'レジストリ',
   'skill.registry.allTime': '全期間',

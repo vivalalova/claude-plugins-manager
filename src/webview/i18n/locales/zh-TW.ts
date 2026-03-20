@@ -449,6 +449,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'skill.search.viewOnline': '在 skills.sh 檢視',
   'skill.search.install': '安裝',
   'skill.search.installing': '安裝中...',
+  'skill.search.installDone': '已安裝 {source}',
   'skill.tab.installed': '已安裝',
   'skill.tab.registry': 'Registry',
   'skill.registry.allTime': '全部時間',

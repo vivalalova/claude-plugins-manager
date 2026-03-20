@@ -446,6 +446,7 @@ export const en = {
   'skill.search.viewOnline': 'View on skills.sh',
   'skill.search.install': 'Install',
   'skill.search.installing': 'Installing...',
+  'skill.search.installDone': 'Installed {source}',
   'skill.tab.installed': 'Installed',
   'skill.tab.registry': 'Registry',
   'skill.registry.allTime': 'All Time',
