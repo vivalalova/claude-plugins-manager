@@ -313,6 +313,42 @@ describe('SkillService', () => {
       mockCliFailure(1, 'Failed to clone repository');
       await expect(service.add('invalid/source', 'global')).rejects.toThrow('Failed to clone repository');
     });
+
+    it('agents=["claude-code"] → --skill * --agent claude-code', async () => {
+      mockCliSuccess('');
+      await service.add('owner/repo', 'global', ['claude-code']);
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'owner/repo', '--yes', '--skill', '*', '--agent', 'claude-code', '--global',
+      ]);
+    });
+
+    it('agents=["claude-code","cursor"] → --agent claude-code cursor（空格分隔）', async () => {
+      mockCliSuccess('');
+      await service.add('owner/repo', 'global', ['claude-code', 'cursor']);
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'owner/repo', '--yes', '--skill', '*', '--agent', 'claude-code', 'cursor', '--global',
+      ]);
+    });
+
+    it('agents=undefined → --all（向後相容）', async () => {
+      mockCliSuccess('');
+      await service.add('owner/repo', 'global');
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'owner/repo', '--yes', '--all', '--global',
+      ]);
+    });
+
+    it('agents=[] → --all（空陣列等同 undefined）', async () => {
+      mockCliSuccess('');
+      await service.add('owner/repo', 'global', []);
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'owner/repo', '--yes', '--all', '--global',
+      ]);
+    });
   });
 
   // -------------------------------------------------------------------------

@@ -112,8 +112,13 @@ export class SkillService {
   }
 
   /** 安裝 skill */
-  async add(source: string, scope: SkillScope): Promise<void> {
-    const args = ['skills', 'add', source, '--yes', '--all'];
+  async add(source: string, scope: SkillScope, agents?: string[]): Promise<void> {
+    const args = ['skills', 'add', source, '--yes'];
+    if (agents && agents.length > 0) {
+      args.push('--skill', '*', '--agent', ...agents);
+    } else {
+      args.push('--all');
+    }
     const options: { cwd?: string; timeout?: number } = { timeout: SKILL_CLI_LONG_TIMEOUT_MS };
 
     if (scope === 'global') {

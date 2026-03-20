@@ -287,12 +287,12 @@ describe('MessageRouter', () => {
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 's1' });
     });
 
-    it('skill.add → 帶 source 和 scope', async () => {
+    it('skill.add → 帶 source、scope 和 agents', async () => {
       await router.handle(
-        { type: 'skill.add', requestId: 's2', source: 'owner/repo', scope: 'global' } as RequestMessage,
+        { type: 'skill.add', requestId: 's2', source: 'owner/repo', scope: 'global', agents: ['claude-code'] } as RequestMessage,
         post,
       );
-      expect(services.skill.add).toHaveBeenCalledWith('owner/repo', 'global');
+      expect(services.skill.add).toHaveBeenCalledWith('owner/repo', 'global', ['claude-code']);
     });
 
     it('skill.remove → 帶 name 和 scope', async () => {

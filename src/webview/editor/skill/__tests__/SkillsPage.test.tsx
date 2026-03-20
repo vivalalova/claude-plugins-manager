@@ -7,13 +7,17 @@ import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
-const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
+const { mockSendRequest, mockOnPushMessage, mockGetViewState, mockSetViewState } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
   mockOnPushMessage: vi.fn(() => () => {}),
+  mockGetViewState: vi.fn(),
+  mockSetViewState: vi.fn(),
 }));
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
   onPushMessage: mockOnPushMessage,
+  getViewState: (...args: unknown[]) => mockGetViewState(...args),
+  setViewState: (...args: unknown[]) => mockSetViewState(...args),
 }));
 
 import { SkillsPage } from '../SkillsPage';
@@ -35,6 +39,8 @@ function makeSkill(name: string, scope: AgentSkill['scope'] = 'global', desc?: s
 describe('SkillsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 預設 getViewState 回傳 fallback
+    mockGetViewState.mockImplementation((_key: string, fallback: unknown) => fallback);
   });
 
   afterEach(() => {
@@ -124,7 +130,7 @@ describe('SkillsPage', () => {
     expect(screen.queryByText('browser-tool')).toBeNull();
   });
 
-  it('Add Skill dialog → 正確送出 skill.add message', async () => {
+  it('Add Skill dialog → 正確送出 skill.add message（含預設 agents）', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'skill.list') return [];
       if (req.type === 'workspace.getFolders') return [{ name: 'ws' }];
@@ -147,6 +153,14 @@ describe('SkillsPage', () => {
       expect(screen.getByText('Source')).toBeTruthy();
     });
 
+    // agent checkbox 預設勾選 Claude Code
+    const claudeCodeCheckbox = screen.getByRole('checkbox', { name: 'Claude Code' });
+    expect((claudeCodeCheckbox as HTMLInputElement).checked).toBe(true);
+
+    // 其他 agent 預設不勾選
+    const cursorCheckbox = screen.getByRole('checkbox', { name: 'Cursor' });
+    expect((cursorCheckbox as HTMLInputElement).checked).toBe(false);
+
     // 輸入 source
     const sourceInput = screen.getByPlaceholderText('owner/repo or GitHub URL');
     fireEvent.change(sourceInput, { target: { value: 'vercel-labs/skills' } });
@@ -157,9 +171,50 @@ describe('SkillsPage', () => {
 
     await waitFor(() => {
       expect(mockSendRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'skill.add', source: 'vercel-labs/skills', scope: 'global' }),
+        expect.objectContaining({ type: 'skill.add', source: 'vercel-labs/skills', scope: 'global', agents: ['claude-code'] }),
         90_000,
       );
+    });
+  });
+
+  it('Add Skill dialog → 多選 agents → 正確傳遞', async () => {
+    mockSendRequest.mockImplementation(async (req: { type: string }) => {
+      if (req.type === 'skill.list') return [];
+      if (req.type === 'workspace.getFolders') return [{ name: 'ws' }];
+      if (req.type === 'skill.add') return undefined;
+      return undefined;
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('No skills installed')).toBeTruthy();
+    });
+
+    const addButtons = screen.getAllByText('Add Skill');
+    fireEvent.click(addButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Source')).toBeTruthy();
+    });
+
+    // 額外勾選 Cursor
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Cursor' }));
+
+    const sourceInput = screen.getByPlaceholderText('owner/repo or GitHub URL');
+    fireEvent.change(sourceInput, { target: { value: 'owner/repo' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    await waitFor(() => {
+      const call = mockSendRequest.mock.calls.find(
+        (c: unknown[]) => (c[0] as { type: string }).type === 'skill.add',
+      );
+      expect(call).toBeDefined();
+      const agents = (call![0] as { agents: string[] }).agents;
+      expect(agents).toContain('claude-code');
+      expect(agents).toContain('cursor');
+      expect(agents).toHaveLength(2);
     });
   });
 
@@ -332,7 +387,7 @@ describe('SkillsPage', () => {
 
       await waitFor(() => {
         expect(mockSendRequest).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'skill.add', source: 'owner/repo@test-skill', scope: 'global' }),
+          expect.objectContaining({ type: 'skill.add', source: 'owner/repo@test-skill', scope: 'global', agents: ['claude-code'] }),
           90_000,
         );
       });

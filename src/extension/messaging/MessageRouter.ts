@@ -186,7 +186,7 @@ export class MessageRouter {
       case 'skill.list':
         return this.skill.list(message.scope);
       case 'skill.add':
-        return this.skill.add(message.source, message.scope);
+        return this.skill.add(message.source, message.scope, message.agents);
       case 'skill.remove':
         return this.skill.remove(message.name, message.scope);
       case 'skill.find':

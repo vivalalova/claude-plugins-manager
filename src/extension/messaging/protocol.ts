@@ -49,7 +49,7 @@ export type RequestMessage =
   | { type: 'extension.revealPath'; requestId: string; path: string }
   | { type: 'extension.clearCache'; requestId: string }
   | { type: 'skill.list'; requestId: string; scope?: SkillScope }
-  | { type: 'skill.add'; requestId: string; source: string; scope: SkillScope }
+  | { type: 'skill.add'; requestId: string; source: string; scope: SkillScope; agents?: string[] }
   | { type: 'skill.remove'; requestId: string; name: string; scope: SkillScope }
   | { type: 'skill.find'; requestId: string; query: string }
   | { type: 'skill.check'; requestId: string }

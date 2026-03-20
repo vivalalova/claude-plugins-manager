@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sendRequest, onPushMessage } from '../../vscode';
+import { sendRequest, onPushMessage, getViewState, setViewState } from '../../vscode';
 import { SkillCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, SkillIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -35,6 +35,9 @@ export function SkillsPage(): React.ReactElement {
   const [confirmRemove, setConfirmRemove] = useState<{ name: string; scope: SkillScope } | null>(null);
   const [removingSkills, setRemovingSkills] = useState<Set<string>>(new Set());
   const [hasWorkspace, setHasWorkspace] = useState(false);
+
+  // --- Agent selection (persisted in viewState) ---
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(() => getViewState<string[]>('skill.agents', ['claude-code']));
 
   // --- Shared ---
   const [search, setSearch] = useState('');
@@ -168,10 +171,12 @@ export function SkillsPage(): React.ReactElement {
   const projectSkills = useMemo(() => filtered.filter((s) => s.scope === 'project'), [filtered]);
 
   // --- Handlers ---
-  const handleAdd = async (source: string, scope: SkillScope): Promise<void> => {
+  const handleAdd = async (source: string, scope: SkillScope, agents: string[]): Promise<void> => {
     setAddingSkill(true);
+    setSelectedAgents(agents);
+    setViewState('skill.agents', agents);
     try {
-      await sendRequest<void>({ type: 'skill.add', source, scope }, 90_000);
+      await sendRequest<void>({ type: 'skill.add', source, scope, agents }, 90_000);
       setShowAddDialog(false);
       registryCacheRef.current.clear();
       await fetchList();
@@ -200,7 +205,7 @@ export function SkillsPage(): React.ReactElement {
   const handleInstallFromSearch = async (source: string, scope: SkillScope): Promise<void> => {
     setInstallingSkills((prev) => new Set(prev).add(source));
     try {
-      await sendRequest<void>({ type: 'skill.add', source, scope }, 90_000);
+      await sendRequest<void>({ type: 'skill.add', source, scope, agents: selectedAgents }, 90_000);
       registryCacheRef.current.clear();
       await fetchList();
       addToast(t('skill.search.installDone').replace('{source}', source), 'success');
@@ -355,6 +360,7 @@ export function SkillsPage(): React.ReactElement {
         open={showAddDialog}
         adding={addingSkill}
         hasWorkspace={hasWorkspace}
+        cachedAgents={selectedAgents}
         onSubmit={handleAdd}
         onClose={() => setShowAddDialog(false)}
       />
