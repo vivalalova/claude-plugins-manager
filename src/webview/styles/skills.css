@@ -53,16 +53,14 @@
 }
 
 .skill-scope-picker {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
+  position: fixed;
   background: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-dropdown-border);
   border-radius: 4px;
   overflow: hidden;
-  z-index: 10;
+  z-index: 100;
   min-width: 100px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.2));
 }
 
 .skill-scope-picker-item {
