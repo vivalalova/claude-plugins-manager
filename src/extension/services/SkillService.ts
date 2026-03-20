@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS, SKILL_REGISTRY_URL } from '../constants';
@@ -47,6 +48,7 @@ interface ExecError {
  */
 export class SkillService {
   private npxPath: string | null = null;
+  private registryCacheWriteQueue: Promise<void> = Promise.resolve();
 
   /** 去除 ANSI escape codes（SGR + cursor + erase + mode sequences） */
   static stripAnsi(text: string): string {
@@ -179,14 +181,14 @@ export class SkillService {
   /** 讀取 SKILL.md 取得 frontmatter + body */
   async getDetail(skillPath: string): Promise<{ frontmatter: Record<string, string>; body: string }> {
     const mdPath = join(skillPath, 'SKILL.md');
-    const content = readFileSync(mdPath, 'utf-8');
+    const content = await readFile(mdPath, 'utf-8');
     return this.parseFrontmatter(content);
   }
 
   /** 從 skills.sh 取得 registry 列表（4 小時 file-based cache） */
   async fetchRegistry(sort: RegistrySort, query?: string): Promise<RegistrySkill[]> {
     const cacheKey = `${sort}:${query ?? ''}`;
-    const cached = this.readRegistryCache(cacheKey);
+    const cached = await this.readRegistryCache(cacheKey);
     if (cached) return cached;
 
     let url: string;
@@ -214,7 +216,7 @@ export class SkillService {
 
     const html = await response.text();
     const data = this.parseRegistryHtml(html);
-    this.writeRegistryCache(cacheKey, data);
+    await this.writeRegistryCache(cacheKey, data);
     return data;
   }
 
@@ -260,9 +262,17 @@ export class SkillService {
     const npxPath = this.resolveNpxPath();
 
     return new Promise<string>((resolve, reject) => {
+      // 清除 CLAUDECODE 避免 nested session 衝突（同 CliService）
+      const env = { ...process.env };
+      for (const key of Object.keys(env)) {
+        if (key.startsWith('CLAUDECODE')) {
+          delete env[key];
+        }
+      }
+
       const child = spawn(npxPath, args, {
         cwd: options?.cwd,
-        env: process.env,
+        env,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
@@ -417,8 +427,13 @@ export class SkillService {
       );
     }
 
-    // Unescape JS string（\\\" → "）後解析 JSON
-    const jsonStr = raw.slice(0, endIdx).replace(/\\"/g, '"');
+    // Unescape JS string escapes（single-pass 避免順序問題）
+    const jsonStr = raw.slice(0, endIdx).replace(/\\(["\\/bfnrt])/g, (_, ch: string) => {
+      const escapeMap: Record<string, string> = {
+        '"': '"', '\\': '\\', '/': '/', 'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t',
+      };
+      return escapeMap[ch] ?? ch;
+    });
     const items = JSON.parse(jsonStr) as Array<{
       source: string;
       skillId: string;
@@ -436,9 +451,9 @@ export class SkillService {
   }
 
   /** 讀取 registry file cache；cache miss 或過期回傳 null */
-  private readRegistryCache(key: string): RegistrySkill[] | null {
+  private async readRegistryCache(key: string): Promise<RegistrySkill[] | null> {
     try {
-      const raw = readFileSync(REGISTRY_CACHE_FILE, 'utf-8');
+      const raw = await readFile(REGISTRY_CACHE_FILE, 'utf-8');
       const cache = JSON.parse(raw) as RegistryCacheFile;
       const entry = cache[key];
       if (!entry) return null;
@@ -449,21 +464,25 @@ export class SkillService {
     }
   }
 
-  /** 寫入 registry file cache；寫入失敗靜默忽略 */
-  private writeRegistryCache(key: string, data: RegistrySkill[]): void {
-    try {
-      mkdirSync(join(homedir(), '.claude', 'plugins', 'cache'), { recursive: true });
-      let cache: RegistryCacheFile = {};
+  /** 寫入 registry file cache；序列化避免併發寫入 TOCTOU；寫入失敗靜默忽略 */
+  private writeRegistryCache(key: string, data: RegistrySkill[]): Promise<void> {
+    const task = this.registryCacheWriteQueue.then(async () => {
       try {
-        cache = JSON.parse(readFileSync(REGISTRY_CACHE_FILE, 'utf-8')) as RegistryCacheFile;
+        await mkdir(join(homedir(), '.claude', 'plugins', 'cache'), { recursive: true });
+        let cache: RegistryCacheFile = {};
+        try {
+          cache = JSON.parse(await readFile(REGISTRY_CACHE_FILE, 'utf-8')) as RegistryCacheFile;
+        } catch {
+          // 檔案不存在或損毀，從空物件開始
+        }
+        cache[key] = { data, timestamp: Date.now() };
+        await writeFile(REGISTRY_CACHE_FILE, JSON.stringify(cache), 'utf-8');
       } catch {
-        // 檔案不存在或損毀，從空物件開始
+        // cache 寫入失敗不影響主流程
       }
-      cache[key] = { data, timestamp: Date.now() };
-      writeFileSync(REGISTRY_CACHE_FILE, JSON.stringify(cache), 'utf-8');
-    } catch {
-      // cache 寫入失敗不影響主流程
-    }
+    });
+    this.registryCacheWriteQueue = task.catch(() => {});
+    return task;
   }
 
   /** 解析 SKILL.md frontmatter */

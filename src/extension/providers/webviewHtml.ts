@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'crypto';
 
+/** 跳脫 HTML attribute 值 */
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /**
  * 產生 Webview HTML。
  * 同一份 React bundle 透過 data-mode 區分 sidebar / editor 模式。
@@ -34,7 +39,7 @@ export function getWebviewHtml(
   <title>Claude Plugins Manager</title>
 </head>
 <body>
-  <div id="root" data-mode="${mode}" data-locale="${locale}"></div>
+  <div id="root" data-mode="${escapeAttr(mode)}" data-locale="${escapeAttr(locale)}"></div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

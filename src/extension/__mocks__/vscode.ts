@@ -37,8 +37,10 @@ export class Uri {
     return { fsPath: [base.fsPath, ...segments].join('/') };
   }
 
-  static parse(value: string): { toString: () => string } {
-    return { toString: () => value };
+  static parse(value: string): { scheme: string; toString: () => string } {
+    const match = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)
+    const scheme = match ? match[1] : '';
+    return { scheme, toString: () => value };
   }
 }
 

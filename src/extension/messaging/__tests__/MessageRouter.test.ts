@@ -259,12 +259,22 @@ describe('MessageRouter', () => {
 
     it('extension.revealPath → 路徑不存在時回傳 error', async () => {
       await router.handle(
-        { type: 'extension.revealPath', requestId: 'rp2', path: '/nonexistent/path/that/does/not/exist' } as RequestMessage,
+        { type: 'extension.revealPath', requestId: 'rp2', path: '~/.claude/nonexistent/path/that/does/not/exist' } as RequestMessage,
         post,
       );
 
       expect(posted[0]).toMatchObject({ type: 'error', requestId: 'rp2' });
       expect((posted[0] as { error: string }).error).toContain('Path does not exist');
+    });
+
+    it('extension.revealPath → 不允許的路徑回傳 error', async () => {
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp3', path: '/etc/passwd' } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'rp3' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
 
     it('extension.clearCache → 回傳 { cleared: true }', async () => {
@@ -343,16 +353,27 @@ describe('MessageRouter', () => {
       expect(services.skill.fetchRegistry).toHaveBeenCalledWith('trending', 'test');
     });
 
-    it('skill.openFile → 呼叫 vscode.open', async () => {
+    it('skill.openFile → 呼叫 vscode.open（allowed path）', async () => {
       const vscode = await import('vscode');
+      const os = await import('os');
+      const skillPath = os.homedir() + '/.claude/skills/test-skill/SKILL.md';
       await router.handle(
-        { type: 'skill.openFile', requestId: 's9', path: '/path/to/SKILL.md' } as RequestMessage,
+        { type: 'skill.openFile', requestId: 's9', path: '~/.claude/skills/test-skill/SKILL.md' } as RequestMessage,
         post,
       );
       expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
         'vscode.open',
-        expect.objectContaining({ fsPath: '/path/to/SKILL.md' }),
+        expect.objectContaining({ fsPath: skillPath }),
       );
+    });
+
+    it('skill.openFile → 不允許的路徑回傳 error', async () => {
+      await router.handle(
+        { type: 'skill.openFile', requestId: 's10', path: '/etc/passwd' } as RequestMessage,
+        post,
+      );
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 's10' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
   });
 

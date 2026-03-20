@@ -121,9 +121,14 @@ export class MessageRouter {
         }));
 
       // Utility
-      case 'openExternal':
-        await vscode.env.openExternal(vscode.Uri.parse(message.url));
+      case 'openExternal': {
+        const uri = vscode.Uri.parse(message.url);
+        if (uri.scheme !== 'https' && uri.scheme !== 'http') {
+          throw new Error(`Blocked openExternal with scheme "${uri.scheme}": only http/https allowed`);
+        }
+        await vscode.env.openExternal(uri);
         return;
+      }
 
       // UI 偏好持久化（檔案）
       case 'preferences.read':
@@ -158,6 +163,7 @@ export class MessageRouter {
 
       case 'hooks.openFile': {
         const resolved = this.expandTildePath(message.path);
+        this.assertAllowedPath(resolved);
         await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
         return;
       }
@@ -167,6 +173,7 @@ export class MessageRouter {
 
       case 'extension.revealPath': {
         const resolved = this.expandTildePath(message.path);
+        this.assertAllowedPath(resolved);
         if (!fs.existsSync(resolved)) {
           throw new Error(`Path does not exist: ${resolved}`);
         }
@@ -201,6 +208,7 @@ export class MessageRouter {
         return this.skill.fetchRegistry(message.sort, message.query);
       case 'skill.openFile': {
         const resolved = this.expandTildePath(message.path);
+        this.assertAllowedPath(resolved);
         await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
         return;
       }
@@ -231,5 +239,19 @@ export class MessageRouter {
 
   private expandTildePath(p: string): string {
     return p.startsWith('~/') ? os.homedir() + p.slice(1) : p;
+  }
+
+  /** 驗證路徑在允許範圍內（~/.claude/ 或 workspace），防止任意檔案存取 */
+  private assertAllowedPath(resolved: string): void {
+    const claudeDir = path.join(os.homedir(), '.claude');
+    const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+    const allowed = [
+      claudeDir,
+      ...workspaceFolders.map((f) => f.uri.fsPath),
+    ];
+    const normalized = path.resolve(resolved);
+    if (!allowed.some((dir) => normalized.startsWith(dir + path.sep) || normalized === dir)) {
+      throw new Error(`Path not in allowed directories: ${resolved}`);
+    }
   }
 }

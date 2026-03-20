@@ -10,7 +10,7 @@ import { tmpdir } from 'os';
 
 const {
   mockSpawn, mockExistsSync, mockReaddirSync,
-  mockReadFileSync, mockWriteFileSync, mockMkdirSync,
+  mockReadFile, mockWriteFile, mockMkdir,
   realReadFileSync, realWriteFileSync, realMkdirSync, realMkdtempSync,
 } = vi.hoisted(() => {
   // Capture the real fs functions BEFORE the mock replaces them
@@ -20,9 +20,9 @@ const {
     mockSpawn: vi.fn(),
     mockExistsSync: vi.fn(),
     mockReaddirSync: vi.fn(),
-    mockReadFileSync: vi.fn(),
-    mockWriteFileSync: vi.fn(),
-    mockMkdirSync: vi.fn(),
+    mockReadFile: vi.fn(),
+    mockWriteFile: vi.fn(),
+    mockMkdir: vi.fn(),
     realReadFileSync: realFs.readFileSync,
     realWriteFileSync: realFs.writeFileSync,
     realMkdirSync: realFs.mkdirSync,
@@ -40,11 +40,14 @@ vi.mock('fs', async (importOriginal) => {
     ...actual,
     existsSync: mockExistsSync,
     readdirSync: mockReaddirSync,
-    readFileSync: mockReadFileSync,
-    writeFileSync: mockWriteFileSync,
-    mkdirSync: mockMkdirSync,
   };
 });
+
+vi.mock('fs/promises', () => ({
+  readFile: mockReadFile,
+  writeFile: mockWriteFile,
+  mkdir: mockMkdir,
+}));
 
 vi.mock('../../utils/workspace', () => ({
   getWorkspacePath: () => '/mock/workspace',
@@ -170,17 +173,17 @@ describe('SkillService', () => {
     mockExistsSync.mockImplementation((p: string) => p === '/opt/homebrew/bin/npx');
     mockReaddirSync.mockImplementation(() => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); });
 
-    // readFileSync: pass through for real files (SKILL.md), throw ENOENT for cache file (simulate no cache)
-    mockReadFileSync.mockImplementation((path: unknown, ...rest: unknown[]) => {
+    // readFile (async): pass through for real files (SKILL.md), reject ENOENT for cache file (simulate no cache)
+    mockReadFile.mockImplementation((path: unknown, ...rest: unknown[]) => {
       const p = String(path);
       if (p.includes('skill-registry.json')) {
-        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        return Promise.reject(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
       }
-      return (realReadFileSync as (...args: unknown[]) => unknown)(path, ...rest);
+      return Promise.resolve((realReadFileSync as (...args: unknown[]) => unknown)(path, ...rest));
     });
-    // writeFileSync + mkdirSync: no-op (don't write cache to real disk during tests)
-    mockWriteFileSync.mockImplementation(() => undefined);
-    mockMkdirSync.mockImplementation(() => undefined);
+    // writeFile + mkdir (async): no-op (don't write cache to real disk during tests)
+    mockWriteFile.mockImplementation(() => Promise.resolve());
+    mockMkdir.mockImplementation(() => Promise.resolve());
 
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -602,7 +605,7 @@ describe('SkillService', () => {
       const cacheContent = JSON.stringify({
         'all-time:': { data: cachedData, timestamp: Date.now() },
       });
-      mockReadFileSync.mockImplementationOnce(() => cacheContent);
+      mockReadFile.mockImplementationOnce(() => Promise.resolve(cacheContent));
 
       const result = await service.fetchRegistry('all-time');
 
@@ -618,14 +621,14 @@ describe('SkillService', () => {
       const staleCacheContent = JSON.stringify({
         'all-time:': { data: staleData, timestamp: expiredTimestamp },
       });
-      mockReadFileSync.mockImplementationOnce(() => staleCacheContent);
+      mockReadFile.mockImplementationOnce(() => Promise.resolve(staleCacheContent));
       fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
 
       const result = await service.fetchRegistry('all-time');
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(2);
-      expect(mockWriteFileSync).toHaveBeenCalled();
+      expect(mockWriteFile).toHaveBeenCalled();
     });
 
     it('cache key 隔離：不同 sort 各自獨立', async () => {
@@ -636,7 +639,7 @@ describe('SkillService', () => {
         'all-time:': { data: allTimeCache, timestamp: Date.now() },
       });
       // all-time: cache hit → no fetch
-      mockReadFileSync.mockImplementationOnce(() => cacheContent);
+      mockReadFile.mockImplementationOnce(() => Promise.resolve(cacheContent));
       const allTimeResult = await service.fetchRegistry('all-time');
       expect(allTimeResult).toEqual(allTimeCache);
       expect(fetchMock).not.toHaveBeenCalled();
@@ -649,7 +652,7 @@ describe('SkillService', () => {
     });
 
     it('cache 讀取失敗（損毀 JSON）→ 靜默 fallback 到 fetch', async () => {
-      mockReadFileSync.mockImplementationOnce(() => 'not-valid-json{{{');
+      mockReadFile.mockImplementationOnce(() => Promise.resolve('not-valid-json{{{'));
       fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
 
       const result = await service.fetchRegistry('all-time');
@@ -659,7 +662,7 @@ describe('SkillService', () => {
     });
 
     it('cache 寫入失敗 → 靜默忽略，正常回傳 fetch 結果', async () => {
-      mockWriteFileSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+      mockWriteFile.mockImplementationOnce(() => Promise.reject(new Error('disk full')));
       fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
 
       const result = await service.fetchRegistry('all-time');

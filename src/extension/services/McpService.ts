@@ -84,7 +84,9 @@ export class McpService {
     ]);
     const servers = this.parseMcpList(output);
     if (servers.length === 0 && metaMap.size > 0) {
-      console.warn('[McpService] CLI returned 0 servers but metadata has entries; CLI output may be unavailable or format changed');
+      // CLI 可能暫時不可用或格式變更，保留舊 cache 避免 UI 閃空
+      console.warn('[McpService] CLI returned 0 servers but metadata has entries; preserving previous cache');
+      return this.statusCache;
     }
     for (const server of servers) {
       const [resolvedFullName, meta] = this.resolveServerMetadata(server, metaMap);
@@ -370,13 +372,12 @@ export class McpService {
       }
 
       // local scope（預設 scope）：先查當前 workspace，再查 "/" fallback
+      // local 覆蓋 user（優先級：project > local > user）
       const projectPaths = workspacePath ? [workspacePath, '/'] : ['/'];
       for (const pp of projectPaths) {
         const projectData = claudeJson.projects?.[pp];
         for (const [name, config] of Object.entries(projectData?.mcpServers ?? {})) {
-          if (!map.has(name)) {
-            map.set(name, { scope: 'local', config });
-          }
+          map.set(name, { scope: 'local', config });
         }
       }
     } catch { /* .claude.json 不存在或格式錯誤 */ }
@@ -469,9 +470,9 @@ export class McpService {
    */
   private parseMcpList(output: string): McpServer[] {
     const servers: McpServer[] = [];
-    // 去除 ANSI escape codes
+    // 去除 ANSI escape codes（SGR + cursor + erase + mode sequences）
     // eslint-disable-next-line no-control-regex -- ANSI escape sequence matcher
-    const cleaned = output.replace(new RegExp('\\u001b\\[[0-9;]*m', 'g'), '');
+    const cleaned = output.replace(new RegExp('\\u001b\\[[0-9;?]*[A-Za-z]', 'g'), '');
     const lines = cleaned.split('\n');
 
     for (const line of lines) {
