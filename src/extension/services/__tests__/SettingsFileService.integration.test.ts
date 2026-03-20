@@ -423,6 +423,54 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.contents?.mcpServers).toEqual(['wrapped-server']);
     });
 
+    it('skills 目錄含非目錄檔案（如 dashboard.html）時，不拋錯且正常列出 skill', async () => {
+      const mpName = `scan-mp-skills-with-file-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const pluginDir = join(mpDir, 'plugins', 'has-file-in-skills');
+      const skillsDir = join(pluginDir, 'skills');
+      const subSkillDir = join(skillsDir, 'my-skill');
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(subSkillDir, { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'has-file-in-skills',
+            description: 'plugin with file in skills dir',
+            version: '1.0.0',
+            source: './plugins/has-file-in-skills',
+          }],
+        }),
+      );
+
+      // 在 skills/ 放一個非目錄檔案，模擬 knowledge-work-plugins 的 dashboard.html
+      await writeFile(join(skillsDir, 'dashboard.html'), '<html></html>');
+
+      // 同時放正常的 skill 子目錄
+      await writeFile(
+        join(subSkillDir, 'SKILL.md'),
+        ['---', 'name: my-skill', 'description: A real skill', '---'].join('\n'),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `has-file-in-skills@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      // 只應列出目錄型 skill，dashboard.html 應被跳過
+      expect(plugin!.contents?.skills).toEqual([
+        { name: 'my-skill', description: 'A real skill' },
+      ]);
+    });
+
     it('skills 目錄直接包含 root-level SKILL.md 時，contents.skills 仍應列出該 skill', async () => {
       const mpName = `scan-mp-root-skill-${testIdx}`;
       const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);

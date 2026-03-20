@@ -475,7 +475,8 @@ export class SettingsFileService {
 
     let entries: string[];
     try {
-      entries = await readdir(dir);
+      const dirents = await readdir(dir, { withFileTypes: true });
+      entries = dirents.filter(d => d.isDirectory()).map(d => d.name);
     } catch {
       return [];
     }
