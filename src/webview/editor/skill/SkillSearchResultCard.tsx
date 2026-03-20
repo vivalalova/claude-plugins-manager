@@ -1,13 +1,12 @@
 import React from 'react';
-import type { SkillSearchResult, SkillScope } from '../../../shared/types';
+import type { SkillSearchResult } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
-import { ScopePicker } from './ScopePicker';
 
 interface SkillSearchResultCardProps {
   result: SkillSearchResult;
   installing: boolean;
   hasWorkspace: boolean;
-  onInstall: (source: string, scope: SkillScope) => void;
+  onInstall: (source: string) => void;
   onViewOnline: (url: string) => void;
 }
 
@@ -15,7 +14,6 @@ interface SkillSearchResultCardProps {
 export const SkillSearchResultCard = React.memo(function SkillSearchResultCard({
   result,
   installing,
-  hasWorkspace,
   onInstall,
   onViewOnline,
 }: SkillSearchResultCardProps): React.ReactElement {
@@ -34,11 +32,13 @@ export const SkillSearchResultCard = React.memo(function SkillSearchResultCard({
               {t('skill.search.viewOnline')}
             </button>
           )}
-          <ScopePicker
-            installing={installing}
-            hasWorkspace={hasWorkspace}
-            onInstall={(scope) => onInstall(result.fullId, scope)}
-          />
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => onInstall(result.fullId)}
+            disabled={installing}
+          >
+            {installing ? t('skill.search.installing') : t('skill.search.install')}
+          </button>
         </div>
       </div>
       {result.installs && (

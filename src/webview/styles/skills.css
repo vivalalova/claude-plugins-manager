@@ -14,11 +14,11 @@
   min-width: 0;
 }
 
-.skill-agents {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
+.skill-agent-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  flex-shrink: 0;
 }
 
 .skill-agent-tag {
@@ -26,8 +26,7 @@
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  font-weight: 500;
 }
 
 .skill-meta {

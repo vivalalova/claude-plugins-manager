@@ -366,7 +366,7 @@ describe('SkillsPage', () => {
       expect(screen.getByText('7.7K installs')).toBeTruthy();
     });
 
-    it('Install 按鈕 → scope picker → AddSkillDialog 預填 → skill.add', async () => {
+    it('Install 按鈕 → AddSkillDialog 預填 source → skill.add', async () => {
       setupOnlineMocks();
       renderPage();
 
@@ -378,22 +378,15 @@ describe('SkillsPage', () => {
 
       await waitFor(() => expect(screen.getByText('test-skill')).toBeTruthy(), { timeout: 3000 });
 
-      // 點 Install → scope picker
+      // 點 Install → 直接開 AddSkillDialog
       const installButtons = screen.getAllByText('Install');
       fireEvent.click(installButtons[0]);
 
-      await waitFor(() => expect(screen.getByText('Global')).toBeTruthy());
-      fireEvent.click(screen.getByText('Global'));
-
-      // AddSkillDialog 應開啟，source 預填為 owner/repo@test-skill
+      // AddSkillDialog 應開啟，source 預填
       await waitFor(() => {
         const sourceInput = screen.getByPlaceholderText('owner/repo or GitHub URL');
         expect((sourceInput as HTMLInputElement).value).toBe('owner/repo@test-skill');
       });
-
-      // scope radio 預填為 global
-      const globalRadio = screen.getByRole('radio', { name: /global/i });
-      expect((globalRadio as HTMLInputElement).checked).toBe(true);
 
       // 確認提交
       fireEvent.click(screen.getByRole('button', { name: 'Add' }));

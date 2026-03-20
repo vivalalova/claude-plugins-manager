@@ -1,7 +1,39 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ScopeBadge } from '../../components/ScopeBadge';
 import type { AgentSkill } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
+
+/** 主流 agent 品牌色（name → { bg, fg }） */
+const AGENT_BRAND_COLORS: Record<string, { bg: string; fg: string }> = {
+  'claude-code':     { bg: '#da7756', fg: '#fff' },  // Anthropic orange
+  'cursor':          { bg: '#2d2d2d', fg: '#fff' },  // Cursor dark
+  'gemini-cli':      { bg: '#4285f4', fg: '#fff' },  // Google blue
+  'github-copilot':  { bg: '#6e40c9', fg: '#fff' },  // GitHub Copilot purple
+  'codex':           { bg: '#6b5ce7', fg: '#fff' },  // OpenAI Codex purple-blue
+  'windsurf':        { bg: '#09b6a2', fg: '#fff' },  // Codeium teal-green
+  'cline':           { bg: '#eab308', fg: '#000' },  // Cline yellow-gold
+  'roo':             { bg: '#4fc3f7', fg: '#000' },  // Roo Code light blue
+  'amp':             { bg: '#ff5543', fg: '#fff' },  // Sourcegraph red
+  'augment':         { bg: '#6366f1', fg: '#fff' },  // Augment indigo
+};
+
+/** 非主流 agent 用 hash 取色 */
+const FALLBACK_COLORS = [
+  { bg: '#6366f1', fg: '#fff' },
+  { bg: '#0891b2', fg: '#fff' },
+  { bg: '#be185d', fg: '#fff' },
+  { bg: '#65a30d', fg: '#fff' },
+] as const;
+
+function getAgentColor(name: string): { bg: string; fg: string } {
+  const brand = AGENT_BRAND_COLORS[name];
+  if (brand) return brand;
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  }
+  return FALLBACK_COLORS[Math.abs(hash) % FALLBACK_COLORS.length];
+}
 
 interface SkillCardProps {
   skill: AgentSkill;
@@ -11,7 +43,7 @@ interface SkillCardProps {
   onViewDetail: () => void;
 }
 
-/** 單一 skill 卡片（expandable，匹配 PluginCard 樣式） */
+/** 單一 skill 卡片（flat layout，agents 與 scope 同列） */
 export const SkillCard = React.memo(function SkillCard({
   skill,
   removing,
@@ -20,34 +52,13 @@ export const SkillCard = React.memo(function SkillCard({
   onViewDetail,
 }: SkillCardProps): React.ReactElement {
   const { t } = useI18n();
-  const [expanded, setExpanded] = useState(false);
-
-  const hasExpandableContent = skill.agents.length > 0 || !!skill.path;
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('input, button, label')) return;
-    if (hasExpandableContent) setExpanded((v) => !v);
-  };
-
-  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('input, button, label')) return;
-    if (!hasExpandableContent) return;
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    setExpanded((v) => !v);
-  };
 
   return (
     <div
-      className={`card${hasExpandableContent ? ' card--expandable' : ''}`}
-      onClick={handleCardClick}
-      onKeyDown={handleCardKeyDown}
+      className="card"
       tabIndex={0}
       role="group"
       aria-label={skill.name}
-      aria-expanded={hasExpandableContent ? expanded : undefined}
     >
       <div className="card-header">
         <div>
@@ -75,35 +86,28 @@ export const SkillCard = React.memo(function SkillCard({
       </div>
 
       <div className="scope-chips-row">
-        {hasExpandableContent
-          ? <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
-          : <span className="card-expand-arrow-spacer" />}
         <ScopeBadge scope={skill.scope} />
+        {skill.agents.length > 0 && (
+          <>
+            <span className="skill-agent-divider" />
+            {skill.agents.map((agent) => {
+              const color = getAgentColor(agent);
+              return (
+                <span
+                  key={agent}
+                  className="skill-agent-tag"
+                  style={{ background: color.bg, color: color.fg }}
+                >
+                  {agent}
+                </span>
+              );
+            })}
+          </>
+        )}
       </div>
 
-      {hasExpandableContent && (
-        <div className={`plugin-contents${expanded ? '' : ' plugin-contents--collapsed'}`}>
-          <div className="section-body-inner">
-            <div className="plugin-contents-grid">
-              {skill.agents.length > 0 && (
-                <div className="content-section">
-                  <div className="content-section-label">Agents</div>
-                  <div className="skill-agents">
-                    {skill.agents.map((agent) => (
-                      <span key={agent} className="skill-agent-tag">{agent}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {skill.path && (
-                <div className="content-section">
-                  <div className="content-section-label">Path</div>
-                  <div className="skill-path">{skill.path}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {skill.path && (
+        <div className="skill-path">{skill.path}</div>
       )}
     </div>
   );

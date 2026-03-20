@@ -36,8 +36,8 @@ export function SkillsPage(): React.ReactElement {
   const [removingSkills, setRemovingSkills] = useState<Set<string>>(new Set());
   const [hasWorkspace, setHasWorkspace] = useState(false);
 
-  // --- Pending install from search/registry (scope picked, dialog not yet confirmed) ---
-  const [pendingInstall, setPendingInstall] = useState<{ source: string; scope: SkillScope } | null>(null);
+  // --- Pending install from search/registry (Install 按鈕直接開 dialog) ---
+  const [pendingInstall, setPendingInstall] = useState<string | null>(null);
 
   // --- Agent selection (persisted in viewState) ---
   const [selectedAgents, setSelectedAgents] = useState<string[]>(() => getViewState<string[]>('skill.agents', ['claude-code']));
@@ -218,9 +218,9 @@ export function SkillsPage(): React.ReactElement {
     }
   };
 
-  /** scope picker 選完後開啟 AddSkillDialog 讓使用者確認 agents */
-  const handlePendingInstall = (source: string, scope: SkillScope): void => {
-    setPendingInstall({ source, scope });
+  /** Install 按鈕 → 直接開 AddSkillDialog（source 預填） */
+  const handlePendingInstall = (source: string): void => {
+    setPendingInstall(source);
   };
 
   const handleViewOnline = (url: string): void => {
@@ -376,8 +376,7 @@ export function SkillsPage(): React.ReactElement {
         adding={addingSkill}
         hasWorkspace={hasWorkspace}
         cachedAgents={selectedAgents}
-        initialSource={pendingInstall?.source}
-        initialScope={pendingInstall?.scope}
+        initialSource={pendingInstall ?? undefined}
         onSubmit={handleAdd}
         onClose={() => { setShowAddDialog(false); setPendingInstall(null); }}
       />

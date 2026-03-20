@@ -1,14 +1,13 @@
 import React from 'react';
-import type { RegistrySkill, SkillScope } from '../../../shared/types';
+import type { RegistrySkill } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
-import { ScopePicker } from './ScopePicker';
 
 interface RegistrySkillCardProps {
   skill: RegistrySkill;
   isInstalled: boolean;
   installing: boolean;
   hasWorkspace: boolean;
-  onInstall: (source: string, scope: SkillScope) => void;
+  onInstall: (source: string) => void;
   onViewOnline: (url: string) => void;
 }
 
@@ -17,7 +16,6 @@ export const RegistrySkillCard = React.memo(function RegistrySkillCard({
   skill,
   isInstalled,
   installing,
-  hasWorkspace,
   onInstall,
   onViewOnline,
 }: RegistrySkillCardProps): React.ReactElement {
@@ -40,11 +38,13 @@ export const RegistrySkillCard = React.memo(function RegistrySkillCard({
           {isInstalled ? (
             <span className="registry-installed-badge">{t('skill.registry.installed')}</span>
           ) : (
-            <ScopePicker
-              installing={installing}
-              hasWorkspace={hasWorkspace}
-              onInstall={(scope) => onInstall(skill.repo, scope)}
-            />
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => onInstall(skill.repo)}
+              disabled={installing}
+            >
+              {installing ? t('skill.search.installing') : t('skill.search.install')}
+            </button>
           )}
         </div>
       </div>
