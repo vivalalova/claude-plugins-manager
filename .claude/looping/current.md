@@ -1,63 +1,64 @@
 ---
-title: Skill Detail 面板顯示 SKILL.md 完整內容
+title: 更新 CLAUDE.md 和 MEMORY.md 反映 Agent Skills 架構
 created: 2026-03-16
-priority: medium
-suggested_order: C2
-blockedBy: c1-skills-page-ui
+priority: low
+suggested_order: Z99
+blockedBy:
+  - d1-online-search
+  - d2-registry-leaderboard
+  - d3-check-update
 phase: needs-commit
 iteration: 2
 max_iterations: 3
-review_iterations: 1
+review_iterations: 0
 max_review_iterations: 1
 ---
 
-# Skill Detail 面板顯示 SKILL.md 完整內容
+# 更新 CLAUDE.md 和 MEMORY.md 反映 Agent Skills 架構
 
-在 SkillsPage 中加入 detail panel，點擊 skill 卡片的 View 按鈕後展開顯示 SKILL.md 完整內容。
+所有 skills 功能完成後，更新專案文件反映新架構。
 
 ## User Stories
 
-- As a 使用者, I want 快速查看 skill 的完整指令和配置, so that 不用離開 VSCode 到 finder 找檔案
+- As a 後續開發者, I want 完整的文件, so that 我能理解 skills 功能的架構和注意事項
 
 ## 實作內容
 
-### Detail Panel
+### CLAUDE.md 更新
 
-參考 McpPage 的 detail view 模式：
-- 點擊 SkillCard 的 View 按鈕 → 呼叫 `skill.getDetail` → 展開 detail panel
-- 再次點擊或點擊 Close → 收合
+1. **架構區段**：
+   - `PanelCategory` 加入 `'skill'`
+   - 新增 SkillService 到 Services 表格
+   - Service 依賴表加入 SkillService → CliService（npx 路徑搜尋）
+   - 新增 skills 相關檔案路徑說明
 
-### 內容區塊
+2. **已知陷阱**：
+   - `npx skills find` 無 `--json`，需文字解析（含 ANSI codes）
+   - `npx skills add` 必須 `--yes --all` 避免互動式 TUI
+   - skills.sh 無公開 JSON API，需 HTML 解析
+   - Extension Host 的 PATH 可能不含 npx → SkillService 有獨立路徑搜尋
+   - SkillScope 只有 `'global' | 'project'`，不同於 PluginScope 的三值
 
-1. **Frontmatter metadata table**：name、description、context、model、allowed-tools
-   - 每個欄位一行，label + value
-   - 缺失欄位不顯示
-2. **SKILL.md body**：原始 markdown 文字
-   - 使用 `<pre>` 包裹，保持格式
-   - 不需 markdown 渲染器（保持簡單，與 McpPage 的 detailText 一致）
-3. **操作按鈕**：
-   - `Open in Editor` → 呼叫 `skill.openFile`，VSCode 打開 SKILL.md
-   - `Copy Path` → 複製 SKILL.md 檔案路徑到剪貼簿；webview 中用 `navigator.clipboard.writeText(path)`
+3. **設定檔結構**：
+   - `~/.claude/skills/` — global scope skills
+   - `.claude/skills/` — project scope skills
 
-### Protocol
+### MEMORY.md 更新
 
-- `skill.getDetail` request 已在 A2 定義
-- `skill.openFile` request 已在 A2 定義
+記錄：
+- CLI 行為驗證結果（A1 產出的 memory file）
+- skills 只有 global + project 兩種 scope（無 local）
+- skills.sh HTML 解析方式和 CSS selector
 
-### i18n 補充
+### README.md（如有）
 
-- `skill.detail.title` / `skill.detail.frontmatter` / `skill.detail.body`
-- `skill.detail.openInEditor` / `skill.detail.copyPath` / `skill.detail.copied`
-- `skill.detail.noContent`
+新增 Agent Skills 管理功能說明。
 
 ## 驗收條件
 
-- Given 使用者點擊 skill 卡片的 View 按鈕
-- When detail panel 展開
-- Then 顯示 SKILL.md 的 frontmatter metadata（表格）和 body 內容（pre-formatted）
-- Given 使用者點擊 Open in Editor
-- When 呼叫 extension host
-- Then VSCode 打開對應的 SKILL.md 檔案
-- Given 使用者點擊 Copy Path
-- When 執行複製
-- Then 剪貼簿中有 SKILL.md 的絕對路徑
+- Given 所有 skills 功能已完成
+- When 閱讀 CLAUDE.md
+- Then 完整描述 SkillService 架構、PanelCategory 擴充、CLI 行為陷阱
+- Given 新開發者第一次接觸
+- When 閱讀 MEMORY.md
+- Then 了解 skills 的 scope 限制和 CLI 解析注意事項

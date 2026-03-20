@@ -19,7 +19,7 @@ npm run watch              # concurrently watch extension + webview
 - **Extension Host**（Node.js）：`src/extension/`
   — Services 直接讀寫 Claude Code 設定檔 + CLI 輔助
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
-- **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / settings.css / common.css）
+- **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / skills.css / settings.css / common.css）
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
 - **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
 - **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
@@ -27,7 +27,8 @@ npm run watch              # concurrently watch extension + webview
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
 - **PluginPage 子元件**：`PluginPage.tsx`（state + layout）→ `PluginToolbar.tsx`（搜尋 + filter）、`PluginSections.tsx`（section 渲染 + drag/drop）、`PluginDialogs.tsx`（BulkEnableScopeDialog / TranslateDialog / KeyboardHelpOverlay）
-- **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）
+- **SkillsPage 子元件**：`SkillsPage.tsx`（state + layout）→ `SkillToolbar.tsx`（mode tabs + search + scope filter）、`SkillSections.tsx`（scope 分組）、`SkillCard.tsx`（已安裝 skill 卡片）、`SkillSearchResultCard.tsx`（線上搜尋結果）、`RegistrySkillCard.tsx`（Registry 排行榜）、`SkillDetailPanel.tsx`（SKILL.md 詳情）、`SkillDialogs.tsx`（AddSkillDialog + RemoveConfirmDialog）
+- **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'skill' | 'settings' | 'info'`（對應 6 個 editor panel + sidebar tab）
 
 ### Services
 
@@ -40,13 +41,16 @@ npm run watch              # concurrently watch extension + webview
 | McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢（僅 MCP panel 可見時執行）、Test Connection（全量 refresh，CLI 不支援 per-server 查詢；UI 顯示「Checking all servers...」+ 其他按鈕 disabled） |
 | FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
 | TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯；callApiWithRetry 含 retry + exponential backoff |
+| SkillService        | `npx skills` CLI + `skills.sh` HTML                                       | npx skills CLI 封裝（list/add/remove/find/check/update/getDetail）+ skills.sh registry 解析；獨立 npx 路徑搜尋（NVM → /usr/local/bin → /opt/homebrew/bin → fallback） |
 | ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑（`PathInfo` 含 `exists` 檢測）供 InfoPage 顯示 |
 
 ### Service 依賴
 
 CliService ← PluginService, MarketplaceService, McpService, ExtensionInfoService
 SettingsFileService ← PluginService, McpService
+SkillService — 獨立（不依賴 CliService，自行管理 npx 路徑 + spawn）
 FileWatcherService → SettingsFileService.invalidateScanCache(), McpService.invalidateMetadataCache()
+FileWatcherService.onSkillFilesChanged → EditorPanelManager（push skill.refresh）
 EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 切換控制）
 
 ### 設定檔結構
@@ -58,6 +62,8 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 | `.claude/settings.local.json`               | local scope enabledPlugins（gitignored） |
 | `~/.claude/plugins/installed_plugins.json`  | 安裝登錄（所有 scope）                   |
 | `~/.claude/plugins/known_marketplaces.json` | marketplace 來源                         |
+| `~/.claude/skills/`                         | global scope skills（symlink/目錄）      |
+| `.claude/skills/`                           | project scope skills                     |
 
 ### Settings 頁面分區（`src/webview/editor/settings/`）
 
@@ -95,6 +101,12 @@ https://code.claude.com/docs/en/settings
 - `SchemaFieldRenderer` 的 `custom` controlType 回傳 `null`，Section 必須在 loop 中 switch-case 手動處理
 - `check:schema` 自動驗證 FIELD_ORDER 完整性 + i18n key 完整性
 - `getSchemaDefault()`/`getSchemaEnumOptions()` 對不存在的 key 拋 Error（fail-fast）
+- `npx skills find` 無 `--json`，需文字解析（含 ANSI codes，用 `/\x1b\[[0-9;?]*[A-Za-z]/g` 去除）
+- `npx skills remove <name> --all` 會**忽略 name 移除全部**，UI 的 remove 禁帶 `--all`
+- `npx skills add`/`remove` 必須 `--yes` 避免互動式 TUI；`add` 用 `--yes --all`
+- skills.sh 無公開 JSON API，從 `__next_f.push` 中的 `initialSkills` JSON 解析排行榜
+- SkillScope 只有 `'global' | 'project'`（無 `local`），不同於 PluginScope 三值
+- Extension Host 的 PATH 可能不含 npx → SkillService 有獨立路徑搜尋（NVM 最新版優先）
 
 ## 測試
 
