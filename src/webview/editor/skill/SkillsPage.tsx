@@ -36,13 +36,15 @@ export function SkillsPage(): React.ReactElement {
   const [removingSkills, setRemovingSkills] = useState<Set<string>>(new Set());
   const [hasWorkspace, setHasWorkspace] = useState(false);
 
+  // --- Pending install from search/registry (scope picked, dialog not yet confirmed) ---
+  const [pendingInstall, setPendingInstall] = useState<{ source: string; scope: SkillScope } | null>(null);
+
   // --- Agent selection (persisted in viewState) ---
   const [selectedAgents, setSelectedAgents] = useState<string[]>(() => getViewState<string[]>('skill.agents', ['claude-code']));
 
   // --- Shared ---
   const [search, setSearch] = useState('');
   const [pageTab, setPageTab] = useState<PageTab>('installed');
-  const [installingSkills, setInstallingSkills] = useState<Set<string>>(new Set());
   const [debouncedSearch, flushSearch] = useDebouncedValue(search, 500);
   const searchIdRef = useRef(0);
 
@@ -167,6 +169,15 @@ export function SkillsPage(): React.ReactElement {
     return result;
   }, [skills, scopeFilter, search]);
 
+  // --- Registry client-side filter（skills.sh 不一定支援 ?q= server-side 過濾） ---
+  const filteredRegistry = useMemo(() => {
+    if (!search.trim()) return registryResults;
+    const q = search.trim().toLowerCase();
+    return registryResults.filter((s) =>
+      s.name.toLowerCase().includes(q) || s.repo.toLowerCase().includes(q),
+    );
+  }, [registryResults, search]);
+
   const globalSkills = useMemo(() => filtered.filter((s) => s.scope === 'global'), [filtered]);
   const projectSkills = useMemo(() => filtered.filter((s) => s.scope === 'project'), [filtered]);
 
@@ -175,11 +186,16 @@ export function SkillsPage(): React.ReactElement {
     setAddingSkill(true);
     setSelectedAgents(agents);
     setViewState('skill.agents', agents);
+    const isPending = pendingInstall !== null;
     try {
       await sendRequest<void>({ type: 'skill.add', source, scope, agents }, 90_000);
       setShowAddDialog(false);
+      setPendingInstall(null);
       registryCacheRef.current.clear();
       await fetchList();
+      if (isPending) {
+        addToast(t('skill.search.installDone').replace('{source}', source), 'success');
+      }
     } catch (e) {
       addToast(t('skill.error.add') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
     } finally {
@@ -202,18 +218,9 @@ export function SkillsPage(): React.ReactElement {
     }
   };
 
-  const handleInstallFromSearch = async (source: string, scope: SkillScope): Promise<void> => {
-    setInstallingSkills((prev) => new Set(prev).add(source));
-    try {
-      await sendRequest<void>({ type: 'skill.add', source, scope, agents: selectedAgents }, 90_000);
-      registryCacheRef.current.clear();
-      await fetchList();
-      addToast(t('skill.search.installDone').replace('{source}', source), 'success');
-    } catch (e) {
-      addToast(t('skill.error.add') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
-    } finally {
-      setInstallingSkills((prev) => { const next = new Set(prev); next.delete(source); return next; });
-    }
+  /** scope picker 選完後開啟 AddSkillDialog 讓使用者確認 agents */
+  const handlePendingInstall = (source: string, scope: SkillScope): void => {
+    setPendingInstall({ source, scope });
   };
 
   const handleViewOnline = (url: string): void => {
@@ -290,7 +297,7 @@ export function SkillsPage(): React.ReactElement {
     return (
       <div className="card-list">
         {onlineResults.map((r) => (
-          <SkillSearchResultCard key={r.fullId} result={r} installing={installingSkills.has(r.fullId)} hasWorkspace={hasWorkspace} onInstall={handleInstallFromSearch} onViewOnline={handleViewOnline} />
+          <SkillSearchResultCard key={r.fullId} result={r} installing={false} hasWorkspace={hasWorkspace} onInstall={handlePendingInstall} onViewOnline={handleViewOnline} />
         ))}
       </div>
     );
@@ -300,16 +307,17 @@ export function SkillsPage(): React.ReactElement {
     if (registryError) return <ErrorBanner message={registryError} onDismiss={() => setRegistryError(null)} />;
     if (registryLoading) return <SkillCardSkeleton />;
     if (registryResults.length === 0) return <EmptyState icon={<NoResultsIcon />} title={t('skill.registry.noResults')} />;
+    if (filteredRegistry.length === 0) return <EmptyState icon={<NoResultsIcon />} title={t('skill.search.noResults').replace('{query}', search.trim())} />;
     return (
       <div className="card-list">
-        {registryResults.map((s) => (
+        {filteredRegistry.map((s) => (
           <RegistrySkillCard
             key={`${s.repo}/${s.name}`}
             skill={s}
             isInstalled={installedSkillNames.has(s.name)}
-            installing={installingSkills.has(s.repo)}
+            installing={false}
             hasWorkspace={hasWorkspace}
-            onInstall={handleInstallFromSearch}
+            onInstall={handlePendingInstall}
             onViewOnline={handleViewOnline}
           />
         ))}
@@ -327,10 +335,23 @@ export function SkillsPage(): React.ReactElement {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h2 className="page-title">{t('skill.page.title')}</h2>
-        <button className="btn btn-sm" onClick={fetchList} disabled={loading}>
-          {t('skill.page.refresh')}
-        </button>
+        <div className="page-title">{t('skill.page.title')}</div>
+        <div className="page-actions">
+          <button className="btn btn-primary" onClick={() => setShowAddDialog(true)}>
+            {t('skill.page.add')}
+          </button>
+          <button className="btn btn-secondary" onClick={handleCheckUpdates} disabled={checking || updating}>
+            {checking ? t('skill.check.checking') : t('skill.check.button')}
+          </button>
+          {checkResult && (
+            <button className="btn btn-secondary" onClick={handleUpdateAll} disabled={updating}>
+              {updating ? t('skill.update.updating') : t('skill.update.button')}
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={fetchList} disabled={loading}>
+            {t('skill.page.refresh')}
+          </button>
+        </div>
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
@@ -342,14 +363,8 @@ export function SkillsPage(): React.ReactElement {
         onPageTabChange={handleTabChange}
         scopeFilter={scopeFilter}
         onScopeFilterChange={setScopeFilter}
-        onAddClick={() => setShowAddDialog(true)}
         registrySort={registrySort}
         onRegistrySortChange={setRegistrySort}
-        checking={checking}
-        onCheckUpdates={handleCheckUpdates}
-        updating={updating}
-        onUpdateAll={handleUpdateAll}
-        checkResult={checkResult}
       />
 
       {pageTab === 'installed' && renderInstalledContent()}
@@ -357,12 +372,14 @@ export function SkillsPage(): React.ReactElement {
       {pageTab === 'registry' && renderRegistryContent()}
 
       <AddSkillDialog
-        open={showAddDialog}
+        open={showAddDialog || pendingInstall !== null}
         adding={addingSkill}
         hasWorkspace={hasWorkspace}
         cachedAgents={selectedAgents}
+        initialSource={pendingInstall?.source}
+        initialScope={pendingInstall?.scope}
         onSubmit={handleAdd}
-        onClose={() => setShowAddDialog(false)}
+        onClose={() => { setShowAddDialog(false); setPendingInstall(null); }}
       />
 
       {confirmRemove && (

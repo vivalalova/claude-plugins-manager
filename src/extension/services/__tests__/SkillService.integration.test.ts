@@ -8,11 +8,27 @@ import { tmpdir } from 'os';
 // Mocks
 // ---------------------------------------------------------------------------
 
-const { mockSpawn, mockExistsSync, mockReaddirSync } = vi.hoisted(() => ({
-  mockSpawn: vi.fn(),
-  mockExistsSync: vi.fn(),
-  mockReaddirSync: vi.fn(),
-}));
+const {
+  mockSpawn, mockExistsSync, mockReaddirSync,
+  mockReadFileSync, mockWriteFileSync, mockMkdirSync,
+  realReadFileSync, realWriteFileSync, realMkdirSync, realMkdtempSync,
+} = vi.hoisted(() => {
+  // Capture the real fs functions BEFORE the mock replaces them
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const realFs = require('fs') as typeof import('fs');
+  return {
+    mockSpawn: vi.fn(),
+    mockExistsSync: vi.fn(),
+    mockReaddirSync: vi.fn(),
+    mockReadFileSync: vi.fn(),
+    mockWriteFileSync: vi.fn(),
+    mockMkdirSync: vi.fn(),
+    realReadFileSync: realFs.readFileSync,
+    realWriteFileSync: realFs.writeFileSync,
+    realMkdirSync: realFs.mkdirSync,
+    realMkdtempSync: realFs.mkdtempSync,
+  };
+});
 
 vi.mock('child_process', () => ({
   spawn: mockSpawn,
@@ -24,6 +40,9 @@ vi.mock('fs', async (importOriginal) => {
     ...actual,
     existsSync: mockExistsSync,
     readdirSync: mockReaddirSync,
+    readFileSync: mockReadFileSync,
+    writeFileSync: mockWriteFileSync,
+    mkdirSync: mockMkdirSync,
   };
 });
 
@@ -150,6 +169,18 @@ describe('SkillService', () => {
     // Default: npx found at /opt/homebrew/bin/npx
     mockExistsSync.mockImplementation((p: string) => p === '/opt/homebrew/bin/npx');
     mockReaddirSync.mockImplementation(() => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); });
+
+    // readFileSync: pass through for real files (SKILL.md), throw ENOENT for cache file (simulate no cache)
+    mockReadFileSync.mockImplementation((path: unknown, ...rest: unknown[]) => {
+      const p = String(path);
+      if (p.includes('skill-registry.json')) {
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      }
+      return (realReadFileSync as (...args: unknown[]) => unknown)(path, ...rest);
+    });
+    // writeFileSync + mkdirSync: no-op (don't write cache to real disk during tests)
+    mockWriteFileSync.mockImplementation(() => undefined);
+    mockMkdirSync.mockImplementation(() => undefined);
 
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -462,7 +493,7 @@ describe('SkillService', () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = mkdtempSync(join(tmpdir(), 'skill-test-'));
+      tmpDir = realMkdtempSync(join(tmpdir(), 'skill-test-'));
     });
 
     afterEach(() => {
@@ -471,8 +502,8 @@ describe('SkillService', () => {
 
     it('解析 SKILL.md frontmatter + body', async () => {
       const skillDir = join(tmpDir, 'test-skill');
-      mkdirSync(skillDir, { recursive: true });
-      writeFileSync(join(skillDir, 'SKILL.md'), SAMPLE_SKILL_MD);
+      realMkdirSync(skillDir, { recursive: true });
+      realWriteFileSync(join(skillDir, 'SKILL.md'), SAMPLE_SKILL_MD);
 
       const result = await service.getDetail(skillDir);
 
@@ -488,8 +519,8 @@ describe('SkillService', () => {
 
     it('無 frontmatter → frontmatter 為空 object', async () => {
       const skillDir = join(tmpDir, 'no-fm');
-      mkdirSync(skillDir, { recursive: true });
-      writeFileSync(join(skillDir, 'SKILL.md'), '# Just a body\n\nNo frontmatter here.');
+      realMkdirSync(skillDir, { recursive: true });
+      realWriteFileSync(join(skillDir, 'SKILL.md'), '# Just a body\n\nNo frontmatter here.');
 
       const result = await service.getDetail(skillDir);
       expect(result.frontmatter).toEqual({});
@@ -562,6 +593,78 @@ describe('SkillService', () => {
     it('HTTP 非 200 → 拋錯', async () => {
       fetchMock.mockResolvedValue({ ok: false, status: 503, statusText: 'Service Unavailable' });
       await expect(service.fetchRegistry('all-time')).rejects.toThrow();
+    });
+
+    it('cache hit（TTL 內）→ 直接回傳快取，不呼叫 fetch', async () => {
+      const cachedData = [
+        { rank: 1, name: 'cached-skill', repo: 'owner/repo', installs: '1.0K', url: 'https://skills.sh/owner/repo/cached-skill' },
+      ];
+      const cacheContent = JSON.stringify({
+        'all-time:': { data: cachedData, timestamp: Date.now() },
+      });
+      mockReadFileSync.mockImplementationOnce(() => cacheContent);
+
+      const result = await service.fetchRegistry('all-time');
+
+      expect(result).toEqual(cachedData);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('cache 過期（超過 TTL）→ 重新 fetch，更新 cache', async () => {
+      const staleData = [
+        { rank: 1, name: 'stale-skill', repo: 'owner/repo', installs: '1.0K', url: 'https://skills.sh/owner/repo/stale-skill' },
+      ];
+      const expiredTimestamp = Date.now() - 5 * 60 * 60 * 1000; // 5 小時前
+      const staleCacheContent = JSON.stringify({
+        'all-time:': { data: staleData, timestamp: expiredTimestamp },
+      });
+      mockReadFileSync.mockImplementationOnce(() => staleCacheContent);
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
+
+      const result = await service.fetchRegistry('all-time');
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+      expect(mockWriteFileSync).toHaveBeenCalled();
+    });
+
+    it('cache key 隔離：不同 sort 各自獨立', async () => {
+      const allTimeCache = [
+        { rank: 1, name: 'alltime-skill', repo: 'owner/repo', installs: '10.0K', url: 'https://skills.sh/owner/repo/alltime-skill' },
+      ];
+      const cacheContent = JSON.stringify({
+        'all-time:': { data: allTimeCache, timestamp: Date.now() },
+      });
+      // all-time: cache hit → no fetch
+      mockReadFileSync.mockImplementationOnce(() => cacheContent);
+      const allTimeResult = await service.fetchRegistry('all-time');
+      expect(allTimeResult).toEqual(allTimeCache);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      // trending: cache miss → fetch
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
+      const trendingResult = await service.fetchRegistry('trending');
+      expect(fetchMock).toHaveBeenCalledWith('https://skills.sh/trending', expect.any(Object));
+      expect(trendingResult).toHaveLength(2);
+    });
+
+    it('cache 讀取失敗（損毀 JSON）→ 靜默 fallback 到 fetch', async () => {
+      mockReadFileSync.mockImplementationOnce(() => 'not-valid-json{{{');
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
+
+      const result = await service.fetchRegistry('all-time');
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+    });
+
+    it('cache 寫入失敗 → 靜默忽略，正常回傳 fetch 結果', async () => {
+      mockWriteFileSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
+
+      const result = await service.fetchRegistry('all-time');
+
+      expect(result).toHaveLength(2);
     });
   });
 });

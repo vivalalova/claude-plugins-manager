@@ -27,7 +27,7 @@ npm run watch              # concurrently watch extension + webview
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
 - **PluginPage 子元件**：`PluginPage.tsx`（state + layout）→ `PluginToolbar.tsx`（搜尋 + filter）、`PluginSections.tsx`（section 渲染 + drag/drop）、`PluginDialogs.tsx`（BulkEnableScopeDialog / TranslateDialog / KeyboardHelpOverlay）
-- **SkillsPage 子元件**：`SkillsPage.tsx`（state + layout）→ `SkillToolbar.tsx`（mode tabs + search + scope filter）、`SkillSections.tsx`（scope 分組）、`SkillCard.tsx`（已安裝 skill 卡片）、`SkillSearchResultCard.tsx`（線上搜尋結果）、`RegistrySkillCard.tsx`（Registry 排行榜）、`SkillDetailPanel.tsx`（SKILL.md 詳情）、`SkillDialogs.tsx`（AddSkillDialog + RemoveConfirmDialog）
+- **SkillsPage 子元件**：`SkillsPage.tsx`（state + layout；header 含 `page-actions` div：Add Skill/Check Updates/Update All/Refresh）→ `SkillToolbar.tsx`（Row 1: 搜尋列；Row 2: mode tabs + contextual filter chips；action 按鈕已移至 page header，props 不含 `onAddClick`/`checking`/`onCheckUpdates`/`updating`/`onUpdateAll`/`checkResult`）、`SkillSections.tsx`（scope 分組；內部 `collapsed` Set\<string\> 狀態，`section-toggle`/`section-chevron`/`section-body` 折疊模式同 PluginSections）、`SkillCard.tsx`（已安裝 skill 卡片；內部 `expanded` 狀態，`card--expandable`/`card-expand-arrow`/`plugin-contents` 展開模式同 PluginCard）、`SkillSearchResultCard.tsx`（線上搜尋結果；`.card-name-column`/`.card-name-with-rank` CSS class）、`RegistrySkillCard.tsx`（Registry 排行榜；client-side `filteredRegistry` useMemo 過濾，`name`/`repo` 欄位即時搜尋，不 debounce）、`SkillDetailPanel.tsx`（SKILL.md 詳情）、`SkillDialogs.tsx`（AddSkillDialog：inline style 已改 CSS class `skill-dialog-*`；RemoveConfirmDialog）
 - **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'skill' | 'settings' | 'info'`（對應 6 個 editor panel + sidebar tab）
 
 ### Services
@@ -107,6 +107,7 @@ https://code.claude.com/docs/en/settings
 - skills.sh 無公開 JSON API，從 `__next_f.push` 中的 `initialSkills` JSON 解析排行榜
 - SkillScope 只有 `'global' | 'project'`（無 `local`），不同於 PluginScope 三值
 - Extension Host 的 PATH 可能不含 npx → SkillService 有獨立路徑搜尋（NVM 最新版優先）
+- `ScopePicker` dropdown 用 `createPortal(dropdown, document.body)`：`.card` 的 CSS `transform` animation 產生 containing block，導致 `position: fixed` 被 `.card-list` `overflow: hidden` 裁切；portal 到 body 可繞過此限制
 
 ## 測試
 

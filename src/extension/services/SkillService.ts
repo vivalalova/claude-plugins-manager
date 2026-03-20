@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS, SKILL_REGISTRY_URL } from '../constants';
@@ -20,6 +20,17 @@ export class SkillError extends Error {
 }
 
 const MAX_STDIO_BUFFER_BYTES = 10 * 1024 * 1024;
+const REGISTRY_CACHE_TTL_MS = 4 * 60 * 60 * 1000;
+const REGISTRY_CACHE_FILE = join(homedir(), '.claude', 'plugins', 'cache', 'skill-registry.json');
+
+interface RegistryCacheEntry {
+  data: RegistrySkill[];
+  timestamp: number;
+}
+
+interface RegistryCacheFile {
+  [cacheKey: string]: RegistryCacheEntry;
+}
 
 /** execFile 錯誤的型別（Node.js child_process） */
 interface ExecError {
@@ -172,8 +183,12 @@ export class SkillService {
     return this.parseFrontmatter(content);
   }
 
-  /** 從 skills.sh 取得 registry 列表 */
+  /** 從 skills.sh 取得 registry 列表（4 小時 file-based cache） */
   async fetchRegistry(sort: RegistrySort, query?: string): Promise<RegistrySkill[]> {
+    const cacheKey = `${sort}:${query ?? ''}`;
+    const cached = this.readRegistryCache(cacheKey);
+    if (cached) return cached;
+
     let url: string;
     if (query) {
       url = sort === 'all-time'
@@ -198,7 +213,9 @@ export class SkillService {
     }
 
     const html = await response.text();
-    return this.parseRegistryHtml(html);
+    const data = this.parseRegistryHtml(html);
+    this.writeRegistryCache(cacheKey, data);
+    return data;
   }
 
   // ---------------------------------------------------------------------------
@@ -416,6 +433,37 @@ export class SkillService {
       installs: SkillService.formatInstalls(item.installs),
       url: `${SKILL_REGISTRY_URL}/${item.source}/${item.skillId}`,
     }));
+  }
+
+  /** 讀取 registry file cache；cache miss 或過期回傳 null */
+  private readRegistryCache(key: string): RegistrySkill[] | null {
+    try {
+      const raw = readFileSync(REGISTRY_CACHE_FILE, 'utf-8');
+      const cache = JSON.parse(raw) as RegistryCacheFile;
+      const entry = cache[key];
+      if (!entry) return null;
+      if (Date.now() - entry.timestamp > REGISTRY_CACHE_TTL_MS) return null;
+      return entry.data;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 寫入 registry file cache；寫入失敗靜默忽略 */
+  private writeRegistryCache(key: string, data: RegistrySkill[]): void {
+    try {
+      mkdirSync(join(homedir(), '.claude', 'plugins', 'cache'), { recursive: true });
+      let cache: RegistryCacheFile = {};
+      try {
+        cache = JSON.parse(readFileSync(REGISTRY_CACHE_FILE, 'utf-8')) as RegistryCacheFile;
+      } catch {
+        // 檔案不存在或損毀，從空物件開始
+      }
+      cache[key] = { data, timestamp: Date.now() };
+      writeFileSync(REGISTRY_CACHE_FILE, JSON.stringify(cache), 'utf-8');
+    } catch {
+      // cache 寫入失敗不影響主流程
+    }
   }
 
   /** 解析 SKILL.md frontmatter */

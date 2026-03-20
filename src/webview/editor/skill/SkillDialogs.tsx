@@ -58,6 +58,10 @@ interface AddSkillDialogProps {
   adding: boolean;
   hasWorkspace: boolean;
   cachedAgents: string[];
+  /** 預填 source（來自 search/registry install 流程） */
+  initialSource?: string;
+  /** 預填 scope（來自 scope picker 選擇） */
+  initialScope?: SkillScope;
   onSubmit: (source: string, scope: SkillScope, agents: string[]) => void;
   onClose: () => void;
 }
@@ -67,6 +71,8 @@ export function AddSkillDialog({
   adding,
   hasWorkspace,
   cachedAgents,
+  initialSource,
+  initialScope,
   onSubmit,
   onClose,
 }: AddSkillDialogProps): React.ReactElement | null {
@@ -84,14 +90,14 @@ export function AddSkillDialog({
     setAgents(new Set(cachedAgents));
   }, [cachedAgents]);
 
-  // 開啟時重置表單（agents 不重置，保留選擇）
+  // 開啟時重置表單；若有 initialSource/initialScope 則預填
   useEffect(() => {
     if (open) {
-      setSource('');
-      setScope('global');
+      setSource(initialSource ?? '');
+      setScope(initialScope ?? 'global');
       setValidationError('');
     }
-  }, [open]);
+  }, [open, initialSource, initialScope]);
 
   if (!open) return null;
 
@@ -141,15 +147,14 @@ export function AddSkillDialog({
       >
         <div className="confirm-dialog-title" id={titleId}>{t('skill.add.title')}</div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label htmlFor="skill-source" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+        <div className="skill-dialog-field">
+          <label htmlFor="skill-source" className="skill-dialog-label">
             {t('skill.add.source')}
           </label>
           <input
             id="skill-source"
             type="text"
-            className="search-bar"
-            style={{ width: '100%' }}
+            className="search-bar skill-dialog-input"
             placeholder={t('skill.add.sourcePlaceholder')}
             value={source}
             onChange={(e) => { setSource(e.target.value); setValidationError(''); }}
@@ -157,18 +162,16 @@ export function AddSkillDialog({
             autoFocus
           />
           {validationError && (
-            <div style={{ color: 'var(--vscode-errorForeground)', fontSize: 11, marginTop: 4 }}>
-              {validationError}
-            </div>
+            <div className="skill-dialog-error">{validationError}</div>
           )}
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+        <div className="skill-dialog-field">
+          <label className="skill-dialog-label">
             {t('skill.add.scope')}
           </label>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+          <div className="skill-dialog-radio-group">
+            <label className="skill-dialog-radio">
               <input
                 type="radio"
                 name="skill-scope"
@@ -177,7 +180,7 @@ export function AddSkillDialog({
               />
               {t('skill.add.scopeGlobal')}
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: hasWorkspace ? 'pointer' : 'not-allowed', opacity: hasWorkspace ? 1 : 0.5 }}>
+            <label className={`skill-dialog-radio${!hasWorkspace ? ' skill-dialog-radio--disabled' : ''}`}>
               <input
                 type="radio"
                 name="skill-scope"
@@ -190,16 +193,16 @@ export function AddSkillDialog({
           </div>
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+        <div className="skill-dialog-field">
+          <label className="skill-dialog-label">
             {t('skill.add.agents')}
           </label>
-          <div style={{ fontSize: 11, color: 'var(--vscode-descriptionForeground)', marginBottom: 6 }}>
+          <div className="skill-dialog-hint">
             {t('skill.add.agentsHint')}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px' }}>
+          <div className="skill-dialog-agents-grid">
             {ALL_AGENTS.filter((a) => a.visible || showAllAgents).map((a) => (
-              <label key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 12 }}>
+              <label key={a.name} className="skill-dialog-agent-label">
                 <input
                   type="checkbox"
                   checked={agents.has(a.name)}
@@ -211,8 +214,7 @@ export function AddSkillDialog({
           </div>
           <button
             type="button"
-            className="btn-link"
-            style={{ fontSize: 11, marginTop: 4, padding: 0, color: 'var(--vscode-textLink-foreground)', background: 'none', border: 'none', cursor: 'pointer' }}
+            className="skill-dialog-toggle-link"
             onClick={() => setShowAllAgents((p) => !p)}
           >
             {showAllAgents ? t('skill.add.agentsShowLess') : t('skill.add.agentsShowAll')}
