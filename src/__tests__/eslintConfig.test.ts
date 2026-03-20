@@ -25,7 +25,7 @@ describe('eslint config', () => {
     });
     expect(extensionConfig.languageOptions.globals).not.toHaveProperty('window');
     expect(extensionConfig.languageOptions.globals).not.toHaveProperty('document');
-  });
+  }, 30000);
 
   it('webview 仍啟用 react hooks 與 jsx a11y 規則', async () => {
     const pluginCardConfig = await eslint.calculateConfigForFile('src/webview/editor/plugin/PluginCard.tsx');

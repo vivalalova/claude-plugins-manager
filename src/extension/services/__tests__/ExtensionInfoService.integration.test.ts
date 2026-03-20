@@ -21,11 +21,12 @@ const packageJson = {
 };
 
 const extensionPath = '/Users/test/.vscode/extensions/claude-plugins';
+const cacheDir = '/Users/test/.vscode-server/globalStorage/lova.claude-plugins-manager';
 
 describe('ExtensionInfoService — integration', () => {
   it('getInfo() 回傳所有必填欄位，型別正確', async () => {
     const cli = makeCli();
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     const info = await service.getInfo();
 
@@ -37,29 +38,30 @@ describe('ExtensionInfoService — integration', () => {
     expect(info.cliPath).toBe('/usr/local/bin/claude');
     expect(typeof info.cliVersion).toBe('string');
     expect(info.cliVersion).toBeTruthy();
-    expect(info.cacheDirPath).toBeTruthy();
-    expect(info.pluginsDirPath).toBeTruthy();
-    expect(info.installedPluginsPath).toContain('installed_plugins.json');
-    expect(info.knownMarketplacesPath).toContain('known_marketplaces.json');
-    expect(info.extensionPath).toBe(extensionPath);
-    expect(info.preferencesPath).toContain('preferences.json');
+    expect(info.cacheDirPath.path).toBeTruthy();
+    expect(typeof info.cacheDirPath.exists).toBe('boolean');
+    expect(info.pluginsDirPath.path).toBeTruthy();
+    expect(info.installedPluginsPath.path).toContain('installed_plugins.json');
+    expect(info.knownMarketplacesPath.path).toContain('known_marketplaces.json');
+    expect(info.extensionPath.path).toBe(extensionPath);
+    expect(info.preferencesPath.path).toContain('preferences.json');
   });
 
   it('路徑欄位正確組合 homedir', async () => {
     const cli = makeCli();
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     const info = await service.getInfo();
     const claudeDir = join(homedir(), '.claude');
 
-    expect(info.pluginsDirPath).toBe(join(claudeDir, 'plugins'));
-    expect(info.installedPluginsPath).toBe(join(claudeDir, 'plugins', 'installed_plugins.json'));
-    expect(info.knownMarketplacesPath).toBe(join(claudeDir, 'plugins', 'known_marketplaces.json'));
+    expect(info.pluginsDirPath.path).toBe(join(claudeDir, 'plugins'));
+    expect(info.installedPluginsPath.path).toBe(join(claudeDir, 'plugins', 'installed_plugins.json'));
+    expect(info.knownMarketplacesPath.path).toBe(join(claudeDir, 'plugins', 'known_marketplaces.json'));
   });
 
   it('CLI 不存在時 cliVersion 為 null，不拋例外', async () => {
     const cli = makeCli(null);
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     const info = await service.getInfo();
 
@@ -75,6 +77,7 @@ describe('ExtensionInfoService — integration', () => {
       cli as CliService,
       { version: '1.0.0' },
       extensionPath,
+      cacheDir,
     );
 
     const info = await service.getInfo();
@@ -86,7 +89,7 @@ describe('ExtensionInfoService — integration', () => {
 
   it('getInfo() 呼叫 cli.exec 帶 --version 參數', async () => {
     const cli = makeCli();
-    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath);
+    const service = new ExtensionInfoService(cli as CliService, packageJson, extensionPath, cacheDir);
 
     await service.getInfo();
 

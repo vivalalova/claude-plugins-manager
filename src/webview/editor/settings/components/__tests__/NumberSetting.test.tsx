@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithI18n } from '../../../../__test-utils__/renderWithProviders';
+import { I18nProvider } from '../../../../i18n/I18nContext';
 import { NumberSetting } from '../SettingControls';
 import { ToastProvider } from '../../../../components/Toast';
 
@@ -219,19 +220,21 @@ describe('NumberSetting — 邊界值', () => {
     });
 
     rerender(
-      <ToastProvider>
-        <NumberSetting
-          label="Cleanup Period"
-          value={60}
-          placeholder="e.g. 30"
-          saveLabel="Save"
-          clearLabel="Clear"
-          settingKey="cleanupPeriodDays"
-          scope="project"
-          onSave={vi.fn()}
-          onDelete={vi.fn()}
-        />
-      </ToastProvider>,
+      <I18nProvider locale="en">
+        <ToastProvider>
+          <NumberSetting
+            label="Cleanup Period"
+            value={60}
+            placeholder="e.g. 30"
+            saveLabel="Save"
+            clearLabel="Clear"
+            settingKey="cleanupPeriodDays"
+            scope="project"
+            onSave={vi.fn()}
+            onDelete={vi.fn()}
+          />
+        </ToastProvider>
+      </I18nProvider>,
     );
 
     await waitFor(() => {

@@ -66,6 +66,16 @@
         "category": "Claude Code"
       },
       {
+        "command": "claude-plugins-manager.openSkill",
+        "title": "Open Skills Manager",
+        "category": "Claude Code"
+      },
+      {
+        "command": "claude-plugins-manager.openSettings",
+        "title": "Open Settings Manager",
+        "category": "Claude Code"
+      },
+      {
         "command": "claude-plugins-manager.openInfo",
         "title": "Open Extension Info",
         "category": "Claude Code"
@@ -80,9 +90,12 @@
     "watch:webview": "node esbuild.webview.mjs --watch",
     "watch": "concurrently \"npm:watch:extension\" \"npm:watch:webview\"",
     "lint": "eslint src/",
+    "lint:fix": "eslint src/ scripts/ --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
+    "check:schema": "npx tsx scripts/check-settings-schema.ts",
+    "verify": "npm run typecheck && npm run lint && npm run check:schema && npm test && npm run build",
     "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
     "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-*.vsix --force",
     "uninstall:ext": "code --uninstall-extension lova.claude-plugins-manager",

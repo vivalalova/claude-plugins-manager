@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, TagListSetting } from './components/SettingControls';
+import { TagListSetting } from './components/SettingControls';
+import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getOverriddenScope } from './components/SettingControls';
 import { useToast } from '../../components/Toast';
-
-const KNOWN_TEAMMATE_MODES = ['auto', 'in-process', 'tmux'] as const;
+import { DISPLAY_FIELD_ORDER } from '../../../shared/field-orders';
 
 interface DisplaySectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  userSettings?: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -211,67 +214,58 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 // DisplaySection
 // ---------------------------------------------------------------------------
 
-export function DisplaySection({ scope, settings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
+export function DisplaySection({ scope, settings, userSettings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
   const { t } = useI18n();
-
-  // Defaults mirror Claude Code's published settings schema.
-  const booleanFields: { key: keyof ClaudeSettings; label: string; description: string }[] = [
-    { key: 'showTurnDuration', label: t('settings.display.showTurnDuration.label'), description: t('settings.display.showTurnDuration.description') },
-    { key: 'spinnerTipsEnabled', label: t('settings.display.spinnerTipsEnabled.label'), description: t('settings.display.spinnerTipsEnabled.description') },
-    { key: 'terminalProgressBarEnabled', label: t('settings.display.terminalProgressBarEnabled.label'), description: t('settings.display.terminalProgressBarEnabled.description') },
-    { key: 'prefersReducedMotion', label: t('settings.display.prefersReducedMotion.label'), description: t('settings.display.prefersReducedMotion.description') },
-  ];
-
-  const teammateModeLabels: Record<string, string> = {
-    auto: t('settings.display.teammateMode.auto'),
-    'in-process': t('settings.display.teammateMode.inProcess'),
-    tmux: t('settings.display.teammateMode.tmux'),
-  };
 
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.display')}</h3>
 
-      <EnumDropdown
-        label={t('settings.display.teammateMode.label')}
-        description={t('settings.display.teammateMode.description')}
-        value={settings.teammateMode}
-        knownValues={KNOWN_TEAMMATE_MODES}
-        knownLabels={teammateModeLabels}
-        notSetLabel={t('settings.display.teammateMode.notSet')}
-        unknownTemplate={t('settings.display.teammateMode.unknown')}
-        settingKey="teammateMode"
-        defaultValue="auto"
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+      {DISPLAY_FIELD_ORDER.map((key) => {
+        const schema = CLAUDE_SETTINGS_SCHEMA[key];
+        if (!schema) return null;
+        const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
 
-      {booleanFields.map(({ key, label, description }) => (
-        <BooleanToggle
-          key={key}
-          label={label}
-          description={description}
-          value={settings[key] as boolean | undefined}
-          settingKey={key}
-          defaultValue={key === 'prefersReducedMotion' ? false : true}
-          onSave={onSave}
-          onDelete={onDelete}
-        />
-      ))}
+        if (schema.controlType === 'custom') {
+          switch (key) {
+            case 'spinnerVerbs':
+              return (
+                <SpinnerVerbsEditor
+                  key={key}
+                  scope={scope}
+                  value={settings.spinnerVerbs}
+                  onSave={onSave}
+                  onDelete={onDelete}
+                />
+              );
+            case 'spinnerTipsOverride':
+              return (
+                <SpinnerTipsOverrideEditor
+                  key={key}
+                  scope={scope}
+                  value={settings.spinnerTipsOverride}
+                  onSave={onSave}
+                  onDelete={onDelete}
+                />
+              );
+            default:
+              return null;
+          }
+        }
 
-      <SpinnerVerbsEditor
-        scope={scope}
-        value={settings.spinnerVerbs}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <SpinnerTipsOverrideEditor
-        scope={scope}
-        value={settings.spinnerTipsOverride}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+        return (
+          <SchemaFieldRenderer
+            key={key}
+            settingKey={key}
+            schema={schema}
+            value={(settings as Record<string, unknown>)[key]}
+            scope={scope}
+            overriddenScope={overriddenScope}
+            onSave={onSave}
+            onDelete={onDelete}
+          />
+        );
+      })}
     </div>
   );
 }

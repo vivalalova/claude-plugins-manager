@@ -338,6 +338,12 @@ export interface MergedPlugin {
   localInstall: InstalledPlugin | null;
 }
 
+/** 路徑 + 存在性 */
+export interface PathInfo {
+  path: string;
+  exists: boolean;
+}
+
 /** Extension Info 頁面資料 */
 export interface ExtensionInfo {
   extensionVersion: string;
@@ -346,10 +352,53 @@ export interface ExtensionInfo {
   repoUrl: string | null;
   cliPath: string | null;
   cliVersion: string | null;
-  cacheDirPath: string;
-  pluginsDirPath: string;
-  installedPluginsPath: string;
-  knownMarketplacesPath: string;
-  extensionPath: string;
-  preferencesPath: string;
+  cacheDirPath: PathInfo;
+  pluginsDirPath: PathInfo;
+  dataDirPath: PathInfo;
+  installedPluginsPath: PathInfo;
+  knownMarketplacesPath: PathInfo;
+  extensionPath: PathInfo;
+  preferencesPath: PathInfo;
+  /** home dir 前綴（用於 UI 顯示 ~/ 縮寫） */
+  homeDirPrefix: string;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Skills
+// ---------------------------------------------------------------------------
+
+/** Skill scope（CLI 僅支援 global + project，無 local） */
+export type SkillScope = 'global' | 'project';
+
+/** 對應 npx skills list --json 的結構 + SKILL.md frontmatter */
+export interface AgentSkill {
+  name: string;
+  path: string;
+  scope: SkillScope;
+  agents: string[];
+  description?: string;
+  model?: string;
+  context?: string;
+  allowedTools?: string[];
+}
+
+/** skills.sh registry 列表項目 */
+export interface RegistrySkill {
+  rank: number;
+  name: string;
+  repo: string;
+  installs: string;
+  url: string;
+}
+
+/** skills.sh registry 排序方式 */
+export type RegistrySort = 'all-time' | 'trending' | 'hot';
+
+/** npx skills find 文字解析結果 */
+export interface SkillSearchResult {
+  fullId: string;
+  name: string;
+  repo: string;
+  installs?: string;
+  url?: string;
 }

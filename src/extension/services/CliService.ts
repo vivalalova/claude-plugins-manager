@@ -3,7 +3,18 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { CLI_TIMEOUT_MS, CLI_MAX_RETRIES, CLI_BASE_BACKOFF_MS, CLI_RETRYABLE_CODES } from '../constants';
-import { CliError } from '../types';
+/** CLI 執行錯誤 */
+export class CliError extends Error {
+  constructor(
+    message: string,
+    public readonly command: string,
+    public readonly exitCode: number | null,
+    public readonly stderr: string,
+  ) {
+    super(message);
+    this.name = 'CliError';
+  }
+}
  
 const MAX_STDIO_BUFFER_BYTES = 10 * 1024 * 1024;
 

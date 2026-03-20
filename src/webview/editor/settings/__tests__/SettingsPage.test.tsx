@@ -681,6 +681,48 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('切換到新 scope 時，fetch 期間顯示 loading，完成後渲染新 scope 的資料', async () => {
+    let resolveProject!: (v: Record<string, unknown>) => void;
+    const projectFetchPromise = new Promise<Record<string, unknown>>((res) => { resolveProject = res; });
+
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project') return projectFetchPromise;
+      if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({ model: 'claude-opus-4-6' });
+      return Promise.resolve({});
+    });
+
+    renderPage();
+
+    // user scope 有 model 設定
+    await waitFor(() => screen.getByText('Model'));
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+    await waitFor(() => {
+      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
+      expect(modelSelect.value).toBe('claude-opus-4-6');
+    });
+
+    // 切到 Project scope，project fetch 卡住
+    fireEvent.click(screen.getByText('Project').closest('button')!);
+
+    // fetch 期間顯示 loading，不顯示上一個 scope 的舊資料
+    await waitFor(() => {
+      expect(screen.getByText('Loading settings...')).toBeTruthy();
+    });
+
+    // project fetch 完成（model 未設定）
+    resolveProject({});
+    await waitFor(() => {
+      expect(screen.queryByText('Loading settings...')).toBeNull();
+    });
+
+    // fetch 完成後 model select 應為空（project scope 無 model 設定）
+    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
+    expect(modelSelect.value).toBe('');
+  });
+
   it('settings.refresh push message → 重新 fetch', async () => {
     const capture: { fn: ((msg: { type: string }) => void) | null } = { fn: null };
     mockOnPushMessage.mockImplementation(((h: (msg: { type: string }) => void) => {

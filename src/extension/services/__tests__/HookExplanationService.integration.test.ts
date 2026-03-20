@@ -20,7 +20,7 @@ async function writeCache(cachePath: string, data: Record<string, unknown>): Pro
 }
 
 function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 8);
+  return createHash('sha256').update(content).digest('hex').slice(0, 16);
 }
 
 // ---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ describe('HookExplanationService — integration', () => {
 
     cli = makeCli();
 
-    service = new HookExplanationService(cli as CliService);
+    service = new HookExplanationService(cli as CliService, tmpDir);
     // Redirect to tmpDir by overriding private methods
     const svc = service as unknown as {
       readCache: () => Promise<Record<string, unknown>>;
@@ -418,5 +418,97 @@ describe('HookExplanationService — integration', () => {
     ]);
 
     expect(result).toEqual({});
+  });
+
+  // ---------------------------------------------------------------------------
+  // Inflight deduplication
+  // ---------------------------------------------------------------------------
+
+  it('同 key 並發 3 次 explain → CLI 只呼叫 1 次、結果全部相同', async () => {
+    const content = 'echo "concurrent hook"';
+    (cli.exec as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve('dedup result'), 20)),
+    );
+
+    const [r1, r2, r3] = await Promise.all([
+      service.explain(content, 'PreToolUse', 'en'),
+      service.explain(content, 'PreToolUse', 'en'),
+      service.explain(content, 'PreToolUse', 'en'),
+    ]);
+
+    expect(cli.exec).toHaveBeenCalledOnce();
+    expect(r1.explanation).toBe('dedup result');
+    expect(r2.explanation).toBe('dedup result');
+    expect(r3.explanation).toBe('dedup result');
+    expect(r1.fromCache).toBe(false);
+    expect(r2.fromCache).toBe(false);
+    expect(r3.fromCache).toBe(false);
+  });
+
+  it('inflight 完成後再次 explain 同 key → 命中 cache 不呼叫 CLI', async () => {
+    const content = 'echo "after inflight"';
+    (cli.exec as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve('cached after inflight'), 10)),
+    );
+
+    // 第一次呼叫（CLI inflight）
+    const r1 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r1.fromCache).toBe(false);
+    expect(cli.exec).toHaveBeenCalledOnce();
+
+    // inflight 已完成，cache 已寫入，再次呼叫應命中 cache
+    const r2 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r2.fromCache).toBe(true);
+    expect(r2.explanation).toBe('cached after inflight');
+    expect(cli.exec).toHaveBeenCalledOnce(); // 仍然只呼叫 1 次
+  });
+
+  it('inflight 期間 refresh=true → 不受 dedup 影響，獨立呼叫 CLI', async () => {
+    const content = 'echo "refresh bypass"';
+    let callCount = 0;
+    (cli.exec as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((resolve) => {
+        callCount++;
+        const n = callCount;
+        setTimeout(() => resolve(`result-${n}`), 20);
+      }),
+    );
+
+    // 同時啟動：普通請求（會 inflight）+ refresh 請求（應繞過）
+    const [r1, r2] = await Promise.all([
+      service.explain(content, 'PreToolUse', 'en'),
+      service.explain(content, 'PreToolUse', 'en', undefined, true),
+    ]);
+
+    // 兩者各自呼叫 CLI，不互相 dedup
+    expect(cli.exec).toHaveBeenCalledTimes(2);
+    // 各自拿到自己的結果（順序可能不同，但兩個都是 fromCache: false）
+    expect(r1.fromCache).toBe(false);
+    expect(r2.fromCache).toBe(false);
+  });
+
+  it('同 key 並發 → CLI 失敗 → 所有並發 caller 都拋錯，inflightRequests 清除', async () => {
+    const content = 'echo "fail hook"';
+    (cli.exec as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise((_, reject) => setTimeout(() => reject(new Error('CLI error')), 10)),
+    );
+
+    const results = await Promise.allSettled([
+      service.explain(content, 'PreToolUse', 'en'),
+      service.explain(content, 'PreToolUse', 'en'),
+    ]);
+
+    // CLI 只呼叫 1 次
+    expect(cli.exec).toHaveBeenCalledOnce();
+    // 兩個 caller 都拋錯
+    expect(results[0].status).toBe('rejected');
+    expect(results[1].status).toBe('rejected');
+
+    // inflight 清除後，下一次呼叫應重新觸發 CLI
+    (cli.exec as ReturnType<typeof vi.fn>).mockResolvedValue('recovered');
+    const r3 = await service.explain(content, 'PreToolUse', 'en');
+    expect(r3.fromCache).toBe(false);
+    expect(r3.explanation).toBe('recovered');
+    expect(cli.exec).toHaveBeenCalledTimes(2);
   });
 });

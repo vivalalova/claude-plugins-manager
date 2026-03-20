@@ -1,432 +1,15 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, SettingLabelText, TextSetting } from './components/SettingControls';
-import { useToast } from '../../components/Toast';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const KNOWN_FORCE_LOGIN_METHODS = ['claudeai', 'console'] as const satisfies readonly (NonNullable<ClaudeSettings['forceLoginMethod']>)[];
-
-// ---------------------------------------------------------------------------
-// AttributionEditor
-// ---------------------------------------------------------------------------
-
-interface AttributionEditorProps {
-  attribution: ClaudeSettings['attribution'];
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
-
-function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorProps): React.ReactElement {
-  const { t } = useI18n();
-  const { addToast } = useToast();
-  const [commit, setCommit] = useState(attribution?.commit ?? '');
-  const [pr, setPr] = useState(attribution?.pr ?? '');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setCommit(attribution?.commit ?? '');
-    setPr(attribution?.pr ?? '');
-  }, [attribution?.commit, attribution?.pr]);
-
-  const handleSave = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      const obj: { commit?: string; pr?: string } = {};
-      if (commit.trim()) obj.commit = commit.trim();
-      if (pr.trim()) obj.pr = pr.trim();
-
-      if (Object.keys(obj).length === 0) {
-        await onDelete('attribution');
-      } else {
-        await onSave('attribution', obj);
-      }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.advanced.attribution.label')} settingKey="attribution" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.attribution.description')}</p>
-      <div className="settings-subfield">
-        <label className="settings-label" htmlFor="attribution-commit">
-          {t('settings.advanced.attribution.commit.label')}
-        </label>
-        <input
-          id="attribution-commit"
-          className="input"
-          type="text"
-          value={commit}
-          onChange={(e) => setCommit(e.target.value)}
-          placeholder={t('settings.advanced.attribution.commit.placeholder')}
-          disabled={saving}
-        />
-      </div>
-      <div className="settings-subfield">
-        <label className="settings-label" htmlFor="attribution-pr">
-          {t('settings.advanced.attribution.pr.label')}
-        </label>
-        <input
-          id="attribution-pr"
-          className="input"
-          type="text"
-          value={pr}
-          onChange={(e) => setPr(e.target.value)}
-          placeholder={t('settings.advanced.attribution.pr.placeholder')}
-          disabled={saving}
-        />
-      </div>
-      <div className="settings-actions">
-        <button
-          className="btn btn-primary"
-          onClick={() => void handleSave()}
-          disabled={saving}
-          type="button"
-        >
-          {t('settings.advanced.attribution.save')}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// StatusLineEditor
-// ---------------------------------------------------------------------------
-
-interface StatusLineEditorProps {
-  statusLine: ClaudeSettings['statusLine'];
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
-
-function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProps): React.ReactElement {
-  const { t } = useI18n();
-  const { addToast } = useToast();
-  const [command, setCommand] = useState(statusLine?.command ?? '');
-  const [paddingStr, setPaddingStr] = useState(statusLine?.padding !== undefined ? String(statusLine.padding) : '');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setCommand(statusLine?.command ?? '');
-    setPaddingStr(statusLine?.padding !== undefined ? String(statusLine.padding) : '');
-  }, [statusLine?.command, statusLine?.padding]);
-
-  const handleSave = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      const trimmedCommand = command.trim();
-      if (!trimmedCommand) {
-        await onDelete('statusLine');
-        return;
-      }
-      const obj: { type: 'command'; command: string; padding?: number } = { type: 'command', command: trimmedCommand };
-      const trimmedPadding = paddingStr.trim();
-      if (trimmedPadding !== '' && /^\d+$/.test(trimmedPadding)) {
-        obj.padding = parseInt(trimmedPadding, 10);
-      }
-      await onSave('statusLine', obj);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      await onDelete('statusLine');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.advanced.statusLine.label')} settingKey="statusLine" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.statusLine.description')}</p>
-      <div className="settings-subfield">
-        <label className="settings-label" htmlFor="statusLine-command">
-          {t('settings.advanced.statusLine.command.label')}
-        </label>
-        <input
-          id="statusLine-command"
-          className="input"
-          type="text"
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
-          placeholder={t('settings.advanced.statusLine.command.placeholder')}
-          disabled={saving}
-        />
-      </div>
-      <div className="settings-subfield">
-        <label className="settings-label" htmlFor="statusLine-padding">
-          {t('settings.advanced.statusLine.padding.label')}
-        </label>
-        <input
-          id="statusLine-padding"
-          className="input"
-          type="number"
-          value={paddingStr}
-          onChange={(e) => setPaddingStr(e.target.value)}
-          placeholder={t('settings.advanced.statusLine.padding.placeholder')}
-          min="0"
-          step="1"
-          disabled={saving}
-        />
-      </div>
-      <div className="settings-actions">
-        <button
-          className="btn btn-primary"
-          onClick={() => void handleSave()}
-          disabled={saving}
-          type="button"
-        >
-          {t('settings.advanced.statusLine.save')}
-        </button>
-        {statusLine && (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleDelete()}
-            disabled={saving}
-            type="button"
-          >
-            {t('settings.advanced.statusLine.clear')}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SandboxEditor
-// ---------------------------------------------------------------------------
-
-interface SandboxEditorProps {
-  sandbox: ClaudeSettings['sandbox'];
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
-
-function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
-  const { t } = useI18n();
-  const { addToast } = useToast();
-  const [jsonText, setJsonText] = useState(sandbox ? JSON.stringify(sandbox, null, 2) : '');
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const sandboxJson = sandbox ? JSON.stringify(sandbox, null, 2) : '';
-  useEffect(() => {
-    setJsonText(sandboxJson);
-    setError('');
-  }, [sandboxJson]);
-
-  const handleSave = async (): Promise<void> => {
-    const trimmed = jsonText.trim();
-    if (!trimmed) {
-      setSaving(true);
-      try {
-        await onDelete('sandbox');
-      } catch (e) {
-        addToast(e instanceof Error ? e.message : String(e), 'error');
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(trimmed);
-    } catch (e) {
-      setError(t('settings.advanced.sandbox.invalidJson').replace('{error}', e instanceof Error ? e.message : String(e)));
-      return;
-    }
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      setError(t('settings.advanced.sandbox.invalidObject'));
-      return;
-    }
-    setSaving(true);
-    try {
-      await onSave('sandbox', parsed);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      await onDelete('sandbox');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor="sandbox-json">
-        <SettingLabelText label={t('settings.advanced.sandbox.label')} settingKey="sandbox" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.sandbox.description')}</p>
-      <textarea
-        id="sandbox-json"
-        className="input"
-        rows={10}
-        value={jsonText}
-        onChange={(e) => { setJsonText(e.target.value); setError(''); }}
-        placeholder={t('settings.advanced.sandbox.placeholder')}
-        disabled={saving}
-        spellCheck={false}
-      />
-      {error && <p className="settings-field-description" role="alert" style={{ color: 'var(--vscode-errorForeground, red)' }}>{error}</p>}
-      <div className="settings-actions">
-        <button
-          className="btn btn-primary"
-          onClick={() => void handleSave()}
-          disabled={saving}
-          type="button"
-        >
-          {t('settings.advanced.sandbox.save')}
-        </button>
-        {sandbox && (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleDelete()}
-            disabled={saving}
-            type="button"
-          >
-            {t('settings.advanced.sandbox.clear')}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// CompanyAnnouncementsEditor
-// ---------------------------------------------------------------------------
-
-interface CompanyAnnouncementsEditorProps {
-  scope: PluginScope;
-  announcements: string[];
-  onSave: (key: string, value: unknown) => Promise<void>;
-}
-
-function CompanyAnnouncementsEditor({ scope, announcements, onSave }: CompanyAnnouncementsEditorProps): React.ReactElement {
-  const { t } = useI18n();
-  const { addToast } = useToast();
-  const [inputValue, setInputValue] = useState('');
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setInputValue('');
-    setError('');
-  }, [scope]);
-
-  const handleAdd = async (): Promise<void> => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    if (announcements.includes(trimmed)) {
-      setError(t('settings.advanced.companyAnnouncements.duplicate'));
-      return;
-    }
-    setSaving(true);
-    try {
-      await onSave('companyAnnouncements', [...announcements, trimmed]);
-      setInputValue('');
-      setError('');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (announcement: string): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave('companyAnnouncements', announcements.filter((a) => a !== announcement));
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.advanced.companyAnnouncements.label')} settingKey="companyAnnouncements" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.companyAnnouncements.description')}</p>
-      <div className="general-tag-list">
-        {announcements.length === 0 ? (
-          <span className="perm-empty">{t('settings.advanced.companyAnnouncements.empty')}</span>
-        ) : (
-          announcements.map((announcement) => (
-            <div key={announcement} className="perm-rule-tag">
-              <textarea
-                className="input"
-                rows={2}
-                value={announcement}
-                readOnly
-              />
-              <button
-                className="perm-rule-tag-delete"
-                onClick={() => void handleDelete(announcement)}
-                aria-label={`Remove "${announcement}"`}
-                type="button"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="general-tag-add-row">
-        <textarea
-          className="input"
-          rows={2}
-          value={inputValue}
-          onChange={(e) => { setInputValue(e.target.value); setError(''); }}
-          placeholder={t('settings.advanced.companyAnnouncements.placeholder')}
-          disabled={saving}
-        />
-        <button
-          className="btn btn-primary"
-          onClick={() => void handleAdd()}
-          disabled={saving || !inputValue.trim()}
-          type="button"
-        >
-          {t('settings.advanced.companyAnnouncements.add')}
-        </button>
-        {error && <p className="settings-field-description" role="alert" style={{ color: 'var(--vscode-errorForeground, red)' }}>{error}</p>}
-      </div>
-    </div>
-  );
-}
+import { TextSetting } from './components/SettingControls';
+import { AttributionEditor } from './components/AttributionEditor';
+import { StatusLineEditor } from './components/StatusLineEditor';
+import { SandboxEditor } from './components/SandboxEditor';
+import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
+import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getOverriddenScope } from './components/SettingControls';
+import { ADVANCED_FIELD_ORDER } from '../../../shared/field-orders';
 
 // ---------------------------------------------------------------------------
 // AdvancedSection
@@ -435,156 +18,69 @@ function CompanyAnnouncementsEditor({ scope, announcements, onSave }: CompanyAnn
 interface AdvancedSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  userSettings?: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function AdvancedSection({ scope, settings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
+export function AdvancedSection({ scope, settings, userSettings, onSave, onDelete }: AdvancedSectionProps): React.ReactElement {
   const { t } = useI18n();
-
-  const forceLoginMethodLabels = useMemo<Record<string, string>>(
-    () => ({
-      claudeai: t('settings.advanced.forceLoginMethod.claudeai'),
-      console: t('settings.advanced.forceLoginMethod.console'),
-    }),
-    [t],
-  );
-
-  const textFields: { key: keyof ClaudeSettings; label: string; description: string; placeholder: string; saveLabel: string; clearLabel: string }[] = [
-    {
-      key: 'forceLoginOrgUUID',
-      label: t('settings.advanced.forceLoginOrgUUID.label'),
-      description: t('settings.advanced.forceLoginOrgUUID.description'),
-      placeholder: t('settings.advanced.forceLoginOrgUUID.placeholder'),
-      saveLabel: t('settings.advanced.forceLoginOrgUUID.save'),
-      clearLabel: t('settings.advanced.forceLoginOrgUUID.clear'),
-    },
-    {
-      key: 'plansDirectory',
-      label: t('settings.advanced.plansDirectory.label'),
-      description: t('settings.advanced.plansDirectory.description'),
-      placeholder: t('settings.advanced.plansDirectory.placeholder'),
-      saveLabel: t('settings.advanced.plansDirectory.save'),
-      clearLabel: t('settings.advanced.plansDirectory.clear'),
-    },
-    {
-      key: 'apiKeyHelper',
-      label: t('settings.advanced.apiKeyHelper.label'),
-      description: t('settings.advanced.apiKeyHelper.description'),
-      placeholder: t('settings.advanced.apiKeyHelper.placeholder'),
-      saveLabel: t('settings.advanced.apiKeyHelper.save'),
-      clearLabel: t('settings.advanced.apiKeyHelper.clear'),
-    },
-    {
-      key: 'otelHeadersHelper',
-      label: t('settings.advanced.otelHeadersHelper.label'),
-      description: t('settings.advanced.otelHeadersHelper.description'),
-      placeholder: t('settings.advanced.otelHeadersHelper.placeholder'),
-      saveLabel: t('settings.advanced.otelHeadersHelper.save'),
-      clearLabel: t('settings.advanced.otelHeadersHelper.clear'),
-    },
-    {
-      key: 'awsCredentialExport',
-      label: t('settings.advanced.awsCredentialExport.label'),
-      description: t('settings.advanced.awsCredentialExport.description'),
-      placeholder: t('settings.advanced.awsCredentialExport.placeholder'),
-      saveLabel: t('settings.advanced.awsCredentialExport.save'),
-      clearLabel: t('settings.advanced.awsCredentialExport.clear'),
-    },
-    {
-      key: 'awsAuthRefresh',
-      label: t('settings.advanced.awsAuthRefresh.label'),
-      description: t('settings.advanced.awsAuthRefresh.description'),
-      placeholder: t('settings.advanced.awsAuthRefresh.placeholder'),
-      saveLabel: t('settings.advanced.awsAuthRefresh.save'),
-      clearLabel: t('settings.advanced.awsAuthRefresh.clear'),
-    },
-  ];
 
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.advanced')}</h3>
 
-      <EnumDropdown
-        label={t('settings.advanced.forceLoginMethod.label')}
-        description={t('settings.advanced.forceLoginMethod.description')}
-        value={settings.forceLoginMethod}
-        knownValues={KNOWN_FORCE_LOGIN_METHODS}
-        knownLabels={forceLoginMethodLabels}
-        notSetLabel={t('settings.advanced.forceLoginMethod.notSet')}
-        unknownTemplate={t('settings.advanced.forceLoginMethod.unknown')}
-        settingKey="forceLoginMethod"
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+      {ADVANCED_FIELD_ORDER.map((key) => {
+        const schema = CLAUDE_SETTINGS_SCHEMA[key];
+        if (!schema) return null;
+        const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
 
-      <AttributionEditor
-        attribution={settings.attribution}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+        if (schema.controlType === 'custom') {
+          switch (key) {
+            case 'attribution':
+              return <AttributionEditor key={key} attribution={settings.attribution} onSave={onSave} onDelete={onDelete} />;
+            case 'statusLine':
+              return <StatusLineEditor key={key} statusLine={settings.statusLine} onSave={onSave} onDelete={onDelete} />;
+            case 'fileSuggestion':
+              return (
+                <TextSetting
+                  key={key}
+                  label={t('settings.advanced.fileSuggestion.label')}
+                  description={t('settings.advanced.fileSuggestion.description')}
+                  value={settings.fileSuggestion?.command}
+                  placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
+                  saveLabel={t('settings.common.save')}
+                  clearLabel={t('settings.common.clear')}
+                  settingKey="fileSuggestion"
+                  scope={scope}
+                  overriddenScope={overriddenScope}
+                  onSave={async (_key, value) => onSave('fileSuggestion', { type: 'command', command: value as string })}
+                  onDelete={async () => onDelete('fileSuggestion')}
+                />
+              );
+            case 'sandbox':
+              return <SandboxEditor key={key} sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />;
+            case 'companyAnnouncements':
+              return <CompanyAnnouncementsEditor key={key} scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
+            default:
+              console.warn(`[AdvancedSection] Unhandled custom key: ${key}`);
+              return null;
+          }
+        }
 
-      <StatusLineEditor
-        statusLine={settings.statusLine}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <TextSetting
-        label={t('settings.advanced.fileSuggestion.label')}
-        description={t('settings.advanced.fileSuggestion.description')}
-        value={settings.fileSuggestion?.command}
-        placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
-        saveLabel={t('settings.advanced.fileSuggestion.save')}
-        clearLabel={t('settings.advanced.fileSuggestion.clear')}
-        settingKey="fileSuggestion"
-        scope={scope}
-        onSave={async (_key, value) => {
-          await onSave('fileSuggestion', { type: 'command', command: value as string });
-        }}
-        onDelete={async () => {
-          await onDelete('fileSuggestion');
-        }}
-      />
-
-      <SandboxEditor
-        sandbox={settings.sandbox}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <CompanyAnnouncementsEditor
-        scope={scope}
-        announcements={settings.companyAnnouncements ?? []}
-        onSave={onSave}
-      />
-
-      {textFields.map(({ key, label, description, placeholder, saveLabel, clearLabel }) => (
-        <TextSetting
-          key={key}
-          label={label}
-          description={description}
-          value={settings[key] as string | undefined}
-          placeholder={placeholder}
-          saveLabel={saveLabel}
-          clearLabel={clearLabel}
-          settingKey={key}
-          // Defaults mirror Claude Code's published settings schema.
-          defaultValue={key === 'plansDirectory' ? '~/.claude/plans' : undefined}
-          scope={scope}
-          onSave={onSave}
-          onDelete={onDelete}
-        />
-      ))}
-
-      <BooleanToggle
-        label={t('settings.advanced.skipWebFetchPreflight.label')}
-        description={t('settings.advanced.skipWebFetchPreflight.description')}
-        value={settings.skipWebFetchPreflight}
-        settingKey="skipWebFetchPreflight"
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+        return (
+          <SchemaFieldRenderer
+            key={key}
+            settingKey={key}
+            schema={schema}
+            value={(settings as Record<string, unknown>)[key]}
+            scope={scope}
+            overriddenScope={overriddenScope}
+            onSave={onSave}
+            onDelete={onDelete}
+          />
+        );
+      })}
     </div>
   );
 }

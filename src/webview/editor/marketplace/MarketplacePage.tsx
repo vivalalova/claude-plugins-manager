@@ -5,6 +5,7 @@ import { EmptyState, MarketplaceIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
+import { VirtualCardList } from '../plugin/VirtualCardList';
 import { useToast } from '../../components/Toast';
 import type { Marketplace, PreviewPlugin } from '../../../shared/types';
 
@@ -267,8 +268,11 @@ export function MarketplacePage(): React.ReactElement {
           action={{ label: 'Add Marketplace', onClick: () => addInputRef.current?.focus() }}
         />
       ) : (
-        <div className="card-list">
-          {marketplaces.map((mp) => (
+        <VirtualCardList
+          items={marketplaces}
+          keyExtractor={(mp) => mp.name}
+          className="card-list"
+          renderItem={(mp) => (
             <MarketplaceCard
               key={mp.name}
               marketplace={mp}
@@ -277,8 +281,8 @@ export function MarketplacePage(): React.ReactElement {
               onRemove={() => setConfirmRemove(mp.name)}
               onToggleAutoUpdate={() => handleToggleAutoUpdate(mp.name)}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       {confirmRemove && (

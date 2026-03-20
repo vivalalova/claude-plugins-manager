@@ -6,6 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { DisplaySection } from '../DisplaySection';
+import { DISPLAY_FIELD_ORDER } from '../../../../shared/field-orders';
 import { ToastProvider } from '../../../components/Toast';
 import { I18nProvider } from '../../../i18n/I18nContext';
 
@@ -90,6 +91,18 @@ describe('DisplaySection — 渲染', () => {
   it('顯示 prefersReducedMotion toggle label', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText('Reduce Motion')).toBeTruthy());
+  });
+
+  it('欄位按 DISPLAY_FIELD_ORDER 順序渲染', async () => {
+    const { container } = renderSection();
+    await waitFor(() => {
+      const hints = container.querySelectorAll('.settings-key-hint');
+      const keys = Array.from(hints).map((el) => {
+        const match = el.textContent?.match(/^\((\w+)/);
+        return match?.[1] ?? '';
+      }).filter(Boolean);
+      expect(keys).toEqual([...DISPLAY_FIELD_ORDER]);
+    });
   });
 });
 

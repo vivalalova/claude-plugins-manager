@@ -9,7 +9,7 @@ import type {
   PluginListResponse,
   PluginScope,
   PluginInstallEntry,
-} from '../types';
+} from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { escapeShellArg, getWorkspacePath } from '../utils/workspace';
@@ -29,7 +29,7 @@ export class PluginService {
   async listInstalled(): Promise<InstalledPlugin[]> {
     const [data, enabledByScope, available] = await Promise.all([
       this.settings.readInstalledPlugins(),
-      this.readAllEnabledPlugins(),
+      this.settings.readAllEnabledPlugins(),
       this.settings.scanAvailablePlugins(),
     ]);
     return this.buildInstalledList(data, enabledByScope, available);
@@ -39,7 +39,7 @@ export class PluginService {
   async listAvailable(): Promise<PluginListResponse> {
     const [data, enabledByScope, available, marketplaceSources] = await Promise.all([
       this.settings.readInstalledPlugins(),
-      this.readAllEnabledPlugins(),
+      this.settings.readAllEnabledPlugins(),
       this.settings.scanAvailablePlugins(),
       this.settings.readMarketplaceSources(),
     ]);
@@ -279,34 +279,14 @@ export class PluginService {
     try {
       await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
     } catch (error) {
-      // CLI 失敗仍更新 timestamp，避免 hasPluginUpdate 永久誤判（如 already up to date）
-      await this.settings.updateInstallEntryTimestamp(plugin, scope);
-      throw error;
-    }
-    await this.settings.updateInstallEntryTimestamp(plugin, scope);
-  }
-
-  /** 讀取三個 scope 的 enabledPlugins */
-  private async readAllEnabledPlugins(): Promise<
-    Record<PluginScope, Record<string, boolean>>
-  > {
-    const [user, project, local] = await Promise.all([
-      this.settings.readEnabledPlugins('user'),
-      this.readScopedEnabledPlugins('project'),
-      this.readScopedEnabledPlugins('local'),
-    ]);
-    return { user, project, local };
-  }
-
-  private async readScopedEnabledPlugins(scope: Extract<PluginScope, 'project' | 'local'>): Promise<Record<string, boolean>> {
-    try {
-      return await this.settings.readEnabledPlugins(scope);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('No workspace')) {
-        return {};
+      // 只有「already up to date」類錯誤才更新 timestamp，避免隱藏真正需要重試的失敗
+      const msg = error instanceof Error ? error.message : '';
+      if (/already up[\s-]to[\s-]date|up-to-date|no updates available/i.test(msg)) {
+        await this.settings.updateInstallEntryTimestamp(plugin, scope);
       }
       throw error;
     }
+    await this.settings.updateInstallEntryTimestamp(plugin, scope);
   }
 
   /** 讀取 plugin 目錄中的 .mcp.json（如果有） */

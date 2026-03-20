@@ -11,16 +11,11 @@ import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
 import { SettingLabelText } from './components/SettingControls';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
+import { KNOWN_MODEL_OPTIONS } from '../../../shared/claude-settings-schema';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const KNOWN_MODELS = [
-  'claude-opus-4-6',
-  'claude-sonnet-4-6',
-  'claude-haiku-4-5-20251001',
-] as const;
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 
@@ -60,7 +55,7 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
   // Reset local state when scope/settings change
   useEffect(() => {
     const model = settings.model ?? '';
-    if (model && !KNOWN_MODELS.includes(model as typeof KNOWN_MODELS[number])) {
+    if (model && !KNOWN_MODEL_OPTIONS.includes(model as typeof KNOWN_MODEL_OPTIONS[number])) {
       setSelectValue('custom');
       setCustomInput(model);
       setShowCustom(true);
@@ -88,10 +83,10 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
     try {
       if (!modelToSave) {
         await onDelete('model');
-        addToast('Model cleared', 'success');
+        addToast(t('settings.model.cleared'), 'success');
       } else {
         await onSave('model', modelToSave);
-        addToast('Model saved', 'success');
+        addToast(t('settings.model.saved'), 'success');
       }
     } catch (e) {
       addToast(e instanceof Error ? e.message : String(e), 'error');
@@ -104,7 +99,7 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
     setSaving(true);
     try {
       await onDelete('model');
-      addToast('Model cleared', 'success');
+      addToast(t('settings.model.cleared'), 'success');
     } catch (e) {
       addToast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -113,7 +108,7 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
   };
 
   const outsideWhitelist = currentModel && !isModelInWhitelist(currentModel, availableModels);
-  const dropdownModels = availableModels?.length ? availableModels : [...KNOWN_MODELS];
+  const dropdownModels = availableModels?.length ? availableModels : [...KNOWN_MODEL_OPTIONS];
 
   return (
     <div className="settings-section">
@@ -192,6 +187,7 @@ export function SettingsPage(): React.ReactElement {
   const [scope, setScope] = useState<PluginScope>('user');
   const [activeNav, setActiveNav] = useState<SettingsNavItem>('general');
   const [settings, setSettings] = useState<ClaudeSettings>({});
+  const [userSettings, setUserSettings] = useState<ClaudeSettings>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasWorkspace, setHasWorkspace] = useState(false);
@@ -206,9 +202,15 @@ export function SettingsPage(): React.ReactElement {
   const fetchSettings = useCallback(async (targetScope: PluginScope, silent = false) => {
     if (!silent) { setLoading(true); setError(null); }
     try {
-      const data = await sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope });
+      const [data, userData] = await Promise.all([
+        sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope }),
+        targetScope !== 'user'
+          ? sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'user' })
+          : Promise.resolve({} as ClaudeSettings),
+      ]);
       setSettings(data);
-      setError(null); // 成功即清錯，不論 silent（避免舊 error banner 殘留）
+      setUserSettings(userData);
+      setError(null);
     } catch (e) {
       if (!silent) setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -217,6 +219,8 @@ export function SettingsPage(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    setSettings({});
+    setUserSettings({});
     fetchSettings(scope);
   }, [scope, fetchSettings]);
 
@@ -327,6 +331,7 @@ export function SettingsPage(): React.ReactElement {
                 <HooksSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -335,6 +340,7 @@ export function SettingsPage(): React.ReactElement {
                 <GeneralSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -343,6 +349,7 @@ export function SettingsPage(): React.ReactElement {
                 <DisplaySection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -351,6 +358,7 @@ export function SettingsPage(): React.ReactElement {
                 <AdvancedSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />

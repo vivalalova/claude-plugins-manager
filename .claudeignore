@@ -13,3 +13,7 @@ pnpm-lock.yaml
 # OS/IDE
 .DS_Store
 .vscode/
+
+.claude/**/*.jsonl
+resources/
+*.png

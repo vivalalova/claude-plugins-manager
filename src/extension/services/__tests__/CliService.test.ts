@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CliService } from '../CliService';
-import { CliError } from '../../types';
+import { CliError } from '../CliService';
 
 const { mockSpawn } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),

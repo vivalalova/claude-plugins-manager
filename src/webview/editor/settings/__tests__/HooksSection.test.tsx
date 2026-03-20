@@ -51,12 +51,13 @@ describe('HooksSection — 渲染', () => {
     });
   });
 
-  it('HooksSection 不顯示 settings key hint', async () => {
+  it('disableAllHooks 顯示 settings key hint', async () => {
     const { container } = renderSection({});
 
     await waitFor(() => {
-      expect(screen.getByText('No hooks configured')).toBeTruthy();
-      expect(container.querySelector('.settings-key-hint')).toBeNull();
+      const hint = container.querySelector('.settings-key-hint');
+      expect(hint).toBeTruthy();
+      expect(hint!.textContent).toContain('disableAllHooks');
     });
   });
 
@@ -212,7 +213,7 @@ describe('HooksSection — disableAllHooks toggle', () => {
     });
   });
 
-  it('toggle on→off → 呼叫 onDelete("disableAllHooks")', async () => {
+  it('toggle on→off → 呼叫 onSave("disableAllHooks", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ disableAllHooks: true }, onSave, onDelete);
@@ -221,8 +222,7 @@ describe('HooksSection — disableAllHooks toggle', () => {
     fireEvent.click(screen.getByRole('checkbox'));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('disableAllHooks');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('disableAllHooks', false);
     });
   });
 

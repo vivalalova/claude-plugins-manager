@@ -1,9 +1,3 @@
-import { join } from 'path';
-import { homedir } from 'os';
-
-/** Plugin 快取目錄（翻譯、hook 解釋等跨 project 快取） */
-export const PLUGINS_CACHE_DIR = join(homedir(), '.claude', 'plugins', '.cache');
-
 /** Extension 識別碼，用於所有 view/command 前綴 */
 export const EXTENSION_ID = 'claude-plugins-manager';
 
@@ -15,18 +9,20 @@ export const COMMANDS = {
   openMarketplace: `${EXTENSION_ID}.openMarketplace`,
   openPlugin: `${EXTENSION_ID}.openPlugin`,
   openMcp: `${EXTENSION_ID}.openMcp`,
+  openSkill: `${EXTENSION_ID}.openSkill`,
   openSettings: `${EXTENSION_ID}.openSettings`,
   openInfo: `${EXTENSION_ID}.openInfo`,
 } as const;
 
 /** Editor panel 分類 */
-export type PanelCategory = 'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info';
+export type PanelCategory = 'marketplace' | 'plugin' | 'mcp' | 'skill' | 'settings' | 'info';
 
 /** 分類對應的顯示名稱 */
 export const PANEL_TITLES: Record<PanelCategory, string> = {
   marketplace: 'Marketplaces Manager',
   plugin: 'Plugins Manager',
   mcp: 'MCP Servers Manager',
+  skill: 'Skills Manager',
   settings: 'Settings',
   info: 'Extension Info',
 };
@@ -48,3 +44,12 @@ export const CLI_RETRYABLE_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'EAI_AGAI
 
 /** MCP 狀態輪詢間隔（毫秒）— fallback，主要由 FileWatcher 驅動 */
 export const MCP_POLL_INTERVAL_MS = 60_000;
+
+/** npx skills CLI timeout（毫秒）— find/check 等連網操作 */
+export const SKILL_CLI_TIMEOUT_MS = 30_000;
+
+/** npx skills add timeout（毫秒）— git clone 可能較慢 */
+export const SKILL_CLI_LONG_TIMEOUT_MS = 60_000;
+
+/** skills.sh registry base URL */
+export const SKILL_REGISTRY_URL = 'https://skills.sh';

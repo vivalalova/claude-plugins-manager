@@ -111,6 +111,18 @@
   font-size: 12px;
 }
 
+.info-path-row--missing .info-path-value {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.6;
+}
+
+.info-path-badge-missing {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  margin-left: 4px;
+}
+
 .info-status {
   padding: 24px;
   color: var(--vscode-descriptionForeground);

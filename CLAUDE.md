@@ -4,35 +4,54 @@
 
 ```bash
 npm run typecheck          # 型別檢查（extension + webview 雙 tsconfig）
-npm test                   # vitest run（1228 tests）
+npm test                   # vitest run
 npm run build              # esbuild 雙配置（extension + webview）
+npm run verify             # typecheck → lint → check:schema → test → build（一鍵驗證）
+npm run check:schema       # 驗證 schema 與 ClaudeSettings interface 一致 + controlType/options 邏輯驗證
 npm run install:ext        # pnpm install → build → package VSIX → code --install-extension
 npm run watch              # concurrently watch extension + webview
 ```
 
-驗證順序：`typecheck → test → build → install:ext`
+驗證順序：`npm run verify`（= typecheck → lint → check:schema → test → build）；部署前加 `install:ext`
 
 ## 架構
 
 - **Extension Host**（Node.js）：`src/extension/`
   — Services 直接讀寫 Claude Code 設定檔 + CLI 輔助
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
+- **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / skills.css / settings.css / common.css）
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **通訊**：Extension ↔ Webview 用 `postMessage` + `requestId` 配對
-- **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'settings' | 'info'`（對應 5 個 editor panel + sidebar tab）
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
+- **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
+- **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
+- **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
+- **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
+- **PluginPage 子元件**：`PluginPage.tsx`（state + layout）→ `PluginToolbar.tsx`（搜尋 + filter）、`PluginSections.tsx`（section 渲染 + drag/drop）、`PluginDialogs.tsx`（BulkEnableScopeDialog / TranslateDialog / KeyboardHelpOverlay）
+- **SkillsPage 子元件**：`SkillsPage.tsx`（state + layout；header 含 `page-actions` div：Add Skill/Check Updates/Update All/Refresh）→ `SkillToolbar.tsx`（Row 1: 搜尋列；Row 2: mode tabs + contextual filter chips；action 按鈕已移至 page header，props 不含 `onAddClick`/`checking`/`onCheckUpdates`/`updating`/`onUpdateAll`/`checkResult`）、`SkillSections.tsx`（scope 分組；內部 `collapsed` Set\<string\> 狀態，`section-toggle`/`section-chevron`/`section-body` 折疊模式同 PluginSections）、`SkillCard.tsx`（已安裝 skill 卡片；flat layout，agents 標籤以彩色 tag 與 scope badge 同列顯示，path 直接顯示）、`SkillSearchResultCard.tsx`（線上搜尋結果；`.card-name-column`/`.card-name-with-rank` CSS class）、`RegistrySkillCard.tsx`（Registry 排行榜；client-side `filteredRegistry` useMemo 過濾，`name`/`repo` 欄位即時搜尋，不 debounce）、`SkillDetailPanel.tsx`（SKILL.md 詳情）、`SkillDialogs.tsx`（AddSkillDialog：inline style 已改 CSS class `skill-dialog-*`；RemoveConfirmDialog）
+- **PanelCategory**：`'marketplace' | 'plugin' | 'mcp' | 'skill' | 'settings' | 'info'`（對應 6 個 editor panel + sidebar tab）
 
 ### Services
 
 | Service             | 資料來源                                                                  | 職責                                                     |
 | ------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
 | CliService          | `child_process.execFile`                                                  | Claude CLI 封裝；自動搜尋完整路徑；env 清理 `CLAUDECODE` |
-| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔、掃描 marketplace/plugin 內容                 |
+| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔（含 `readScopedEnabledPlugins` / `readAllEnabledPlugins` 共用 helper）、掃描 marketplace/plugin 內容 |
 | PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable          |
 | MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate                       |
-| McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢                                |
+| McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢（僅 MCP panel 可見時執行）、Test Connection（全量 refresh，CLI 不支援 per-server 查詢；UI 顯示「Checking all servers...」+ 其他按鈕 disabled） |
 | FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
-| TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯                              |
-| ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑供 InfoPage 顯示 |
+| TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯；callApiWithRetry 含 retry + exponential backoff |
+| SkillService        | `npx skills` CLI + `skills.sh` HTML                                       | npx skills CLI 封裝（list/add/remove/find/check/update/getDetail）+ skills.sh registry 解析；獨立 npx 路徑搜尋（NVM → /usr/local/bin → /opt/homebrew/bin → fallback） |
+| ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑（`PathInfo` 含 `exists` 檢測）供 InfoPage 顯示 |
+
+### Service 依賴
+
+CliService ← PluginService, MarketplaceService, McpService, ExtensionInfoService
+SettingsFileService ← PluginService, McpService
+SkillService — 獨立（不依賴 CliService，自行管理 npx 路徑 + spawn）
+FileWatcherService → SettingsFileService.invalidateScanCache(), McpService.invalidateMetadataCache()
+FileWatcherService.onSkillFilesChanged → EditorPanelManager（push skill.refresh）
+EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 切換控制）
 
 ### 設定檔結構
 
@@ -43,17 +62,19 @@ npm run watch              # concurrently watch extension + webview
 | `.claude/settings.local.json`               | local scope enabledPlugins（gitignored） |
 | `~/.claude/plugins/installed_plugins.json`  | 安裝登錄（所有 scope）                   |
 | `~/.claude/plugins/known_marketplaces.json` | marketplace 來源                         |
+| `~/.claude/skills/`                         | global scope skills（symlink/目錄）      |
+| `.claude/skills/`                           | project scope skills                     |
 
 ### Settings 頁面分區（`src/webview/editor/settings/`）
 
-| Section             | 元件檔案                 | 涵蓋欄位範圍                                                                                    |
-| ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| GeneralSection      | `GeneralSection.tsx`     | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
-| DisplaySection      | `DisplaySection.tsx`     | teammateMode、showTurnDuration、spinnerTipsEnabled、spinnerVerbs、spinnerTipsOverride、terminalProgressBarEnabled、prefersReducedMotion |
-| AdvancedSection     | `AdvancedSection.tsx`    | forceLoginMethod、forceLoginOrgUUID、autoMemoryDirectory、modelOverrides、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、skipWebFetchPreflight 等 CLI helper 欄位 |
-| PermissionsSection  | `PermissionsSection.tsx` | permissions（allow/deny/ask/defaultMode/additionalDirectories）                                 |
-| EnvSection          | `EnvSection.tsx`         | env（key-value map）                                                                            |
-| HooksSection        | `HooksSection.tsx`       | hooks（四種 type）、disableAllHooks                                                             |
+| Section | 渲染模式 | 涵蓋欄位 |
+| --- | --- | --- |
+| GeneralSection | **全 schema-driven**（`GENERAL_FIELD_ORDER` loop） | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
+| DisplaySection | **schema-driven**（`DISPLAY_FIELD_ORDER` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
+| AdvancedSection | **schema-driven**（`ADVANCED_FIELD_ORDER` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight |
+| PermissionsSection | 手動（custom） | permissions（allow/deny/ask/defaultMode/additionalDirectories） |
+| EnvSection | 手動（custom） | env（key-value map） |
+| HooksSection | **混合**：disableAllHooks 用 SchemaFieldRenderer；hooks 本體手動 | hooks（四種 type）、disableAllHooks |
 
 ## 設定頁參數參考
 
@@ -62,27 +83,31 @@ https://code.claude.com/docs/en/settings
 
 同步 docs 變更回 repo 前，先讀 [.claude/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.claude/skills/sync-settings-options/SKILL.md)
 
+## 新增 Setting Checklist
+
+1. **Schema**：`claude-settings-schema.ts` 加 key — 設 `type`/`section`/`controlType`；enum 加 `options`；number 加 `min`/`max`/`step`；有預設加 `default`
+2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
+3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）；刻意排除的 key 加入 `EXCLUDED_FROM_FIELD_ORDER`（附原因）（`check:schema` 自動驗證完整性 + 反向驗證）
+4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）
+5. **custom 欄位**：`controlType: 'custom'` → Section 內 switch case 手動渲染；建獨立 sub-editor
+6. **驗證**：`npm run verify`（含 lint + check:schema FIELD_ORDER/i18n 驗證）
+
 ## 已知陷阱
 
 - `claude plugin install` 會**自動 enable**，後續再呼叫 `enable` 會 exit 1
 - `enable`/`disable` 重複操作都會 exit 1，UI 必須靜默吞掉
 - CLI `marketplace list --json` 是精簡版，缺 `lastUpdated`/`autoUpdate`，完整資料要讀 `known_marketplaces.json`
 - `claude mcp list` 無 `--json`，需解析文字輸出
-- `tsconfig.json` 的 `exclude` 要加 `__tests__` 和 `__mocks__`，避免 vscode mock 型別衝突
-- Plugin contents 掃描：frontmatter 用簡易 regex 解析（非完整 YAML parser），足夠處理 `name`/`description`
-- `scanAvailablePlugins()` 會讀 `plugin.json`（description/version 優先於 marketplace.json）；`author` 欄位可能是 string 或 `{ name, email }` object
-- `handleUpdateAll` 只更新 **enabled** plugin 的 **enabled** scope；disabled 的 skip
-- `ClaudeSettings.sandbox` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
-- `ClaudeSettings.modelOverrides` 透過 raw JSON textarea 編輯，儲存前以 `JSON.parse` 驗證格式
-- `spinnerVerbs` / `spinnerTipsOverride` clear 操作呼叫 `onDelete(key)`，非存空物件
-- `fileSuggestion` 儲存格式固定為 `{ type: 'command', command: string }`
-- `statusLine` 儲存格式固定為 `{ type: 'command'; command: string; padding?: number }`
-- `outputStyle` 為自由字串（TextSetting），如 `default`、`Explanatory`、`Learning`
-- `teammateMode` 使用 `auto | in-process | tmux`；舊值 `inline` / `iterm2` 視為 unknown value 顯示
-- `HookCommand` 四種 type 均有 `statusMessage?: string`；http type 額外有 `allowedEnvVars?: string[]`
-- `permissions.disableBypassPermissionsMode` 可設為 `'disable'` 停用 bypass 模式
-- `sandbox` 額外子屬性：`enableWeakerNetworkIsolation`、`enableWeakerNestedSandbox`、`allowUnsandboxedCommands`、`ignoreViolations`、`network.allowAllUnixSockets`、`network.httpProxyPort`、`network.socksProxyPort`、`network.allowManagedDomainsOnly`
-- `spinnerVerbs.mode` 為 optional（schema 不要求）
+- `SchemaFieldRenderer` 的 `custom` controlType 回傳 `null`，Section 必須在 loop 中 switch-case 手動處理
+- `check:schema` 自動驗證 FIELD_ORDER 完整性 + i18n key 完整性
+- `getSchemaDefault()`/`getSchemaEnumOptions()` 對不存在的 key 拋 Error（fail-fast）
+- `npx skills find` 無 `--json`，需文字解析（含 ANSI codes，用 `/\x1b\[[0-9;?]*[A-Za-z]/g` 去除）
+- `npx skills remove <name> --all` 會**忽略 name 移除全部**，UI 的 remove 禁帶 `--all`
+- `npx skills add`/`remove` 必須 `--yes` 避免互動式 TUI；`add` 用 `--yes --all`
+- skills.sh 無公開 JSON API，從 `__next_f.push` 中的 `initialSkills` JSON 解析排行榜
+- SkillScope 只有 `'global' | 'project'`（無 `local`），不同於 PluginScope 三值
+- Extension Host 的 PATH 可能不含 npx → SkillService 有獨立路徑搜尋（NVM 最新版優先）
+- `ScopePicker` dropdown 用 `createPortal(dropdown, document.body)`：`.card` 的 CSS `transform` animation 產生 containing block，導致 `position: fixed` 被 `.card-list` `overflow: hidden` 裁切；portal 到 body 可繞過此限制
 
 ## 測試
 

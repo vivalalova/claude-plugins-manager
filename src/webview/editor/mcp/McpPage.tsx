@@ -56,6 +56,9 @@ export function McpPage(): React.ReactElement {
   const [detailText, setDetailText] = useState<string | null>(null);
   const [pollUnavailable, setPollUnavailable] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [testingServer, setTestingServer] = useState<string | null>(null);
+  const [testErrors, setTestErrors] = useState<Record<string, string>>({});
+  const [removingServer, setRemovingServer] = useState<string | null>(null);
   const detailTitleId = useId();
   const detailTrapRef = useFocusTrap(() => setDetailText(null), !!detailText);
 
@@ -80,6 +83,7 @@ export function McpPage(): React.ReactElement {
       if (msg.type === 'mcp.statusUpdate' && Array.isArray(msg.servers)) {
         setServers(msg.servers as McpServer[]);
         setPollUnavailable(false);
+        setTestErrors({});
       }
       if (msg.type === 'mcp.pollUnavailable') {
         setPollUnavailable(true);
@@ -119,12 +123,15 @@ export function McpPage(): React.ReactElement {
   const handleRemove = async (name: string, scope?: McpAddParams['scope']): Promise<void> => {
     setConfirmRemove(null);
     setError(null);
+    setRemovingServer(`${scope ?? 'none'}:${name}`);
     try {
       await sendRequest({ type: 'mcp.remove', name, scope });
       await fetchList();
       addToast('MCP server removed');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRemovingServer(null);
     }
   };
 
@@ -159,6 +166,29 @@ export function McpPage(): React.ReactElement {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setRetrying(false);
+    }
+  };
+
+  /** 單一 server 連線測試（複用 mcp.refreshStatus，per-card loading） */
+  const handleTestConnection = async (server: McpServer): Promise<void> => {
+    const serverKey = `${server.scope ?? 'none'}:${server.fullName}`;
+    setTestingServer(serverKey);
+    setTestErrors((prev) => { const next = { ...prev }; delete next[serverKey]; return next; });
+    setError(null);
+    try {
+      const data = await sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000);
+      setServers(data);
+      const updated = data.find((s) => s.fullName === server.fullName && s.scope === server.scope);
+      if (updated && updated.status !== 'connected') {
+        setTestErrors((prev) => ({
+          ...prev,
+          [serverKey]: updated.status === 'failed' ? 'Connection failed' : `Status: ${updated.status}`,
+        }));
+      }
+    } catch (e) {
+      setTestErrors((prev) => ({ ...prev, [serverKey]: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setTestingServer(null);
     }
   };
 
@@ -206,9 +236,13 @@ export function McpPage(): React.ReactElement {
             onEdit={() => handleEdit(server)}
             onRemove={() => setConfirmRemove({ name: server.name, scope: server.scope })}
             onViewDetail={() => handleViewDetail(server.fullName)}
-            onRetry={handleRefreshStatus}
+            onTestConnection={() => handleTestConnection(server)}
             onAuthenticate={handleRefreshStatus}
             retrying={retrying}
+            testing={testingServer === `${server.scope ?? 'none'}:${server.fullName}`}
+            anyTesting={testingServer !== null}
+            testError={testErrors[`${server.scope ?? 'none'}:${server.fullName}`] ?? null}
+            removing={removingServer === `${server.scope ?? 'none'}:${server.name}`}
           />
         ))}
       </div>

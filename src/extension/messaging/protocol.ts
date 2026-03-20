@@ -1,4 +1,4 @@
-import type { McpAddParams, McpScope, McpServer, PluginScope } from '../types';
+import type { McpAddParams, McpScope, McpServer, PluginScope, RegistrySort, SkillScope } from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Webview → Extension（Request）
@@ -47,7 +47,16 @@ export type RequestMessage =
   | { type: 'hooks.cleanExpiredExplanations'; requestId: string }
   | { type: 'extension.getInfo'; requestId: string }
   | { type: 'extension.revealPath'; requestId: string; path: string }
-  | { type: 'extension.clearCache'; requestId: string };
+  | { type: 'extension.clearCache'; requestId: string }
+  | { type: 'skill.list'; requestId: string; scope?: SkillScope }
+  | { type: 'skill.add'; requestId: string; source: string; scope: SkillScope; agents?: string[] }
+  | { type: 'skill.remove'; requestId: string; name: string; scope: SkillScope }
+  | { type: 'skill.find'; requestId: string; query: string }
+  | { type: 'skill.check'; requestId: string }
+  | { type: 'skill.update'; requestId: string }
+  | { type: 'skill.getDetail'; requestId: string; path: string }
+  | { type: 'skill.registry'; requestId: string; sort: RegistrySort; query?: string }
+  | { type: 'skill.openFile'; requestId: string; path: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Response）
@@ -55,12 +64,7 @@ export type RequestMessage =
 
 export type ResponseMessage =
   | { type: 'response'; requestId: string; data: unknown }
-  | { type: 'error'; requestId: string; error: string }
-  | { type: 'mcp.statusUpdate'; servers: McpServer[] }
-  | { type: 'mcp.pollUnavailable' }
-  | { type: 'plugin.refresh' }
-  | { type: 'marketplace.refresh' }
-  | { type: 'settings.refresh' };
+  | { type: 'error'; requestId: string; error: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview（Push，主動 broadcast，非 Request/Response 配對）
@@ -69,7 +73,13 @@ export type ResponseMessage =
 /**
  * Extension 主動 broadcast 給所有 webview 的事件型訊息，不帶 requestId。
  * viewState.changed：某 webview 寫入偏好設定後 broadcast 通知其他 webview 同步，
- * 防止雙 webview（Sidebar + Editor）競寫衝突。消費端尚未實作，預留擴充點。
+ * 防止雙 webview（Sidebar + Editor）競寫衝突。
  */
-// TODO: 實作時將 ResponseMessage 的 push 成員（mcp.statusUpdate 等）遷入此型別
-export type PushMessage = { type: 'viewState.changed'; key: string; value: unknown };
+export type PushMessage =
+  | { type: 'viewState.changed'; key: string; value: unknown }
+  | { type: 'mcp.statusUpdate'; servers: McpServer[] }
+  | { type: 'mcp.pollUnavailable' }
+  | { type: 'plugin.refresh' }
+  | { type: 'marketplace.refresh' }
+  | { type: 'settings.refresh' }
+  | { type: 'skill.refresh' };

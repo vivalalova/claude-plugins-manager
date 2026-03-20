@@ -30,6 +30,7 @@ function createMockPanel() {
 function createManager() {
   const mcpService = {
     startPolling: vi.fn(),
+    stopPolling: vi.fn(),
     onStatusChange: new EventEmitter<unknown[]>(),
     onPollUnavailable: new EventEmitter<void>(),
   };
@@ -37,6 +38,7 @@ function createManager() {
     onPluginFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     onMarketplaceFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     onSettingsFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
+    onSkillFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
   };
   const router = {
     handle: vi.fn(),
@@ -97,5 +99,106 @@ describe('EditorPanelManager', () => {
     manager.openPanel('plugin');
 
     expect(mcpService.startPolling).not.toHaveBeenCalled();
+  });
+
+  it('MCP → Plugin：停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('mcp');
+    manager.openPanel('plugin');
+
+    expect(mcpService.stopPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('Plugin → MCP → Settings：啟動再停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('plugin');
+    manager.openPanel('mcp');
+    manager.openPanel('settings');
+
+    expect(mcpService.startPolling).toHaveBeenCalledTimes(1);
+    expect(mcpService.stopPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('MCP → MCP：不停止 polling（idempotent start）', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('mcp');
+    manager.openPanel('mcp');
+
+    expect(mcpService.startPolling).toHaveBeenCalledTimes(2);
+    expect(mcpService.stopPolling).not.toHaveBeenCalled();
+  });
+
+  it('Panel close while on MCP：停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('mcp');
+    panel.dispose();
+
+    expect(mcpService.stopPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('Panel close while on Plugin：不停止 polling', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('plugin');
+    panel.dispose();
+
+    expect(mcpService.stopPolling).not.toHaveBeenCalled();
+  });
+
+  it('skill 檔案變更 + category=skill → push skill.refresh', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, fileWatcherService } = createManager();
+
+    manager.openPanel('skill');
+
+    // 取得 onSkillFilesChanged 的 callback 並觸發
+    const callback = vi.mocked(fileWatcherService.onSkillFilesChanged).mock.calls[0][0] as () => void;
+    // 模擬 panel.visible
+    Object.defineProperty(panel, 'visible', { value: true });
+    callback();
+
+    expect(panel.webview.postMessage).toHaveBeenCalledWith({ type: 'skill.refresh' });
+  });
+
+  it('skill 檔案變更 + category≠skill → 不 push', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, fileWatcherService } = createManager();
+
+    manager.openPanel('plugin');
+
+    const callback = vi.mocked(fileWatcherService.onSkillFilesChanged).mock.calls[0][0] as () => void;
+    Object.defineProperty(panel, 'visible', { value: true });
+    callback();
+
+    expect(panel.webview.postMessage).not.toHaveBeenCalledWith({ type: 'skill.refresh' });
+  });
+
+  it('非 MCP 間切換：無 polling interaction', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, mcpService } = createManager();
+
+    manager.openPanel('plugin');
+    manager.openPanel('settings');
+    manager.openPanel('marketplace');
+
+    expect(mcpService.startPolling).not.toHaveBeenCalled();
+    expect(mcpService.stopPolling).not.toHaveBeenCalled();
   });
 });

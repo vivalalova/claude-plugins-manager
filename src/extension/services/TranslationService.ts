@@ -1,15 +1,16 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { createHash } from 'crypto';
-import https from 'https';
 import { TRANSLATE_LANGS } from '../../shared/types';
-import { PLUGINS_CACHE_DIR } from '../constants';
-
-/** 翻譯 cache 目錄 */
-const CACHE_DIR = PLUGINS_CACHE_DIR;
 
 /** MyMemory API timeout（毫秒） */
 const API_TIMEOUT_MS = 15_000;
+
+/** callApi 最大重試次數（不含首次嘗試） */
+const API_MAX_RETRIES = 3;
+
+/** callApi 重試基礎退避時間（毫秒），指數退避：1s → 2s → 4s */
+const API_BASE_BACKOFF_MS = 1_000;
 
 /** 匿名呼叫字元上限（MyMemory 無 email 每日限制較低） */
 const MAX_CHARS_ANONYMOUS = 450;
@@ -39,6 +40,15 @@ export class TranslationService {
   private cache: TranslationCache | null = null;
   private pendingSave: Promise<void> = Promise.resolve();
   private dirCreated = false;
+
+  constructor(private readonly cacheDir: string) {}
+
+  /** 清除 in-memory cache（磁碟 cache 被刪除後呼叫） */
+  invalidateCache(): void {
+    this.cache = null;
+    this.dirCreated = false;
+    this.pendingSave = Promise.resolve();
+  }
 
   /**
    * 批次翻譯。回傳 translations map + 可選 warning。
@@ -93,7 +103,7 @@ export class TranslationService {
       } catch (e) {
         const msg = e instanceof Error ? e.message : '';
         if (msg.includes('429')) {
-          warning = 'Daily translation quota exceeded. Remaining texts will use cache when available.';
+          warning = 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.';
           break; // 429 = 今日額度用完，不必再試
         }
         // 其他錯誤：子批次失敗不影響其他批次
@@ -118,7 +128,7 @@ export class TranslationService {
       .map((t, i) => `[${i + 1}] ${t.replace(/\n/g, ' ')}`)
       .join('\n');
 
-    const raw = await this.callApi(numbered, targetLang, email);
+    const raw = await this.callApiWithRetry(numbered, targetLang, email);
 
     // 解析回傳：`[1] 翻譯1\n[2] 翻譯2`
     const parsed = new Map<number, string>();
@@ -154,46 +164,70 @@ export class TranslationService {
   }
 
   /** 呼叫 MyMemory 翻譯 API（POST 避免 URL 長度限制） */
-  private callApi(text: string, targetLang: string, email?: string): Promise<string> {
+  private async callApi(text: string, targetLang: string, email?: string): Promise<string> {
     let postData = `q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
     if (email) postData += `&de=${encodeURIComponent(email)}`;
 
-    return new Promise((resolve, reject) => {
-      const req = https.request(
-        'https://api.mymemory.translated.net/get',
-        {
-          method: 'POST',
-          timeout: API_TIMEOUT_MS,
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': Buffer.byteLength(postData),
-          },
-        },
-        (res) => {
-          let data = '';
-          res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-          res.on('end', () => {
-            try {
-              const json = JSON.parse(data) as {
-                responseStatus: number;
-                responseData?: { translatedText?: string };
-              };
-              if (json.responseStatus === 200 && json.responseData?.translatedText) {
-                resolve(json.responseData.translatedText);
-              } else {
-                reject(new Error(`API status: ${json.responseStatus}`));
-              }
-            } catch (e) {
-              reject(e);
-            }
-          });
-        },
-      );
-      req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-      req.write(postData);
-      req.end();
+    const res = await fetch('https://api.mymemory.translated.net/get', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: postData,
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
+
+    if (!res.ok) {
+      throw new Error(`API HTTP ${res.status}`);
+    }
+
+    const json = await res.json() as {
+      responseStatus: number;
+      responseData?: { translatedText?: string };
+    };
+
+    if (json.responseStatus === 200 && json.responseData?.translatedText) {
+      const translated = json.responseData.translatedText;
+      if (translated.startsWith('MYMEMORY WARNING')) {
+        throw new Error('API status: 429: ' + translated);
+      }
+      return translated;
+    }
+    throw new Error(`API status: ${json.responseStatus}`);
+  }
+
+  /** callApi with exponential backoff retry */
+  private async callApiWithRetry(text: string, targetLang: string, email?: string): Promise<string> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await this.sleep(API_BASE_BACKOFF_MS * (2 ** (attempt - 1)));
+      }
+      try {
+        return await this.callApi(text, targetLang, email);
+      } catch (error: unknown) {
+        lastError = error;
+        if (!TranslationService.isRetryableError(error)) throw error;
+      }
+    }
+    throw lastError;
+  }
+
+  private static isRetryableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    // timeout: AbortSignal.timeout throws TimeoutError or AbortError
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') return true;
+    // network error: fetch throws TypeError with specific messages in Node.js
+    if (error instanceof TypeError && /fetch|network|ECONNREFUSED|ENOTFOUND/i.test(error.message)) return true;
+    // HTTP 5xx → retry; 4xx (including 429) → no retry
+    const httpMatch = error.message.match(/API HTTP (\d{3})/);
+    if (httpMatch) return Number(httpMatch[1]) >= 500;
+    // API responseStatus 5xx → retry
+    const statusMatch = error.message.match(/API status: (\d{3})/);
+    if (statusMatch) return Number(statusMatch[1]) >= 500;
+    return false;
+  }
+
+  protected sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /** SHA-256 hash（前 16 字元） */
@@ -217,7 +251,7 @@ export class TranslationService {
   private saveCache(cache: TranslationCache): Promise<void> {
     this.pendingSave = this.pendingSave.then(async () => {
       if (!this.dirCreated) {
-        await mkdir(CACHE_DIR, { recursive: true });
+        await mkdir(this.cacheDir, { recursive: true });
         this.dirCreated = true;
       }
       await writeFile(this.cachePath(), JSON.stringify(cache, null, 2));
@@ -227,6 +261,6 @@ export class TranslationService {
 
   /** Cache 檔案路徑 */
   private cachePath(): string {
-    return join(CACHE_DIR, 'translations.json');
+    return join(this.cacheDir, 'translations.json');
   }
 }

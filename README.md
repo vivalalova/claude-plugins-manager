@@ -3,7 +3,7 @@
 ![Claude Plugins Manager banner](resources/banner.png)
 
 VSCode extension for managing Claude Code's Marketplace,
-Plugin, and MCP Server systems.
+Plugin, MCP Server, and Agent Skills systems.
 
 ## Features
 
@@ -13,10 +13,14 @@ Plugin, and MCP Server systems.
   per-scope enable/disable, expandable cards showing contents
   (commands, skills, agents, MCP servers, hooks) with descriptions,
   GitHub link per plugin, description translation
-- **MCP Server**: View connection status, add/remove servers with scope support
+- **MCP Server**: View connection status, per-server test connection,
+  add/remove servers with scope support
+- **Agent Skills**: Browse skills.sh registry (All Time / Trending / Hot),
+  online search via `npx skills find`, install/remove with global/project scope,
+  view SKILL.md details, check updates and batch update
 - **Settings**: Edit Claude Code settings.json across user/project/local scopes,
-  with sections for general behavior, display, permissions, environment variables,
-  hooks, and advanced integration options
+  with scope override indicators, reset-to-default, and sections for general behavior,
+  display, permissions, environment variables, hooks, and advanced integration options
 
 ## Install
 
@@ -28,7 +32,7 @@ npm run uninstall:ext  # Uninstall from VSCode
 ## Usage
 
 1. Click the Claude icon in the Activity Bar
-1. Choose Marketplace, Plugins, or MCP Servers from the sidebar
+1. Choose Marketplace, Plugins, MCP Servers, or Skills from the sidebar
 1. Manage installations in the editor panel
 
 ## Development
@@ -36,6 +40,6 @@ npm run uninstall:ext  # Uninstall from VSCode
 ```bash
 npm run watch     # Watch mode (extension + webview)
 npm run typecheck # Type check (dual tsconfig)
-npm test          # Run tests (vitest, 765 tests)
+npm test          # Run tests (vitest)
 npm run build     # Production build
 ```

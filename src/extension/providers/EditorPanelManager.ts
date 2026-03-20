@@ -43,6 +43,11 @@ export class EditorPanelManager {
           this.panel.webview.postMessage({ type: 'marketplace.refresh' });
         }
       }),
+      this.fileWatcherService.onSkillFilesChanged(() => {
+        if (this.panel?.visible && this.currentCategory === 'skill') {
+          this.panel.webview.postMessage({ type: 'skill.refresh' });
+        }
+      }),
       // settings.json 變更：同時推 plugin.refresh（不加 guard，確保 Plugin 頁感知外部編輯）
       // 和 settings.refresh（只推給 Settings 頁）
       this.fileWatcherService.onSettingsFilesChanged(() => {
@@ -60,6 +65,8 @@ export class EditorPanelManager {
   openPanel(category: PanelCategory): void {
     if (category === 'mcp') {
       this.mcpService.startPolling();
+    } else if (this.currentCategory === 'mcp') {
+      this.mcpService.stopPolling();
     }
 
     if (this.panel) {
@@ -99,19 +106,15 @@ export class EditorPanelManager {
     );
 
     panel.onDidDispose(() => {
+      if (this.currentCategory === 'mcp') {
+        this.mcpService.stopPolling();
+      }
       this.panel = undefined;
       this.currentCategory = undefined;
     });
 
     this.panel = panel;
     this.currentCategory = category;
-  }
-
-  /** 推送訊息到 panel（僅在 category 匹配時） */
-  postToPanel(category: PanelCategory, message: unknown): void {
-    if (this.currentCategory === category) {
-      this.panel?.webview.postMessage(message);
-    }
   }
 
   /** 釋放資源 */

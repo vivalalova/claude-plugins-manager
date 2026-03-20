@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/types';
+import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
+import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getOverriddenScope } from './components/SettingControls';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,9 +76,17 @@ function inlineMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
+/** 只保留已知安全的 HTML tag，strip 其餘（defense-in-depth） */
+const ALLOWED_TAG_RE = /^<\/?(strong|em|code|ul|li|p|br\s*\/?)>$/i;
+function stripUnallowedTags(html: string): string {
+  return html.replace(/<\/?[a-z][a-z0-9]*[^>]*\/?>/gi, (tag) =>
+    ALLOWED_TAG_RE.test(tag) ? tag : '',
+  );
+}
+
 /** 簡易 markdown → HTML：bold, code, list, paragraph */
 function renderSimpleMarkdown(text: string): string {
-  return text
+  const raw = text
     .trim()
     .split(/\n\s*\n/)
     .map(block => {
@@ -90,6 +101,7 @@ function renderSimpleMarkdown(text: string): string {
     })
     .filter(Boolean)
     .join('');
+  return stripUnallowedTags(raw);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,23 +176,38 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
 interface HooksSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  userSettings?: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function HooksSection({ scope, settings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
+export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
   const { t, locale } = useI18n();
   const { addToast } = useToast();
-  const [toggling, setToggling] = useState(false);
   const [opening, setOpening] = useState(false);
   const [existingPaths, setExistingPaths] = useState<ReadonlySet<string>>(new Set());
   const [openingPath, setOpeningPath] = useState<string | null>(null);
   const [explanations, setExplanations] = useState<Map<string, string>>(new Map());
   const [explaining, setExplaining] = useState<ReadonlySet<string>>(new Set());
 
-  const hooksData = settings.hooks ?? {};
+  const hooksData = useMemo(() => settings.hooks ?? {}, [settings.hooks]);
   const eventTypes = Object.keys(hooksData);
-  const disableAllHooks = settings.disableAllHooks ?? false;
+
+  // Fingerprint for deep-equality effect triggering (avoids re-fire on reference-only changes)
+  const hooksFingerprint = useMemo(() => {
+    const keys = Object.keys(hooksData).sort();
+    if (keys.length === 0) return '';
+    return keys.map((k) => {
+      const matchers = hooksData[k] ?? [];
+      return `${k}:${matchers.map((m) =>
+        `${m.matcher ?? ''}[${m.hooks.map((h) => getHookContent(h)).join(',')}]`,
+      ).join('|')}`;
+    }).join(';');
+  }, [hooksData]);
+
+  // Ref for locale — effect reads latest value without triggering re-run
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   useEffect(() => {
     const allPaths: string[] = [];
@@ -209,8 +236,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
       }
     })();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.hooks]);
+  }, [hooksFingerprint, hooksData]);
 
   // mount 時觸發過期快取清理（fire-and-forget）
   useEffect(() => {
@@ -225,7 +251,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
         for (const hook of group.hooks) {
           const content = getHookContent(hook);
           const fp = hook.type === 'command' ? extractFilePath(hook.command) ?? undefined : undefined;
-          items.push({ hookContent: content, locale, filePath: fp });
+          items.push({ hookContent: content, locale: localeRef.current, filePath: fp });
         }
       }
     }
@@ -240,8 +266,7 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.hooks]);
+  }, [hooksFingerprint, hooksData]);
 
   const handleExplain = async (hookContent: string, eventType: string, filePath: string | null): Promise<void> => {
     const key = `${filePath ?? hookContent}:${locale}`;
@@ -279,21 +304,6 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     }
   };
 
-  const handleToggleDisable = async (): Promise<void> => {
-    setToggling(true);
-    try {
-      if (disableAllHooks) {
-        await onDelete('disableAllHooks');
-      } else {
-        await onSave('disableAllHooks', true);
-      }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setToggling(false);
-    }
-  };
-
   const handleOpenInEditor = async (): Promise<void> => {
     setOpening(true);
     try {
@@ -309,17 +319,17 @@ export function HooksSection({ scope, settings, onSave, onDelete }: HooksSection
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.hooks')}</h3>
 
-      {/* Header row: disableAllHooks toggle + openInEditor button */}
+      <SchemaFieldRenderer
+        settingKey="disableAllHooks"
+        schema={CLAUDE_SETTINGS_SCHEMA.disableAllHooks}
+        value={settings.disableAllHooks}
+        scope={scope}
+        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'disableAllHooks')}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
       <div className="hooks-header-row">
-        <label className="hooks-toggle-label">
-          <input
-            type="checkbox"
-            checked={disableAllHooks}
-            onChange={() => void handleToggleDisable()}
-            disabled={toggling}
-          />
-          {t('settings.hooks.disableAll')}
-        </label>
         <button
           className="btn btn-secondary"
           onClick={() => void handleOpenInEditor()}

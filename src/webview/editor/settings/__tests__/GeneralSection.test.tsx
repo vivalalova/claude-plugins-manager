@@ -6,6 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { GeneralSection } from '../GeneralSection';
+import { GENERAL_FIELD_ORDER } from '../../../../shared/field-orders';
 import { ToastProvider } from '../../../components/Toast';
 import { I18nProvider } from '../../../i18n/I18nContext';
 
@@ -23,10 +24,11 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
+  userSettings?: Record<string, unknown>,
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <GeneralSection scope={scope} settings={settings as any} onSave={onSave} onDelete={onDelete} />
+      <GeneralSection scope={scope} settings={settings as any} userSettings={userSettings as any} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -122,6 +124,73 @@ describe('GeneralSection — 渲染', () => {
     const labels = container.querySelectorAll('label.hooks-toggle-label');
     labels.forEach((label) => {
       expect(label.querySelector('.settings-field-description')).toBeNull();
+    });
+  });
+
+  it('欄位按 GENERAL_FIELD_ORDER 順序渲染', async () => {
+    const { container } = renderSection();
+    await waitFor(() => {
+      const hints = container.querySelectorAll('.settings-key-hint');
+      const keys = Array.from(hints).map((el) => {
+        const match = el.textContent?.match(/^\((\w+)/);
+        return match?.[1] ?? '';
+      }).filter(Boolean);
+      expect(keys).toEqual([...GENERAL_FIELD_ORDER]);
+    });
+  });
+
+  it('scope=project + userSettings 有 fastMode → 顯示 override badge', async () => {
+    const { container } = renderSection(
+      { fastMode: false },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+      { fastMode: true },
+    );
+    await waitFor(() => {
+      const badges = container.querySelectorAll('.settings-override-badge');
+      expect(badges.length).toBeGreaterThan(0);
+      expect(badges[0].textContent).toContain('User');
+    });
+  });
+
+  it('scope=user → 無 override badge', async () => {
+    const { container } = renderSection(
+      { fastMode: true },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'user',
+    );
+    await waitFor(() => {
+      expect(container.querySelector('.settings-override-badge')).toBeNull();
+    });
+  });
+
+  it('scope=project + 值相同但有明確設定 → 仍顯示 override badge', async () => {
+    const { container } = renderSection(
+      { fastMode: false },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+      { fastMode: false },
+    );
+    await waitFor(() => {
+      const badges = container.querySelectorAll('.settings-override-badge');
+      expect(badges.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('scope=project + userSettings 無對應 key → 該欄位無 override badge', async () => {
+    const { container } = renderSection(
+      { fastMode: true },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+      {},
+    );
+    await waitFor(() => {
+      // userSettings 為空，不應有任何 override badge
+      expect(container.querySelector('.settings-override-badge')).toBeNull();
     });
   });
 });
@@ -282,19 +351,11 @@ describe('GeneralSection — BooleanToggle Reset 按鈕', () => {
     });
   });
 
-  it('fastMode=false → Reset 按鈕顯示，點擊 → onDelete("fastMode")', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ fastMode: false }, vi.fn(), onDelete);
-
+  it('fastMode=false（等於 default）→ 無 Reset 按鈕', async () => {
+    renderSection({ fastMode: false });
     await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode' }));
     const field = screen.getByRole('checkbox', { name: 'Fast Mode' }).closest('.settings-field') as HTMLElement;
-    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
-    expect(resetBtn).toBeTruthy();
-    fireEvent.click(resetBtn);
-
-    await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('fastMode');
-    });
+    expect(within(field).queryByRole('button', { name: /Reset/ })).toBeNull();
   });
 });
 

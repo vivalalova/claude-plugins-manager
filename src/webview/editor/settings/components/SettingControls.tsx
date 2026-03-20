@@ -3,10 +3,57 @@ import { useToast } from '../../../components/Toast';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 
+// ---------------------------------------------------------------------------
+// Override helpers
+// ---------------------------------------------------------------------------
+
+/** 判斷 key 是否覆寫了 parent scope 的值 */
+export function getOverriddenScope(
+  scope: PluginScope,
+  userSettings: Record<string, unknown> | undefined,
+  key: string,
+): PluginScope | undefined {
+  if (scope === 'user' || !userSettings) return undefined;
+  return key in userSettings ? 'user' : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Reset helper
+// ---------------------------------------------------------------------------
+
+/** 判斷是否應顯示 Reset 按鈕：有 default 且值與 default 不同 */
+export function shouldShowReset(value: unknown, defaultValue: unknown): boolean {
+  return defaultValue !== undefined && value !== undefined && value !== defaultValue;
+}
+
+// ---------------------------------------------------------------------------
+// OverrideBadge
+// ---------------------------------------------------------------------------
+
+interface OverrideBadgeProps {
+  scope: PluginScope;
+}
+
+function OverrideBadge({ scope }: OverrideBadgeProps): React.ReactElement {
+  const { t } = useI18n();
+  const scopeLabel = t(`settings.scope.${scope}` as Parameters<typeof t>[0]);
+  const label = t('settings.common.overrides' as Parameters<typeof t>[0], { scope: scopeLabel });
+  return (
+    <span className="settings-override-badge" title={label}>
+      {label}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SettingLabelText
+// ---------------------------------------------------------------------------
+
 interface SettingLabelTextProps {
   label: string;
   settingKey: string;
   defaultValue?: unknown;
+  overriddenScope?: PluginScope;
 }
 
 function formatSettingKeyHint(settingKey: string, defaultValue?: unknown): string {
@@ -23,13 +70,14 @@ function formatSettingKeyHint(settingKey: string, defaultValue?: unknown): strin
   return `(${settingKey}: ${String(defaultValue)})`;
 }
 
-export function SettingLabelText({ label, settingKey, defaultValue }: SettingLabelTextProps): React.ReactElement {
+export function SettingLabelText({ label, settingKey, defaultValue, overriddenScope }: SettingLabelTextProps): React.ReactElement {
   return (
     <>
       <span>{label}</span>
       <span className="settings-key-hint" aria-hidden="true">
         {formatSettingKeyHint(settingKey, defaultValue)}
       </span>
+      {overriddenScope && <OverrideBadge scope={overriddenScope} />}
     </>
   );
 }
@@ -44,11 +92,12 @@ export interface BooleanToggleProps {
   value: boolean | undefined;
   settingKey: string;
   defaultValue?: boolean;
+  overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, defaultValue, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { addToast } = useToast();
   const { t } = useI18n();
   const [saving, setSaving] = useState(false);
@@ -87,9 +136,9 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
             onChange={() => void handleChange()}
             disabled={saving}
           />
-          <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+          <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
         </label>
-        {value !== undefined && (
+        {shouldShowReset(value, defaultValue) && (
           <button
             className="btn btn-secondary"
             onClick={() => void handleReset()}
@@ -120,6 +169,7 @@ export interface EnumDropdownProps {
   unknownTemplate: string;
   settingKey: string;
   defaultValue?: unknown;
+  overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -134,11 +184,14 @@ export function EnumDropdown({
   unknownTemplate,
   settingKey,
   defaultValue,
+  overriddenScope,
   onSave,
   onDelete,
 }: EnumDropdownProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
+  const resetLabel = t('settings.common.reset');
 
   const isUnknown = value !== undefined && !knownValues.includes(value);
   const selectValue = isUnknown ? '__unknown__' : (value ?? '');
@@ -162,26 +215,39 @@ export function EnumDropdown({
   return (
     <div className="settings-field">
       <label className="settings-label" htmlFor={settingKey}>
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
       </label>
       {description && <p className="settings-field-description">{description}</p>}
-      <select
-        id={settingKey}
-        className="select"
-        value={selectValue}
-        onChange={(e) => void handleChange(e.target.value)}
-        disabled={saving}
-      >
-        <option value="">{notSetLabel}</option>
-        {isUnknown && (
-          <option value="__unknown__" disabled>
-            {unknownTemplate.replace('{value}', value!)}
-          </option>
+      <div className="settings-model-row">
+        <select
+          id={settingKey}
+          className="select"
+          value={selectValue}
+          onChange={(e) => void handleChange(e.target.value)}
+          disabled={saving}
+        >
+          <option value="">{notSetLabel}</option>
+          {isUnknown && (
+            <option value="__unknown__" disabled>
+              {unknownTemplate.replace('{value}', value!)}
+            </option>
+          )}
+          {knownValues.map((v) => (
+            <option key={v} value={v}>{knownLabels[v] ?? v}</option>
+          ))}
+        </select>
+        {shouldShowReset(value, defaultValue) && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleChange('')}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
+          </button>
         )}
-        {knownValues.map((v) => (
-          <option key={v} value={v}>{knownLabels[v] ?? v}</option>
-        ))}
-      </select>
+      </div>
     </div>
   );
 }
@@ -199,6 +265,7 @@ export interface TextSettingProps {
   clearLabel: string;
   settingKey: string;
   defaultValue?: unknown;
+  overriddenScope?: PluginScope;
   scope: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
@@ -213,13 +280,16 @@ export function TextSetting({
   clearLabel,
   settingKey,
   defaultValue,
+  overriddenScope,
   scope,
   onSave,
   onDelete,
 }: TextSettingProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value ?? '');
   const [saving, setSaving] = useState(false);
+  const resetLabel = t('settings.common.reset');
 
   useEffect(() => {
     setInputValue(value ?? '');
@@ -256,7 +326,7 @@ export function TextSetting({
   return (
     <div className="settings-field">
       <label className="settings-label" htmlFor={settingKey}>
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
       </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="settings-model-row">
@@ -269,7 +339,17 @@ export function TextSetting({
           placeholder={placeholder}
           disabled={saving}
         />
-        {value && (
+        {shouldShowReset(value, defaultValue) ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
+          </button>
+        ) : value ? (
           <button
             className="btn btn-secondary"
             onClick={() => void handleClear()}
@@ -278,7 +358,7 @@ export function TextSetting({
           >
             {clearLabel}
           </button>
-        )}
+        ) : null}
       </div>
       <div className="settings-actions">
         <button
@@ -309,6 +389,7 @@ export interface TagInputProps {
   duplicateError: string;
   settingKey: string;
   defaultValue?: unknown;
+  overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
 }
 
@@ -323,6 +404,7 @@ export function TagInput({
   duplicateError,
   settingKey,
   defaultValue,
+  overriddenScope,
   onSave,
 }: TagInputProps): React.ReactElement {
   const { addToast } = useToast();
@@ -372,7 +454,7 @@ export function TagInput({
   return (
     <div className="settings-field">
       <label className="settings-label">
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
       </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="general-tag-list">
@@ -573,6 +655,7 @@ export interface NumberSettingProps {
   minError?: string;
   maxError?: string;
   defaultValue?: unknown;
+  overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -592,11 +675,14 @@ export function NumberSetting({
   minError,
   maxError,
   defaultValue,
+  overriddenScope,
   onSave,
   onDelete,
 }: NumberSettingProps): React.ReactElement {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value !== undefined ? String(value) : '');
+  const resetLabel = t('settings.common.reset');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -645,7 +731,7 @@ export function NumberSetting({
   return (
     <div className="settings-field">
       <label className="settings-label" htmlFor={settingKey}>
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} />
+        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
       </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="settings-model-row">
@@ -661,7 +747,17 @@ export function NumberSetting({
           step={step}
           disabled={saving}
         />
-        {value !== undefined && (
+        {shouldShowReset(value, defaultValue) ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={saving}
+            type="button"
+            aria-label={`${resetLabel} ${label}`}
+          >
+            {resetLabel}
+          </button>
+        ) : value !== undefined ? (
           <button
             className="btn btn-secondary"
             onClick={() => void handleClear()}
@@ -670,7 +766,7 @@ export function NumberSetting({
           >
             {clearLabel}
           </button>
-        )}
+        ) : null}
       </div>
       {validationError && <span className="perm-add-error" role="alert">{validationError}</span>}
       <div className="settings-actions">

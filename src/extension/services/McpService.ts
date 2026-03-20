@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { MCP_POLL_INTERVAL_MS } from '../constants';
-import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../types';
+import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { getWorkspacePath } from '../utils/workspace';
@@ -35,7 +35,7 @@ export class McpService {
 
   constructor(
     private readonly cli: CliService,
-    private readonly settings?: Pick<SettingsFileService, 'readEnabledPlugins'>,
+    private readonly settings?: Pick<SettingsFileService, 'readAllEnabledPlugins'>,
   ) {}
 
   /** 使 metadata cache 失效，下次 buildServerMetadata() 將重新從 disk 讀取 */
@@ -83,6 +83,9 @@ export class McpService {
       this.buildServerMetadata(),
     ]);
     const servers = this.parseMcpList(output);
+    if (servers.length === 0 && metaMap.size > 0) {
+      console.warn('[McpService] CLI returned 0 servers but metadata has entries; CLI output may be unavailable or format changed');
+    }
     for (const server of servers) {
       const [resolvedFullName, meta] = this.resolveServerMetadata(server, metaMap);
       if (meta) {
@@ -282,9 +285,14 @@ export class McpService {
     }
     const [, pluginKey, mcpServerName] = match;
     const installedPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
-    const installed = JSON.parse(await readFile(installedPath, 'utf-8'));
+    let installed: { plugins: Record<string, unknown> };
+    try {
+      installed = JSON.parse(await readFile(installedPath, 'utf-8'));
+    } catch {
+      throw new Error(`Cannot read installed plugins: ${installedPath}`);
+    }
 
-    if (!(pluginKey in installed.plugins)) {
+    if (!installed.plugins || !(pluginKey in installed.plugins)) {
       throw new Error(`Plugin not found: ${pluginKey}`);
     }
 
@@ -304,8 +312,10 @@ export class McpService {
       readFile(join(entry.installPath, '.claude-plugin', 'plugin.json'), 'utf-8').catch(() => '{}'),
     ]);
 
-    const mcpConfig = JSON.parse(mcpRaw);
-    const pluginMeta = JSON.parse(metaRaw);
+    let mcpConfig: Record<string, unknown>;
+    let pluginMeta: Record<string, unknown>;
+    try { mcpConfig = JSON.parse(mcpRaw); } catch { mcpConfig = {}; }
+    try { pluginMeta = JSON.parse(metaRaw); } catch { pluginMeta = {}; }
 
     const detail = {
       name: mcpServerName,
@@ -510,25 +520,7 @@ export class McpService {
     if (!this.settings) {
       return { user: {}, project: {}, local: {} };
     }
-
-    const [user, project, local] = await Promise.all([
-      this.settings.readEnabledPlugins('user'),
-      this.readScopedEnabledPlugins('project'),
-      this.readScopedEnabledPlugins('local'),
-    ]);
-
-    return { user, project, local };
-  }
-
-  private async readScopedEnabledPlugins(scope: Extract<McpScope, 'project' | 'local'>): Promise<Record<string, boolean>> {
-    try {
-      return await this.settings!.readEnabledPlugins(scope);
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('No workspace folder open')) {
-        return {};
-      }
-      throw error;
-    }
+    return this.settings.readAllEnabledPlugins();
   }
 
   private getRelevantPluginEntries<T extends { scope: string; projectPath?: string }>(entries: T[]): T[] {
