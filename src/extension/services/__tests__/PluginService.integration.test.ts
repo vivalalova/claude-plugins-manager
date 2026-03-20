@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { mkdirSync, rmSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { workspace } from 'vscode';
+import { workspace, window } from 'vscode';
 
 /* ── 建立 suite 共用的 tmpdir，mock os.homedir 指向它 ── */
 const { SUITE_TMP, SUITE_HOME } = vi.hoisted(() => {
@@ -224,5 +224,131 @@ describe('PluginService（integration / 真實 SettingsFileService + filesystem�
       ['plugin', 'install', 'brand-new@mp', '--scope', 'project'],
       expect.objectContaining({ cwd: workspaceDir }),
     );
+  });
+
+  it('匯入腳本時 scope token 損壞，仍會以 user scope 匯入 plugin', async () => {
+    const script = "claude plugin install 'quoted-plugin@mp' --scope 'unterminated";
+    (window.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { fsPath: join(workspaceDir, 'plugins.sh') },
+    ]);
+    (workspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+    (cli as any).exec = vi.fn().mockImplementation(async (args: string[]) => {
+      const plugin = args[2];
+      const scope = args[4] as 'user' | 'project' | 'local';
+      await settings.addInstallEntry(plugin, {
+        scope,
+        installPath: join(SUITE_TMP, 'cache', plugin),
+        version: 'cli-installed',
+        installedAt: '2026-03-20T00:00:00Z',
+        lastUpdated: '2026-03-20T00:00:00Z',
+      });
+      await settings.setPluginEnabled(plugin, scope, true);
+      return '';
+    });
+
+    const results = await svc.importScript();
+
+    expect(results).toEqual(['Installed: quoted-plugin@mp (user)']);
+    expect((cli as any).exec).toHaveBeenCalledWith(
+      ['plugin', 'install', 'quoted-plugin@mp', '--scope', 'user'],
+      { timeout: expect.any(Number), cwd: undefined },
+    );
+
+    const installed = await settings.readInstalledPlugins();
+    expect(installed.plugins['quoted-plugin@mp']).toEqual([
+      expect.objectContaining({
+        scope: 'user',
+        installPath: join(SUITE_TMP, 'cache', 'quoted-plugin@mp'),
+      }),
+    ]);
+    expect(await settings.readEnabledPlugins('user')).toEqual({
+      'quoted-plugin@mp': true,
+    });
+  });
+
+  it('匯入腳本時 shell-escaped quote plugin ID 可完整落到 project scope', async () => {
+    const script = "claude plugin install 'team'\\''s-plugin@mp' --scope project";
+    (window.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { fsPath: join(workspaceDir, 'plugins.sh') },
+    ]);
+    (workspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+    (cli as any).exec = vi.fn().mockImplementation(async (args: string[]) => {
+      const plugin = args[2];
+      const scope = args[4] as 'user' | 'project' | 'local';
+      await settings.addInstallEntry(plugin, {
+        scope,
+        installPath: join(SUITE_TMP, 'cache', plugin),
+        version: 'cli-installed',
+        installedAt: '2026-03-20T00:00:00Z',
+        lastUpdated: '2026-03-20T00:00:00Z',
+        ...(scope === 'user' ? {} : { projectPath: workspaceDir }),
+      });
+      await settings.setPluginEnabled(plugin, scope, true);
+      return '';
+    });
+
+    const results = await svc.importScript();
+
+    expect(results).toEqual(["Installed: team's-plugin@mp (project)"]);
+    expect((cli as any).exec).toHaveBeenCalledWith(
+      ['plugin', 'install', "team's-plugin@mp", '--scope', 'project'],
+      { timeout: expect.any(Number), cwd: workspaceDir },
+    );
+
+    const list = await svc.listInstalled();
+    expect(list).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "team's-plugin@mp",
+        scope: 'project',
+        enabled: true,
+        projectPath: workspaceDir,
+      }),
+    ]));
+  });
+
+  it('匯入腳本時 malformed plugin token 被跳過，其餘有效指令仍會安裝', async () => {
+    const script = [
+      "claude plugin install 'unterminated",
+      "claude plugin install 'good-plugin@mp' --scope project",
+    ].join('\n');
+    (window.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { fsPath: join(workspaceDir, 'plugins.sh') },
+    ]);
+    (workspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from(script));
+
+    (cli as any).exec = vi.fn().mockImplementation(async (args: string[]) => {
+      const plugin = args[2];
+      const scope = args[4] as 'user' | 'project' | 'local';
+      await settings.addInstallEntry(plugin, {
+        scope,
+        installPath: join(SUITE_TMP, 'cache', plugin),
+        version: 'cli-installed',
+        installedAt: '2026-03-20T00:00:00Z',
+        lastUpdated: '2026-03-20T00:00:00Z',
+        ...(scope === 'user' ? {} : { projectPath: workspaceDir }),
+      });
+      await settings.setPluginEnabled(plugin, scope, true);
+      return '';
+    });
+
+    const results = await svc.importScript();
+
+    expect(results).toEqual(['Installed: good-plugin@mp (project)']);
+    expect((cli as any).exec).toHaveBeenCalledTimes(1);
+    expect((cli as any).exec).toHaveBeenCalledWith(
+      ['plugin', 'install', 'good-plugin@mp', '--scope', 'project'],
+      { timeout: expect.any(Number), cwd: workspaceDir },
+    );
+
+    const list = await svc.listInstalled();
+    expect(list).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'good-plugin@mp',
+        scope: 'project',
+        enabled: true,
+      }),
+    ]));
   });
 });

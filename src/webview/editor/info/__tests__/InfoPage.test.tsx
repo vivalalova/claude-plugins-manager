@@ -258,4 +258,31 @@ describe('InfoPage', () => {
       expect(screen.queryByText('~er/.claude/plugins/cache')).toBeNull();
     });
   });
+
+  it('path 剛好等於 home dir 時，應顯示為 ~', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo({
+      preferencesPath: { path: '/Users/test', exists: true },
+    }));
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('~')).toBeTruthy();
+      expect(screen.queryByText('/Users/test')).toBeNull();
+    });
+  });
+
+  it('沒有 homeDirPrefix 時，應保留原始絕對路徑', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo({
+      homeDirPrefix: '',
+      cacheDirPath: { path: '/Users/test/.claude/plugins/cache', exists: true },
+    }));
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('/Users/test/.claude/plugins/cache')).toBeTruthy();
+      expect(screen.queryByText('~/.claude/plugins/cache')).toBeNull();
+    });
+  });
 });

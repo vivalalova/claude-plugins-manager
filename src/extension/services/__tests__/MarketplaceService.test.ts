@@ -319,6 +319,26 @@ describe('MarketplaceService', () => {
   });
 
   describe('importScript()', () => {
+    it('未選擇檔案 → 回傳空陣列且不呼叫 CLI', async () => {
+      const { window: vscWindow } = await import('vscode');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+      await expect(svc.importScript()).resolves.toEqual([]);
+      expect(cli.exec).not.toHaveBeenCalled();
+    });
+
+    it('腳本內沒有 marketplace add 指令 → 拋明確錯誤', async () => {
+      const { window: vscWindow } = await import('vscode');
+      const { workspace: vscWorkspace } = await import('vscode');
+
+      (vscWindow.showOpenDialog as ReturnType<typeof vi.fn>).mockResolvedValue([{ fsPath: '/tmp/marketplaces.sh' }]);
+      (vscWorkspace.fs.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from('#!/bin/bash\necho nope\n'));
+
+      await expect(svc.importScript()).rejects.toThrow('No "claude plugin marketplace add" commands found');
+      expect(cli.exec).not.toHaveBeenCalled();
+    });
+
     it('malformed 行（未閉合引號）被跳過，其餘行仍正常解析', async () => {
       const { window: vscWindow } = await import('vscode');
       const { workspace: vscWorkspace } = await import('vscode');
