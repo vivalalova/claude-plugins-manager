@@ -87,6 +87,12 @@ vi.mock('../services/SkillService', () => ({
   SkillService: vi.fn().mockImplementation(function SkillServiceMock() {}),
 }));
 
+vi.mock('../services/PreferencesService', () => ({
+  PreferencesService: vi.fn().mockImplementation(function PreferencesServiceMock() {
+    this.migrateFromFile = vi.fn().mockResolvedValue(undefined);
+  }),
+}));
+
 vi.mock('../messaging/MessageRouter', () => ({
   MessageRouter: vi.fn().mockImplementation(function MessageRouterMock() {
     this.handle = vi.fn();
@@ -129,6 +135,7 @@ describe('activate', () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
       globalStorageUri: { fsPath: '/tmp/test-global-storage' },
+      globalState: { get: vi.fn(), update: vi.fn().mockResolvedValue(undefined), keys: vi.fn().mockReturnValue([]) },
       extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
@@ -165,6 +172,7 @@ describe('activate', () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
       globalStorageUri: { fsPath: '/tmp/test-global-storage' },
+      globalState: { get: vi.fn(), update: vi.fn().mockResolvedValue(undefined), keys: vi.fn().mockReturnValue([]) },
       extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };
@@ -185,6 +193,7 @@ describe('activate', () => {
     const context = {
       extensionUri: { fsPath: '/extension' },
       globalStorageUri: { fsPath: '/tmp/test-global-storage' },
+      globalState: { get: vi.fn(), update: vi.fn().mockResolvedValue(undefined), keys: vi.fn().mockReturnValue([]) },
       extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
       subscriptions: [] as Array<{ dispose?: () => void }>,
     };

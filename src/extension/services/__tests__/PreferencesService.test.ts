@@ -1,6 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PreferencesService } from '../PreferencesService';
 import type { Memento } from 'vscode';
+import { mkdirSync, writeFileSync, existsSync, rmSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
+
+const OLD_PREFS_DIR = join(homedir(), '.claude', 'claude-plugins-manager');
+const OLD_PREFS_PATH = join(OLD_PREFS_DIR, 'preferences.json');
 
 function createMockMemento(): Memento & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = {};
@@ -57,5 +63,56 @@ describe('PreferencesService', () => {
     ]);
     const result = service.readAll();
     expect(result).toEqual({ a: 1, b: 2, c: 3 });
+  });
+
+  describe('migrateFromFile', () => {
+    afterEach(() => {
+      // 清理測試建立的舊檔
+      try { rmSync(OLD_PREFS_PATH, { force: true }); } catch { /* ignore */ }
+      try { rmSync(OLD_PREFS_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
+    });
+
+    it('舊檔存在 → 遷移到 globalState 並刪除舊檔', async () => {
+      mkdirSync(OLD_PREFS_DIR, { recursive: true });
+      writeFileSync(OLD_PREFS_PATH, JSON.stringify({ 'plugin.sort': 'lastUpdated', 'plugin.filter.enabled': true }));
+
+      await service.migrateFromFile();
+
+      const prefs = service.readAll();
+      expect(prefs['plugin.sort']).toBe('lastUpdated');
+      expect(prefs['plugin.filter.enabled']).toBe(true);
+      expect(prefs['_preferences_migrated']).toBe(true);
+      expect(existsSync(OLD_PREFS_PATH)).toBe(false);
+    });
+
+    it('已遷移（_preferences_migrated）→ 跳過不讀舊檔', async () => {
+      await service.write('_preferences_migrated', true);
+      mkdirSync(OLD_PREFS_DIR, { recursive: true });
+      writeFileSync(OLD_PREFS_PATH, JSON.stringify({ 'plugin.sort': 'shouldNotAppear' }));
+
+      await service.migrateFromFile();
+
+      expect(service.readAll()['plugin.sort']).toBeUndefined();
+      // 舊檔仍在（不會被讀取也不會被刪除）
+      expect(existsSync(OLD_PREFS_PATH)).toBe(true);
+    });
+
+    it('舊檔不存在 → 靜默標記已遷移', async () => {
+      await service.migrateFromFile();
+
+      expect(service.readAll()['_preferences_migrated']).toBe(true);
+    });
+
+    it('遷移不覆蓋 globalState 已有值', async () => {
+      await service.write('plugin.sort', 'name');
+      mkdirSync(OLD_PREFS_DIR, { recursive: true });
+      writeFileSync(OLD_PREFS_PATH, JSON.stringify({ 'plugin.sort': 'lastUpdated', 'plugin.hidden': ['x'] }));
+
+      await service.migrateFromFile();
+
+      const prefs = service.readAll();
+      expect(prefs['plugin.sort']).toBe('name'); // 不覆蓋
+      expect(prefs['plugin.hidden']).toEqual(['x']); // 新 key 寫入
+    });
   });
 });
