@@ -250,6 +250,7 @@ export class MessageRouter {
     const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
     const allowed = [
       claudeDir,
+      path.dirname(this.cacheDir),
       ...workspaceFolders.map((f) => f.uri.fsPath),
     ];
     const normalized = path.resolve(resolved);

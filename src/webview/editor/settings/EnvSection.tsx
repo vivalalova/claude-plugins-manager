@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
+import { getKnownEnvVar, getKnownEnvVarNames } from '../../../shared/known-env-vars';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -14,6 +15,15 @@ export function isSensitiveKey(key: string): boolean {
 }
 
 const VALID_KEY_RE = /^[A-Z0-9_]+$/i;
+
+function useEnvVarDescription(envKey: string): string | null {
+  const { t } = useI18n();
+  const known = getKnownEnvVar(envKey);
+  if (!known) return null;
+  const i18nKey = `settings.env.knownVars.${envKey}.description` as Parameters<typeof t>[0];
+  const localized = t(i18nKey);
+  return localized !== i18nKey ? localized : known.description;
+}
 
 // ---------------------------------------------------------------------------
 // EnvRow
@@ -45,6 +55,7 @@ function EnvRow({
   const [isRevealed, setIsRevealed] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const description = useEnvVarDescription(envKey);
 
   const handleStartEdit = (): void => {
     setEditValue(sensitive ? '' : value);
@@ -64,7 +75,10 @@ function EnvRow({
 
   return (
     <div className="env-row">
-      <span className="env-key">{envKey}</span>
+      <div className="env-key-col">
+        <span className="env-key">{envKey}</span>
+        {description && <span className="env-key-description">{description}</span>}
+      </div>
 
       {isEditing ? (
         <div className="env-inline-edit">
@@ -151,6 +165,22 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
   const [valueInput, setValueInput] = useState('');
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const valueRef = useRef<HTMLInputElement>(null);
+  // Precompute suggestions for keyboard handling
+  const suggestions = useMemo(() => {
+    if (!keyInput.trim()) return [];
+    const upper = keyInput.toUpperCase();
+    return getKnownEnvVarNames()
+      .filter((name) => name.includes(upper) && !existingKeys.includes(name))
+      .slice(0, 8);
+  }, [keyInput, existingKeys]);
+
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  useEffect(() => {
+    setSelectedIdx(0);
+  }, [suggestions.length, keyInput]);
 
   const validate = (key: string): string => {
     if (!key.trim() || !valueInput.trim()) return '';
@@ -169,8 +199,32 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
       setKeyInput('');
       setValueInput('');
       setError('');
+      setShowAutocomplete(false);
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleSelectSuggestion = (name: string): void => {
+    setKeyInput(name);
+    setError('');
+    setShowAutocomplete(false);
+    valueRef.current?.focus();
+  };
+
+  const handleKeyInputKeyDown = (e: React.KeyboardEvent): void => {
+    if (!showAutocomplete || suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIdx((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && suggestions[selectedIdx]) {
+      e.preventDefault();
+      handleSelectSuggestion(suggestions[selectedIdx]);
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
     }
   };
 
@@ -178,15 +232,49 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 
   return (
     <div className="env-add-form">
+      <div className="env-add-key-wrapper">
+        <input
+          className="input"
+          type="text"
+          value={keyInput}
+          onChange={(e) => { setKeyInput(e.target.value); setError(''); setShowAutocomplete(true); }}
+          onFocus={() => setShowAutocomplete(true)}
+          onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+          onKeyDown={handleKeyInputKeyDown}
+          placeholder={t('settings.env.keyPlaceholder')}
+          disabled={disabled || adding}
+          role="combobox"
+          aria-expanded={showAutocomplete && suggestions.length > 0}
+          aria-autocomplete="list"
+        />
+        {showAutocomplete && suggestions.length > 0 && (
+          <div className="env-autocomplete" role="listbox">
+            {suggestions.map((name, i) => {
+              const known = getKnownEnvVar(name);
+              const i18nKey = `settings.env.knownVars.${name}.description` as Parameters<typeof t>[0];
+              const localDesc = t(i18nKey);
+              const desc = localDesc !== i18nKey ? localDesc : known?.description ?? '';
+              const catKey = `settings.env.category.${known?.category}` as Parameters<typeof t>[0];
+              return (
+                <div
+                  key={name}
+                  className={`env-autocomplete-item${i === selectedIdx ? ' env-autocomplete-item--selected' : ''}`}
+                  role="option"
+                  aria-selected={i === selectedIdx}
+                  onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(name); }}
+                  onMouseEnter={() => setSelectedIdx(i)}
+                >
+                  <span className="env-autocomplete-name">{name}</span>
+                  {known && <span className="env-autocomplete-category">{t(catKey)}</span>}
+                  {desc && <span className="env-autocomplete-desc">{desc}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <input
-        className="input"
-        type="text"
-        value={keyInput}
-        onChange={(e) => { setKeyInput(e.target.value); setError(''); }}
-        placeholder={t('settings.env.keyPlaceholder')}
-        disabled={disabled || adding}
-      />
-      <input
+        ref={valueRef}
         className="input"
         type="text"
         value={valueInput}

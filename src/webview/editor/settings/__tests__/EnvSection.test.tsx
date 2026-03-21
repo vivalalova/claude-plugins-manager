@@ -298,9 +298,8 @@ describe('EnvSection — 新增', () => {
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
-    const inputs = screen.getAllByRole('textbox');
-    const keyInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'VARIABLE_NAME')!;
-    const valueInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'value')!;
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const valueInput = screen.getByPlaceholderText('value');
 
     fireEvent.change(keyInput, { target: { value: 'NEW_VAR' } });
     fireEvent.change(valueInput, { target: { value: 'new_value' } });
@@ -317,9 +316,8 @@ describe('EnvSection — 新增', () => {
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
-    const inputs = screen.getAllByRole('textbox');
-    const keyInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'VARIABLE_NAME')!;
-    const valueInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'value')!;
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const valueInput = screen.getByPlaceholderText('value');
 
     fireEvent.change(keyInput, { target: { value: 'MY_VAR' } });
     fireEvent.change(valueInput, { target: { value: 'hello' } });
@@ -340,8 +338,7 @@ describe('EnvSection — 新增', () => {
     // 初始都空 → disabled
     expect(addBtn.disabled).toBe(true);
 
-    const inputs = screen.getAllByRole('textbox');
-    const keyInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'VARIABLE_NAME')!;
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
 
     // 只填 key，value 空 → still disabled
     fireEvent.change(keyInput, { target: { value: 'MY_VAR' } });
@@ -354,9 +351,8 @@ describe('EnvSection — 新增', () => {
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
-    const inputs = screen.getAllByRole('textbox');
-    const keyInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'VARIABLE_NAME')!;
-    const valueInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'value')!;
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const valueInput = screen.getByPlaceholderText('value');
 
     fireEvent.change(keyInput, { target: { value: 'EXISTING' } });
     fireEvent.change(valueInput, { target: { value: 'new' } });
@@ -374,9 +370,8 @@ describe('EnvSection — 新增', () => {
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
-    const inputs = screen.getAllByRole('textbox');
-    const keyInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'VARIABLE_NAME')!;
-    const valueInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'value')!;
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const valueInput = screen.getByPlaceholderText('value');
 
     fireEvent.change(keyInput, { target: { value: 'INVALID KEY' } });
     fireEvent.change(valueInput, { target: { value: 'x' } });
@@ -394,9 +389,8 @@ describe('EnvSection — 新增', () => {
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
-    const inputs = screen.getAllByRole('textbox');
-    const keyInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'VARIABLE_NAME')!;
-    const valueInput = inputs.find((el) => (el as HTMLInputElement).placeholder === 'value')!;
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const valueInput = screen.getByPlaceholderText('value');
 
     fireEvent.change(keyInput, { target: { value: 'MY_VAR' } });
     fireEvent.change(valueInput, { target: { value: 'hello' } });

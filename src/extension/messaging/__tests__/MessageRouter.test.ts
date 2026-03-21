@@ -317,6 +317,23 @@ describe('MessageRouter', () => {
       expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
 
+    it('extension.revealPath → cacheDir 路徑允許開啟', async () => {
+      const fs = await import('fs');
+      const vscode = await import('vscode');
+      fs.mkdirSync('/tmp/test-cache', { recursive: true });
+
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp4', path: '/tmp/test-cache' } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'revealFileInOS',
+        expect.objectContaining({ fsPath: '/tmp/test-cache' }),
+      );
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'rp4' });
+    });
+
     it('extension.clearCache → 回傳 { cleared: true }', async () => {
       await router.handle(
         { type: 'extension.clearCache', requestId: 'cc1' } as RequestMessage,
