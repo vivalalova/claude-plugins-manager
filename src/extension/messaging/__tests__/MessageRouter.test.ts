@@ -66,6 +66,7 @@ function createMockServices() {
       update: vi.fn().mockResolvedValue(undefined),
       getDetail: vi.fn().mockResolvedValue({ frontmatter: {}, body: '' }),
       fetchRegistry: vi.fn().mockResolvedValue([]),
+      invalidateCache: vi.fn(),
     },
   };
 }

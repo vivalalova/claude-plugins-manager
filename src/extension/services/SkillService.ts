@@ -489,6 +489,11 @@ export class SkillService {
     return task;
   }
 
+  /** 清除 in-memory cache 狀態（磁碟快取由 cacheDir rm 處理） */
+  invalidateCache(): void {
+    this.registryCacheWriteQueue = Promise.resolve();
+  }
+
   /** 解析 SKILL.md frontmatter */
   private parseFrontmatter(content: string): { frontmatter: Record<string, string>; body: string } {
     const fmRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;

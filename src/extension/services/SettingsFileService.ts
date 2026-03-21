@@ -18,8 +18,6 @@ const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
 const INSTALLED_PLUGINS_PATH = join(PLUGINS_DIR, 'installed_plugins.json');
 const MARKETPLACES_DIR = join(PLUGINS_DIR, 'marketplaces');
 const KNOWN_MARKETPLACES_PATH = join(PLUGINS_DIR, 'known_marketplaces.json');
-const EXTENSION_DIR = join(CLAUDE_DIR, 'claude-plugins-manager');
-const PREFERENCES_PATH = join(EXTENSION_DIR, 'preferences.json');
 const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
 
 /**
@@ -346,26 +344,6 @@ export class SettingsFileService {
     );
 
     return perMarketplace.flat();
-  }
-
-  /** 讀取所有 UI 偏好（檔案持久化） */
-  async readPreferences(): Promise<Record<string, unknown>> {
-    return this.readJson<Record<string, unknown>>(PREFERENCES_PATH, {});
-  }
-
-  /** 序列化 preferences 寫入，避免併發 read-modify-write 互相覆蓋 */
-  private prefWriteQueue: Promise<void> = Promise.resolve();
-
-  /** 寫入單一 UI 偏好 key（檔案持久化） */
-  async writePreference(key: string, value: unknown): Promise<void> {
-    const task = this.prefWriteQueue.then(async () => {
-      const prefs = await this.readPreferences();
-      prefs[key] = value;
-      await mkdir(EXTENSION_DIR, { recursive: true });
-      await writeFile(PREFERENCES_PATH, JSON.stringify(prefs, null, 2) + '\n');
-    });
-    this.prefWriteQueue = task.catch(() => {});
-    return task;
   }
 
   /**

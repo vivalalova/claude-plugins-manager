@@ -34,7 +34,7 @@ function makeInfo(overrides: Partial<ExtensionInfo> = {}): ExtensionInfo {
     installedPluginsPath: { path: '/Users/test/.claude/plugins/installed_plugins.json', exists: true },
     knownMarketplacesPath: { path: '/Users/test/.claude/plugins/known_marketplaces.json', exists: true },
     extensionPath: { path: '/Users/test/.vscode/extensions/claude-plugins', exists: true },
-    preferencesPath: { path: '/Users/test/.claude/claude-plugins-manager/preferences.json', exists: true },
+    preferencesPath: { path: 'VSCode globalState', exists: true },
     homeDirPrefix: '/Users/test',
     ...overrides,
   };

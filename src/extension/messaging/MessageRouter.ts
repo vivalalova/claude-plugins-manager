@@ -188,6 +188,7 @@ export class MessageRouter {
         await mkdirAsync(this.cacheDir, { recursive: true });
         this.translation.invalidateCache();
         this.hookExplanation.invalidateCache();
+        this.skill.invalidateCache();
         return { cleared: true, path: this.cacheDir };
       }
 

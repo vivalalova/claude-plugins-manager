@@ -72,11 +72,8 @@ export type ResponseMessage =
 
 /**
  * Extension 主動 broadcast 給所有 webview 的事件型訊息，不帶 requestId。
- * viewState.changed：某 webview 寫入偏好設定後 broadcast 通知其他 webview 同步，
- * 防止雙 webview（Sidebar + Editor）競寫衝突。
  */
 export type PushMessage =
-  | { type: 'viewState.changed'; key: string; value: unknown }
   | { type: 'mcp.statusUpdate'; servers: McpServer[] }
   | { type: 'mcp.pollUnavailable' }
   | { type: 'plugin.refresh' }

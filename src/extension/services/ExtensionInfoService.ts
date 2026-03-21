@@ -2,7 +2,6 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { homedir } from 'os';
 import type { CliService } from './CliService';
-import { EXTENSION_ID } from '../constants';
 import type { ExtensionInfo, PathInfo } from '../../shared/types';
 
 interface PackageJson {
@@ -43,7 +42,7 @@ export class ExtensionInfoService {
       installedPluginsPath: toPathInfo(join(pluginsDir, 'installed_plugins.json')),
       knownMarketplacesPath: toPathInfo(join(pluginsDir, 'known_marketplaces.json')),
       extensionPath: toPathInfo(this.extensionPath),
-      preferencesPath: toPathInfo(join(claudeDir, EXTENSION_ID, 'preferences.json')),
+      preferencesPath: { path: 'VSCode globalState', exists: true },
       homeDirPrefix: homedir(),
     };
   }
