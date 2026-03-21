@@ -99,6 +99,7 @@
     "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
     "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-*.vsix --force",
     "uninstall:ext": "code --uninstall-extension lova.claude-plugins-manager",
+    "version:bump": "bash scripts/version.sh",
     "publish": "npx vsce publish --no-dependencies",
     "vscode:prepublish": "npm run build"
   },
