@@ -46,7 +46,7 @@ export const PluginCard = React.memo(function PluginCard({
 }: PluginCardProps): React.ReactElement {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
-  const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir);
+  const pluginUrl = buildPluginGithubUrl(marketplaceUrl, plugin.sourceDir, plugin.sourceUrl);
 
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
@@ -252,7 +252,9 @@ function ContentSection({
 export function buildPluginGithubUrl(
   marketplaceUrl: string | undefined,
   sourceDir: string | undefined,
+  sourceUrl: string | undefined,
 ): string | null {
+  if (sourceUrl) return sourceUrl;
   if (!marketplaceUrl) return null;
 
   let baseUrl: string;

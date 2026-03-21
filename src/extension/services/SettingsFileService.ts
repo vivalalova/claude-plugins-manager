@@ -288,6 +288,9 @@ export class SettingsFileService {
             (manifest.plugins ?? []).map(async (p) => {
               // source 可能是 object（遠端 URL 型 plugin），此時本地無目錄
               const localSource = typeof p.source === 'string' ? p.source : null;
+              const sourceUrl = typeof p.source === 'object' && p.source !== null
+                ? extractSourceUrl(p.source as Record<string, unknown>)
+                : undefined;
               const pluginDir = localSource ? resolve(mpDir, localSource) : null;
               let contents: AvailablePlugin['contents'];
               let pluginMeta: { description?: string; version?: string } = {};
@@ -327,6 +330,7 @@ export class SettingsFileService {
                 version: pluginMeta.version ?? p.version,
                 contents,
                 sourceDir: localSource ?? undefined,
+                sourceUrl,
                 lastUpdated,
               } satisfies AvailablePlugin;
             }),
@@ -557,4 +561,31 @@ export class SettingsFileService {
     }
     return folder.uri.fsPath;
   }
+}
+
+/**
+ * 從 marketplace.json 的 object-type source 提取可瀏覽的 GitHub URL。
+ * 支援 `{ url: "https://...git" }` 和 `{ url: "owner/repo", path: "sub/dir", ref: "main" }` 格式。
+ */
+function extractSourceUrl(src: Record<string, unknown>): string | undefined {
+  const rawUrl = typeof src.url === 'string' ? src.url : undefined;
+  if (!rawUrl) return undefined;
+
+  // expand GitHub shorthand / strip .git
+  let baseUrl: string;
+  if (rawUrl.startsWith('https://')) {
+    baseUrl = rawUrl.replace(/\.git$/, '');
+  } else if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
+    baseUrl = `https://github.com/${rawUrl}`;
+  } else {
+    return undefined;
+  }
+
+  const subPath = typeof src.path === 'string' ? src.path : undefined;
+  if (subPath) {
+    const ref = typeof src.ref === 'string' ? src.ref : 'main';
+    return `${baseUrl}/tree/${ref}/${subPath}`;
+  }
+
+  return baseUrl;
 }

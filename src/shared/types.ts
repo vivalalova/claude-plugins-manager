@@ -112,6 +112,8 @@ export interface AvailablePlugin {
   contents?: PluginContents;
   /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
   sourceDir?: string;
+  /** 外部 plugin 的可瀏覽 GitHub URL（從 object-type source 提取） */
+  sourceUrl?: string;
   /** plugin 來源目錄的最後修改時間（ISO 8601），用於偵測更新 */
   lastUpdated?: string;
 }
@@ -326,6 +328,8 @@ export interface MergedPlugin {
   contents?: PluginContents;
   /** marketplace.json 中的 source 欄位（相對路徑，如 ./plugins/foo） */
   sourceDir?: string;
+  /** 外部 plugin 的可瀏覽 GitHub URL（從 object-type source 提取） */
+  sourceUrl?: string;
   /** marketplace 上可用版本的最後修改時間（ISO 8601），用於偵測更新 */
   availableLastUpdated?: string;
   /** 所有已安裝 scope 中最新的 lastUpdated（mergePlugins 預計算，PluginCard 直接讀取） */
