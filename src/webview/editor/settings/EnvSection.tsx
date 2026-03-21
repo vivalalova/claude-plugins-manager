@@ -74,13 +74,11 @@ function EnvRow({
   const displayValue = sensitive && !isRevealed ? '••••••••' : value;
 
   return (
-    <div className="env-row">
-      <div className="env-key-col">
+    <div className="env-entry">
+      <div className="env-row">
         <span className="env-key">{envKey}</span>
-        {description && <span className="env-key-description">{description}</span>}
-      </div>
 
-      {isEditing ? (
+        {isEditing ? (
         <div className="env-inline-edit">
           <input
             className="input"
@@ -145,6 +143,8 @@ function EnvRow({
           </div>
         </>
       )}
+      </div>
+      {description && <span className="env-key-description">{description}</span>}
     </div>
   );
 }

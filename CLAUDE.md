@@ -23,6 +23,7 @@ npm run watch              # concurrently watch extension + webview
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
 - **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
 - **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
+- **Known Env Vars**：`src/shared/known-env-vars.ts` — 已知 env vars registry（name/valueType/category/description/default），供 EnvSection autocomplete + inline description；`sync-settings-options` skill Phase 1c 同步維護
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）

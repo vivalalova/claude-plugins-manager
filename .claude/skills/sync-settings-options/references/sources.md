@@ -13,9 +13,9 @@
 - 補充 schema 未涵蓋的描述/用途/context
 - **≤3 queries**（context7 API 限制）
 
-## Fallback（context7 alternate，僅 schema store 不可用時）
+## Fail-fast
 
-- `context7` `/anthropics/claude-code`
+- Schema store 失敗 → 直接報錯結束，不 fallback
 
 ## Secondary（repo 內部）
 

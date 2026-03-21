@@ -19,7 +19,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skil
 
 - **primary**: JSON schema store `https://json.schemastore.org/claude-code-settings.json`（machine-readable，完整 type/enum/default/description）
 - **supplementary**: `context7` `/websites/code_claude`（補充 schema 未涵蓋的描述/context，≤3 queries）
-- **fallback**: `context7` `/anthropics/claude-code`（僅 schema store 不可用時）
+- **fail-fast**: schema store 失敗 → 直接報錯結束，不 fallback
 - **secondary**: `src/shared/types.ts`、現有 section 實作；只補 literal type、default、shape
 - 衝突優先序：schema store > docs > repo；輸出必列衝突點
 
@@ -56,10 +56,17 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 - 補充 schema 未涵蓋的 description/context（如新 key 的用途說明）
 - context7 API 限制：**每次最多 3 queries**
 
-### 1c. Fallback（僅 1a 失敗時）
+### 1c. Env vars registry sync
 
-- `context7` `/anthropics/claude-code`
-- 結構化為完整 key list
+- Source: `context7` `/websites/code_claude` — query env vars 文件（`claude-code-guide` agent 可補充）
+- Env vars 不在 JSON schema store（schema 只有 `env: Record<string,string>`）
+- 比對 `src/shared/known-env-vars.ts` — `KNOWN_ENV_VARS` registry
+- Output: added/removed/changed env vars
+- 參照 `references/env-vars-source.md`
+
+### 1d. Fail-fast
+
+- 1a schema store 失敗 → 直接報錯結束，不 fallback
 
 ## Phase 2: Repo Scan（single Explore agent）
 
@@ -68,6 +75,7 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 - `src/shared/types.ts` — ClaudeSettings interface 所有欄位
 - `src/shared/claude-settings-schema.ts` — schema definitions（controlType/options/default）
 - `src/shared/field-orders.ts` — FIELD_ORDER arrays + EXCLUDED_FROM_FIELD_ORDER
+- `src/shared/known-env-vars.ts` — KNOWN_ENV_VARS registry entries
 - `src/webview/i18n/locales/en.ts` — i18n key 完整性
 
 產出 diff：`{ added: [{key, type, default}], removed: [{key}], changed: [{key, field, schema, repo}] }`
@@ -83,7 +91,12 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 - hook event types：比對 schema `hooks.properties.*` vs repo HooksSection 支援（動態 `Object.keys()` 則自動相容）
 - hook command types：比對 schema `$defs.hookCommand` vs repo `HookCommand` type union
 
-### 3c. Gap 表
+### 3c. Env vars registry gap
+
+- 比對 Phase 1c env vars docs vs `KNOWN_ENV_VARS` registry
+- 新增/移除/變更 env vars 列入 gap 表
+
+### 3d. Gap 表
 
 ```
 | Key | Status | Category | Section | Details |
@@ -105,7 +118,9 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 5. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys
 6. Tests — 對應 section test 檔
 7. `CLAUDE.md` — settings 分區表 + 陷阱
-8. Cleanup — dead imports / locale keys / tests
+8. `src/shared/known-env-vars.ts` — 增刪改 env var entries
+9. i18n — 增刪 `settings.env.knownVars.*` + `settings.env.category.*` keys
+10. Cleanup — dead imports / locale keys / tests
 
 ## Hard checklist
 
