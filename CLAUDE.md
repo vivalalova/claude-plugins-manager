@@ -35,20 +35,22 @@ npm run watch              # concurrently watch extension + webview
 | Service             | 資料來源                                                                  | 職責                                                     |
 | ------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
 | CliService          | `child_process.execFile`                                                  | Claude CLI 封裝；自動搜尋完整路徑；env 清理 `CLAUDECODE` |
-| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫設定檔（含 `readScopedEnabledPlugins` / `readAllEnabledPlugins` 共用 helper）、掃描 marketplace/plugin 內容 |
+| SettingsFileService | `~/.claude/plugins/`、`~/.claude/settings.json`、`.claude/settings*.json` | 讀寫 Claude Code 設定檔（含 `readScopedEnabledPlugins` / `readAllEnabledPlugins` 共用 helper）、掃描 marketplace/plugin 內容 |
+| PreferencesService  | `context.globalState`                                                     | UI 偏好持久化（排序/過濾/翻譯設定等）；封裝 VSCode 原生 KV store；含舊版 preferences.json 遷移 |
 | PluginService       | SettingsFileService + CLI（update only）                                  | per-scope install/enable/disable、listAvailable          |
 | MarketplaceService  | `known_marketplaces.json` + CLI（add/remove/update）                      | marketplace CRUD、toggleAutoUpdate                       |
 | McpService          | CLI + 設定檔                                                              | MCP server 管理、狀態輪詢（僅 MCP panel 可見時執行）、Test Connection（全量 refresh，CLI 不支援 per-server 查詢；UI 顯示「Checking all servers...」+ 其他按鈕 disabled） |
 | FileWatcherService  | VSCode `FileSystemWatcher`                                                | 監控設定檔變更，debounce 後推送 refresh 給 webview       |
 | TranslationService  | MyMemory API + cache                                                      | Plugin description 批次翻譯；callApiWithRetry 含 retry + exponential backoff |
-| SkillService        | `npx skills` CLI + `skills.sh` HTML                                       | npx skills CLI 封裝（list/add/remove/find/check/update/getDetail）+ skills.sh registry 解析；獨立 npx 路徑搜尋（NVM → /usr/local/bin → /opt/homebrew/bin → fallback） |
+| SkillService        | `npx skills` CLI + `skills.sh` HTML + `cacheDir`                          | npx skills CLI 封裝（list/add/remove/find/check/update/getDetail）+ skills.sh registry 解析；獨立 npx 路徑搜尋（NVM → /usr/local/bin → /opt/homebrew/bin → fallback） |
 | ExtensionInfoService | packageJson + CliService + 常數路徑                                      | 收集 extension 版本、CLI 路徑/版本、所有設定檔路徑（`PathInfo` 含 `exists` 檢測）供 InfoPage 顯示 |
 
 ### Service 依賴
 
 CliService ← PluginService, MarketplaceService, McpService, ExtensionInfoService
 SettingsFileService ← PluginService, McpService
-SkillService — 獨立（不依賴 CliService，自行管理 npx 路徑 + spawn）
+PreferencesService — 封裝 context.globalState（MessageRouter 直接依賴）
+SkillService(cacheDir) — 獨立（不依賴 CliService，自行管理 npx 路徑 + spawn）
 FileWatcherService → SettingsFileService.invalidateScanCache(), McpService.invalidateMetadataCache()
 FileWatcherService.onSkillFilesChanged → EditorPanelManager（push skill.refresh）
 EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 切換控制）
@@ -64,6 +66,8 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 | `~/.claude/plugins/known_marketplaces.json` | marketplace 來源                         |
 | `~/.claude/skills/`                         | global scope skills（symlink/目錄）      |
 | `.claude/skills/`                           | project scope skills                     |
+| `context.globalState`                       | UI 偏好（排序/過濾/翻譯設定/agent 選擇）|
+| `globalStorageUri/cache/`                   | 翻譯/hook 解釋/skill registry 快取       |
 
 ### Settings 頁面分區（`src/webview/editor/settings/`）
 
