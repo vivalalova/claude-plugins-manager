@@ -125,10 +125,9 @@ describe('usePluginFilters', () => {
     });
   });
 
-  it('初始化讀回持久化 search 時，不會先把舊 debounce 值寫回覆蓋', async () => {
+  it('search 只用 viewState（不持久化到 globalState），初始化時從 viewState 讀回', async () => {
     vi.useFakeTimers();
-    mockViewState['plugin.search'] = '';
-    mockPersistedState['plugin.search'] = 'persisted';
+    mockViewState['plugin.search'] = 'from-viewstate';
 
     try {
       const { result } = renderHook(() => usePluginFilters([
@@ -140,16 +139,15 @@ describe('usePluginFilters', () => {
       });
 
       expect(result.current.ready).toBe(true);
-      expect(result.current.search).toBe('persisted');
-      expect(result.current.debouncedSearch).toBe('persisted');
-      expect(mockViewState['plugin.search']).toBe('persisted');
-      expect(mockSetGlobalState).not.toHaveBeenCalledWith('plugin.search', '');
+      expect(result.current.search).toBe('from-viewstate');
+      // search 不應寫入 globalState
+      expect(mockSetGlobalState).not.toHaveBeenCalledWith('plugin.search', expect.anything());
 
       act(() => {
         vi.advanceTimersByTime(300);
       });
 
-      expect(mockViewState['plugin.search']).toBe('persisted');
+      expect(mockViewState['plugin.search']).toBe('from-viewstate');
     } finally {
       vi.useRealTimers();
     }

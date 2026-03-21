@@ -7,17 +7,21 @@ import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
-const { mockSendRequest, mockOnPushMessage, mockGetViewState, mockSetViewState } = vi.hoisted(() => ({
+const { mockSendRequest, mockOnPushMessage, mockGetViewState, mockSetViewState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
   mockOnPushMessage: vi.fn(() => () => {}),
   mockGetViewState: vi.fn(),
   mockSetViewState: vi.fn(),
+  mockSetGlobalState: vi.fn().mockResolvedValue(undefined),
+  mockInitGlobalState: vi.fn().mockResolvedValue({}),
 }));
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
   onPushMessage: mockOnPushMessage,
   getViewState: (...args: unknown[]) => mockGetViewState(...args),
   setViewState: (...args: unknown[]) => mockSetViewState(...args),
+  setGlobalState: (...args: unknown[]) => mockSetGlobalState(...args),
+  initGlobalState: (...args: unknown[]) => mockInitGlobalState(...args),
 }));
 
 import { SkillsPage } from '../SkillsPage';
