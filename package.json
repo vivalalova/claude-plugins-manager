@@ -97,7 +97,7 @@
     "check:schema": "npx tsx scripts/check-settings-schema.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:schema && npm test && npm run build",
     "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
-    "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-*.vsix --force",
+    "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-$npm_package_version.vsix --force",
     "uninstall:ext": "code --uninstall-extension lova.claude-plugins-manager",
     "version:bump": "bash scripts/version.sh",
     "publish": "npx vsce publish --no-dependencies",
