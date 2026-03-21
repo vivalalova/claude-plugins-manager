@@ -5,12 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { MergedPlugin } from '../../../../../shared/types';
 
-const { mockSendRequest } = vi.hoisted(() => ({
+const { mockSendRequest, mockGetViewState, mockSetViewState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
+  mockGetViewState: vi.fn((_key: string, fallback: unknown) => fallback),
+  mockSetViewState: vi.fn(),
+  mockSetGlobalState: vi.fn().mockResolvedValue(undefined),
+  mockInitGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('../../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
+  getViewState: (...args: unknown[]) => mockGetViewState(...args),
+  setViewState: (...args: unknown[]) => mockSetViewState(...args),
+  setGlobalState: (...args: unknown[]) => mockSetGlobalState(...args),
+  initGlobalState: (...args: unknown[]) => mockInitGlobalState(...args),
 }));
 
 import { useTranslation } from '../useTranslation';
@@ -31,16 +39,23 @@ function makePlugin(id: string, description: string): MergedPlugin {
 describe('useTranslation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    mockGetViewState.mockImplementation((_key: string, fallback: unknown) => fallback);
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it('localStorage 內已有語言與 email 時，mount 後自動翻譯 plugin 文字', async () => {
-    localStorage.setItem('plugin.translateLang', 'ja');
-    localStorage.setItem('plugin.translateEmail', 'test@example.com');
+  it('偏好設定已有語言與 email 時，mount 後自動翻譯 plugin 文字', async () => {
+    // initGlobalState 載入後 getViewState 回傳持久化值
+    mockInitGlobalState.mockImplementation(async () => {
+      mockGetViewState.mockImplementation((key: string, fallback: unknown) => {
+        if (key === 'plugin.translateLang') return 'ja';
+        if (key === 'plugin.translateEmail') return 'test@example.com';
+        return fallback;
+      });
+      return { 'plugin.translateLang': 'ja', 'plugin.translateEmail': 'test@example.com' };
+    });
     mockSendRequest.mockResolvedValue({
       translations: { 'Alpha description': 'Alpha translated' },
     });
@@ -61,10 +76,16 @@ describe('useTranslation', () => {
   });
 
   it('handleDialogConfirm 會持久化草稿設定並觸發翻譯', async () => {
+    mockInitGlobalState.mockResolvedValue({});
     mockSendRequest.mockResolvedValue({
       translations: { 'Beta description': 'Beta zh-TW' },
     });
     const { result } = renderHook(() => useTranslation([makePlugin('beta@mp', 'Beta description')]));
+
+    // 等待 ready
+    await waitFor(() => {
+      expect(mockInitGlobalState).toHaveBeenCalled();
+    });
 
     await act(async () => {
       result.current.setDialogOpen(true);
@@ -82,13 +103,21 @@ describe('useTranslation', () => {
       expect(result.current.dialogOpen).toBe(false);
       expect(result.current.translations).toEqual({ 'Beta description': 'Beta zh-TW' });
     });
-    expect(localStorage.getItem('plugin.translateLang')).toBe('zh-TW');
-    expect(localStorage.getItem('plugin.translateEmail')).toBe('me@example.com');
+    expect(mockSetViewState).toHaveBeenCalledWith('plugin.translateLang', 'zh-TW');
+    expect(mockSetViewState).toHaveBeenCalledWith('plugin.translateEmail', 'me@example.com');
+    expect(mockSetGlobalState).toHaveBeenCalledWith('plugin.translateLang', 'zh-TW');
+    expect(mockSetGlobalState).toHaveBeenCalledWith('plugin.translateEmail', 'me@example.com');
   });
 
   it('quota warning 會清空 queued/active 狀態並保留 warning', async () => {
-    localStorage.setItem('plugin.translateLang', 'ja');
-    localStorage.setItem('plugin.translateEmail', 'warn@example.com');
+    mockInitGlobalState.mockImplementation(async () => {
+      mockGetViewState.mockImplementation((key: string, fallback: unknown) => {
+        if (key === 'plugin.translateLang') return 'ja';
+        if (key === 'plugin.translateEmail') return 'warn@example.com';
+        return fallback;
+      });
+      return { 'plugin.translateLang': 'ja', 'plugin.translateEmail': 'warn@example.com' };
+    });
     mockSendRequest.mockResolvedValue({
       translations: {},
       warning: 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.',
@@ -104,8 +133,14 @@ describe('useTranslation', () => {
   });
 
   it('retryTranslate 會用目前語言與 email 再送一次請求', async () => {
-    localStorage.setItem('plugin.translateLang', 'ja');
-    localStorage.setItem('plugin.translateEmail', 'retry@example.com');
+    mockInitGlobalState.mockImplementation(async () => {
+      mockGetViewState.mockImplementation((key: string, fallback: unknown) => {
+        if (key === 'plugin.translateLang') return 'ja';
+        if (key === 'plugin.translateEmail') return 'retry@example.com';
+        return fallback;
+      });
+      return { 'plugin.translateLang': 'ja', 'plugin.translateEmail': 'retry@example.com' };
+    });
     mockSendRequest.mockResolvedValue({
       translations: { 'Retry description': 'Retry translated' },
     });

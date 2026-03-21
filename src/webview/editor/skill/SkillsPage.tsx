@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sendRequest, onPushMessage, getViewState, setViewState } from '../../vscode';
+import { sendRequest, onPushMessage, getViewState, setViewState, setGlobalState, initGlobalState } from '../../vscode';
 import { SkillCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, SkillIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -39,8 +39,15 @@ export function SkillsPage(): React.ReactElement {
   // --- Pending install from search/registry (Install 按鈕直接開 dialog) ---
   const [pendingInstall, setPendingInstall] = useState<string | null>(null);
 
-  // --- Agent selection (persisted in viewState) ---
+  // --- Agent selection (persisted in viewState + globalState) ---
   const [selectedAgents, setSelectedAgents] = useState<string[]>(() => getViewState<string[]>('skill.agents', ['claude-code']));
+  useEffect(() => {
+    void initGlobalState([{ key: 'skill.agents', fallback: ['claude-code'] }])
+      .then(() => {
+        setSelectedAgents(getViewState<string[]>('skill.agents', ['claude-code']));
+      })
+      .catch(() => {});
+  }, []);
 
   // --- Shared ---
   const [search, setSearch] = useState('');
@@ -186,6 +193,7 @@ export function SkillsPage(): React.ReactElement {
     setAddingSkill(true);
     setSelectedAgents(agents);
     setViewState('skill.agents', agents);
+    void setGlobalState('skill.agents', agents);
     const isPending = pendingInstall !== null;
     try {
       await sendRequest<void>({ type: 'skill.add', source, scope, agents }, 90_000);

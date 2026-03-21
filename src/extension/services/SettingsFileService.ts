@@ -18,8 +18,6 @@ const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
 const INSTALLED_PLUGINS_PATH = join(PLUGINS_DIR, 'installed_plugins.json');
 const MARKETPLACES_DIR = join(PLUGINS_DIR, 'marketplaces');
 const KNOWN_MARKETPLACES_PATH = join(PLUGINS_DIR, 'known_marketplaces.json');
-const EXTENSION_DIR = join(CLAUDE_DIR, 'claude-plugins-manager');
-const PREFERENCES_PATH = join(EXTENSION_DIR, 'preferences.json');
 const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
 
 /**
@@ -288,6 +286,9 @@ export class SettingsFileService {
             (manifest.plugins ?? []).map(async (p) => {
               // source 可能是 object（遠端 URL 型 plugin），此時本地無目錄
               const localSource = typeof p.source === 'string' ? p.source : null;
+              const sourceUrl = typeof p.source === 'object' && p.source !== null
+                ? extractSourceUrl(p.source as Record<string, unknown>)
+                : undefined;
               const pluginDir = localSource ? resolve(mpDir, localSource) : null;
               let contents: AvailablePlugin['contents'];
               let pluginMeta: { description?: string; version?: string } = {};
@@ -327,6 +328,7 @@ export class SettingsFileService {
                 version: pluginMeta.version ?? p.version,
                 contents,
                 sourceDir: localSource ?? undefined,
+                sourceUrl,
                 lastUpdated,
               } satisfies AvailablePlugin;
             }),
@@ -342,26 +344,6 @@ export class SettingsFileService {
     );
 
     return perMarketplace.flat();
-  }
-
-  /** 讀取所有 UI 偏好（檔案持久化） */
-  async readPreferences(): Promise<Record<string, unknown>> {
-    return this.readJson<Record<string, unknown>>(PREFERENCES_PATH, {});
-  }
-
-  /** 序列化 preferences 寫入，避免併發 read-modify-write 互相覆蓋 */
-  private prefWriteQueue: Promise<void> = Promise.resolve();
-
-  /** 寫入單一 UI 偏好 key（檔案持久化） */
-  async writePreference(key: string, value: unknown): Promise<void> {
-    const task = this.prefWriteQueue.then(async () => {
-      const prefs = await this.readPreferences();
-      prefs[key] = value;
-      await mkdir(EXTENSION_DIR, { recursive: true });
-      await writeFile(PREFERENCES_PATH, JSON.stringify(prefs, null, 2) + '\n');
-    });
-    this.prefWriteQueue = task.catch(() => {});
-    return task;
   }
 
   /**
@@ -557,4 +539,31 @@ export class SettingsFileService {
     }
     return folder.uri.fsPath;
   }
+}
+
+/**
+ * 從 marketplace.json 的 object-type source 提取可瀏覽的 GitHub URL。
+ * 支援 `{ url: "https://...git" }` 和 `{ url: "owner/repo", path: "sub/dir", ref: "main" }` 格式。
+ */
+function extractSourceUrl(src: Record<string, unknown>): string | undefined {
+  const rawUrl = typeof src.url === 'string' ? src.url : undefined;
+  if (!rawUrl) return undefined;
+
+  // expand GitHub shorthand / strip .git
+  let baseUrl: string;
+  if (rawUrl.startsWith('https://')) {
+    baseUrl = rawUrl.replace(/\.git$/, '');
+  } else if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
+    baseUrl = `https://github.com/${rawUrl}`;
+  } else {
+    return undefined;
+  }
+
+  const subPath = typeof src.path === 'string' ? src.path : undefined;
+  if (subPath) {
+    const ref = typeof src.ref === 'string' ? src.ref : 'main';
+    return `${baseUrl}/tree/${ref}/${subPath}`;
+  }
+
+  return baseUrl;
 }

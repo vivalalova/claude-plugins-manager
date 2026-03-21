@@ -44,7 +44,7 @@ describe('ExtensionInfoService — integration', () => {
     expect(info.installedPluginsPath.path).toContain('installed_plugins.json');
     expect(info.knownMarketplacesPath.path).toContain('known_marketplaces.json');
     expect(info.extensionPath.path).toBe(extensionPath);
-    expect(info.preferencesPath.path).toContain('preferences.json');
+    expect(info.preferencesPath.path).toBe('VSCode globalState');
   });
 
   it('路徑欄位正確組合 homedir', async () => {

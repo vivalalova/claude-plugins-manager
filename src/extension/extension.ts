@@ -13,6 +13,7 @@ import { FileWatcherService } from './services/FileWatcherService';
 import { HookExplanationService } from './services/HookExplanationService';
 import { ExtensionInfoService } from './services/ExtensionInfoService';
 import { SkillService } from './services/SkillService';
+import { PreferencesService } from './services/PreferencesService';
 import { MessageRouter } from './messaging/MessageRouter';
 import { SidebarViewProvider } from './providers/SidebarViewProvider';
 import { EditorPanelManager } from './providers/EditorPanelManager';
@@ -58,8 +59,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.extensionUri.fsPath,
     cacheDir,
   );
-  const skillService = new SkillService();
-  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, hookExplanationService, extensionInfoService, cacheDir, skillService);
+  const skillService = new SkillService(cacheDir);
+  const preferencesService = new PreferencesService(context.globalState);
+  await preferencesService.migrateFromFile();
+  const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, preferencesService, hookExplanationService, extensionInfoService, cacheDir, skillService);
   // Marketplace 檔案變更 → invalidate scan cache（plugin settings 變更不影響 marketplace 掃描）
   fileWatcherService.onMarketplaceFilesChanged(() => settingsFileService.invalidateScanCache());
   // plugin settings 也會影響 plugin-provided MCP 的 enabled 狀態

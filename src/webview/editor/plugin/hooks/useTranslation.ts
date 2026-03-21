@@ -1,9 +1,12 @@
 import { type Dispatch, type RefObject, type SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { sendRequest } from '../../../vscode';
+import { sendRequest, getViewState, setViewState, setGlobalState, initGlobalState } from '../../../vscode';
 import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { collectPluginTexts, computeTranslateFingerprint, runConcurrent } from '../translateUtils';
 import type { TranslateResult } from '../../../../extension/services/TranslationService';
 import type { MergedPlugin } from '../../../../shared/types';
+
+const TRANSLATE_LANG_KEY = 'plugin.translateLang';
+const TRANSLATE_EMAIL_KEY = 'plugin.translateEmail';
 
 /** useTranslation 回傳值 */
 export interface UseTranslationReturn {
@@ -56,11 +59,12 @@ export interface UseTranslationReturn {
 export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [translateLang, setTranslateLang] = useState(
-    () => localStorage.getItem('plugin.translateLang') ?? '',
+    () => getViewState(TRANSLATE_LANG_KEY, ''),
   );
   const [translateEmail, setTranslateEmail] = useState(
-    () => localStorage.getItem('plugin.translateEmail') ?? '',
+    () => getViewState(TRANSLATE_EMAIL_KEY, ''),
   );
+  const [ready, setReady] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftLang, setDraftLang] = useState('');
   const [draftEmail, setDraftEmail] = useState('');
@@ -145,6 +149,20 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
     await runConcurrent(tasks, 3);
   }, []);
 
+  // mount 時從偏好設定檔載入翻譯設定（跨 extension 重裝持久化）
+  useEffect(() => {
+    void initGlobalState([
+      { key: TRANSLATE_LANG_KEY, fallback: '' },
+      { key: TRANSLATE_EMAIL_KEY, fallback: '' },
+    ]).then(() => {
+      setTranslateLang(getViewState(TRANSLATE_LANG_KEY, ''));
+      setTranslateEmail(getViewState(TRANSLATE_EMAIL_KEY, ''));
+      setReady(true);
+    }).catch(() => {
+      setReady(true);
+    });
+  }, []);
+
   // 語言、email 或 plugins descriptions 變更時自動翻譯
   // fingerprint 含 lang + email + 所有 description，避免 array reference 變更觸發無用重譯
   const textsFingerprint = useMemo(
@@ -154,6 +172,7 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
   const prevFingerprintRef = useRef('');
 
   useEffect(() => {
+    if (!ready) return;
     if (textsFingerprint === prevFingerprintRef.current) return;
     prevFingerprintRef.current = textsFingerprint;
 
@@ -168,12 +187,14 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
   // plugins/translateLang/translateEmail 已 encode 進 textsFingerprint，
   // 但 effect body 引用了它們，須列入 deps 以遵守 exhaustive-deps 規則。
   // fingerprint guard 會阻擋 reference-only 變更，避免無用 API call。
-  }, [textsFingerprint, plugins, translateLang, translateEmail, doTranslate]);
+  }, [ready, textsFingerprint, plugins, translateLang, translateEmail, doTranslate]);
 
   /** Dialog confirm：儲存設定並觸發翻譯 */
   const handleDialogConfirm = (): void => {
-    localStorage.setItem('plugin.translateEmail', draftEmail);
-    localStorage.setItem('plugin.translateLang', draftLang);
+    setViewState(TRANSLATE_EMAIL_KEY, draftEmail);
+    setViewState(TRANSLATE_LANG_KEY, draftLang);
+    void setGlobalState(TRANSLATE_EMAIL_KEY, draftEmail);
+    void setGlobalState(TRANSLATE_LANG_KEY, draftLang);
     setTranslateEmail(draftEmail);
     setTranslateLang(draftLang);
     setDialogOpen(false);

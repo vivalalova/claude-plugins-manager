@@ -423,6 +423,111 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.contents?.mcpServers).toEqual(['wrapped-server']);
     });
 
+    it('source 為 object（url type）→ sourceUrl 為可瀏覽的 GitHub URL', async () => {
+      const mpName = `scan-mp-source-url-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'external-plugin',
+            description: 'an external plugin',
+            source: {
+              source: 'url',
+              url: 'https://github.com/amekala/adspirer-mcp-plugin.git',
+              sha: 'abc123',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `external-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/amekala/adspirer-mcp-plugin');
+      expect(plugin!.sourceDir).toBeUndefined();
+    });
+
+    it('source 為 object（git-subdir type）→ sourceUrl 含 path', async () => {
+      const mpName = `scan-mp-git-subdir-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'subdir-plugin',
+            description: 'a git-subdir plugin',
+            source: {
+              source: 'git-subdir',
+              url: 'awslabs/agent-plugins',
+              path: 'plugins/aws-serverless',
+              ref: 'main',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `subdir-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/awslabs/agent-plugins/tree/main/plugins/aws-serverless');
+    });
+
+    it('source 為 string（本地路徑）→ sourceUrl undefined', async () => {
+      const mpName = `scan-mp-local-src-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(mpDir, 'plugins', 'local-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'local-plugin',
+            description: 'a local plugin',
+            source: './plugins/local-plugin',
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `local-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBeUndefined();
+      expect(plugin!.sourceDir).toBe('./plugins/local-plugin');
+    });
+
     it('skills 目錄含非目錄檔案（如 dashboard.html）時，不拋錯且正常列出 skill', async () => {
       const mpName = `scan-mp-skills-with-file-${testIdx}`;
       const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);

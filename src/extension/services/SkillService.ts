@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS, SKILL_REGISTRY_URL } from '../constants';
 import { getWorkspacePath } from '../utils/workspace';
@@ -22,7 +22,6 @@ export class SkillError extends Error {
 
 const MAX_STDIO_BUFFER_BYTES = 10 * 1024 * 1024;
 const REGISTRY_CACHE_TTL_MS = 4 * 60 * 60 * 1000;
-const REGISTRY_CACHE_FILE = join(homedir(), '.claude', 'plugins', 'cache', 'skill-registry.json');
 
 interface RegistryCacheEntry {
   data: RegistrySkill[];
@@ -49,6 +48,11 @@ interface ExecError {
 export class SkillService {
   private npxPath: string | null = null;
   private registryCacheWriteQueue: Promise<void> = Promise.resolve();
+  private readonly registryCachePath: string;
+
+  constructor(cacheDir: string) {
+    this.registryCachePath = join(cacheDir, 'skill-registry.json');
+  }
 
   /** 去除 ANSI escape codes（SGR + cursor + erase + mode sequences） */
   static stripAnsi(text: string): string {
@@ -453,7 +457,7 @@ export class SkillService {
   /** 讀取 registry file cache；cache miss 或過期回傳 null */
   private async readRegistryCache(key: string): Promise<RegistrySkill[] | null> {
     try {
-      const raw = await readFile(REGISTRY_CACHE_FILE, 'utf-8');
+      const raw = await readFile(this.registryCachePath, 'utf-8');
       const cache = JSON.parse(raw) as RegistryCacheFile;
       const entry = cache[key];
       if (!entry) return null;
@@ -468,21 +472,26 @@ export class SkillService {
   private writeRegistryCache(key: string, data: RegistrySkill[]): Promise<void> {
     const task = this.registryCacheWriteQueue.then(async () => {
       try {
-        await mkdir(join(homedir(), '.claude', 'plugins', 'cache'), { recursive: true });
+        await mkdir(dirname(this.registryCachePath), { recursive: true });
         let cache: RegistryCacheFile = {};
         try {
-          cache = JSON.parse(await readFile(REGISTRY_CACHE_FILE, 'utf-8')) as RegistryCacheFile;
+          cache = JSON.parse(await readFile(this.registryCachePath, 'utf-8')) as RegistryCacheFile;
         } catch {
           // 檔案不存在或損毀，從空物件開始
         }
         cache[key] = { data, timestamp: Date.now() };
-        await writeFile(REGISTRY_CACHE_FILE, JSON.stringify(cache), 'utf-8');
+        await writeFile(this.registryCachePath, JSON.stringify(cache), 'utf-8');
       } catch {
         // cache 寫入失敗不影響主流程
       }
     });
     this.registryCacheWriteQueue = task.catch(() => {});
     return task;
+  }
+
+  /** 清除 in-memory cache 狀態（磁碟快取由 cacheDir rm 處理） */
+  invalidateCache(): void {
+    this.registryCacheWriteQueue = Promise.resolve();
   }
 
   /** 解析 SKILL.md frontmatter */

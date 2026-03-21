@@ -108,7 +108,6 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   // mount 時批次從偏好設定檔載入所有 UI 偏好
   useEffect(() => {
     void initGlobalState([
-      { key: PLUGIN_SEARCH_KEY, fallback: '' },
       { key: PLUGIN_FILTER_ENABLED_KEY, fallback: false },
       { key: CONTENT_TYPE_STORAGE_KEY, fallback: [] },
       { key: PLUGIN_SORT_KEY, fallback: 'name' },
@@ -137,7 +136,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
 
   // Filter 狀態持久化 → viewState 快取 + globalState 持久化
   // ready guard：避免 mount 時用初始值覆蓋尚未讀回的持久化資料
-  useEffect(() => { if (!ready) return; setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); void setGlobalState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch, ready]);
+  useEffect(() => { if (!ready) return; setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch, ready]);
   useEffect(() => { if (!ready) return; setViewState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); void setGlobalState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); }, [filterEnabled, ready]);
   useEffect(() => { if (!ready) return; writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters, ready]);
   useEffect(() => { if (!ready) return; writePluginSort(sortBy); }, [sortBy, ready]);

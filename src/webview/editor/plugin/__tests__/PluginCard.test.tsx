@@ -77,6 +77,34 @@ describe('buildPluginGithubUrl', () => {
   ])('$label → null', ({ url, sourceDir }) => {
     expect(buildPluginGithubUrl(url, sourceDir)).toBeNull();
   });
+
+  describe('sourceUrl 優先級', () => {
+    it('sourceUrl 存在 → 直接回傳 sourceUrl，忽略 marketplaceUrl + sourceDir', () => {
+      expect(
+        buildPluginGithubUrl(
+          'https://github.com/anthropics/claude-plugins-official.git',
+          './plugins/foo',
+          'https://github.com/amekala/adspirer-mcp-plugin',
+        ),
+      ).toBe('https://github.com/amekala/adspirer-mcp-plugin');
+    });
+
+    it('sourceUrl 存在但 marketplaceUrl undefined → 仍回傳 sourceUrl', () => {
+      expect(
+        buildPluginGithubUrl(undefined, undefined, 'https://github.com/foo/bar'),
+      ).toBe('https://github.com/foo/bar');
+    });
+
+    it('sourceUrl undefined → fallback 到 marketplaceUrl + sourceDir', () => {
+      expect(
+        buildPluginGithubUrl(
+          'https://github.com/anthropics/claude-plugins-official.git',
+          './plugins/agent-sdk-dev',
+          undefined,
+        ),
+      ).toBe('https://github.com/anthropics/claude-plugins-official/tree/main/plugins/agent-sdk-dev');
+    });
+  });
 });
 
 describe('PluginCard', () => {
@@ -174,6 +202,29 @@ describe('PluginCard', () => {
     );
 
     expect(screen.queryByText('GitHub')).toBeNull();
+  });
+
+  it('plugin 有 sourceUrl → GitHub 按鈕 openExternal 使用 sourceUrl', () => {
+    const plugin = createPlugin({
+      sourceDir: './plugins/my-plugin',
+      sourceUrl: 'https://github.com/amekala/adspirer-mcp-plugin',
+    });
+
+    renderWithI18n(
+      <PluginCard
+        plugin={plugin}
+        marketplaceUrl="https://github.com/anthropics/claude-plugins-official.git"
+        onToggle={onToggle}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('GitHub'));
+
+    expect(mockSendRequest).toHaveBeenCalledWith({
+      type: 'openExternal',
+      url: 'https://github.com/amekala/adspirer-mcp-plugin',
+    });
   });
 
   it('本機路徑 marketplaceUrl → 不顯示 GitHub 按鈕', () => {

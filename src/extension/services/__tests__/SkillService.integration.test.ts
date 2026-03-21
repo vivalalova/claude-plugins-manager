@@ -190,7 +190,7 @@ describe('SkillService', () => {
 
     // Dynamic import to pick up mocks
     const mod = await import('../SkillService');
-    service = new mod.SkillService();
+    service = new mod.SkillService('/tmp/test-cache');
   });
 
   afterEach(() => {
