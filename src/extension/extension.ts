@@ -59,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.extensionUri.fsPath,
     cacheDir,
   );
-  const skillService = new SkillService();
+  const skillService = new SkillService(cacheDir);
   const preferencesService = new PreferencesService(context.globalState);
   await preferencesService.migrateFromFile();
   const router = new MessageRouter(marketplaceService, pluginService, mcpService, translationService, settingsFileService, preferencesService, hookExplanationService, extensionInfoService, cacheDir, skillService);

@@ -84,7 +84,7 @@ vi.mock('../services/HookExplanationService', () => ({
 }));
 
 vi.mock('../services/SkillService', () => ({
-  SkillService: vi.fn().mockImplementation(function SkillServiceMock() {}),
+  SkillService: vi.fn().mockImplementation(function SkillServiceMock(_cacheDir: string) {}),
 }));
 
 vi.mock('../services/PreferencesService', () => ({
