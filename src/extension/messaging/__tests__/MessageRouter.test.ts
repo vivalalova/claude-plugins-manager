@@ -5,6 +5,7 @@ import type { PluginService } from '../../services/PluginService';
 import type { McpService } from '../../services/McpService';
 import type { TranslationService } from '../../services/TranslationService';
 import type { SettingsFileService } from '../../services/SettingsFileService';
+import type { PreferencesService } from '../../services/PreferencesService';
 import type { HookExplanationService } from '../../services/HookExplanationService';
 import type { SkillService } from '../../services/SkillService';
 import type { RequestMessage, ResponseMessage } from '../protocol';
@@ -43,9 +44,10 @@ function createMockServices() {
       translate: vi.fn().mockResolvedValue([]),
       invalidateCache: vi.fn(),
     },
-    settings: {
-      readPreferences: vi.fn().mockResolvedValue({}),
-      writePreference: vi.fn().mockResolvedValue(undefined),
+    settings: {} as Record<string, unknown>,
+    preferences: {
+      readAll: vi.fn().mockReturnValue({}),
+      write: vi.fn().mockResolvedValue(undefined),
     },
     hookExplanation: {
       explain: vi.fn().mockResolvedValue({ explanation: 'test explanation', fromCache: false }),
@@ -82,6 +84,7 @@ describe('MessageRouter', () => {
       services.mcp as unknown as McpService,
       services.translation as unknown as TranslationService,
       services.settings as unknown as SettingsFileService,
+      services.preferences as unknown as PreferencesService,
       services.hookExplanation as unknown as HookExplanationService,
       services.extensionInfo as never,
       '/tmp/test-cache',
@@ -416,19 +419,19 @@ describe('MessageRouter', () => {
   describe('preferences 路由', () => {
     it('preferences.read → 回傳所有偏好設定', async () => {
       const mockPrefs = { 'plugin.sort': 'lastUpdated', 'plugin.filter.enabled': true };
-      services.settings.readPreferences.mockResolvedValue(mockPrefs);
+      services.preferences.readAll.mockReturnValue(mockPrefs);
 
       await router.handle(
         { type: 'preferences.read', requestId: 'pr1' } as RequestMessage,
         post,
       );
 
-      expect(services.settings.readPreferences).toHaveBeenCalled();
+      expect(services.preferences.readAll).toHaveBeenCalled();
       expect(posted).toEqual([{ type: 'response', requestId: 'pr1', data: mockPrefs }]);
     });
 
     it('preferences.read → 無偏好設定時回傳空物件', async () => {
-      services.settings.readPreferences.mockResolvedValue({});
+      services.preferences.readAll.mockReturnValue({});
 
       await router.handle(
         { type: 'preferences.read', requestId: 'pr2' } as RequestMessage,
@@ -444,7 +447,7 @@ describe('MessageRouter', () => {
         post,
       );
 
-      expect(services.settings.writePreference).toHaveBeenCalledWith('plugin.sort', 'lastUpdated');
+      expect(services.preferences.write).toHaveBeenCalledWith('plugin.sort', 'lastUpdated');
       expect(posted).toEqual([{ type: 'response', requestId: 'pw1', data: undefined }]);
     });
   });

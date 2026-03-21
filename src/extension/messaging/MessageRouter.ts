@@ -8,6 +8,7 @@ import type { PluginService } from '../services/PluginService';
 import type { McpService } from '../services/McpService';
 import type { TranslationService } from '../services/TranslationService';
 import type { SettingsFileService } from '../services/SettingsFileService';
+import type { PreferencesService } from '../services/PreferencesService';
 import type { HookExplanationService } from '../services/HookExplanationService';
 import type { ExtensionInfoService } from '../services/ExtensionInfoService';
 import type { SkillService } from '../services/SkillService';
@@ -26,6 +27,7 @@ export class MessageRouter {
     private readonly mcp: McpService,
     private readonly translation: TranslationService,
     private readonly settings: SettingsFileService,
+    private readonly preferences: PreferencesService,
     private readonly hookExplanation: HookExplanationService,
     private readonly extensionInfo: ExtensionInfoService,
     private readonly cacheDir: string,
@@ -130,11 +132,11 @@ export class MessageRouter {
         return;
       }
 
-      // UI 偏好持久化（檔案）
+      // UI 偏好持久化（globalState）
       case 'preferences.read':
-        return this.settings.readPreferences();
+        return this.preferences.readAll();
       case 'preferences.write':
-        return this.settings.writePreference(message.key, message.value);
+        return this.preferences.write(message.key, message.value);
 
       // Settings（Claude Code settings.json）
       case 'settings.get':
