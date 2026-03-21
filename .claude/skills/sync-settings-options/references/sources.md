@@ -1,37 +1,35 @@
 # Sources
 
-## Primary（context7 cross-doc）
+## Primary（JSON schema store）
 
-- library: `/websites/code_claude`（所有已索引 docs 頁面）
-- 分批 query settings 類別，≤5 批次（token 效率）
-- 無需預知 URL；新頁面自動被 context7 索引
+- URL: `https://json.schemastore.org/claude-code-settings.json`
+- machine-readable：完整 type/enum/default/description
+- 單一 curl 取得所有 properties + hook defs
+- 權威來源：type/enum/default 以 schema 為準
 
-## Structured（schema）
+## Supplementary（context7）
 
-- JSON schema store — machine-readable type/enum/default
-- 補充 context7 snippet 中型別不明確的欄位
+- library: `/websites/code_claude`
+- 補充 schema 未涵蓋的描述/用途/context
+- **≤3 queries**（context7 API 限制）
 
-## Targeted（agent-browser，conditional，對應 SKILL.md 1c）
-
-- 僅 context7 回傳特定 URL 且資訊不完整時開啟
-- 不主動爬取；上限 2 個 URL
-
-## Fallback（context7 alternate，1a+1b+1c 後仍不足）
+## Fallback（context7 alternate，僅 schema store 不可用時）
 
 - `context7` `/anthropics/claude-code`
 
 ## Secondary（repo 內部）
 
 - `src/shared/types.ts`
+- `src/shared/claude-settings-schema.ts`
+- `src/shared/field-orders.ts`
 - `src/webview/editor/settings/` 現有 section 實作
 - 只補 literal enum、default、object shape
 
 ## Rules
 
-- docs > schema > repo
+- schema store > docs > repo
 - secondary 只補 literal enum、default、object shape
-- docs 缺 shape：保守同步；不腦補 enterprise/private fields
+- schema 缺 shape：保守同步；不腦補 enterprise/private fields
 - 刪除 key：移除 repo first-party support、tests、locale、CLAUDE.md 說明
 - 刪除 key：不修改使用者既有 settings 檔；unknown key 容忍保持
-- docs 與現況衝突：回報列 `衝突點`
-- context7 query 不超過 5 批次（token 效率）
+- schema 與 repo 衝突：回報列 `衝突點`
