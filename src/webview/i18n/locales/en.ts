@@ -104,16 +104,11 @@ export const en = {
   'settings.permissions.disabledMcpjsonServers.duplicate': 'Server already in list',
   // Env section
   'settings.env.add': 'Add',
-  'settings.env.edit': 'Edit',
-  'settings.env.delete': 'Delete',
-  'settings.env.confirm': 'Confirm',
-  'settings.env.cancel': 'Cancel',
   'settings.env.keyPlaceholder': 'VARIABLE_NAME',
   'settings.env.valuePlaceholder': 'value',
   'settings.env.duplicateKey': 'Key already exists',
   'settings.env.invalidKey': 'Key must contain only A-Z, 0-9, _',
-  'settings.env.emptyState': 'No environment variables defined',
-  'settings.env.toggleReveal': 'Toggle visibility',
+  'settings.env.customCategory': 'Custom',
   // Env section — known var categories
   'settings.env.category.model': 'Model',
   'settings.env.category.auth': 'Auth',

@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { getKnownEnvVar, getKnownEnvVarNames } from '../../../shared/known-env-vars';
+import { getKnownEnvVar, getKnownEnvVarNames, getKnownEnvVarsByCategory, CATEGORY_ORDER } from '../../../shared/known-env-vars';
+import type { KnownEnvVar } from '../../../shared/known-env-vars';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,132 +26,343 @@ function useEnvVarDescription(envKey: string): string | null {
   return localized !== i18nKey ? localized : known.description;
 }
 
+function formatDefaultHint(envKey: string, defaultValue?: string): string {
+  if (!defaultValue) return `(${envKey})`;
+  return `(${envKey}: ${defaultValue})`;
+}
+
 // ---------------------------------------------------------------------------
-// EnvRow
+// EnvBooleanField
 // ---------------------------------------------------------------------------
 
-interface EnvRowProps {
+interface EnvFieldProps {
   envKey: string;
-  value: string;
-  isEditing: boolean;
-  onStartEdit: (key: string) => void;
-  onCancelEdit: () => void;
-  onConfirmEdit: (key: string, newValue: string) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  knownVar?: KnownEnvVar;
+  value: string | undefined;
+  currentEnv: Record<string, string>;
+  onUpdateEnv: (env: Record<string, string>) => Promise<void>;
   disabled: boolean;
 }
 
-function EnvRow({
-  envKey,
-  value,
-  isEditing,
-  onStartEdit,
-  onCancelEdit,
-  onConfirmEdit,
-  onDelete,
-  disabled,
-}: EnvRowProps): React.ReactElement {
+function EnvBooleanField({ envKey, knownVar, value, currentEnv, onUpdateEnv, disabled }: EnvFieldProps): React.ReactElement {
   const { t } = useI18n();
-  const sensitive = isSensitiveKey(envKey);
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [saving, setSaving] = useState(false);
   const description = useEnvVarDescription(envKey);
+  const [saving, setSaving] = useState(false);
+  const resetLabel = t('settings.common.reset');
 
-  const handleStartEdit = (): void => {
-    setEditValue(sensitive ? '' : value);
-    onStartEdit(envKey);
-  };
+  const checked = value === '1' || value === 'true';
+  const hasValue = value !== undefined;
+  const defaultVal = knownVar?.default;
+  const defaultChecked = defaultVal === '1' || defaultVal === 'true';
+  const showReset = hasValue && defaultVal !== undefined && checked !== defaultChecked;
 
-  const handleConfirm = async (): Promise<void> => {
+  const handleToggle = async (): Promise<void> => {
     setSaving(true);
     try {
-      await onConfirmEdit(envKey, editValue);
+      await onUpdateEnv({ ...currentEnv, [envKey]: checked ? '0' : '1' });
     } finally {
       setSaving(false);
     }
   };
 
-  const displayValue = sensitive && !isRevealed ? '••••••••' : value;
+  const handleReset = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const updated = { ...currentEnv };
+      delete updated[envKey];
+      await onUpdateEnv(updated);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="env-entry">
-      <div className="env-row">
-        <span className="env-key">{envKey}</span>
-
-        {isEditing ? (
-        <div className="env-inline-edit">
+    <div className="settings-field">
+      <div className="settings-toggle-row">
+        <label className="hooks-toggle-label">
           <input
-            className="input"
-            type="text"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            placeholder={sensitive ? t('settings.env.valuePlaceholder') : value}
-            disabled={saving}
-            autoFocus
+            type="checkbox"
+            checked={checked}
+            onChange={() => void handleToggle()}
+            disabled={disabled || saving}
           />
-          <button
-            className="btn btn-primary"
-            onClick={() => void handleConfirm()}
-            disabled={saving || editValue === ''}
-            type="button"
-          >
-            {t('settings.env.confirm')}
-          </button>
+          <span>{envKey}</span>
+          <span className="settings-key-hint" aria-hidden="true">
+            {formatDefaultHint(envKey, defaultVal)}
+          </span>
+        </label>
+        {showReset && (
           <button
             className="btn btn-secondary"
-            onClick={onCancelEdit}
-            disabled={saving}
+            onClick={() => void handleReset()}
+            disabled={disabled || saving}
             type="button"
           >
-            {t('settings.env.cancel')}
+            {resetLabel}
           </button>
-        </div>
-      ) : (
-        <>
-          <span className="env-value">
-            {displayValue}
-          </span>
-          <div className="env-row-actions">
-            {sensitive && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => setIsRevealed((r) => !r)}
-                type="button"
-                aria-label={t('settings.env.toggleReveal')}
-                title={t('settings.env.toggleReveal')}
-                disabled={disabled}
-              >
-                {isRevealed ? '🙈' : '👁'}
-              </button>
-            )}
-            <button
-              className="btn btn-secondary"
-              onClick={handleStartEdit}
-              type="button"
-              disabled={disabled}
-            >
-              {t('settings.env.edit')}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => void onDelete(envKey)}
-              type="button"
-              disabled={disabled}
-            >
-              {t('settings.env.delete')}
-            </button>
-          </div>
-        </>
-      )}
+        )}
       </div>
-      {description && <span className="env-key-description">{description}</span>}
+      {description && <p className="settings-field-description">{description}</p>}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// AddEnvForm
+// EnvNumberField
+// ---------------------------------------------------------------------------
+
+interface EnvNumberFieldProps extends EnvFieldProps {
+  scope: PluginScope;
+}
+
+function EnvNumberField({ envKey, knownVar, value, currentEnv, onUpdateEnv, disabled, scope }: EnvNumberFieldProps): React.ReactElement {
+  const { t } = useI18n();
+  const description = useEnvVarDescription(envKey);
+  const [inputValue, setInputValue] = useState(value ?? '');
+  const [saving, setSaving] = useState(false);
+  const saveLabel = t('settings.common.save');
+  const clearLabel = t('settings.common.clear');
+  const resetLabel = t('settings.common.reset');
+  const defaultVal = knownVar?.default;
+
+  useEffect(() => {
+    setInputValue(value ?? '');
+  }, [scope, value]);
+
+  const showReset = defaultVal !== undefined && value !== undefined && value !== defaultVal;
+
+  const handleSave = async (): Promise<void> => {
+    const trimmed = inputValue.trim();
+    setSaving(true);
+    try {
+      if (!trimmed) {
+        const updated = { ...currentEnv };
+        delete updated[envKey];
+        await onUpdateEnv(updated);
+      } else {
+        await onUpdateEnv({ ...currentEnv, [envKey]: trimmed });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const updated = { ...currentEnv };
+      delete updated[envKey];
+      await onUpdateEnv(updated);
+      setInputValue('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label" htmlFor={`env-${envKey}`}>
+        <span>{envKey}</span>
+        <span className="settings-key-hint" aria-hidden="true">
+          {formatDefaultHint(envKey, defaultVal)}
+        </span>
+      </label>
+      {description && <p className="settings-field-description">{description}</p>}
+      <div className="settings-model-row">
+        <input
+          id={`env-${envKey}`}
+          className="input"
+          type="number"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder={t('settings.env.valuePlaceholder')}
+          disabled={disabled || saving}
+        />
+        {showReset ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={disabled || saving}
+            type="button"
+          >
+            {resetLabel}
+          </button>
+        ) : value !== undefined ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={disabled || saving}
+            type="button"
+          >
+            {clearLabel}
+          </button>
+        ) : null}
+      </div>
+      <div className="settings-actions">
+        <button
+          className="btn btn-primary"
+          onClick={() => void handleSave()}
+          disabled={disabled || saving}
+          type="button"
+        >
+          {saveLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EnvStringField
+// ---------------------------------------------------------------------------
+
+interface EnvStringFieldProps extends EnvFieldProps {
+  scope: PluginScope;
+}
+
+function EnvStringField({ envKey, knownVar, value, currentEnv, onUpdateEnv, disabled, scope }: EnvStringFieldProps): React.ReactElement {
+  const { t } = useI18n();
+  const description = useEnvVarDescription(envKey);
+  const sensitive = knownVar?.sensitive ?? isSensitiveKey(envKey);
+  const [inputValue, setInputValue] = useState(sensitive ? '' : (value ?? ''));
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveLabel = t('settings.common.save');
+  const clearLabel = t('settings.common.clear');
+  const resetLabel = t('settings.common.reset');
+  const defaultVal = knownVar?.default;
+
+  useEffect(() => {
+    setInputValue(sensitive ? '' : (value ?? ''));
+    setIsRevealed(false);
+  }, [scope, value, sensitive]);
+
+  const showReset = defaultVal !== undefined && value !== undefined && value !== defaultVal;
+
+  const handleSave = async (): Promise<void> => {
+    const trimmed = inputValue.trim();
+    setSaving(true);
+    try {
+      if (!trimmed) {
+        const updated = { ...currentEnv };
+        delete updated[envKey];
+        await onUpdateEnv(updated);
+      } else {
+        await onUpdateEnv({ ...currentEnv, [envKey]: trimmed });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const updated = { ...currentEnv };
+      delete updated[envKey];
+      await onUpdateEnv(updated);
+      setInputValue('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputType = sensitive && !isRevealed ? 'password' : 'text';
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label" htmlFor={`env-${envKey}`}>
+        <span>{envKey}</span>
+        <span className="settings-key-hint" aria-hidden="true">
+          {formatDefaultHint(envKey, defaultVal)}
+        </span>
+      </label>
+      {description && <p className="settings-field-description">{description}</p>}
+      <div className="settings-model-row">
+        {sensitive ? (
+          <div className="env-sensitive-row">
+            <input
+              id={`env-${envKey}`}
+              className="input"
+              type={inputType}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={value ? '••••••••' : t('settings.env.valuePlaceholder')}
+              disabled={disabled || saving}
+            />
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsRevealed((r) => !r)}
+              type="button"
+              disabled={disabled || saving}
+            >
+              {isRevealed ? '🙈' : '👁'}
+            </button>
+          </div>
+        ) : (
+          <input
+            id={`env-${envKey}`}
+            className="input"
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={t('settings.env.valuePlaceholder')}
+            disabled={disabled || saving}
+          />
+        )}
+        {showReset ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={disabled || saving}
+            type="button"
+          >
+            {resetLabel}
+          </button>
+        ) : value !== undefined ? (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={disabled || saving}
+            type="button"
+          >
+            {clearLabel}
+          </button>
+        ) : null}
+      </div>
+      <div className="settings-actions">
+        <button
+          className="btn btn-primary"
+          onClick={() => void handleSave()}
+          disabled={disabled || saving}
+          type="button"
+        >
+          {saveLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EnvCategoryGroup
+// ---------------------------------------------------------------------------
+
+function EnvCategoryGroup({ category, children }: { category: string; children: React.ReactNode }): React.ReactElement {
+  const { t } = useI18n();
+  const catKey = category === 'custom'
+    ? 'settings.env.customCategory'
+    : `settings.env.category.${category}`;
+  return (
+    <div className="env-category-group">
+      <h4 className="env-category-title">{t(catKey as Parameters<typeof t>[0])}</h4>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AddEnvForm (simplified — no autocomplete, known vars already listed)
 // ---------------------------------------------------------------------------
 
 interface AddEnvFormProps {
@@ -165,22 +377,6 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
   const [valueInput, setValueInput] = useState('');
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const valueRef = useRef<HTMLInputElement>(null);
-  // Precompute suggestions for keyboard handling
-  const suggestions = useMemo(() => {
-    if (!keyInput.trim()) return [];
-    const upper = keyInput.toUpperCase();
-    return getKnownEnvVarNames()
-      .filter((name) => name.includes(upper) && !existingKeys.includes(name))
-      .slice(0, 8);
-  }, [keyInput, existingKeys]);
-
-  const [selectedIdx, setSelectedIdx] = useState(0);
-
-  useEffect(() => {
-    setSelectedIdx(0);
-  }, [suggestions.length, keyInput]);
 
   const validate = (key: string): string => {
     if (!key.trim() || !valueInput.trim()) return '';
@@ -199,32 +395,8 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
       setKeyInput('');
       setValueInput('');
       setError('');
-      setShowAutocomplete(false);
     } finally {
       setAdding(false);
-    }
-  };
-
-  const handleSelectSuggestion = (name: string): void => {
-    setKeyInput(name);
-    setError('');
-    setShowAutocomplete(false);
-    valueRef.current?.focus();
-  };
-
-  const handleKeyInputKeyDown = (e: React.KeyboardEvent): void => {
-    if (!showAutocomplete || suggestions.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedIdx((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' && suggestions[selectedIdx]) {
-      e.preventDefault();
-      handleSelectSuggestion(suggestions[selectedIdx]);
-    } else if (e.key === 'Escape') {
-      setShowAutocomplete(false);
     }
   };
 
@@ -232,49 +404,15 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 
   return (
     <div className="env-add-form">
-      <div className="env-add-key-wrapper">
-        <input
-          className="input"
-          type="text"
-          value={keyInput}
-          onChange={(e) => { setKeyInput(e.target.value); setError(''); setShowAutocomplete(true); }}
-          onFocus={() => setShowAutocomplete(true)}
-          onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
-          onKeyDown={handleKeyInputKeyDown}
-          placeholder={t('settings.env.keyPlaceholder')}
-          disabled={disabled || adding}
-          role="combobox"
-          aria-expanded={showAutocomplete && suggestions.length > 0}
-          aria-autocomplete="list"
-        />
-        {showAutocomplete && suggestions.length > 0 && (
-          <div className="env-autocomplete" role="listbox">
-            {suggestions.map((name, i) => {
-              const known = getKnownEnvVar(name);
-              const i18nKey = `settings.env.knownVars.${name}.description` as Parameters<typeof t>[0];
-              const localDesc = t(i18nKey);
-              const desc = localDesc !== i18nKey ? localDesc : known?.description ?? '';
-              const catKey = `settings.env.category.${known?.category}` as Parameters<typeof t>[0];
-              return (
-                <div
-                  key={name}
-                  className={`env-autocomplete-item${i === selectedIdx ? ' env-autocomplete-item--selected' : ''}`}
-                  role="option"
-                  aria-selected={i === selectedIdx}
-                  onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(name); }}
-                  onMouseEnter={() => setSelectedIdx(i)}
-                >
-                  <span className="env-autocomplete-name">{name}</span>
-                  {known && <span className="env-autocomplete-category">{t(catKey)}</span>}
-                  {desc && <span className="env-autocomplete-desc">{desc}</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
       <input
-        ref={valueRef}
+        className="input"
+        type="text"
+        value={keyInput}
+        onChange={(e) => { setKeyInput(e.target.value); setError(''); }}
+        placeholder={t('settings.env.keyPlaceholder')}
+        disabled={disabled || adding}
+      />
+      <input
         className="input"
         type="text"
         value={valueInput}
@@ -309,17 +447,20 @@ interface EnvSectionProps {
 export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.ReactElement {
   const { t } = useI18n();
   const { addToast } = useToast();
-
   const [saving, setSaving] = useState(false);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
 
-  // Reset editing state when scope changes
-  useEffect(() => {
-    setEditingKey(null);
-  }, [scope]);
+  const currentEnv = useMemo<Record<string, string>>(
+    () => (settings.env as Record<string, string>) ?? {},
+    [settings.env],
+  );
 
-  const currentEnv: Record<string, string> = (settings.env as Record<string, string>) ?? {};
-  const entries = Object.entries(currentEnv);
+  const knownVarsByCategory = useMemo(() => getKnownEnvVarsByCategory(), []);
+  const knownNames = useMemo(() => new Set(getKnownEnvVarNames()), []);
+
+  const customEntries = useMemo(
+    () => Object.entries(currentEnv).filter(([key]) => !knownNames.has(key)),
+    [currentEnv, knownNames],
+  );
 
   const updateEnv = async (updatedEnv: Record<string, string>): Promise<void> => {
     setSaving(true);
@@ -336,46 +477,80 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
     await updateEnv({ ...currentEnv, [key]: value });
   };
 
-  const handleConfirmEdit = async (key: string, newValue: string): Promise<void> => {
-    await updateEnv({ ...currentEnv, [key]: newValue });
-    setEditingKey(null);
-  };
-
-  const handleDelete = async (key: string): Promise<void> => {
-    const updated = { ...currentEnv };
-    delete updated[key];
-    await updateEnv(updated);
-  };
-
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.env')}</h3>
 
-      <div className="env-list">
-        {entries.length === 0 ? (
-          <p className="env-empty">{t('settings.env.emptyState')}</p>
-        ) : (
-          entries.map(([key, val]) => (
-            <EnvRow
-              key={key}
-              envKey={key}
-              value={val}
-              isEditing={editingKey === key}
-              onStartEdit={setEditingKey}
-              onCancelEdit={() => setEditingKey(null)}
-              onConfirmEdit={handleConfirmEdit}
-              onDelete={handleDelete}
-              disabled={saving || (editingKey !== null && editingKey !== key)}
-            />
-          ))
-        )}
-      </div>
+      {CATEGORY_ORDER.map((category) => {
+        const vars = knownVarsByCategory.get(category);
+        if (!vars || vars.length === 0) return null;
+        return (
+          <EnvCategoryGroup key={category} category={category}>
+            {vars.map((knownVar) => {
+              const value = currentEnv[knownVar.name];
+              switch (knownVar.valueType) {
+                case 'boolean':
+                  return (
+                    <EnvBooleanField
+                      key={knownVar.name}
+                      envKey={knownVar.name}
+                      knownVar={knownVar}
+                      value={value}
+                      currentEnv={currentEnv}
+                      onUpdateEnv={updateEnv}
+                      disabled={saving}
+                    />
+                  );
+                case 'number':
+                  return (
+                    <EnvNumberField
+                      key={knownVar.name}
+                      envKey={knownVar.name}
+                      knownVar={knownVar}
+                      value={value}
+                      currentEnv={currentEnv}
+                      onUpdateEnv={updateEnv}
+                      disabled={saving}
+                      scope={scope}
+                    />
+                  );
+                default:
+                  return (
+                    <EnvStringField
+                      key={knownVar.name}
+                      envKey={knownVar.name}
+                      knownVar={knownVar}
+                      value={value}
+                      currentEnv={currentEnv}
+                      onUpdateEnv={updateEnv}
+                      disabled={saving}
+                      scope={scope}
+                    />
+                  );
+              }
+            })}
+          </EnvCategoryGroup>
+        );
+      })}
 
-      <AddEnvForm
-        existingKeys={Object.keys(currentEnv)}
-        onAdd={handleAdd}
-        disabled={saving || editingKey !== null}
-      />
+      <EnvCategoryGroup category="custom">
+        {customEntries.map(([key]) => (
+          <EnvStringField
+            key={key}
+            envKey={key}
+            value={currentEnv[key]}
+            currentEnv={currentEnv}
+            onUpdateEnv={updateEnv}
+            disabled={saving}
+            scope={scope}
+          />
+        ))}
+        <AddEnvForm
+          existingKeys={Object.keys(currentEnv)}
+          onAdd={handleAdd}
+          disabled={saving}
+        />
+      </EnvCategoryGroup>
     </div>
   );
 }

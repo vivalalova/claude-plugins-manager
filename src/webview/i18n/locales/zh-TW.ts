@@ -106,16 +106,11 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.disabledMcpjsonServers.duplicate': '伺服器已在清單中',
   // Env section
   'settings.env.add': '新增',
-  'settings.env.edit': '編輯',
-  'settings.env.delete': '刪除',
-  'settings.env.confirm': '確認',
-  'settings.env.cancel': '取消',
   'settings.env.keyPlaceholder': 'VARIABLE_NAME',
   'settings.env.valuePlaceholder': '值',
   'settings.env.duplicateKey': '變數名稱已存在',
   'settings.env.invalidKey': '變數名稱只能包含 A-Z、0-9、_',
-  'settings.env.emptyState': '尚未定義環境變數',
-  'settings.env.toggleReveal': '切換顯示',
+  'settings.env.customCategory': '自訂',
   // Env section — known var categories
   'settings.env.category.model': '模型',
   'settings.env.category.auth': '認證',

@@ -320,16 +320,11 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.disabledMcpjsonServers.duplicate': 'サーバーはすでにリストにあります',
   // Env section
   'settings.env.add': '追加',
-  'settings.env.edit': '編集',
-  'settings.env.delete': '削除',
-  'settings.env.confirm': '確認',
-  'settings.env.cancel': 'キャンセル',
   'settings.env.keyPlaceholder': 'VARIABLE_NAME',
   'settings.env.valuePlaceholder': '値',
   'settings.env.duplicateKey': 'キーが既に存在します',
   'settings.env.invalidKey': 'キーは A-Z、0-9、_ のみ使用可能',
-  'settings.env.emptyState': '環境変数が定義されていません',
-  'settings.env.toggleReveal': '表示を切り替え',
+  'settings.env.customCategory': 'カスタム',
   // Env section — known var categories
   'settings.env.category.model': 'モデル',
   'settings.env.category.auth': '認証',

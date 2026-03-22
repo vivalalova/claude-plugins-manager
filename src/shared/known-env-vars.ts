@@ -253,7 +253,7 @@ export function getKnownEnvVar(name: string): KnownEnvVar | undefined {
   return KNOWN_ENV_VARS[name];
 }
 
-const CATEGORY_ORDER: EnvVarCategory[] = ['model', 'auth', 'effort', 'timeout', 'feature', 'telemetry'];
+export const CATEGORY_ORDER: EnvVarCategory[] = ['model', 'auth', 'effort', 'timeout', 'feature', 'telemetry'];
 
 export function getKnownEnvVarsByCategory(): Map<EnvVarCategory, KnownEnvVar[]> {
   const map = new Map<EnvVarCategory, KnownEnvVar[]>();
