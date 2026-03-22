@@ -73,7 +73,8 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 單一 Explore agent 掃描 repo 現狀：
 
 - `src/shared/types.ts` — ClaudeSettings interface 所有欄位
-- `src/shared/claude-settings-schema.ts` — schema definitions（controlType/options/default）
+- `src/shared/claude-settings-schema.json` — canonical schema data（controlType/options/default）
+- `src/shared/claude-settings-schema.ts` — thin wrapper（types + helpers + re-export）
 - `src/shared/field-orders.ts` — FIELD_ORDER arrays + EXCLUDED_FROM_FIELD_ORDER
 - `src/shared/known-env-vars.ts` — KNOWN_ENV_VARS registry entries
 - `src/webview/i18n/locales/en.ts` — i18n key 完整性
@@ -112,7 +113,7 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 依序執行（參照 `references/` 決策）：
 
 1. `src/shared/types.ts` — 增刪改 ClaudeSettings 欄位
-2. `src/shared/claude-settings-schema.ts` — 增刪改 schema entry
+2. `src/shared/claude-settings-schema.json` — 增刪改 schema entry
 3. `src/shared/field-orders.ts` — 更新 FIELD_ORDER / EXCLUDED_FROM_FIELD_ORDER
 4. Section 元件 — 依 `references/surface-map.md` 分配，依 `references/editor-patterns.md` 選 control
 5. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys

@@ -20,7 +20,8 @@
 ## Secondary（repo 內部）
 
 - `src/shared/types.ts`
-- `src/shared/claude-settings-schema.ts`
+- `src/shared/claude-settings-schema.json`（canonical schema data）
+- `src/shared/claude-settings-schema.ts`（wrapper：types + helpers）
 - `src/shared/field-orders.ts`
 - `src/webview/editor/settings/` 現有 section 實作
 - 只補 literal enum、default、object shape

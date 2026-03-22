@@ -30,7 +30,8 @@ Schema 中存在但**不納入** settings UI 的 key：
 ## Repo surface
 
 - type：`src/shared/types.ts`
-- schema：`src/shared/claude-settings-schema.ts`
+- schema data：`src/shared/claude-settings-schema.json`
+- schema wrapper：`src/shared/claude-settings-schema.ts`（types + helpers）
 - field-orders：`src/shared/field-orders.ts`
 - UI：`src/webview/editor/settings/`
 - i18n：`src/webview/i18n/locales/en.ts`、`ja.ts`、`zh-TW.ts`

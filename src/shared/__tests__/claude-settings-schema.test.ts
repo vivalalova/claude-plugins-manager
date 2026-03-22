@@ -34,17 +34,15 @@ describe('claude-settings-schema', () => {
     expect(extra).toEqual([]);
   });
 
-  it('每個 schema entry 都有 type、description、section', () => {
+  it('每個 schema entry 都有 section', () => {
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
-      expect(field.type, `${key}.type`).toBeTruthy();
-      expect(field.description, `${key}.description`).toBeTruthy();
       expect(field.section, `${key}.section`).toBeTruthy();
     }
   });
 
   it('schema 新增 key → 測試偵測到 drift', () => {
     // 模擬新增一個 schema key，驗證 diff 機制有效
-    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { type: 'string', description: 'test', section: 'general' as const, controlType: 'text' as const } };
+    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { section: 'general' as const, controlType: 'text' as const } };
     const extendedKeys = new Set(Object.keys(extendedSchema));
     const extra = [...extendedKeys].filter((k) => !typesKeys.has(k));
     expect(extra).toEqual(['testKey']);

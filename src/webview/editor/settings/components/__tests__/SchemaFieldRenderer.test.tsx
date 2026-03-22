@@ -46,9 +46,7 @@ afterEach(() => {
 describe('SchemaFieldRenderer', () => {
   it('boolean → renders BooleanToggle with label', async () => {
     renderField('fastMode', {
-      type: 'boolean',
       default: false,
-      description: '啟用快速模式',
       section: 'general',
       controlType: 'boolean',
     });
@@ -60,9 +58,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('enum → renders EnumDropdown with options and notSet label', async () => {
     renderField('effortLevel', {
-      type: "'high' | 'medium' | 'low'",
       default: 'high',
-      description: '思考深度',
       section: 'general',
       controlType: 'enum',
       options: ['high', 'medium', 'low'] as const,
@@ -81,8 +77,6 @@ describe('SchemaFieldRenderer', () => {
 
   it('text → renders TextSetting with placeholder and save/clear buttons', async () => {
     renderField('language', {
-      type: 'string',
-      description: 'Claude 回應語言',
       section: 'general',
       controlType: 'text',
     }, 'zh-TW');
@@ -98,9 +92,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('number → renders NumberSetting with min/max/step', async () => {
     renderField('cleanupPeriodDays', {
-      type: 'number',
       default: 30,
-      description: '自動清理週期',
       section: 'general',
       controlType: 'number',
       min: 0,
@@ -119,8 +111,6 @@ describe('SchemaFieldRenderer', () => {
 
   it('tagInput → renders TagInput with add button', async () => {
     renderField('availableModels', {
-      type: 'string[]',
-      description: '可選模型清單',
       section: 'general',
       controlType: 'tagInput',
     }, []);
@@ -132,8 +122,6 @@ describe('SchemaFieldRenderer', () => {
 
   it('custom → returns null', () => {
     const { container } = renderField('hooks', {
-      type: 'object',
-      description: 'lifecycle hooks',
       section: 'hooks',
       controlType: 'custom',
     });
@@ -143,9 +131,7 @@ describe('SchemaFieldRenderer', () => {
   it('boolean → onSave called on checkbox change', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderField('fastMode', {
-      type: 'boolean',
       default: false,
-      description: '啟用快速模式',
       section: 'general',
       controlType: 'boolean',
     }, undefined, onSave);
@@ -155,9 +141,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('i18n key convention: settings.{section}.{key}.label', async () => {
     renderField('includeGitInstructions', {
-      type: 'boolean',
       default: true,
-      description: 'git context',
       section: 'general',
       controlType: 'boolean',
     });
@@ -169,9 +153,7 @@ describe('SchemaFieldRenderer', () => {
   it('boolean → onDelete called on reset', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderField('fastMode', {
-      type: 'boolean',
       default: false,
-      description: '啟用快速模式',
       section: 'general',
       controlType: 'boolean',
     }, true, vi.fn().mockResolvedValue(undefined), onDelete);
@@ -203,9 +185,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
 
   it('overriddenScope=user → override badge 顯示', async () => {
     renderFieldWithOverride('fastMode', {
-      type: 'boolean',
       default: false,
-      description: 'test',
       section: 'general',
       controlType: 'boolean',
     }, true, 'user');
@@ -217,9 +197,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
 
   it('overriddenScope=undefined → 無 override badge', async () => {
     renderFieldWithOverride('fastMode', {
-      type: 'boolean',
       default: false,
-      description: 'test',
       section: 'general',
       controlType: 'boolean',
     }, true, undefined);
@@ -231,9 +209,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
 
   it('enum + overriddenScope=user → override badge 顯示', async () => {
     renderFieldWithOverride('effortLevel', {
-      type: "'high' | 'medium' | 'low'",
       default: 'high',
-      description: 'test',
       section: 'general',
       controlType: 'enum',
       options: ['high', 'medium', 'low'] as const,
@@ -247,9 +223,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
 describe('SchemaFieldRenderer — Reset 按鈕', () => {
   it('enum：value 與 default 不同 → Reset 按鈕顯示', async () => {
     renderField('effortLevel', {
-      type: "'high' | 'medium' | 'low'",
       default: 'high',
-      description: 'test',
       section: 'general',
       controlType: 'enum',
       options: ['high', 'medium', 'low'] as const,
@@ -261,9 +235,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('enum：value 未設定 → 無 Reset', async () => {
     renderField('effortLevel', {
-      type: "'high' | 'medium' | 'low'",
       default: 'high',
-      description: 'test',
       section: 'general',
       controlType: 'enum',
       options: ['high', 'medium', 'low'] as const,
@@ -275,9 +247,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('enum：value 等於 default → 無 Reset', async () => {
     renderField('effortLevel', {
-      type: "'high' | 'medium' | 'low'",
       default: 'high',
-      description: 'test',
       section: 'general',
       controlType: 'enum',
       options: ['high', 'medium', 'low'] as const,
@@ -290,9 +260,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
   it('enum：點擊 Reset → onDelete 被呼叫', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderField('effortLevel', {
-      type: "'high' | 'medium' | 'low'",
       default: 'high',
-      description: 'test',
       section: 'general',
       controlType: 'enum',
       options: ['high', 'medium', 'low'] as const,
@@ -303,8 +271,6 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('text：無 default → 無 Reset', async () => {
     renderField('language', {
-      type: 'string',
-      description: 'test',
       section: 'general',
       controlType: 'text',
     }, 'zh-TW');
@@ -315,9 +281,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('number：value 與 default 不同 → Reset 顯示', async () => {
     renderField('cleanupPeriodDays', {
-      type: 'number',
       default: 30,
-      description: 'test',
       section: 'general',
       controlType: 'number',
       min: 0,
@@ -330,9 +294,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('boolean：value=false default=false → 無 Reset', async () => {
     renderField('fastMode', {
-      type: 'boolean',
       default: false,
-      description: 'test',
       section: 'general',
       controlType: 'boolean',
     }, false);
