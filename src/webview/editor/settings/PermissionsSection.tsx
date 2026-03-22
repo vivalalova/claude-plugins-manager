@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
+import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { SettingLabelText, TagInput } from './components/SettingControls';
 
@@ -201,10 +201,9 @@ export function PermissionsSection({
   onSave,
 }: PermissionsSectionProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
 
   const [activeList, setActiveList] = useState<PermissionsList>('allow');
-  const [saving, setSaving] = useState(false);
   const [pendingBypassMode, setPendingBypassMode] = useState(false);
 
   // Reset sub-tab when scope changes
@@ -221,31 +220,18 @@ export function PermissionsSection({
 
   const listRules: string[] = (perms[activeList] ?? []) as string[];
 
-  const updatePermissions = async (updatedPerms: ClaudeSettings['permissions']): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave('permissions', updatedPerms);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const updatePermissions = (updatedPerms: ClaudeSettings['permissions']): void => {
+    void withSave(() => onSave('permissions', updatedPerms));
   };
 
-  const handleAddRule = async (rule: string): Promise<void> => {
-    const updated = {
-      ...perms,
-      [activeList]: [...listRules, rule],
-    };
-    await updatePermissions(updated);
+  const handleAddRule = (rule: string): void => {
+    const updated = { ...perms, [activeList]: [...listRules, rule] };
+    updatePermissions(updated);
   };
 
-  const handleDeleteRule = async (rule: string): Promise<void> => {
-    const updated = {
-      ...perms,
-      [activeList]: listRules.filter((r) => r !== rule),
-    };
-    await updatePermissions(updated);
+  const handleDeleteRule = (rule: string): void => {
+    const updated = { ...perms, [activeList]: listRules.filter((r) => r !== rule) };
+    updatePermissions(updated);
   };
 
   const handleDefaultModeChange = (mode: string): void => {
@@ -265,9 +251,9 @@ export function PermissionsSection({
     void updatePermissions({ ...perms, defaultMode: mode });
   };
 
-  const handleBypassConfirm = async (): Promise<void> => {
+  const handleBypassConfirm = (): void => {
     setPendingBypassMode(false);
-    await updatePermissions({ ...perms, defaultMode: 'bypassPermissions' });
+    updatePermissions({ ...perms, defaultMode: 'bypassPermissions' });
   };
 
   const handleBypassCancel = (): void => {
@@ -356,7 +342,7 @@ export function PermissionsSection({
         duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
         settingKey="additionalDirectories"
         onSave={async (_key, value) => {
-          await updatePermissions({ ...perms, additionalDirectories: value as string[] });
+          updatePermissions({ ...perms, additionalDirectories: value as string[] });
         }}
       />
 

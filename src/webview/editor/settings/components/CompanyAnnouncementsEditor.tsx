@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
-import { useToast } from '../../../components/Toast';
+import { useSettingSave } from '../hooks/useSettingSave';
 
 interface CompanyAnnouncementsEditorProps {
   scope: PluginScope;
@@ -12,44 +12,31 @@ interface CompanyAnnouncementsEditorProps {
 
 export function CompanyAnnouncementsEditor({ scope, announcements, onSave }: CompanyAnnouncementsEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setInputValue('');
     setError('');
   }, [scope]);
 
-  const handleAdd = async (): Promise<void> => {
+  const handleAdd = (): void => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
     if (announcements.includes(trimmed)) {
       setError(t('settings.advanced.companyAnnouncements.duplicate'));
       return;
     }
-    setSaving(true);
-    try {
+    void withSave(async () => {
       await onSave('companyAnnouncements', [...announcements, trimmed]);
       setInputValue('');
       setError('');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleDelete = async (announcement: string): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave('companyAnnouncements', announcements.filter((a) => a !== announcement));
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const handleDelete = (announcement: string): void => {
+    void withSave(() => onSave('companyAnnouncements', announcements.filter((a) => a !== announcement)));
   };
 
   return (
@@ -72,7 +59,7 @@ export function CompanyAnnouncementsEditor({ scope, announcements, onSave }: Com
               />
               <button
                 className="perm-rule-tag-delete"
-                onClick={() => void handleDelete(announcement)}
+                onClick={() => handleDelete(announcement)}
                 aria-label={`Remove "${announcement}"`}
                 type="button"
                 disabled={saving}
@@ -94,7 +81,7 @@ export function CompanyAnnouncementsEditor({ scope, announcements, onSave }: Com
         />
         <button
           className="btn btn-primary"
-          onClick={() => void handleAdd()}
+          onClick={handleAdd}
           disabled={saving || !inputValue.trim()}
           type="button"
         >

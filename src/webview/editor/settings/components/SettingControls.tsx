@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useToast } from '../../../components/Toast';
 import { useI18n } from '../../../i18n/I18nContext';
+import { useSettingSave } from '../hooks/useSettingSave';
 import type { PluginScope } from '../../../../shared/types';
 
 // ---------------------------------------------------------------------------
@@ -98,32 +98,17 @@ export interface BooleanToggleProps {
 }
 
 export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
-  const [saving, setSaving] = useState(false);
   const checked = value ?? defaultValue ?? false;
   const resetLabel = t('settings.common.reset');
 
-  const handleChange = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave(settingKey, !checked);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const handleChange = (): void => {
+    void withSave(() => onSave(settingKey, !checked));
   };
 
-  const handleReset = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      await onDelete(settingKey);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const handleReset = (): void => {
+    void withSave(() => onDelete(settingKey));
   };
 
   return (
@@ -188,28 +173,22 @@ export function EnumDropdown({
   onSave,
   onDelete,
 }: EnumDropdownProps): React.ReactElement {
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
-  const [saving, setSaving] = useState(false);
   const resetLabel = t('settings.common.reset');
 
   const isUnknown = value !== undefined && !knownValues.includes(value);
   const selectValue = isUnknown ? '__unknown__' : (value ?? '');
 
-  const handleChange = async (val: string): Promise<void> => {
+  const handleChange = (val: string): void => {
     if (val === '__unknown__') return;
-    setSaving(true);
-    try {
+    void withSave(async () => {
       if (val === '') {
         await onDelete(settingKey);
       } else {
         await onSave(settingKey, val);
       }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -285,42 +264,31 @@ export function TextSetting({
   onSave,
   onDelete,
 }: TextSettingProps): React.ReactElement {
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value ?? '');
-  const [saving, setSaving] = useState(false);
   const resetLabel = t('settings.common.reset');
 
   useEffect(() => {
     setInputValue(value ?? '');
   }, [scope, value]);
 
-  const handleSave = async (): Promise<void> => {
-    const trimmed = inputValue.trim();
-    setSaving(true);
-    try {
+  const handleSave = (): void => {
+    void withSave(async () => {
+      const trimmed = inputValue.trim();
       if (!trimmed) {
         await onDelete(settingKey);
       } else {
         await onSave(settingKey, trimmed);
       }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleClear = (): void => {
+    void withSave(async () => {
       await onDelete(settingKey);
       setInputValue('');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -405,17 +373,16 @@ export function TagInput({
   overriddenScope,
   onSave,
 }: TagInputProps): React.ReactElement {
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setInputValue('');
     setError('');
   }, [scope]);
 
-  const handleAdd = async (): Promise<void> => {
+  const handleAdd = (): void => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
     if (tags.includes(trimmed)) {
@@ -423,26 +390,14 @@ export function TagInput({
       return;
     }
     setError('');
-    setSaving(true);
-    try {
+    void withSave(async () => {
       await onSave(settingKey, [...tags, trimmed]);
       setInputValue('');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleDelete = async (tag: string): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave(settingKey, tags.filter((t) => t !== tag));
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const handleDelete = (tag: string): void => {
+    void withSave(() => onSave(settingKey, tags.filter((t) => t !== tag)));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
@@ -677,11 +632,10 @@ export function NumberSetting({
   onSave,
   onDelete,
 }: NumberSettingProps): React.ReactElement {
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value !== undefined ? String(value) : '');
   const resetLabel = t('settings.common.reset');
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setInputValue(value !== undefined ? String(value) : '');
@@ -698,32 +652,22 @@ export function NumberSetting({
       : null;
   const saveDisabled = saving || belowMin || aboveMax || (!isEmpty && isNaN(parsedValue));
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     if (saveDisabled) return;
-    setSaving(true);
-    try {
+    void withSave(async () => {
       if (isEmpty) {
         await onDelete(settingKey);
       } else {
         await onSave(settingKey, parsedValue);
       }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleClear = (): void => {
+    void withSave(async () => {
       await onDelete(settingKey);
       setInputValue('');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (

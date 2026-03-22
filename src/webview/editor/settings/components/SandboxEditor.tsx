@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
-import { useToast } from '../../../components/Toast';
+import { useSettingSave } from '../hooks/useSettingSave';
 
 type SandboxValue = NonNullable<ClaudeSettings['sandbox']>;
 type SandboxMode = 'structured' | 'json';
@@ -136,11 +136,10 @@ function SandboxNumberInput({ label, value, placeholder, saving, onChange }: {
 
 export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [mode, setMode] = useState<SandboxMode>('structured');
   const [jsonText, setJsonText] = useState(sandbox ? JSON.stringify(sandbox, null, 2) : '');
   const [jsonError, setJsonError] = useState('');
-  const [saving, setSaving] = useState(false);
 
   const tk = useCallback(
     (suffix: string) => t(`settings.advanced.sandbox.${suffix}` as Parameters<typeof t>[0]),
@@ -155,20 +154,15 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
   }, [sandboxJson]);
 
   // --- Structured mode save helper ---
-  const saveSandbox = async (updated: SandboxValue): Promise<void> => {
-    setSaving(true);
-    try {
+  const saveSandbox = (updated: SandboxValue): void => {
+    void withSave(async () => {
       const cleaned = cleanSandbox(updated);
       if (cleaned) {
         await onSave('sandbox', cleaned);
       } else {
         await onDelete('sandbox');
       }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const draft: SandboxValue = sandbox ?? {};
@@ -190,12 +184,10 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
   };
 
   // --- JSON mode handlers ---
-  const handleJsonSave = async (): Promise<void> => {
+  const handleJsonSave = (): void => {
     const trimmed = jsonText.trim();
     if (!trimmed) {
-      setSaving(true);
-      try { await onDelete('sandbox'); } catch (e) { addToast(e instanceof Error ? e.message : String(e), 'error'); }
-      finally { setSaving(false); }
+      void withSave(() => onDelete('sandbox'));
       return;
     }
     let parsed: unknown;
@@ -207,15 +199,11 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
       setJsonError(t('settings.advanced.sandbox.invalidObject'));
       return;
     }
-    setSaving(true);
-    try { await onSave('sandbox', parsed); } catch (e) { addToast(e instanceof Error ? e.message : String(e), 'error'); }
-    finally { setSaving(false); }
+    void withSave(() => onSave('sandbox', parsed));
   };
 
-  const handleJsonDelete = async (): Promise<void> => {
-    setSaving(true);
-    try { await onDelete('sandbox'); } catch (e) { addToast(e instanceof Error ? e.message : String(e), 'error'); }
-    finally { setSaving(false); }
+  const handleJsonDelete = (): void => {
+    void withSave(() => onDelete('sandbox'));
   };
 
   // --- Mode switch ---
@@ -252,11 +240,11 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
             placeholder={t('settings.advanced.sandbox.placeholder')} disabled={saving} spellCheck={false} />
           {jsonError && <p className="settings-field-description" role="alert" style={{ color: 'var(--vscode-errorForeground, red)' }}>{jsonError}</p>}
           <div className="settings-actions">
-            <button className="btn btn-primary" onClick={() => void handleJsonSave()} disabled={saving} type="button">
+            <button className="btn btn-primary" onClick={handleJsonSave} disabled={saving} type="button">
               {t('settings.advanced.sandbox.save')}
             </button>
             {sandbox && (
-              <button className="btn btn-secondary" onClick={() => void handleJsonDelete()} disabled={saving} type="button">
+              <button className="btn btn-secondary" onClick={handleJsonDelete} disabled={saving} type="button">
                 {t('settings.advanced.sandbox.clear')}
               </button>
             )}
@@ -322,7 +310,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
           {/* Clear */}
           {sandbox && (
             <div className="settings-actions" style={{ marginTop: 8 }}>
-              <button className="btn btn-secondary" onClick={() => void handleJsonDelete()} disabled={saving} type="button">
+              <button className="btn btn-secondary" onClick={handleJsonDelete} disabled={saving} type="button">
                 {t('settings.advanced.sandbox.clear')}
               </button>
             </div>

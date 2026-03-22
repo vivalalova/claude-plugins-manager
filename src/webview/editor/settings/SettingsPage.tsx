@@ -3,6 +3,7 @@ import { sendRequest, onPushMessage } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
+import { useSettingSave } from './hooks/useSettingSave';
 import { PermissionsSection } from './PermissionsSection';
 import { EnvSection } from './EnvSection';
 import { HooksSection } from './HooksSection';
@@ -44,13 +45,13 @@ interface ModelSectionProps {
 function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps): React.ReactElement {
   const { t } = useI18n();
   const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
 
   const currentModel = settings.model ?? '';
   const availableModels = settings.availableModels;
   const [selectValue, setSelectValue] = useState('');
   const [customInput, setCustomInput] = useState('');
   const [showCustom, setShowCustom] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   // Reset local state when scope/settings change
   useEffect(() => {
@@ -77,10 +78,9 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
     }
   };
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = (): void => {
     const modelToSave = showCustom ? customInput.trim() : selectValue;
-    setSaving(true);
-    try {
+    void withSave(async () => {
       if (!modelToSave) {
         await onDelete('model');
         addToast(t('settings.model.cleared'), 'success');
@@ -88,23 +88,14 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
         await onSave('model', modelToSave);
         addToast(t('settings.model.saved'), 'success');
       }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleClear = (): void => {
+    void withSave(async () => {
       await onDelete('model');
       addToast(t('settings.model.cleared'), 'success');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const outsideWhitelist = currentModel && !isModelInWhitelist(currentModel, availableModels);

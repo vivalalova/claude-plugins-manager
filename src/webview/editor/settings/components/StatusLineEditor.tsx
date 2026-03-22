@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
-import { useToast } from '../../../components/Toast';
+import { useSettingSave } from '../hooks/useSettingSave';
 
 interface StatusLineEditorProps {
   statusLine: ClaudeSettings['statusLine'];
@@ -12,19 +12,17 @@ interface StatusLineEditorProps {
 
 export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [command, setCommand] = useState(statusLine?.command ?? '');
   const [paddingStr, setPaddingStr] = useState(statusLine?.padding !== undefined ? String(statusLine.padding) : '');
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setCommand(statusLine?.command ?? '');
     setPaddingStr(statusLine?.padding !== undefined ? String(statusLine.padding) : '');
   }, [statusLine?.command, statusLine?.padding]);
 
-  const handleSave = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleSave = (): void => {
+    void withSave(async () => {
       const trimmedCommand = command.trim();
       if (!trimmedCommand) {
         await onDelete('statusLine');
@@ -36,22 +34,11 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
         obj.padding = parseInt(trimmedPadding, 10);
       }
       await onSave('statusLine', obj);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleDelete = async (): Promise<void> => {
-    setSaving(true);
-    try {
-      await onDelete('statusLine');
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const handleDelete = (): void => {
+    void withSave(() => onDelete('statusLine'));
   };
 
   return (
@@ -93,7 +80,7 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
       <div className="settings-actions">
         <button
           className="btn btn-primary"
-          onClick={() => void handleSave()}
+          onClick={handleSave}
           disabled={saving}
           type="button"
         >
@@ -102,7 +89,7 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
         {statusLine && (
           <button
             className="btn btn-secondary"
-            onClick={() => void handleDelete()}
+            onClick={handleDelete}
             disabled={saving}
             type="button"
           >

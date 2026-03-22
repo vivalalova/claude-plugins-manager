@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
+import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { getKnownEnvVar, getKnownEnvVarNames, getKnownEnvVarsByValueType } from '../../../shared/known-env-vars';
 import type { KnownEnvVar, EnvVarValueType } from '../../../shared/known-env-vars';
@@ -233,8 +233,7 @@ interface EnvSectionProps {
 
 export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
-  const [saving, setSaving] = useState(false);
+  const { saving, withSave } = useSettingSave();
 
   const currentEnv = useMemo<Record<string, string>>(
     () => (settings.env as Record<string, string>) ?? {},
@@ -249,30 +248,23 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
     [currentEnv, knownNames],
   );
 
-  const updateEnv = async (updatedEnv: Record<string, string>): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave('env', updatedEnv);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const updateEnv = (updatedEnv: Record<string, string>): void => {
+    void withSave(() => onSave('env', updatedEnv));
   };
 
   // Adapter: bridge per-key save/delete to whole-env-object update
   const envOnSave = async (key: string, value: unknown): Promise<void> => {
     const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
-    await updateEnv({ ...currentEnv, [key]: strVal });
+    updateEnv({ ...currentEnv, [key]: strVal });
   };
 
   const envOnDelete = async (key: string): Promise<void> => {
     const { [key]: _, ...rest } = currentEnv;
-    await updateEnv(rest);
+    updateEnv(rest);
   };
 
   const handleAdd = async (key: string, value: string): Promise<void> => {
-    await updateEnv({ ...currentEnv, [key]: value });
+    updateEnv({ ...currentEnv, [key]: value });
   };
 
   // --- Render helpers per valueType ---

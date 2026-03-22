@@ -2,19 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { TagListSetting } from './components/SettingControls';
-import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
-import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
-import { getOverriddenScope } from './components/SettingControls';
-import { useToast } from '../../components/Toast';
+import { SchemaSection } from './components/SchemaSection';
+import type { SectionProps } from './components/SchemaSection';
+import { useSettingSave } from './hooks/useSettingSave';
 import { DISPLAY_FIELD_ORDER } from '../../../shared/field-orders';
-
-interface DisplaySectionProps {
-  scope: PluginScope;
-  settings: ClaudeSettings;
-  userSettings?: ClaudeSettings;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
 
 // ---------------------------------------------------------------------------
 // SpinnerVerbsEditor
@@ -29,25 +20,17 @@ interface SpinnerVerbsEditorProps {
 
 function SpinnerVerbsEditor({ scope, value, onSave, onDelete }: SpinnerVerbsEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [mode, setMode] = useState<'append' | 'replace'>(value?.mode ?? 'append');
   const [verbs, setVerbs] = useState<string[]>(value?.verbs ?? []);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMode(value?.mode ?? 'append');
     setVerbs(value?.verbs ?? []);
   }, [scope, value]);
 
-  const save = async (newMode: 'append' | 'replace', newVerbs: string[]): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave('spinnerVerbs', { mode: newMode, verbs: newVerbs });
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const save = (newMode: 'append' | 'replace', newVerbs: string[]): void => {
+    void withSave(() => onSave('spinnerVerbs', { mode: newMode, verbs: newVerbs }));
   };
 
   const handleModeChange = (newMode: string): void => {
@@ -56,16 +39,11 @@ function SpinnerVerbsEditor({ scope, value, onSave, onDelete }: SpinnerVerbsEdit
     void save(m, verbs);
   };
 
-  const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleClear = (): void => {
+    void withSave(async () => {
       await onDelete('spinnerVerbs');
       setVerbs([]);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -129,25 +107,17 @@ interface SpinnerTipsOverrideEditorProps {
 
 function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTipsOverrideEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [tips, setTips] = useState<string[]>(value?.tips ?? []);
   const [excludeDefault, setExcludeDefault] = useState<boolean>(value?.excludeDefault ?? false);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setTips(value?.tips ?? []);
     setExcludeDefault(value?.excludeDefault ?? false);
   }, [scope, value]);
 
-  const save = async (newTips: string[], newExcludeDefault: boolean): Promise<void> => {
-    setSaving(true);
-    try {
-      await onSave('spinnerTipsOverride', { tips: newTips, excludeDefault: newExcludeDefault });
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+  const save = (newTips: string[], newExcludeDefault: boolean): void => {
+    void withSave(() => onSave('spinnerTipsOverride', { tips: newTips, excludeDefault: newExcludeDefault }));
   };
 
   const handleExcludeDefaultToggle = (): void => {
@@ -156,17 +126,12 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
     void save(tips, newVal);
   };
 
-  const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleClear = (): void => {
+    void withSave(async () => {
       await onDelete('spinnerTipsOverride');
       setTips([]);
       setExcludeDefault(false);
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -214,58 +179,22 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 // DisplaySection
 // ---------------------------------------------------------------------------
 
-export function DisplaySection({ scope, settings, userSettings, onSave, onDelete }: DisplaySectionProps): React.ReactElement {
-  const { t } = useI18n();
-
+export function DisplaySection(props: SectionProps): React.ReactElement {
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">{t('settings.nav.display')}</h3>
-
-      {DISPLAY_FIELD_ORDER.map((key) => {
-        const schema = CLAUDE_SETTINGS_SCHEMA[key];
-        if (!schema) return null;
-        const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
-
-        if (schema.controlType === Object) {
-          switch (key) {
-            case 'spinnerVerbs':
-              return (
-                <SpinnerVerbsEditor
-                  key={key}
-                  scope={scope}
-                  value={settings.spinnerVerbs}
-                  onSave={onSave}
-                  onDelete={onDelete}
-                />
-              );
-            case 'spinnerTipsOverride':
-              return (
-                <SpinnerTipsOverrideEditor
-                  key={key}
-                  scope={scope}
-                  value={settings.spinnerTipsOverride}
-                  onSave={onSave}
-                  onDelete={onDelete}
-                />
-              );
-            default:
-              return null;
-          }
+    <SchemaSection
+      titleKey="settings.nav.display"
+      fieldOrder={DISPLAY_FIELD_ORDER}
+      renderCustom={(key, { scope, settings, onSave, onDelete }) => {
+        switch (key) {
+          case 'spinnerVerbs':
+            return <SpinnerVerbsEditor scope={scope} value={settings.spinnerVerbs} onSave={onSave} onDelete={onDelete} />;
+          case 'spinnerTipsOverride':
+            return <SpinnerTipsOverrideEditor scope={scope} value={settings.spinnerTipsOverride} onSave={onSave} onDelete={onDelete} />;
+          default:
+            return null;
         }
-
-        return (
-          <SchemaFieldRenderer
-            key={key}
-            settingKey={key}
-            schema={schema}
-            value={(settings as Record<string, unknown>)[key]}
-            scope={scope}
-            overriddenScope={overriddenScope}
-            onSave={onSave}
-            onDelete={onDelete}
-          />
-        );
-      })}
-    </div>
+      }}
+      {...props}
+    />
   );
 }

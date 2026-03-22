@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
-import { useToast } from '../../../components/Toast';
+import { useSettingSave } from '../hooks/useSettingSave';
 
 interface AttributionEditorProps {
   attribution: ClaudeSettings['attribution'];
@@ -12,19 +12,17 @@ interface AttributionEditorProps {
 
 export function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
+  const { saving, withSave } = useSettingSave();
   const [commit, setCommit] = useState(attribution?.commit ?? '');
   const [pr, setPr] = useState(attribution?.pr ?? '');
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setCommit(attribution?.commit ?? '');
     setPr(attribution?.pr ?? '');
   }, [attribution?.commit, attribution?.pr]);
 
-  const handleSave = async (): Promise<void> => {
-    setSaving(true);
-    try {
+  const handleSave = (): void => {
+    void withSave(async () => {
       const obj: { commit?: string; pr?: string } = {};
       if (commit.trim()) obj.commit = commit.trim();
       if (pr.trim()) obj.pr = pr.trim();
@@ -34,11 +32,7 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
       } else {
         await onSave('attribution', obj);
       }
-    } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -78,7 +72,7 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
       <div className="settings-actions">
         <button
           className="btn btn-primary"
-          onClick={() => void handleSave()}
+          onClick={handleSave}
           disabled={saving}
           type="button"
         >

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
-import type { ClaudeSettings, HookCommand, PluginScope } from '../../../shared/types';
+import type { HookCommand } from '../../../shared/types';
+import type { SectionProps } from './components/SchemaSection';
 import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { getOverriddenScope } from './components/SettingControls';
@@ -173,15 +174,7 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
 // HooksSection
 // ---------------------------------------------------------------------------
 
-interface HooksSectionProps {
-  scope: PluginScope;
-  settings: ClaudeSettings;
-  userSettings?: ClaudeSettings;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
-
-export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: HooksSectionProps): React.ReactElement {
+export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: SectionProps): React.ReactElement {
   const { t, locale } = useI18n();
   const { addToast } = useToast();
   const [opening, setOpening] = useState(false);
