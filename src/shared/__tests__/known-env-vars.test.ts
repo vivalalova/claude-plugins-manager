@@ -19,7 +19,6 @@ describe('KNOWN_ENV_VARS registry', () => {
   it('every entry has required fields with valid values', () => {
     for (const [key, entry] of Object.entries(KNOWN_ENV_VARS)) {
       expect(entry.name).toBe(key);
-      expect(entry.description).toBeTruthy();
       expect(VALID_CATEGORIES).toContain(entry.category);
       expect(VALID_VALUE_TYPES).toContain(entry.valueType);
     }

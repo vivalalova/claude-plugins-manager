@@ -1,0 +1,153 @@
+{
+  "ANTHROPIC_MODEL": {
+    "valueType": "string",
+    "category": "model"
+  },
+  "ANTHROPIC_DEFAULT_SONNET_MODEL": {
+    "valueType": "string",
+    "category": "model"
+  },
+  "ANTHROPIC_DEFAULT_OPUS_MODEL": {
+    "valueType": "string",
+    "category": "model"
+  },
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL": {
+    "valueType": "string",
+    "category": "model"
+  },
+  "CLAUDE_CODE_SUBAGENT_MODEL": {
+    "valueType": "string",
+    "category": "model"
+  },
+  "CLAUDE_CODE_MAX_OUTPUT_TOKENS": {
+    "valueType": "number",
+    "category": "model"
+  },
+  "ANTHROPIC_API_KEY": {
+    "valueType": "string",
+    "category": "auth",
+    "sensitive": true
+  },
+  "ANTHROPIC_AUTH_TOKEN": {
+    "valueType": "string",
+    "category": "auth",
+    "sensitive": true
+  },
+  "ANTHROPIC_BASE_URL": {
+    "valueType": "string",
+    "category": "auth",
+    "default": "https://api.anthropic.com"
+  },
+  "API_TIMEOUT_MS": {
+    "valueType": "number",
+    "category": "auth",
+    "default": "600000"
+  },
+  "HTTPS_PROXY": {
+    "valueType": "string",
+    "category": "auth"
+  },
+  "NO_PROXY": {
+    "valueType": "string",
+    "category": "auth"
+  },
+  "CLAUDE_CODE_EFFORT_LEVEL": {
+    "valueType": "string",
+    "category": "effort",
+    "default": "high"
+  },
+  "MAX_THINKING_TOKENS": {
+    "valueType": "number",
+    "category": "effort"
+  },
+  "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": {
+    "valueType": "boolean",
+    "category": "effort",
+    "default": "0"
+  },
+  "BASH_DEFAULT_TIMEOUT_MS": {
+    "valueType": "number",
+    "category": "timeout",
+    "default": "120000"
+  },
+  "BASH_MAX_TIMEOUT_MS": {
+    "valueType": "number",
+    "category": "timeout",
+    "default": "3600000"
+  },
+  "MCP_TIMEOUT": {
+    "valueType": "number",
+    "category": "timeout",
+    "default": "5000"
+  },
+  "MCP_TOOL_TIMEOUT": {
+    "valueType": "number",
+    "category": "timeout",
+    "default": "30000"
+  },
+  "MAX_MCP_OUTPUT_TOKENS": {
+    "valueType": "number",
+    "category": "timeout",
+    "default": "25000"
+  },
+  "ENABLE_LSP_TOOL": {
+    "valueType": "boolean",
+    "category": "feature",
+    "default": "0"
+  },
+  "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": {
+    "valueType": "number",
+    "category": "feature",
+    "default": "90"
+  },
+  "CLAUDE_CODE_DISABLE_1M_CONTEXT": {
+    "valueType": "boolean",
+    "category": "feature",
+    "default": "0"
+  },
+  "CLAUDE_CODE_DISABLE_CRON": {
+    "valueType": "boolean",
+    "category": "feature",
+    "default": "0"
+  },
+  "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": {
+    "valueType": "boolean",
+    "category": "feature",
+    "default": "0"
+  },
+  "DISABLE_NON_ESSENTIAL_MODEL_CALLS": {
+    "valueType": "boolean",
+    "category": "feature",
+    "default": "0"
+  },
+  "ENABLE_CLAUDEAI_MCP_SERVERS": {
+    "valueType": "boolean",
+    "category": "feature",
+    "default": "true"
+  },
+  "DISABLE_TELEMETRY": {
+    "valueType": "boolean",
+    "category": "telemetry",
+    "default": "0"
+  },
+  "DISABLE_ERROR_REPORTING": {
+    "valueType": "boolean",
+    "category": "telemetry",
+    "default": "0"
+  },
+  "DISABLE_AUTOUPDATER": {
+    "valueType": "boolean",
+    "category": "telemetry",
+    "default": "0"
+  },
+  "DISABLE_BUG_COMMAND": {
+    "valueType": "boolean",
+    "category": "telemetry",
+    "default": "0"
+  },
+  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": {
+    "valueType": "boolean",
+    "category": "telemetry",
+    "default": "0"
+  }
+}

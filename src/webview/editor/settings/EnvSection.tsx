@@ -24,7 +24,7 @@ function useEnvVarDescription(envKey: string): string | null {
   if (!known) return null;
   const i18nKey = `settings.env.knownVars.${envKey}.description` as Parameters<typeof t>[0];
   const localized = t(i18nKey);
-  return localized !== i18nKey ? localized : known.description;
+  return localized !== i18nKey ? localized : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -362,7 +362,7 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
     if (!known) return null;
     const i18nKey = `settings.env.knownVars.${envKey}.description` as Parameters<typeof t>[0];
     const localized = t(i18nKey);
-    return localized !== i18nKey ? localized : known.description;
+    return localized !== i18nKey ? localized : null;
   };
 
   const typeGroupKeys: Record<EnvVarValueType, string> = {

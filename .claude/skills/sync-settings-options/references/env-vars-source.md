@@ -13,7 +13,8 @@
 
 ## Registry
 
-- 檔案：`src/shared/known-env-vars.ts`
+- Data：`src/shared/known-env-vars.json`
+- Wrapper：`src/shared/known-env-vars.ts`（types + helpers）
 - 結構：`KNOWN_ENV_VARS: Record<string, KnownEnvVar>`
 - Helpers：`getKnownEnvVar()`、`getKnownEnvVarsByCategory()`、`getKnownEnvVarNames()`
 
