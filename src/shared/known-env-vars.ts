@@ -266,6 +266,19 @@ export function getKnownEnvVarsByCategory(): Map<EnvVarCategory, KnownEnvVar[]> 
   return map;
 }
 
+const VALUE_TYPE_ORDER: EnvVarValueType[] = ['boolean', 'number', 'string'];
+
+export function getKnownEnvVarsByValueType(): Map<EnvVarValueType, KnownEnvVar[]> {
+  const map = new Map<EnvVarValueType, KnownEnvVar[]>();
+  for (const vt of VALUE_TYPE_ORDER) {
+    map.set(vt, []);
+  }
+  for (const v of Object.values(KNOWN_ENV_VARS)) {
+    map.get(v.valueType)!.push(v);
+  }
+  return map;
+}
+
 let _cachedNames: string[] | null = null;
 
 export function getKnownEnvVarNames(): string[] {

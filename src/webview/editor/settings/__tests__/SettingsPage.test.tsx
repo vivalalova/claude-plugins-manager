@@ -358,7 +358,7 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊 Env nav → 顯示 Env 區塊（category headers + known vars）', async () => {
+  it('點擊 Env nav → 顯示 Env 區塊（valueType group headers + known vars）', async () => {
     renderPage();
 
     await waitFor(() => screen.getByText('Env'));
@@ -366,7 +366,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('ANTHROPIC_MODEL')).toBeTruthy();
-      expect(screen.getByText('Auth')).toBeTruthy();
+      expect(screen.getByText('Toggle')).toBeTruthy();
       expect(screen.getByText('Custom')).toBeTruthy();
     });
   });

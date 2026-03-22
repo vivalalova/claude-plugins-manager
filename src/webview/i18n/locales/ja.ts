@@ -325,13 +325,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.duplicateKey': 'キーが既に存在します',
   'settings.env.invalidKey': 'キーは A-Z、0-9、_ のみ使用可能',
   'settings.env.customCategory': 'カスタム',
-  // Env section — known var categories
-  'settings.env.category.model': 'モデル',
-  'settings.env.category.auth': '認証',
-  'settings.env.category.effort': '推論',
-  'settings.env.category.timeout': 'タイムアウト',
-  'settings.env.category.feature': '機能',
-  'settings.env.category.telemetry': 'テレメトリ',
+  // Env section — valueType group labels
+  'settings.env.group.boolean': 'トグル',
+  'settings.env.group.number': '数値',
+  'settings.env.group.string': 'テキスト',
   // Env section — known var descriptions
   'settings.env.knownVars.ANTHROPIC_MODEL.description': 'デフォルトの Claude モデルを上書き（エイリアスまたは完全なモデル ID）',
   'settings.env.knownVars.ANTHROPIC_DEFAULT_SONNET_MODEL.description': '「sonnet」エイリアスを特定のモデル ID に上書き',

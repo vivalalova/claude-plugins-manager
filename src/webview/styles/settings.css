@@ -275,8 +275,8 @@
 }
 
 .settings-label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--vscode-foreground);
   opacity: 0.85;
 }
@@ -430,6 +430,7 @@
   margin-bottom: 16px;
 }
 
+
 .env-category-title {
   font-size: 12px;
   font-weight: 600;
@@ -486,6 +487,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   user-select: none;
 }
@@ -653,7 +655,7 @@
 .settings-field-description {
   font-size: 11px;
   color: var(--vscode-descriptionForeground, #6b7280);
-  margin: 0;
+  margin: -2px 0 0;
   line-height: 1.4;
 }
 

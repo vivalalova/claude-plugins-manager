@@ -111,13 +111,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.duplicateKey': '變數名稱已存在',
   'settings.env.invalidKey': '變數名稱只能包含 A-Z、0-9、_',
   'settings.env.customCategory': '自訂',
-  // Env section — known var categories
-  'settings.env.category.model': '模型',
-  'settings.env.category.auth': '認證',
-  'settings.env.category.effort': '推理',
-  'settings.env.category.timeout': '逾時',
-  'settings.env.category.feature': '功能',
-  'settings.env.category.telemetry': '遙測',
+  // Env section — valueType group labels
+  'settings.env.group.boolean': '開關',
+  'settings.env.group.number': '數值',
+  'settings.env.group.string': '文字',
   // Env section — known var descriptions
   'settings.env.knownVars.ANTHROPIC_MODEL.description': '覆蓋預設 Claude 模型（別名或完整 model ID）',
   'settings.env.knownVars.ANTHROPIC_DEFAULT_SONNET_MODEL.description': '將「sonnet」別名覆蓋為指定 model ID',

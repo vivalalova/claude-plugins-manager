@@ -359,8 +359,6 @@ export function TextSetting({
             {clearLabel}
           </button>
         ) : null}
-      </div>
-      <div className="settings-actions">
         <button
           className="btn btn-primary"
           onClick={() => void handleSave()}
@@ -767,9 +765,6 @@ export function NumberSetting({
             {clearLabel}
           </button>
         ) : null}
-      </div>
-      {validationError && <span className="perm-add-error" role="alert">{validationError}</span>}
-      <div className="settings-actions">
         <button
           className="btn btn-primary"
           onClick={() => void handleSave()}
@@ -779,6 +774,7 @@ export function NumberSetting({
           {saveLabel}
         </button>
       </div>
+      {validationError && <span className="perm-add-error" role="alert">{validationError}</span>}
     </div>
   );
 }
