@@ -275,8 +275,8 @@
 }
 
 .settings-label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--vscode-foreground);
   opacity: 0.85;
 }
@@ -487,6 +487,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   user-select: none;
 }
