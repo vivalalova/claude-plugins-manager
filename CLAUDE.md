@@ -24,7 +24,7 @@ npm run watch              # concurrently watch extension + webview
 - **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
 - **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
 - **Known Env Vars**：`src/shared/known-env-vars.ts` — 已知 env vars registry（name/valueType/category/description/default），供 EnvSection autocomplete + inline description；`sync-settings-options` skill Phase 1c 同步維護
-- **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
+- **GridCellEditor**：`src/webview/editor/settings/grid/GridCellEditor.tsx` — 依 schema `controlType` 自動渲染 inline cell editor（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
 - **PluginPage 子元件**：`PluginPage.tsx`（state + layout）→ `PluginToolbar.tsx`（搜尋 + filter）、`PluginSections.tsx`（section 渲染 + drag/drop）、`PluginDialogs.tsx`（BulkEnableScopeDialog / TranslateDialog / KeyboardHelpOverlay）
@@ -70,16 +70,21 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 | `context.globalState`                       | UI 偏好（排序/過濾/翻譯設定/agent 選擇）|
 | `globalStorageUri/cache/`                   | 翻譯/hook 解釋/skill registry 快取       |
 
-### Settings 頁面分區（`src/webview/editor/settings/`）
+### Settings Grid 元件（`src/webview/editor/settings/grid/`）
 
-| Section | 渲染模式 | 涵蓋欄位 |
-| --- | --- | --- |
-| GeneralSection | **全 schema-driven**（`GENERAL_FIELD_ORDER` loop） | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
-| DisplaySection | **schema-driven**（`DISPLAY_FIELD_ORDER` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
-| AdvancedSection | **schema-driven**（`ADVANCED_FIELD_ORDER` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight |
-| PermissionsSection | 手動（custom） | permissions（allow/deny/ask/defaultMode/additionalDirectories） |
-| EnvSection | 手動（custom） | env（key-value map） |
-| HooksSection | **混合**：disableAllHooks 用 SchemaFieldRenderer；hooks 本體手動 | hooks（四種 type）、disableAllHooks |
+Xcode Build Settings-style grid，三 scope（User/Project/Local）並行顯示於同一頁面。
+
+| Component | Description |
+| --- | --- |
+| SettingsGridPage | 主頁面：三 scope 並行 fetch + grid 渲染 + filter + section collapse |
+| GridRow | 單一設定列：key cell + 各 scope cell editor |
+| GridCellEditor | 依 controlType 分派 inline editor（boolean/enum/text/number/tagInput/custom） |
+| GridSectionHeader | 可折疊 section header（General/Display/Advanced/Permissions/Env/Hooks） |
+| GridFilter | 篩選列：搜尋 + All/Customized 切換 |
+| ModelGridRow | model key 特殊列（dropdown + custom input） |
+| EnvGridSection | Env vars grid rows（per-var per-scope） |
+| PermissionsGridSection | Permissions sub-rows（defaultMode/allow/deny/dirs） |
+| HooksGridSection | Hooks sub-rows（disableAll + per-event-type） |
 
 ## 設定頁參數參考
 
@@ -94,7 +99,7 @@ https://code.claude.com/docs/en/settings
 2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
 3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）；刻意排除的 key 加入 `EXCLUDED_FROM_FIELD_ORDER`（附原因）（`check:schema` 自動驗證完整性 + 反向驗證）
 4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）
-5. **custom 欄位**：`controlType: 'custom'` → Section 內 switch case 手動渲染；建獨立 sub-editor
+5. **custom 欄位**：`controlType: 'custom'` → Grid 自動跳過，需在對應 GridSection（EnvGridSection/PermissionsGridSection/HooksGridSection）手動渲染；非 custom 欄位 Grid 自動渲染，不需額外 Section 程式碼
 6. **驗證**：`npm run verify`（含 lint + check:schema FIELD_ORDER/i18n 驗證）
 
 ## 已知陷阱
@@ -103,7 +108,7 @@ https://code.claude.com/docs/en/settings
 - `enable`/`disable` 重複操作都會 exit 1，UI 必須靜默吞掉
 - CLI `marketplace list --json` 是精簡版，缺 `lastUpdated`/`autoUpdate`，完整資料要讀 `known_marketplaces.json`
 - `claude mcp list` 無 `--json`，需解析文字輸出
-- `SchemaFieldRenderer` 的 `custom` controlType 回傳 `null`，Section 必須在 loop 中 switch-case 手動處理
+- `GridCellEditor` 的 `custom` controlType 回傳 `null`，對應 GridSection 必須手動處理
 - `check:schema` 自動驗證 FIELD_ORDER 完整性 + i18n key 完整性
 - `getSchemaDefault()`/`getSchemaEnumOptions()` 對不存在的 key 拋 Error（fail-fast）
 - `npx skills find` 無 `--json`，需文字解析（含 ANSI codes，用 `/\x1b\[[0-9;?]*[A-Za-z]/g` 去除）
