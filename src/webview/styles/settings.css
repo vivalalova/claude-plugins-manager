@@ -430,6 +430,7 @@
   margin-bottom: 16px;
 }
 
+
 .env-category-title {
   font-size: 12px;
   font-weight: 600;
@@ -653,7 +654,7 @@
 .settings-field-description {
   font-size: 11px;
   color: var(--vscode-descriptionForeground, #6b7280);
-  margin: 0;
+  margin: -2px 0 0;
   line-height: 1.4;
 }
 

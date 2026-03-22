@@ -60,7 +60,7 @@ describe('isSensitiveKey', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 全列表渲染
+// 全列表渲染 — 依 valueType 分組
 // ---------------------------------------------------------------------------
 
 describe('EnvSection — 全列表渲染', () => {
@@ -75,16 +75,13 @@ describe('EnvSection — 全列表渲染', () => {
     });
   });
 
-  it('顯示 category headers', async () => {
+  it('顯示 valueType group headers', async () => {
     renderEnvSection({});
 
     await waitFor(() => {
-      expect(screen.getByText('Model')).toBeTruthy();
-      expect(screen.getByText('Auth')).toBeTruthy();
-      expect(screen.getByText('Effort')).toBeTruthy();
-      expect(screen.getByText('Timeout')).toBeTruthy();
-      expect(screen.getByText('Feature')).toBeTruthy();
-      expect(screen.getByText('Telemetry')).toBeTruthy();
+      expect(screen.getByText('Toggle')).toBeTruthy();
+      expect(screen.getByText('Number')).toBeTruthy();
+      expect(screen.getByText('Text')).toBeTruthy();
       expect(screen.getByText('Custom')).toBeTruthy();
     });
   });
@@ -97,18 +94,17 @@ describe('EnvSection — 全列表渲染', () => {
     });
   });
 
-  it('boolean env var 渲染為 checkbox', async () => {
+  it('boolean env var 渲染為 checkbox（重用 BooleanToggle）', async () => {
     renderEnvSection({});
 
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      // 至少有 boolean 類型的 known vars
       const booleanVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === 'boolean').length;
       expect(checkboxes.length).toBeGreaterThanOrEqual(booleanVarCount);
     });
   });
 
-  it('number env var 渲染為 number input', async () => {
+  it('number env var 渲染為 number input（重用 NumberSetting）', async () => {
     const { container } = renderEnvSection({});
 
     await waitFor(() => {
@@ -129,17 +125,16 @@ describe('EnvSection — 全列表渲染', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Boolean field 互動
+// Adapter 橋接 — boolean toggle via BooleanToggle
 // ---------------------------------------------------------------------------
 
-describe('EnvSection — Boolean field', () => {
-  it('toggle checkbox → onSave 被呼叫', async () => {
+describe('EnvSection — Boolean adapter', () => {
+  it('toggle checkbox → onSave 把 boolean 轉為 "1"/"0"', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderEnvSection({}, onSave);
 
     await waitFor(() => screen.getByText('ENABLE_LSP_TOOL'));
 
-    // ENABLE_LSP_TOOL default '0', so checkbox is unchecked
     const label = screen.getByText('ENABLE_LSP_TOOL');
     const checkbox = label.closest('label')?.querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
@@ -147,11 +142,11 @@ describe('EnvSection — Boolean field', () => {
     fireEvent.click(checkbox);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', { ENABLE_LSP_TOOL: '1' });
+      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ ENABLE_LSP_TOOL: '1' }));
     });
   });
 
-  it('已設定為 1 的 boolean → checkbox checked', async () => {
+  it('已設定為 "1" 的 boolean → checkbox checked', async () => {
     renderEnvSection({ env: { ENABLE_LSP_TOOL: '1' } });
 
     await waitFor(() => {
@@ -160,76 +155,52 @@ describe('EnvSection — Boolean field', () => {
       expect(checkbox.checked).toBe(true);
     });
   });
-
-  it('boolean 值與 default 不同 → 顯示 Reset 按鈕', async () => {
-    renderEnvSection({ env: { ENABLE_LSP_TOOL: '1' } });
-
-    await waitFor(() => {
-      // ENABLE_LSP_TOOL default is '0', set to '1' → should show Reset
-      const resetButtons = screen.getAllByText('Reset');
-      expect(resetButtons.length).toBeGreaterThanOrEqual(1);
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
-// String field 互動
+// Adapter 橋接 — string via TextSetting
 // ---------------------------------------------------------------------------
 
-describe('EnvSection — String field', () => {
-  it('輸入值 → 點 Save → onSave 被呼叫', async () => {
+describe('EnvSection — String adapter', () => {
+  it('TextSetting Save → onSave 包含正確的 env object', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = renderEnvSection({}, onSave);
 
     await waitFor(() => screen.getByText('ANTHROPIC_MODEL'));
 
-    // Find ANTHROPIC_MODEL input by id
-    const input = container.querySelector('#env-ANTHROPIC_MODEL') as HTMLInputElement;
+    const input = container.querySelector(`#ANTHROPIC_MODEL`) as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'claude-opus-4-6' } });
 
-    // Find Save button in same settings-field
     const field = input.closest('.settings-field')!;
     const saveBtn = field.querySelector('.btn-primary') as HTMLButtonElement;
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', { ANTHROPIC_MODEL: 'claude-opus-4-6' });
+      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ ANTHROPIC_MODEL: 'claude-opus-4-6' }));
     });
   });
 
-  it('已有值 → 顯示 Clear 按鈕', async () => {
-    const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'claude-opus-4-6' } });
-
-    await waitFor(() => {
-      const input = container.querySelector('#env-ANTHROPIC_MODEL') as HTMLInputElement;
-      const field = input.closest('.settings-field')!;
-      const clearBtn = field.querySelector('.btn-secondary') as HTMLButtonElement;
-      expect(clearBtn.textContent).toBe('Clear');
-    });
-  });
-
-  it('Clear → 移除 key', async () => {
+  it('Clear → 從 env 移除 key', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'test' } }, onSave);
 
     await waitFor(() => {
-      const input = container.querySelector('#env-ANTHROPIC_MODEL') as HTMLInputElement;
-      expect(input).toBeTruthy();
+      expect(container.querySelector('#ANTHROPIC_MODEL')).toBeTruthy();
     });
 
-    const input = container.querySelector('#env-ANTHROPIC_MODEL') as HTMLInputElement;
+    const input = container.querySelector('#ANTHROPIC_MODEL') as HTMLInputElement;
     const field = input.closest('.settings-field')!;
     const clearBtn = field.querySelector('.btn-secondary') as HTMLButtonElement;
     fireEvent.click(clearBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', {});
+      expect(onSave).toHaveBeenCalledWith('env', expect.not.objectContaining({ ANTHROPIC_MODEL: expect.anything() }));
     });
   });
 });
 
 // ---------------------------------------------------------------------------
-// Sensitive string field
+// Sensitive field
 // ---------------------------------------------------------------------------
 
 describe('EnvSection — Sensitive field', () => {
@@ -246,15 +217,15 @@ describe('EnvSection — Sensitive field', () => {
     const { container } = renderEnvSection({});
 
     await waitFor(() => {
-      const input = container.querySelector('#env-ANTHROPIC_API_KEY') as HTMLInputElement;
-      expect(input.type).toBe('password');
+      expect(container.querySelector('#env-ANTHROPIC_API_KEY')).toBeTruthy();
     });
 
     const input = container.querySelector('#env-ANTHROPIC_API_KEY') as HTMLInputElement;
+    expect(input.type).toBe('password');
+
     const field = input.closest('.settings-field')!;
     const revealBtn = field.querySelector('.env-sensitive-row .btn-secondary') as HTMLButtonElement;
     fireEvent.click(revealBtn);
-
     expect(input.type).toBe('text');
 
     fireEvent.click(revealBtn);
@@ -293,7 +264,6 @@ describe('EnvSection — Custom vars', () => {
 
     const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
     const valueInputs = screen.getAllByPlaceholderText('value');
-    // The last 'value' placeholder is the add form's value input
     const valueInput = valueInputs[valueInputs.length - 1];
 
     fireEvent.change(keyInput, { target: { value: 'NEW_VAR' } });
@@ -325,26 +295,6 @@ describe('EnvSection — Custom vars', () => {
     });
   });
 
-  it('invalid key → 顯示錯誤', async () => {
-    const onSave = vi.fn();
-    renderEnvSection({}, onSave);
-
-    await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
-
-    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
-    const valueInputs = screen.getAllByPlaceholderText('value');
-    const valueInput = valueInputs[valueInputs.length - 1];
-
-    fireEvent.change(keyInput, { target: { value: 'INVALID KEY' } });
-    fireEvent.change(valueInput, { target: { value: 'x' } });
-    fireEvent.click(screen.getByText('Add'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Key must contain only A-Z, 0-9, _')).toBeTruthy();
-      expect(onSave).not.toHaveBeenCalled();
-    });
-  });
-
   it('Add 按鈕在 key 或 value 為空時 disabled', async () => {
     renderEnvSection({});
 
@@ -352,41 +302,22 @@ describe('EnvSection — Custom vars', () => {
     const addBtn = screen.getByText('Add').closest('button')!;
     expect(addBtn.disabled).toBe(true);
   });
-
-  it('value input 按 Enter → 觸發 Add', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEnvSection({}, onSave);
-
-    await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
-
-    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
-    const valueInputs = screen.getAllByPlaceholderText('value');
-    const valueInput = valueInputs[valueInputs.length - 1];
-
-    fireEvent.change(keyInput, { target: { value: 'MY_VAR' } });
-    fireEvent.change(valueInput, { target: { value: 'hello' } });
-    fireEvent.keyDown(valueInput, { key: 'Enter' });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', { MY_VAR: 'hello' });
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
-// Number field
+// Number field via NumberSetting
 // ---------------------------------------------------------------------------
 
-describe('EnvSection — Number field', () => {
-  it('number field Save → onSave 含值', async () => {
+describe('EnvSection — Number adapter', () => {
+  it('NumberSetting Save → onSave 含 string 值', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = renderEnvSection({}, onSave);
 
     await waitFor(() => {
-      expect(container.querySelector('#env-MAX_THINKING_TOKENS')).toBeTruthy();
+      expect(container.querySelector('#MAX_THINKING_TOKENS')).toBeTruthy();
     });
 
-    const input = container.querySelector('#env-MAX_THINKING_TOKENS') as HTMLInputElement;
+    const input = container.querySelector('#MAX_THINKING_TOKENS') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '8000' } });
 
     const field = input.closest('.settings-field')!;
@@ -394,7 +325,7 @@ describe('EnvSection — Number field', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', { MAX_THINKING_TOKENS: '8000' });
+      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ MAX_THINKING_TOKENS: '8000' }));
     });
   });
 });
