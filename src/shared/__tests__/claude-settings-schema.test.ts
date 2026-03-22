@@ -42,7 +42,7 @@ describe('claude-settings-schema', () => {
 
   it('schema 新增 key → 測試偵測到 drift', () => {
     // 模擬新增一個 schema key，驗證 diff 機制有效
-    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { section: 'general' as const, controlType: 'text' as const } };
+    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { section: 'general' as const, controlType: 'string' as const } };
     const extendedKeys = new Set(Object.keys(extendedSchema));
     const extra = [...extendedKeys].filter((k) => !typesKeys.has(k));
     expect(extra).toEqual(['testKey']);
@@ -90,7 +90,7 @@ describe('claude-settings-schema', () => {
   });
 
   it('controlType 值屬於合法 ControlType', () => {
-    const validControlTypes = ['boolean', 'enum', 'text', 'number', 'tagInput', 'custom'];
+    const validControlTypes = ['boolean', 'enum', 'string', 'number', 'tagInput', 'custom'];
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
       expect(
         validControlTypes.includes(field.controlType),

@@ -14,7 +14,7 @@ export type SettingsSection =
   | 'env'
   | 'hooks';
 
-export type ControlType = 'boolean' | 'enum' | 'text' | 'number' | 'tagInput' | 'custom';
+export type ControlType = 'boolean' | 'enum' | 'string' | 'number' | 'tagInput' | 'custom';
 
 export interface SettingFieldSchema {
   /** 預設值（undefined 表示無預設） */

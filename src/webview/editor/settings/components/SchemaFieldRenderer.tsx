@@ -61,7 +61,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
       );
     }
 
-    case 'text':
+    case 'string':
       return (
         <TextSetting
           label={tk('label')}

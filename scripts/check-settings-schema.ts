@@ -140,7 +140,7 @@ export function validateI18nKeys(schema: Record<string, SettingFieldSchema>, loc
       }
     }
 
-    if (field.controlType === 'text' || field.controlType === 'number') {
+    if (field.controlType === 'string' || field.controlType === 'number') {
       if (!localeKeys.has(`${prefix}.placeholder`)) errors.push(`i18n missing: ${prefix}.placeholder`);
     }
   }

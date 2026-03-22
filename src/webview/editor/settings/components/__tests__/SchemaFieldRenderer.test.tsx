@@ -78,7 +78,7 @@ describe('SchemaFieldRenderer', () => {
   it('text → renders TextSetting with placeholder and save/clear buttons', async () => {
     renderField('language', {
       section: 'general',
-      controlType: 'text',
+      controlType: 'string',
     }, 'zh-TW');
     await waitFor(() => {
       expect(screen.getByText('Language')).toBeTruthy();
@@ -272,7 +272,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
   it('text：無 default → 無 Reset', async () => {
     renderField('language', {
       section: 'general',
-      controlType: 'text',
+      controlType: 'string',
     }, 'zh-TW');
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();

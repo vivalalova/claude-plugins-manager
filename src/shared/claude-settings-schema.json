@@ -2,7 +2,7 @@
   "schema": {
     "model": {
       "section": "general",
-      "controlType": "text"
+      "controlType": "string"
     },
     "effortLevel": {
       "default": "high",
@@ -12,7 +12,7 @@
     },
     "language": {
       "section": "general",
-      "controlType": "text"
+      "controlType": "string"
     },
     "availableModels": {
       "section": "general",
@@ -20,7 +20,7 @@
     },
     "outputStyle": {
       "section": "general",
-      "controlType": "text"
+      "controlType": "string"
     },
     "fastMode": {
       "default": false,
@@ -119,7 +119,7 @@
     },
     "forceLoginOrgUUID": {
       "section": "advanced",
-      "controlType": "text"
+      "controlType": "string"
     },
     "attribution": {
       "section": "advanced",
@@ -128,23 +128,23 @@
     "plansDirectory": {
       "default": "~/.claude/plans",
       "section": "advanced",
-      "controlType": "text"
+      "controlType": "string"
     },
     "apiKeyHelper": {
       "section": "advanced",
-      "controlType": "text"
+      "controlType": "string"
     },
     "otelHeadersHelper": {
       "section": "advanced",
-      "controlType": "text"
+      "controlType": "string"
     },
     "awsCredentialExport": {
       "section": "advanced",
-      "controlType": "text"
+      "controlType": "string"
     },
     "awsAuthRefresh": {
       "section": "advanced",
-      "controlType": "text"
+      "controlType": "string"
     },
     "statusLine": {
       "section": "advanced",
