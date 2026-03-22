@@ -113,11 +113,12 @@ export class SkillService {
     }
   }
 
-  /** 執行 npx skills list --json 並解析回傳 */
+  /** 執行 npx skills list --json 並解析回傳，再從 SKILL.md frontmatter 補 description */
   private async execJsonList(args: string[], options: { cwd?: string }): Promise<AgentSkill[]> {
     const stdout = await this.exec(args, options);
+    let skills: AgentSkill[];
     try {
-      return JSON.parse(stdout) as AgentSkill[];
+      skills = JSON.parse(stdout) as AgentSkill[];
     } catch {
       throw new SkillError(
         `Failed to parse JSON from npx skills list: ${stdout.slice(0, 200)}`,
@@ -126,6 +127,22 @@ export class SkillService {
         '',
       );
     }
+
+    // 批次讀 SKILL.md frontmatter 補 description
+    await Promise.all(skills.map(async (skill) => {
+      if (skill.description || !skill.path) return;
+      try {
+        const content = await readFile(join(skill.path, 'SKILL.md'), 'utf-8');
+        const { frontmatter } = this.parseFrontmatter(content);
+        if (frontmatter.description) {
+          skill.description = frontmatter.description;
+        }
+      } catch {
+        // SKILL.md 不存在或無法讀取，略過
+      }
+    }));
+
+    return skills;
   }
 
   /** 安裝 skill */
