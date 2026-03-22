@@ -16,8 +16,9 @@ describe('GridSectionHeader — 渲染', () => {
   it('顯示 section label', () => {
     renderWithI18n(
       <GridSectionHeader
+        sectionId="general"
         label="General"
-        expanded={true}
+        collapsed={false}
         onToggle={vi.fn()}
       />,
     );
@@ -28,8 +29,9 @@ describe('GridSectionHeader — 渲染', () => {
   it('expanded=true 時 aria-expanded="true"', () => {
     const { container } = renderWithI18n(
       <GridSectionHeader
+        sectionId="general"
         label="General"
-        expanded={true}
+        collapsed={false}
         onToggle={vi.fn()}
       />,
     );
@@ -41,8 +43,9 @@ describe('GridSectionHeader — 渲染', () => {
   it('expanded=false 時 aria-expanded="false"', () => {
     const { container } = renderWithI18n(
       <GridSectionHeader
+        sectionId="general"
         label="General"
-        expanded={false}
+        collapsed={true}
         onToggle={vi.fn()}
       />,
     );
@@ -58,8 +61,9 @@ describe('GridSectionHeader — 互動', () => {
 
     renderWithI18n(
       <GridSectionHeader
+        sectionId="general"
         label="General"
-        expanded={true}
+        collapsed={false}
         onToggle={onToggle}
       />,
     );
@@ -73,8 +77,9 @@ describe('GridSectionHeader — 互動', () => {
 
     renderWithI18n(
       <GridSectionHeader
+        sectionId="general"
         label="Display"
-        expanded={false}
+        collapsed={true}
         onToggle={onToggle}
       />,
     );
