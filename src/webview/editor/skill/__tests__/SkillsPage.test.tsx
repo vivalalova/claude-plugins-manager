@@ -71,7 +71,7 @@ describe('SkillsPage', () => {
     });
   });
 
-  it('有 skills → SkillCard 正確渲染（name、scope badge、agents）', async () => {
+  it('有 skills → SkillCard 正確渲染（name、agents、scope sections）', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'skill.list') {
         return [
@@ -94,9 +94,9 @@ describe('SkillsPage', () => {
     expect(screen.getByText('A test skill')).toBeTruthy();
     expect(screen.getByText('Project skill')).toBeTruthy();
 
-    // scope badges
-    expect(screen.getByText('global')).toBeTruthy();
-    expect(screen.getByText('project')).toBeTruthy();
+    // scope badge 不顯示（section header 已標示 scope）
+    expect(screen.queryByText('global')).toBeNull();
+    expect(screen.queryByText('project')).toBeNull();
 
     // agents tags
     const agentTags = screen.getAllByText('Claude Code');

@@ -63,7 +63,7 @@ describe('SkillCard', () => {
     expect(screen.getByText('No description')).toBeTruthy();
   });
 
-  it('顯示 scope badge', () => {
+  it('不顯示 scope badge（section header 已標示）', () => {
     const { container } = renderWithI18n(
       <SkillCard
         skill={makeSkill({ scope: 'global' })}
@@ -74,7 +74,7 @@ describe('SkillCard', () => {
       />,
     );
 
-    expect(container.querySelector('.scope-badge')).toBeTruthy();
+    expect(container.querySelector('.scope-badge')).toBeNull();
   });
 
   it('顯示 agent tags（帶顏色）', () => {

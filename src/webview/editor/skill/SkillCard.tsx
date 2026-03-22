@@ -1,5 +1,4 @@
 import React from 'react';
-import { ScopeBadge } from '../../components/ScopeBadge';
 import type { AgentSkill } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 import { getAgentColor } from './agents';
@@ -54,26 +53,22 @@ export const SkillCard = React.memo(function SkillCard({
         {skill.description || t('skill.card.noDescription')}
       </div>
 
-      <div className="scope-chips-row">
-        <ScopeBadge scope={skill.scope} />
-        {skill.agents.length > 0 && (
-          <>
-            <span className="skill-agent-divider" />
-            {skill.agents.map((agent) => {
-              const color = getAgentColor(agent);
-              return (
-                <span
-                  key={agent}
-                  className="skill-agent-tag"
-                  style={{ background: color.bg, color: color.fg }}
-                >
-                  {agent}
-                </span>
-              );
-            })}
-          </>
-        )}
-      </div>
+      {skill.agents.length > 0 && (
+        <div className="scope-chips-row">
+          {skill.agents.map((agent) => {
+            const color = getAgentColor(agent);
+            return (
+              <span
+                key={agent}
+                className="skill-agent-tag"
+                style={{ background: color.bg, color: color.fg }}
+              >
+                {agent}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {skill.path && (
         <div className="skill-path">{skill.path}</div>
