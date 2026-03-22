@@ -85,7 +85,6 @@ export function InfoPage(): React.ReactElement {
     { key: 'installedPlugins', label: t('info.path.installedPlugins'), display: shortenHome(info.installedPluginsPath.path), fullPath: info.installedPluginsPath.path, exists: info.installedPluginsPath.exists },
     { key: 'knownMarketplaces', label: t('info.path.knownMarketplaces'), display: shortenHome(info.knownMarketplacesPath.path), fullPath: info.knownMarketplacesPath.path, exists: info.knownMarketplacesPath.exists },
     { key: 'extensionPath', label: t('info.path.extension'), display: shortenHome(info.extensionPath.path), fullPath: info.extensionPath.path, exists: info.extensionPath.exists },
-    { key: 'preferences', label: t('info.path.preferences'), display: shortenHome(info.preferencesPath.path), fullPath: info.preferencesPath.path, exists: info.preferencesPath.exists },
   ];
 
   return (

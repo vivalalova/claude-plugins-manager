@@ -84,7 +84,7 @@ describe('InfoPage', () => {
     });
   });
 
-  it('顯示所有路徑列與 Open 按鈕', async () => {
+  it('顯示所有路徑列與 Open 按鈕（preferences 不顯示）', async () => {
     mockSendRequest.mockResolvedValue(makeInfo());
 
     renderPage();
@@ -93,10 +93,20 @@ describe('InfoPage', () => {
       expect(screen.getByText('Cache Directory')).toBeTruthy();
       expect(screen.getByText('Plugins Directory')).toBeTruthy();
       expect(screen.getByText('Extension Path')).toBeTruthy();
-      // 6 paths → 6+ "Open" buttons
+      // 6 paths（preferences 已移除）→ 6 個 Open 按鈕
       const openBtns = screen.getAllByRole('button', { name: 'Open' });
-      expect(openBtns.length).toBe(7);
+      expect(openBtns.length).toBe(6);
     });
+  });
+
+  it('偏好設定（VSCode globalState）不顯示在路徑列', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo());
+
+    renderPage();
+
+    await waitFor(() => screen.getByText('Extension Path'));
+
+    expect(screen.queryByText('VSCode globalState')).toBeNull();
   });
 
   it('點擊 Open → 發送 extension.revealPath', async () => {
@@ -223,7 +233,7 @@ describe('InfoPage', () => {
 
   it('exists=false 的路徑顯示 "(not exists)" badge + 灰色樣式', async () => {
     mockSendRequest.mockResolvedValue(makeInfo({
-      preferencesPath: { path: '/Users/test/.claude/prefs.json', exists: false },
+      dataDirPath: { path: '/Users/test/.claude/plugins/data', exists: false },
     }));
 
     const { container } = renderPage();
@@ -241,7 +251,7 @@ describe('InfoPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: 'Open' }).length).toBe(7);
+      expect(screen.getAllByRole('button', { name: 'Open' }).length).toBe(6);
       expect(screen.queryByText('(not exists)')).toBeNull();
     });
   });
@@ -261,7 +271,7 @@ describe('InfoPage', () => {
 
   it('path 剛好等於 home dir 時，應顯示為 ~', async () => {
     mockSendRequest.mockResolvedValue(makeInfo({
-      preferencesPath: { path: '/Users/test', exists: true },
+      extensionPath: { path: '/Users/test', exists: true },
     }));
 
     renderPage();

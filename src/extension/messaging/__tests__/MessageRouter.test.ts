@@ -90,6 +90,7 @@ describe('MessageRouter', () => {
       services.extensionInfo as never,
       '/tmp/test-cache',
       services.skill as unknown as SkillService,
+      '/tmp/test-extensions/claude-plugins',
     );
     posted = [];
   });
@@ -332,6 +333,23 @@ describe('MessageRouter', () => {
         expect.objectContaining({ fsPath: '/tmp/test-cache' }),
       );
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'rp4' });
+    });
+
+    it('extension.revealPath → extensionPath 目錄內的路徑允許開啟', async () => {
+      const fs = await import('fs');
+      const vscode = await import('vscode');
+      fs.mkdirSync('/tmp/test-extensions/claude-plugins', { recursive: true });
+
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp5', path: '/tmp/test-extensions/claude-plugins' } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'revealFileInOS',
+        expect.objectContaining({ fsPath: '/tmp/test-extensions/claude-plugins' }),
+      );
+      expect(posted[0]).toMatchObject({ type: 'response', requestId: 'rp5' });
     });
 
     it('extension.clearCache → 回傳 { cleared: true }', async () => {

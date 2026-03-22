@@ -32,6 +32,7 @@ export class MessageRouter {
     private readonly extensionInfo: ExtensionInfoService,
     private readonly cacheDir: string,
     private readonly skill: SkillService,
+    private readonly extensionPath: string = '',
   ) {}
 
   /** 處理來自 webview 的訊息 */
@@ -252,6 +253,7 @@ export class MessageRouter {
       claudeDir,
       path.dirname(this.cacheDir),
       ...workspaceFolders.map((f) => f.uri.fsPath),
+      ...(this.extensionPath ? [path.dirname(this.extensionPath)] : []),
     ];
     const normalized = path.resolve(resolved);
     if (!allowed.some((dir) => normalized.startsWith(dir + path.sep) || normalized === dir)) {
