@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MarketplacePage } from './marketplace/MarketplacePage';
 import { PluginPage } from './plugin/PluginPage';
 import { McpPage } from './mcp/McpPage';
-import { SettingsPage } from './settings/SettingsPage';
+import { SettingsGridPage } from './settings/grid/SettingsGridPage';
 import { InfoPage } from './info/InfoPage';
 import { SkillsPage } from './skill/SkillsPage';
 
@@ -34,7 +34,7 @@ export function EditorApp({ mode: initialMode }: EditorAppProps): React.ReactEle
     case 'skill':
       return <SkillsPage />;
     case 'settings':
-      return <SettingsPage />;
+      return <SettingsGridPage />;
     case 'info':
       return <InfoPage />;
     default:

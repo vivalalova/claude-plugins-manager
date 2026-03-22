@@ -1,0 +1,572 @@
+/* ============================================================
+   Settings Grid — Xcode Build Settings-style layout
+   ============================================================ */
+
+/* Page container */
+.sg-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ---- Filter bar ---- */
+
+.sg-filter-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  background: var(--vscode-editor-background);
+}
+
+.sg-filter-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.sg-filter-input {
+  width: 100%;
+  padding: 4px 28px 4px 8px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+  font-family: var(--vscode-font-family, sans-serif);
+  box-sizing: border-box;
+}
+
+.sg-filter-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.sg-filter-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.sg-filter-clear-btn:hover {
+  color: var(--vscode-foreground);
+}
+
+.sg-filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sg-filter-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-button-secondaryBorder, var(--vscode-editorWidget-border));
+  border-radius: 12px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-family: var(--vscode-font-family, sans-serif);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.sg-filter-chip:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.sg-filter-chip--active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
+}
+
+/* ---- No workspace notice ---- */
+
+.sg-no-workspace-hint {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 95%, var(--vscode-foreground) 5%);
+  border-bottom: 1px solid var(--vscode-editorWidget-border, transparent);
+}
+
+/* ---- Grid wrapper + layout ---- */
+
+.sg-grid-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.sg-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr);
+  min-width: 600px;
+}
+
+/* ---- Header row ---- */
+
+.sg-header {
+  display: contents;
+}
+
+.sg-header-cell {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-editor-background));
+  border-bottom: 2px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  white-space: nowrap;
+}
+
+/* ---- Rows ---- */
+
+.sg-row {
+  display: contents;
+}
+
+.sg-cell {
+  padding: 3px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #ccc) 40%, transparent);
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  gap: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Alternating row backgrounds — using CSS custom counter approach.
+   Since display:contents rows can't be targeted directly, we use
+   nth-of-type on cells within the grid. Each row has 5 cells.
+   Row 1 = cells 1-5, Row 2 = cells 6-10, etc. */
+.sg-row--odd > .sg-cell {
+  background-color: color-mix(in srgb, var(--vscode-editor-background) 95%, var(--vscode-foreground) 5%);
+}
+
+/* Explicitly set value — green tint like Xcode */
+.sg-cell--set {
+  background: color-mix(in srgb, var(--vscode-terminal-ansiGreen, #4ec9b0) 10%, transparent) !important;
+}
+
+/* Key cell */
+.sg-key {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  position: relative;
+  cursor: default;
+  font-size: 12px;
+  overflow: visible;
+}
+
+.sg-env-key {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+}
+
+/* Tooltip via CSS */
+.sg-key[data-tooltip] {
+  position: relative;
+}
+
+.sg-key[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 100;
+  max-width: 300px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--vscode-editorHoverWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-editorWidget-border));
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.16));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  font-size: 11px;
+  font-weight: normal;
+  font-family: var(--vscode-font-family, sans-serif);
+  white-space: normal;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+/* Default value cell */
+.sg-default {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 11px;
+}
+
+/* Editable cells */
+.sg-editable {
+  cursor: pointer;
+}
+
+.sg-editable:hover {
+  background: var(--vscode-list-hoverBackground) !important;
+}
+
+/* Disabled cells (no workspace) */
+.sg-cell--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ---- Section header ---- */
+
+.sg-section-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-editor-background)) 100%, transparent);
+  border-bottom: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-top: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  cursor: pointer;
+  user-select: none;
+}
+
+.sg-section-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.sg-section-header:first-child {
+  border-top: none;
+}
+
+.sg-section-chevron {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  display: inline-block;
+  color: var(--vscode-descriptionForeground);
+}
+
+.sg-section-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+/* ---- Cell editors ---- */
+
+.sg-cell select {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sg-cell select:hover,
+.sg-cell select:focus {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-input-background);
+  outline: none;
+}
+
+.sg-cell input[type='checkbox'] {
+  accent-color: var(--vscode-focusBorder);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.sg-text-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  font-size: 12px;
+}
+
+.sg-text-value.sg-editable {
+  cursor: text;
+}
+
+.sg-inline-input {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* ---- Tag badge & inline expand ---- */
+
+.sg-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sg-tag-badge:hover {
+  opacity: 0.85;
+}
+
+.sg-tag-expand-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 4px 0;
+  font-size: 11px;
+}
+
+.sg-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sg-tag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--vscode-badge-background) 60%, transparent);
+  color: var(--vscode-foreground);
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.sg-tag-remove {
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 1px;
+}
+
+.sg-tag-remove:hover {
+  color: var(--vscode-errorForeground);
+}
+
+.sg-tag-add-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sg-tag-add-btn {
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sg-tag-add-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.sg-tag-add-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sg-tag-collapse-btn {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
+.sg-tag-collapse-btn:hover {
+  text-decoration: underline;
+}
+
+/* ---- Reset button (visible on hover) ---- */
+
+.sg-reset-btn {
+  display: none;
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.sg-cell:hover .sg-reset-btn {
+  display: inline-flex;
+}
+
+.sg-reset-btn:hover {
+  opacity: 1;
+  color: var(--vscode-errorForeground);
+}
+
+/* ---- Empty state ---- */
+
+.sg-empty {
+  grid-column: 1 / -1;
+  padding: 16px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* ---- Env section ---- */
+
+.sg-env-cell-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.sg-env-add {
+  display: contents;
+}
+
+.sg-env-add-cell {
+  padding: 4px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #ccc) 40%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  box-sizing: border-box;
+}
+
+.sg-env-add-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorWidget-border));
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.sg-env-add-input--error {
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+
+.sg-env-key-error {
+  font-size: 10px;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
+  white-space: nowrap;
+}
+
+/* ---- Hooks section ---- */
+
+.sg-hooks-expand {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sg-hook-entry {
+  padding: 2px 0;
+  border-top: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, #ccc) 30%, transparent);
+}
+
+.sg-hook-entry:first-child {
+  border-top: none;
+}
+
+.sg-hook-matcher {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.sg-hook-cmd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.sg-hook-type {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--vscode-badge-background) 50%, transparent);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 10px;
+}
+
+.sg-hook-detail {
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Model cell ---- */
+
+.sg-model-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.sg-model-cell select {
+  width: 100%;
+}
+
+/* ---- Light mode adjustments ---- */
+
+body.vscode-light .sg-cell--set {
+  background: color-mix(in srgb, var(--vscode-terminal-ansiGreen, #22863a) 8%, transparent) !important;
+}
+
+body.vscode-light .sg-row--odd > .sg-cell {
+  background-color: color-mix(in srgb, var(--vscode-editor-background) 97%, var(--vscode-foreground) 3%);
+}
