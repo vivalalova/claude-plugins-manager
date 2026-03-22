@@ -23,7 +23,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
     t(`settings.common.${suffix}` as Parameters<typeof t>[0], vars);
 
   switch (schema.controlType) {
-    case 'boolean':
+    case Boolean:
       return (
         <BooleanToggle
           label={tk('label')}
@@ -37,31 +37,30 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
         />
       );
 
-    case 'enum': {
-      const options = getSchemaEnumOptions(settingKey);
-      const knownLabels: Record<string, string> = {};
-      for (const opt of options) {
-        knownLabels[opt] = tk(opt);
+    case String: {
+      if (schema.options) {
+        const options = getSchemaEnumOptions(settingKey);
+        const knownLabels: Record<string, string> = {};
+        for (const opt of options) {
+          knownLabels[opt] = tk(opt);
+        }
+        return (
+          <EnumDropdown
+            label={tk('label')}
+            description={tk('description')}
+            value={value as string | undefined}
+            knownValues={options}
+            knownLabels={knownLabels}
+            notSetLabel={tk('notSet')}
+            unknownTemplate={tk('unknown')}
+            settingKey={settingKey}
+            defaultValue={getSchemaDefault<string>(settingKey)}
+            overriddenScope={overriddenScope}
+            onSave={onSave}
+            onDelete={onDelete}
+          />
+        );
       }
-      return (
-        <EnumDropdown
-          label={tk('label')}
-          description={tk('description')}
-          value={value as string | undefined}
-          knownValues={options}
-          knownLabels={knownLabels}
-          notSetLabel={tk('notSet')}
-          unknownTemplate={tk('unknown')}
-          settingKey={settingKey}
-          defaultValue={getSchemaDefault<string>(settingKey)}
-          overriddenScope={overriddenScope}
-          onSave={onSave}
-          onDelete={onDelete}
-        />
-      );
-    }
-
-    case 'string':
       return (
         <TextSetting
           label={tk('label')}
@@ -78,8 +77,9 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           onDelete={onDelete}
         />
       );
+    }
 
-    case 'number':
+    case Number:
       return (
         <NumberSetting
           label={tk('label')}
@@ -102,7 +102,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
         />
       );
 
-    case 'tagInput':
+    case Array:
       return (
         <TagInput
           label={tk('label')}
@@ -119,12 +119,10 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
         />
       );
 
-    case 'custom':
+    case Object:
       return null;
 
-    default: {
-      const _exhaustive: never = schema.controlType;
-      throw new Error(`Unexpected controlType: ${_exhaustive}`);
-    }
+    default:
+      throw new Error(`Unexpected controlType: ${schema.controlType}`);
   }
 }

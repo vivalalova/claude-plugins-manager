@@ -21,9 +21,9 @@ npm run watch              # concurrently watch extension + webview
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / skills.css / settings.css / common.css）
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **Settings Schema**：`src/shared/claude-settings-schema.json`（canonical data）+ `src/shared/claude-settings-schema.ts`（thin wrapper：types + helpers + re-export）— settings key metadata 單一來源，含 `controlType`/`options`/`min`/`max`/`step` UI metadata；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束。**Schema 是 source code 內建的靜態定義，UI 直接 import 使用，不需動態抓取**
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；`String` + `options` = enum dropdown；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束
 - **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
-- **Known Env Vars**：`src/shared/known-env-vars.json`（canonical data）+ `src/shared/known-env-vars.ts`（thin wrapper：types + helpers）— 已知 env vars registry（valueType/category/default），供 EnvSection autocomplete + inline description（i18n）；`sync-settings-options` skill Phase 1c 同步維護
+- **Known Env Vars**：`src/shared/known-env-vars.ts` — 已知 env vars registry；`valueType` 用原生型別（`String`/`Number`/`Boolean`）供 EnvSection autocomplete + inline description（i18n）；`sync-settings-options` skill Phase 1c 同步維護
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
@@ -90,7 +90,7 @@ https://code.claude.com/docs/en/settings
 
 ## 新增 Setting Checklist
 
-1. **Schema**：`claude-settings-schema.json` 加 key — 設 `section`/`controlType`；enum 加 `options`；number 加 `min`/`max`/`step`；有預設加 `default`
+1. **Schema**：`claude-settings-schema.ts` 加 key — `controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；enum 用 `String` + `options`；number 加 `min`/`max`/`step`；有預設加 `default`
 2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
 3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）；刻意排除的 key 加入 `EXCLUDED_FROM_FIELD_ORDER`（附原因）（`check:schema` 自動驗證完整性 + 反向驗證）
 4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）

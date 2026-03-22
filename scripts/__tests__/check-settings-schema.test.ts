@@ -5,10 +5,8 @@ import { CLAUDE_SETTINGS_SCHEMA } from '../../src/shared/claude-settings-schema'
 import { en } from '../../src/webview/i18n/locales/en';
 
 const base: SettingFieldSchema = {
-  type: 'boolean',
-  description: 'test',
   section: 'general',
-  controlType: 'boolean',
+  controlType: Boolean,
 };
 
 describe('validateSchemaFields', () => {
@@ -24,37 +22,28 @@ describe('validateSchemaFields', () => {
     expect(errors[0]).toContain('controlType');
   });
 
-  it('valid enum with options → no errors', () => {
+  it('valid String with options → no errors', () => {
     expect(validateSchemaFields({
-      ok: { ...base, controlType: 'enum', options: ['a', 'b'] as const },
+      ok: { ...base, controlType: String, options: ['a', 'b'] as const },
     })).toEqual([]);
   });
 
-  it('enum missing options → error', () => {
+  it('String with empty options → error', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'enum' },
-    });
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('bad');
-    expect(errors[0]).toContain('enum');
-  });
-
-  it('enum with empty options → error', () => {
-    const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'enum', options: [] as unknown as readonly string[] },
+      bad: { ...base, controlType: String, options: [] as unknown as readonly string[] },
     });
     expect(errors).toHaveLength(1);
   });
 
   it('number with valid min/max → no errors', () => {
     expect(validateSchemaFields({
-      ok: { ...base, controlType: 'number', min: 0, max: 100, step: 1 },
+      ok: { ...base, controlType: Number, min: 0, max: 100, step: 1 },
     })).toEqual([]);
   });
 
   it('number with min > max → error', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'number', min: 10, max: 5 },
+      bad: { ...base, controlType: Number, min: 10, max: 5 },
     });
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain('min');
@@ -63,41 +52,41 @@ describe('validateSchemaFields', () => {
 
   it('number with only min (no max) → no errors', () => {
     expect(validateSchemaFields({
-      ok: { ...base, controlType: 'number', min: 0 },
+      ok: { ...base, controlType: Number, min: 0 },
     })).toEqual([]);
   });
 
-  it('custom clean → no errors', () => {
+  it('Object clean → no errors', () => {
     expect(validateSchemaFields({
-      ok: { ...base, controlType: 'custom' },
+      ok: { ...base, controlType: Object },
     })).toEqual([]);
   });
 
-  it('custom with options → error', () => {
+  it('Object with options → error', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'custom', options: ['x'] as const },
+      bad: { ...base, controlType: Object, options: ['x'] as const },
     });
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain('options');
   });
 
-  it('custom with min → error', () => {
+  it('Object with min → error', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'custom', min: 0 },
+      bad: { ...base, controlType: Object, min: 0 },
     });
     expect(errors).toHaveLength(1);
   });
 
-  it('custom with max → error', () => {
+  it('Object with max → error', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'custom', max: 10 },
+      bad: { ...base, controlType: Object, max: 10 },
     });
     expect(errors).toHaveLength(1);
   });
 
   it('duplicate options → error', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'enum', options: ['a', 'b', 'a'] as const },
+      bad: { ...base, controlType: String, options: ['a', 'b', 'a'] as const },
     });
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain('duplicate');
@@ -105,7 +94,7 @@ describe('validateSchemaFields', () => {
 
   it('multiple errors in one entry → all reported', () => {
     const errors = validateSchemaFields({
-      bad: { ...base, controlType: 'custom', options: ['x'] as const, min: 0, max: 10 },
+      bad: { ...base, controlType: Object, options: ['x'] as const, min: 0, max: 10 },
     });
     expect(errors).toHaveLength(3);
   });
@@ -135,7 +124,6 @@ describe('validateFieldOrders', () => {
   });
 
   it('FIELD_ORDER key not in schema → error (reverse check)', () => {
-    // Remove a key from schema that exists in FIELD_ORDER
     const { effortLevel: _, ...withoutEffort } = CLAUDE_SETTINGS_SCHEMA;
     const errors = validateFieldOrders(withoutEffort);
     expect(errors.some(e => e.includes('effortLevel') && e.includes('not found in schema'))).toBe(true);
@@ -159,7 +147,6 @@ describe('validateI18nKeys', () => {
 
   it('missing label → error', () => {
     const enKeys = new Set(Object.keys(en));
-    // Remove one label
     enKeys.delete('settings.general.effortLevel.label');
     const errors = validateI18nKeys(CLAUDE_SETTINGS_SCHEMA, enKeys);
     expect(errors.some(e => e.includes('effortLevel') && e.includes('label'))).toBe(true);
@@ -172,9 +159,9 @@ describe('validateI18nKeys', () => {
     expect(errors.some(e => e.includes('effortLevel') && e.includes('high'))).toBe(true);
   });
 
-  it('custom controlType → skipped', () => {
+  it('Object controlType → skipped', () => {
     const schema = {
-      testCustom: { ...base, controlType: 'custom' as const, section: 'advanced' as const },
+      testCustom: { ...base, controlType: Object, section: 'advanced' as const },
     };
     expect(validateI18nKeys(schema, new Set())).toEqual([]);
   });

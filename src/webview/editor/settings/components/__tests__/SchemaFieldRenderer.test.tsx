@@ -48,7 +48,7 @@ describe('SchemaFieldRenderer', () => {
     renderField('fastMode', {
       default: false,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     });
     await waitFor(() => {
       expect(screen.getByText('Fast Mode')).toBeTruthy();
@@ -56,11 +56,11 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('enum → renders EnumDropdown with options and notSet label', async () => {
+  it('String + options → renders EnumDropdown with options and notSet label', async () => {
     renderField('effortLevel', {
       default: 'high',
       section: 'general',
-      controlType: 'enum',
+      controlType: String,
       options: ['high', 'medium', 'low'] as const,
     });
     await waitFor(() => {
@@ -70,15 +70,14 @@ describe('SchemaFieldRenderer', () => {
       expect(screen.getByText('High')).toBeTruthy();
       expect(screen.getByText('Medium')).toBeTruthy();
       expect(screen.getByText('Low')).toBeTruthy();
-      // notSet option rendered from i18n convention
       expect(screen.getByText('— not set —')).toBeTruthy();
     });
   });
 
-  it('text → renders TextSetting with placeholder and save/clear buttons', async () => {
+  it('String → renders TextSetting with placeholder and save/clear buttons', async () => {
     renderField('language', {
       section: 'general',
-      controlType: 'string',
+      controlType: String,
     }, 'zh-TW');
     await waitFor(() => {
       expect(screen.getByText('Language')).toBeTruthy();
@@ -90,11 +89,11 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('number → renders NumberSetting with min/max/step', async () => {
+  it('Number → renders NumberSetting with min/max/step', async () => {
     renderField('cleanupPeriodDays', {
       default: 30,
       section: 'general',
-      controlType: 'number',
+      controlType: Number,
       min: 0,
       max: 365,
       step: 1,
@@ -109,10 +108,10 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('tagInput → renders TagInput with add button', async () => {
+  it('Array → renders TagInput with add button', async () => {
     renderField('availableModels', {
       section: 'general',
-      controlType: 'tagInput',
+      controlType: Array,
     }, []);
     await waitFor(() => {
       expect(screen.getByText('Available Models Whitelist')).toBeTruthy();
@@ -120,10 +119,10 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('custom → returns null', () => {
+  it('Object → returns null', () => {
     const { container } = renderField('hooks', {
       section: 'hooks',
-      controlType: 'custom',
+      controlType: Object,
     });
     expect(container.querySelector('.settings-field')).toBeNull();
   });
@@ -133,7 +132,7 @@ describe('SchemaFieldRenderer', () => {
     renderField('fastMode', {
       default: false,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     }, undefined, onSave);
     fireEvent.click(screen.getByRole('checkbox'));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith('fastMode', true));
@@ -143,7 +142,7 @@ describe('SchemaFieldRenderer', () => {
     renderField('includeGitInstructions', {
       default: true,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     });
     await waitFor(() => {
       expect(screen.getByText('Include Git Instructions')).toBeTruthy();
@@ -155,7 +154,7 @@ describe('SchemaFieldRenderer', () => {
     renderField('fastMode', {
       default: false,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     }, true, vi.fn().mockResolvedValue(undefined), onDelete);
     fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith('fastMode'));
@@ -187,7 +186,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
     renderFieldWithOverride('fastMode', {
       default: false,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     }, true, 'user');
     await waitFor(() => {
       expect(screen.getByText(/Overrides/i)).toBeTruthy();
@@ -199,7 +198,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
     renderFieldWithOverride('fastMode', {
       default: false,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     }, true, undefined);
     await waitFor(() => {
       expect(screen.getByRole('checkbox')).toBeTruthy();
@@ -211,7 +210,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
     renderFieldWithOverride('effortLevel', {
       default: 'high',
       section: 'general',
-      controlType: 'enum',
+      controlType: String,
       options: ['high', 'medium', 'low'] as const,
     }, 'low', 'user');
     await waitFor(() => {
@@ -225,7 +224,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     renderField('effortLevel', {
       default: 'high',
       section: 'general',
-      controlType: 'enum',
+      controlType: String,
       options: ['high', 'medium', 'low'] as const,
     }, 'low');
     await waitFor(() => {
@@ -237,7 +236,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     renderField('effortLevel', {
       default: 'high',
       section: 'general',
-      controlType: 'enum',
+      controlType: String,
       options: ['high', 'medium', 'low'] as const,
     }, undefined);
     await waitFor(() => {
@@ -249,7 +248,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     renderField('effortLevel', {
       default: 'high',
       section: 'general',
-      controlType: 'enum',
+      controlType: String,
       options: ['high', 'medium', 'low'] as const,
     }, 'high');
     await waitFor(() => {
@@ -262,28 +261,28 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     renderField('effortLevel', {
       default: 'high',
       section: 'general',
-      controlType: 'enum',
+      controlType: String,
       options: ['high', 'medium', 'low'] as const,
     }, 'low', vi.fn().mockResolvedValue(undefined), onDelete);
     fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith('effortLevel'));
   });
 
-  it('text：無 default → 無 Reset', async () => {
+  it('String：無 default → 無 Reset', async () => {
     renderField('language', {
       section: 'general',
-      controlType: 'string',
+      controlType: String,
     }, 'zh-TW');
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
     });
   });
 
-  it('number：value 與 default 不同 → Reset 顯示', async () => {
+  it('Number：value 與 default 不同 → Reset 顯示', async () => {
     renderField('cleanupPeriodDays', {
       default: 30,
       section: 'general',
-      controlType: 'number',
+      controlType: Number,
       min: 0,
       step: 1,
     }, 60);
@@ -292,11 +291,11 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     });
   });
 
-  it('boolean：value=false default=false → 無 Reset', async () => {
+  it('Boolean：value=false default=false → 無 Reset', async () => {
     renderField('fastMode', {
       default: false,
       section: 'general',
-      controlType: 'boolean',
+      controlType: Boolean,
     }, false);
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();

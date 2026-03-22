@@ -365,28 +365,22 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
     return localized !== i18nKey ? localized : null;
   };
 
-  const typeGroupKeys: Record<EnvVarValueType, string> = {
-    boolean: 'settings.env.group.boolean',
-    number: 'settings.env.group.number',
-    string: 'settings.env.group.string',
-  };
-
-  const typeRenderers: Record<EnvVarValueType, (v: KnownEnvVar) => React.ReactElement> = {
-    boolean: renderBoolean,
-    number: renderNumber,
-    string: renderString,
-  };
+  const typeGroups: [EnvVarValueType, string, (v: KnownEnvVar) => React.ReactElement][] = [
+    [Boolean, 'settings.env.group.boolean', renderBoolean],
+    [Number, 'settings.env.group.number', renderNumber],
+    [String, 'settings.env.group.string', renderString],
+  ];
 
   return (
     <div className="settings-section">
       <h3 className="settings-section-title">{t('settings.nav.env')}</h3>
 
-      {(['boolean', 'number', 'string'] as EnvVarValueType[]).map((vt) => {
+      {typeGroups.map(([vt, groupKey, renderer]) => {
         const vars = knownVarsByType.get(vt);
         if (!vars || vars.length === 0) return null;
         return (
-          <EnvCategoryGroup key={vt} groupKey={typeGroupKeys[vt]}>
-            {vars.map(typeRenderers[vt])}
+          <EnvCategoryGroup key={groupKey} groupKey={groupKey}>
+            {vars.map(renderer)}
           </EnvCategoryGroup>
         );
       })}

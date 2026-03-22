@@ -99,7 +99,7 @@ describe('EnvSection — 全列表渲染', () => {
 
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      const booleanVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === 'boolean').length;
+      const booleanVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === Boolean).length;
       expect(checkboxes.length).toBeGreaterThanOrEqual(booleanVarCount);
     });
   });
@@ -109,7 +109,7 @@ describe('EnvSection — 全列表渲染', () => {
 
     await waitFor(() => {
       const numberInputs = container.querySelectorAll('input[type="number"]');
-      const numberVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === 'number').length;
+      const numberVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === Number).length;
       expect(numberInputs.length).toBe(numberVarCount);
     });
   });

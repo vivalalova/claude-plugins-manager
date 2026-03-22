@@ -41,8 +41,7 @@ describe('claude-settings-schema', () => {
   });
 
   it('schema 新增 key → 測試偵測到 drift', () => {
-    // 模擬新增一個 schema key，驗證 diff 機制有效
-    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { section: 'general' as const, controlType: 'string' as const } };
+    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { section: 'general' as const, controlType: String } };
     const extendedKeys = new Set(Object.keys(extendedSchema));
     const extra = [...extendedKeys].filter((k) => !typesKeys.has(k));
     expect(extra).toEqual(['testKey']);
@@ -54,19 +53,18 @@ describe('claude-settings-schema', () => {
     }
   });
 
-  it('controlType 為 enum 的 entry 必須有 options 陣列', () => {
+  it('String + options 的 entry 必須有非空 options 陣列', () => {
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
-      if (field.controlType === 'enum') {
-        expect(Array.isArray(field.options), `${key} controlType=enum 但缺少 options`).toBe(true);
-        expect(field.options!.length, `${key} options 不可為空`).toBeGreaterThan(0);
+      if (field.controlType === String && field.options) {
+        expect(field.options.length, `${key} options 不可為空`).toBeGreaterThan(0);
       }
     }
   });
 
-  it('controlType 非 enum 的 entry 不應有 options', () => {
+  it('非 String 的 entry 不應有 options', () => {
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
-      if (field.controlType !== 'enum') {
-        expect(field.options, `${key} controlType=${field.controlType} 不應有 options`).toBeUndefined();
+      if (field.controlType !== String) {
+        expect(field.options, `${key} controlType=${field.controlType.name} 不應有 options`).toBeUndefined();
       }
     }
   });
@@ -79,22 +77,22 @@ describe('claude-settings-schema', () => {
     }
   });
 
-  it('min/max/step 只出現在 controlType=number', () => {
+  it('min/max/step 只出現在 controlType=Number', () => {
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
-      if (field.controlType !== 'number') {
-        expect(field.min, `${key} 非 number 不應有 min`).toBeUndefined();
-        expect(field.max, `${key} 非 number 不應有 max`).toBeUndefined();
-        expect(field.step, `${key} 非 number 不應有 step`).toBeUndefined();
+      if (field.controlType !== Number) {
+        expect(field.min, `${key} 非 Number 不應有 min`).toBeUndefined();
+        expect(field.max, `${key} 非 Number 不應有 max`).toBeUndefined();
+        expect(field.step, `${key} 非 Number 不應有 step`).toBeUndefined();
       }
     }
   });
 
   it('controlType 值屬於合法 ControlType', () => {
-    const validControlTypes = ['boolean', 'enum', 'string', 'number', 'tagInput', 'custom'];
+    const validControlTypes = [String, Number, Boolean, Array, Object];
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
       expect(
         validControlTypes.includes(field.controlType),
-        `${key} 的 controlType "${field.controlType}" 不是合法值`,
+        `${key} 的 controlType 不是合法值`,
       ).toBe(true);
     }
   });
@@ -147,19 +145,18 @@ describe('getSchemaDefault', () => {
     expect(() => getSchemaDefault('nonExistent')).toThrow('not found');
   });
 
-  it('所有 boolean entry 都有 default 值', () => {
+  it('所有 Boolean entry 都有 default 值', () => {
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
-      if (field.controlType === 'boolean') {
-        expect(field.default, `${key} boolean entry 缺少 default`).not.toBeUndefined();
+      if (field.controlType === Boolean) {
+        expect(field.default, `${key} Boolean entry 缺少 default`).not.toBeUndefined();
         expect(typeof field.default, `${key} default 應為 boolean`).toBe('boolean');
       }
     }
   });
 
-  it('enum default 值在 options 中', () => {
+  it('String + options 的 default 值在 options 中', () => {
     for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
-      if (field.controlType === 'enum' && field.default !== undefined) {
-        expect(field.options, `${key} enum 應有 options`).toBeDefined();
+      if (field.controlType === String && field.options && field.default !== undefined) {
         expect(field.options).toContain(field.default);
       }
     }

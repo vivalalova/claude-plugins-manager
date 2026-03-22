@@ -226,7 +226,7 @@ export function DisplaySection({ scope, settings, userSettings, onSave, onDelete
         if (!schema) return null;
         const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
 
-        if (schema.controlType === 'custom') {
+        if (schema.controlType === Object) {
           switch (key) {
             case 'spinnerVerbs':
               return (

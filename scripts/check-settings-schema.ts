@@ -48,21 +48,21 @@ export function validateSchemaFields(schema: Record<string, SettingFieldSchema>)
       errors.push(`${key}: missing controlType`);
     }
 
-    // Rule 2: enum must have non-empty options
-    if (field.controlType === 'enum' && (!field.options || field.options.length === 0)) {
-      errors.push(`${key}: controlType 'enum' requires non-empty options array`);
+    // Rule 2: String with options must have non-empty options
+    if (field.controlType === String && field.options && field.options.length === 0) {
+      errors.push(`${key}: String with options requires non-empty options array`);
     }
 
     // Rule 3: number with min/max → min <= max
-    if (field.controlType === 'number' && field.min !== undefined && field.max !== undefined && field.min > field.max) {
+    if (field.controlType === Number && field.min !== undefined && field.max !== undefined && field.min > field.max) {
       errors.push(`${key}: min (${field.min}) > max (${field.max})`);
     }
 
-    // Rule 4: custom must not have options/min/max
-    if (field.controlType === 'custom') {
-      if (field.options) errors.push(`${key}: controlType 'custom' should not have options`);
-      if (field.min !== undefined) errors.push(`${key}: controlType 'custom' should not have min`);
-      if (field.max !== undefined) errors.push(`${key}: controlType 'custom' should not have max`);
+    // Rule 4: Object must not have options/min/max
+    if (field.controlType === Object) {
+      if (field.options) errors.push(`${key}: Object controlType should not have options`);
+      if (field.min !== undefined) errors.push(`${key}: Object controlType should not have min`);
+      if (field.max !== undefined) errors.push(`${key}: Object controlType should not have max`);
     }
 
     // Rule 5: options values must be unique
@@ -121,7 +121,7 @@ export function validateI18nKeys(schema: Record<string, SettingFieldSchema>, loc
   for (const [key, field] of Object.entries(schema)) {
     // Skip manually-rendered sections, custom controls, and excluded keys
     if (['permissions', 'env', 'hooks'].includes(field.section)) continue;
-    if (field.controlType === 'custom') continue;
+    if (field.controlType === Object) continue;
     if (EXCLUDED_FROM_FIELD_ORDER.has(key as keyof import('../src/shared/types').ClaudeSettings)) continue;
 
     const prefix = `settings.${field.section}.${key}`;
@@ -132,7 +132,7 @@ export function validateI18nKeys(schema: Record<string, SettingFieldSchema>, loc
       errors.push(`i18n missing: ${prefix}.description`);
     }
 
-    if (field.controlType === 'enum' && field.options) {
+    if (field.controlType === String && field.options) {
       if (!localeKeys.has(`${prefix}.notSet`)) errors.push(`i18n missing: ${prefix}.notSet`);
       if (!localeKeys.has(`${prefix}.unknown`)) errors.push(`i18n missing: ${prefix}.unknown`);
       for (const opt of field.options) {
@@ -140,7 +140,7 @@ export function validateI18nKeys(schema: Record<string, SettingFieldSchema>, loc
       }
     }
 
-    if (field.controlType === 'string' || field.controlType === 'number') {
+    if ((field.controlType === String && !field.options) || field.controlType === Number) {
       if (!localeKeys.has(`${prefix}.placeholder`)) errors.push(`i18n missing: ${prefix}.placeholder`);
     }
   }

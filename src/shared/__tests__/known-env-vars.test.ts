@@ -9,7 +9,7 @@ import {
 } from '../known-env-vars';
 
 const VALID_CATEGORIES: EnvVarCategory[] = ['model', 'auth', 'effort', 'timeout', 'feature', 'telemetry'];
-const VALID_VALUE_TYPES: EnvVarValueType[] = ['string', 'number', 'boolean'];
+const VALID_VALUE_TYPES: EnvVarValueType[] = [String, Number, Boolean];
 
 describe('KNOWN_ENV_VARS registry', () => {
   it('is non-empty', () => {
