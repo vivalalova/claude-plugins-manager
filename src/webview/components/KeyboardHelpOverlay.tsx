@@ -1,6 +1,8 @@
 import React from 'react';
-import { useFocusTrap } from '../hooks/useFocusTrap';
+import { DialogOverlay } from './DialogOverlay';
 import { useI18n } from '../i18n/I18nContext';
+
+const TITLE_ID = 'keyboard-help-title';
 
 interface KeyboardHelpOverlayProps {
   /** 關閉 overlay 的 callback */
@@ -13,15 +15,6 @@ interface KeyboardHelpOverlayProps {
  */
 export function KeyboardHelpOverlay({ onClose }: KeyboardHelpOverlayProps): React.ReactElement {
   const { t } = useI18n();
-  const trapRef = useFocusTrap(onClose);
-  const handleOverlayDismiss = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-  ): void => {
-    if (e.target !== e.currentTarget) return;
-    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
-    if ('preventDefault' in e) e.preventDefault();
-    onClose();
-  };
 
   const shortcuts = [
     { key: '/', description: t('keyboard.focusSearch') },
@@ -33,32 +26,19 @@ export function KeyboardHelpOverlay({ onClose }: KeyboardHelpOverlayProps): Reac
   ];
 
   return (
-    <div
-      className="confirm-overlay"
-      onClick={handleOverlayDismiss}
-      onKeyDown={handleOverlayDismiss}
-      tabIndex={0}
-    >
-      <div
-        ref={trapRef}
-        className="confirm-dialog keyboard-help"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="keyboard-help-title"
-      >
-        <div className="confirm-dialog-title" id="keyboard-help-title">{t('keyboard.title')}</div>
-        <dl className="keyboard-help-list">
-          {shortcuts.map(({ key, description }) => (
-            <React.Fragment key={key}>
-              <dt><kbd className="keyboard-help-key">{key}</kbd></dt>
-              <dd className="keyboard-help-desc">{description}</dd>
-            </React.Fragment>
-          ))}
-        </dl>
-        <div className="confirm-dialog-actions">
-          <button className="btn btn-primary" onClick={onClose} type="button">{t('keyboard.close')}</button>
-        </div>
+    <DialogOverlay titleId={TITLE_ID} onClose={onClose} className="keyboard-help">
+      <div className="confirm-dialog-title" id={TITLE_ID}>{t('keyboard.title')}</div>
+      <dl className="keyboard-help-list">
+        {shortcuts.map(({ key, description }) => (
+          <React.Fragment key={key}>
+            <dt><kbd className="keyboard-help-key">{key}</kbd></dt>
+            <dd className="keyboard-help-desc">{description}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
+      <div className="confirm-dialog-actions">
+        <button className="btn btn-primary" onClick={onClose} type="button">{t('keyboard.close')}</button>
       </div>
-    </div>
+    </DialogOverlay>
   );
 }

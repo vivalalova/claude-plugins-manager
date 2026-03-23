@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -7,7 +6,9 @@ import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../../shared/types';
 import type { CliService } from './CliService';
 import { escapeShellArg } from '../utils/workspace';
-import { parseShellToken } from '../utils/shellTokenParser';
+import { exportShellScript, importShellScript } from '../utils/scriptIO';
+import { WriteQueue } from '../utils/WriteQueue';
+import { readJsonFile } from '../utils/jsonFile';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
 const GIT_CLONE_TIMEOUT_MS = 30_000;
@@ -44,7 +45,7 @@ const CONFIG_PATH = path.join(
  * CRUD 操作仍透過 CLI 執行。
  */
 export class MarketplaceService {
-  private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly mutationQueue = new WriteQueue();
 
   constructor(private readonly cli: CliService) {}
 
@@ -76,8 +77,8 @@ export class MarketplaceService {
 
   /** 新增 marketplace（Git URL / GitHub repo / 本地路徑） */
   async add(source: string): Promise<void> {
-    return this.enqueueMutation(async () => {
-      const beforeConfig = await this.readConfigIfExists();
+    return this.mutationQueue.enqueue(async () => {
+      const beforeConfig = await readJsonFile(CONFIG_PATH, {} as RawMarketplaceConfig);
       const beforeNames = new Set(Object.keys(beforeConfig));
 
       await this.cli.exec(
@@ -104,14 +105,14 @@ export class MarketplaceService {
 
   /** 移除 marketplace */
   async remove(name: string): Promise<void> {
-    return this.enqueueMutation(async () => {
+    return this.mutationQueue.enqueue(async () => {
       await this.cli.exec(['plugin', 'marketplace', 'remove', name]);
     });
   }
 
   /** 更新 marketplace（不指定 name 則更新全部） */
   async update(name?: string): Promise<void> {
-    return this.enqueueMutation(async () => {
+    return this.mutationQueue.enqueue(async () => {
       const args = ['plugin', 'marketplace', 'update'];
       if (name) {
         args.push(name);
@@ -122,7 +123,7 @@ export class MarketplaceService {
 
   /** 切換 autoUpdate flag，直接寫入 config file */
   async toggleAutoUpdate(name: string): Promise<void> {
-    return this.enqueueMutation(async () => {
+    return this.mutationQueue.enqueue(async () => {
       const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
       const config: RawMarketplaceConfig = JSON.parse(raw);
 
@@ -219,35 +220,20 @@ export class MarketplaceService {
       throw new Error('No marketplaces to export.');
     }
 
-    const lines = [
-      '#!/bin/bash',
-      '# Claude Code Marketplace Setup',
-      `# Exported ${marketplaces.length} marketplace(s)`,
-      '',
-    ];
+    const lines: string[] = [];
     for (const mp of marketplaces) {
       const source = mp.url ?? mp.repo ?? mp.path;
       if (source) {
-        const escaped = escapeShellArg(source);
-        lines.push(`claude plugin marketplace add '${escaped}'`);
+        lines.push(`claude plugin marketplace add '${escapeShellArg(source)}'`);
       }
     }
 
-    const uri = await vscode.window.showSaveDialog({
-      defaultUri: vscode.Uri.file('claude-marketplaces.sh'),
-      filters: { 'Shell Script': ['sh'] },
+    await exportShellScript({
+      defaultFilename: 'claude-marketplaces.sh',
+      header: '# Claude Code Marketplace Setup',
+      count: marketplaces.length,
+      lines,
     });
-    if (!uri) {
-      return;
-    }
-
-    await vscode.workspace.fs.writeFile(
-      uri,
-      Buffer.from(lines.join('\n') + '\n'),
-    );
-    vscode.window.showInformationMessage(
-      `Exported ${marketplaces.length} marketplace(s) to ${uri.fsPath}`,
-    );
   }
 
   /**
@@ -256,68 +242,15 @@ export class MarketplaceService {
    * 回傳每個 source 的結果摘要。
    */
   async importScript(): Promise<string[]> {
-    const uris = await vscode.window.showOpenDialog({
-      canSelectFiles: true,
-      canSelectMany: false,
-      filters: {
-        'Shell Script': ['sh'],
-        'All Files': ['*'],
-      },
+    return importShellScript({
+      prefix: 'claude plugin marketplace add ',
+      emptyMessage: 'No "claude plugin marketplace add" commands found in the file.',
+      parseLine: (token) => ({
+        label: `Added: ${token}`,
+        execute: () => this.add(token),
+      }),
     });
-    if (!uris || uris.length === 0) {
-      return [];
-    }
-
-    const rawFile = await vscode.workspace.fs.readFile(uris[0]);
-    const content = Buffer.from(rawFile).toString('utf-8');
-
-    const sources: string[] = [];
-    const prefix = 'claude plugin marketplace add ';
-    for (const rawLine of content.split('\n')) {
-      const line = rawLine.trim();
-      if (!line.startsWith(prefix)) continue;
-      try {
-        const parsed = parseShellToken(line.slice(prefix.length).trim());
-        if (parsed) {
-          sources.push(parsed.token);
-        }
-      } catch {
-        // skip malformed line, continue processing rest
-      }
-    }
-
-    if (sources.length === 0) {
-      throw new Error('No "claude plugin marketplace add" commands found in the file.');
-    }
-
-    const results: string[] = [];
-    for (const source of sources) {
-      try {
-        await this.add(source);
-        results.push(`Added: ${source}`);
-      } catch (e) {
-        results.push(`Failed: ${source} — ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-    return results;
   }
 
 
-  private async readConfigIfExists(): Promise<RawMarketplaceConfig> {
-    try {
-      const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
-      return JSON.parse(raw) as RawMarketplaceConfig;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return {};
-      }
-      throw error;
-    }
-  }
-
-  private async enqueueMutation<T>(task: () => Promise<T>): Promise<T> {
-    const next = this.mutationQueue.then(task);
-    this.mutationQueue = next.then(() => undefined, () => undefined);
-    return next;
-  }
 }

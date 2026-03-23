@@ -3,6 +3,8 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { createHash } from 'crypto';
 import type { CliService } from './CliService';
+import { WriteQueue } from '../utils/WriteQueue';
+import { readJsonFile } from '../utils/jsonFile';
 
 const CACHE_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 180 days
 
@@ -20,14 +22,14 @@ type CacheFile = Record<string, CacheEntry>;
  * 寫入採 read-merge-write 避免並行 explain 互相覆蓋。
  */
 export class HookExplanationService {
-  private writeLock: Promise<void> = Promise.resolve();
+  private readonly writeLock = new WriteQueue();
   private inflightRequests = new Map<string, Promise<string>>();
 
   constructor(private readonly cli: CliService, private readonly cacheDir: string) {}
 
   /** 清除 in-memory 狀態（磁碟 cache 被外部刪除後呼叫） */
   invalidateCache(): void {
-    this.writeLock = Promise.resolve();
+    this.writeLock.reset();
     this.inflightRequests.clear();
   }
 
@@ -154,28 +156,16 @@ export class HookExplanationService {
   }
 
   private async readCache(): Promise<CacheFile> {
-    try {
-      const raw = await readFile(this.cachePath, 'utf-8');
-      return JSON.parse(raw) as CacheFile;
-    } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return {};
-      throw e;
-    }
+    return readJsonFile<CacheFile>(this.cachePath, {});
   }
 
   /** 序列化 read-merge-write：透過 writeLock 保證同一時間只有一筆寫入，避免並行覆蓋 */
   private mergeEntry(key: string, entry: CacheEntry): Promise<void> {
-    this.writeLock = this.writeLock.then(async () => {
-      const latest = await this.readCache();
-      latest[key] = entry;
-      await this.writeCache(latest);
-    }, async () => {
-      // 前一個 lock 失敗也要繼續
+    return this.writeLock.enqueue(async () => {
       const latest = await this.readCache();
       latest[key] = entry;
       await this.writeCache(latest);
     });
-    return this.writeLock;
   }
 
   private async writeCache(cache: CacheFile): Promise<void> {

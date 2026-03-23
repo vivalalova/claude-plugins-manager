@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
+import { toErrorMessage } from '../../../shared/errorUtils';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
@@ -203,7 +204,7 @@ export function SettingsPage(): React.ReactElement {
       setUserSettings(userData);
       setError(null);
     } catch (e) {
-      if (!silent) setError(e instanceof Error ? e.message : String(e));
+      if (!silent) setError(toErrorMessage(e));
     } finally {
       if (!silent) setLoading(false);
     }

@@ -12,6 +12,8 @@ import type {
   PluginContentItem,
   PluginInstallEntry,
 } from '../../shared/types';
+import { KeyedWriteQueue } from '../utils/WriteQueue';
+import { readJsonFile } from '../utils/jsonFile';
 
 const CLAUDE_DIR = join(homedir(), '.claude');
 const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
@@ -26,18 +28,7 @@ const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
  */
 export class SettingsFileService {
   private scanInflight: Promise<AvailablePlugin[]> | null = null;
-  private readonly settingsWriteQueues = new Map<string, Promise<void>>();
-
-  /**
-   * 序列化同一檔案的 read-modify-write 操作，避免並發寫入互相覆蓋。
-   * 與 prefWriteQueue 相同模式，但以檔案路徑為 key。
-   */
-  private enqueueSettingsWrite(filePath: string, fn: () => Promise<void>): Promise<void> {
-    const prev = this.settingsWriteQueues.get(filePath) ?? Promise.resolve();
-    const task = prev.then(fn);
-    this.settingsWriteQueues.set(filePath, task.catch(() => {}));
-    return task;
-  }
+  private readonly settingsWriteQueues = new KeyedWriteQueue();
 
   /** 清除掃描快取，下次 scanAvailablePlugins 將重新掃描 */
   invalidateScanCache(): void {
@@ -65,7 +56,7 @@ export class SettingsFileService {
    * 不做跨 scope 合併；檔案不存在回傳 {}。
    */
   async getSettings(scope: PluginScope): Promise<Record<string, unknown>> {
-    return this.readJson<Record<string, unknown>>(this.getSettingsPath(scope));
+    return readJsonFile<Record<string, unknown>>(this.getSettingsPath(scope), {});
   }
 
   /**
@@ -74,8 +65,8 @@ export class SettingsFileService {
    */
   async setSetting(scope: PluginScope, key: string, value: unknown): Promise<void> {
     const path = this.getSettingsPath(scope);
-    return this.enqueueSettingsWrite(path, async () => {
-      const settings = await this.readJson<Record<string, unknown>>(path);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      const settings = await readJsonFile<Record<string, unknown>>(path, {});
       settings[key] = value;
       if (scope !== 'user') {
         await mkdir(dirname(path), { recursive: true });
@@ -86,12 +77,12 @@ export class SettingsFileService {
 
   /**
    * 刪除指定 scope 的頂層 key（read-modify-write）。
-   * 檔案不存在（ENOENT）則 no-op；readJson 已處理 ENOENT 回傳 {}。
+   * 檔案不存在（ENOENT）則 no-op；readJsonFile 已處理 ENOENT 回傳 {}。
    */
   async deleteSetting(scope: PluginScope, key: string): Promise<void> {
     const path = this.getSettingsPath(scope);
-    return this.enqueueSettingsWrite(path, async () => {
-      const settings = await this.readJson<Record<string, unknown>>(path);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      const settings = await readJsonFile<Record<string, unknown>>(path, {});
       if (!(key in settings)) return;
       delete settings[key];
       await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
@@ -100,8 +91,9 @@ export class SettingsFileService {
 
   /** 讀取指定 settings 檔的 enabledPlugins */
   async readEnabledPlugins(scope: PluginScope): Promise<EnabledPluginsMap> {
-    const settings = await this.readJson<Record<string, unknown>>(
+    const settings = await readJsonFile<Record<string, unknown>>(
       this.getSettingsPath(scope),
+      {},
     );
     return (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
   }
@@ -134,8 +126,8 @@ export class SettingsFileService {
   /** 清除指定 scope 的所有 enabledPlugins（單次 read-write） */
   async clearAllEnabledPlugins(scope: PluginScope): Promise<void> {
     const path = this.getSettingsPath(scope);
-    return this.enqueueSettingsWrite(path, async () => {
-      const settings = await this.readJson<Record<string, unknown>>(path);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      const settings = await readJsonFile<Record<string, unknown>>(path, {});
       settings.enabledPlugins = {};
       if (scope !== 'user') {
         await mkdir(dirname(path), { recursive: true });
@@ -151,8 +143,8 @@ export class SettingsFileService {
     enabled: boolean,
   ): Promise<void> {
     const path = this.getSettingsPath(scope);
-    return this.enqueueSettingsWrite(path, async () => {
-      const settings = await this.readJson<Record<string, unknown>>(path);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      const settings = await readJsonFile<Record<string, unknown>>(path, {});
       const plugins = (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
 
       if (enabled) {
@@ -174,7 +166,7 @@ export class SettingsFileService {
 
   /** 讀取 installed_plugins.json */
   async readInstalledPlugins(): Promise<InstalledPluginsFile> {
-    return this.readJson<InstalledPluginsFile>(INSTALLED_PLUGINS_PATH, {
+    return readJsonFile<InstalledPluginsFile>(INSTALLED_PLUGINS_PATH, {
       version: 2,
       plugins: {},
     });
@@ -193,7 +185,7 @@ export class SettingsFileService {
     pluginId: string,
     entry: PluginInstallEntry,
   ): Promise<void> {
-    return this.enqueueSettingsWrite(INSTALLED_PLUGINS_PATH, async () => {
+    return this.settingsWriteQueues.enqueue(INSTALLED_PLUGINS_PATH, async () => {
       const data = await this.readInstalledPlugins();
       const entries = data.plugins[pluginId] ?? [];
       // 避免重複（同 scope + 同 projectPath）
@@ -214,7 +206,7 @@ export class SettingsFileService {
     scope: PluginScope,
     projectPath?: string,
   ): Promise<void> {
-    return this.enqueueSettingsWrite(INSTALLED_PLUGINS_PATH, async () => {
+    return this.settingsWriteQueues.enqueue(INSTALLED_PLUGINS_PATH, async () => {
       const data = await this.readInstalledPlugins();
       const entries = data.plugins[pluginId];
       if (!entries) return;
@@ -234,7 +226,7 @@ export class SettingsFileService {
     pluginId: string,
     scope?: PluginScope,
   ): Promise<void> {
-    return this.enqueueSettingsWrite(INSTALLED_PLUGINS_PATH, async () => {
+    return this.settingsWriteQueues.enqueue(INSTALLED_PLUGINS_PATH, async () => {
       const data = await this.readInstalledPlugins();
       const entries = data.plugins[pluginId];
       if (!entries) return;
@@ -268,8 +260,9 @@ export class SettingsFileService {
   private async doScan(): Promise<AvailablePlugin[]> {
     let knownMarketplaces: Record<string, { installLocation?: string }>;
     try {
-      knownMarketplaces = await this.readJson<Record<string, { installLocation?: string }>>(
+      knownMarketplaces = await readJsonFile<Record<string, { installLocation?: string }>>(
         KNOWN_MARKETPLACES_PATH,
+        {},
       );
     } catch {
       return [];
@@ -281,7 +274,7 @@ export class SettingsFileService {
         const mpDir = mpEntry.installLocation ?? join(MARKETPLACES_DIR, mpName);
         const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
         try {
-          const manifest = await this.readJson<MarketplaceManifest>(manifestPath);
+          const manifest = await readJsonFile<MarketplaceManifest>(manifestPath, {} as MarketplaceManifest);
           return Promise.all(
             (manifest.plugins ?? []).map(async (p) => {
               // source 可能是 object（遠端 URL 型 plugin），此時本地無目錄
@@ -297,8 +290,9 @@ export class SettingsFileService {
               if (pluginDir) {
                 [contents, pluginMeta] = await Promise.all([
                   this.scanPluginContents(pluginDir),
-                  this.readJson<{ description?: string; version?: string }>(
+                  readJsonFile<{ description?: string; version?: string }>(
                     join(pluginDir, '.claude-plugin', 'plugin.json'),
+                    {},
                   ).catch(() => ({} as { description?: string; version?: string })),
                 ]);
                 try {
@@ -351,9 +345,9 @@ export class SettingsFileService {
    * 回傳 Record<marketplace name, source URL string>。
    */
   async readMarketplaceSources(): Promise<Record<string, string>> {
-    const known = await this.readJson<
+    const known = await readJsonFile<
       Record<string, { source: { url?: string; repo?: string; path?: string } }>
-    >(KNOWN_MARKETPLACES_PATH);
+    >(KNOWN_MARKETPLACES_PATH, {});
 
     const result: Record<string, string> = {};
     for (const [name, entry] of Object.entries(known)) {
@@ -382,7 +376,7 @@ export class SettingsFileService {
       this.scanMdDir(join(pluginDir, 'commands')),
       this.scanSkillsDir(join(pluginDir, 'skills')),
       this.scanMdDir(join(pluginDir, 'agents')),
-      this.readJson<Record<string, unknown>>(join(pluginDir, '.mcp.json'))
+      readJsonFile<Record<string, unknown>>(join(pluginDir, '.mcp.json'), {})
         .then((mcp) => {
           const servers = this.unwrapMcpServers(mcp);
           return Object.keys(servers);
@@ -504,28 +498,6 @@ export class SettingsFileService {
       return { name: result.name, description: result.description };
     } catch {
       return {};
-    }
-  }
-
-  /** 讀取 JSON 檔，ENOENT 時回傳預設值，JSON parse error 時 throw（fail-fast） */
-  private async readJson<T>(filePath: string, defaultValue?: T): Promise<T> {
-    let content: string;
-    try {
-      content = await readFile(filePath, 'utf-8');
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        if (defaultValue !== undefined) return defaultValue;
-        return {} as T;
-      }
-      throw err;
-    }
-    try {
-      return JSON.parse(content) as T;
-    } catch (err: unknown) {
-      throw new Error(
-        `Invalid JSON in ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
-      );
     }
   }
 

@@ -1,4 +1,3 @@
-import { spawn } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -6,6 +5,9 @@ import { homedir } from 'os';
 import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS, SKILL_REGISTRY_URL } from '../constants';
 import { getWorkspacePath } from '../utils/workspace';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../shared/types';
+import { WriteQueue } from '../utils/WriteQueue';
+import { spawnWithTimeout } from '../utils/spawnRunner';
+import type { SpawnError } from '../utils/spawnRunner';
 
 /** SkillService 執行錯誤 */
 export class SkillError extends Error {
@@ -20,7 +22,6 @@ export class SkillError extends Error {
   }
 }
 
-const MAX_STDIO_BUFFER_BYTES = 10 * 1024 * 1024;
 const REGISTRY_CACHE_TTL_MS = 4 * 60 * 60 * 1000;
 
 interface RegistryCacheEntry {
@@ -32,22 +33,13 @@ interface RegistryCacheFile {
   [cacheKey: string]: RegistryCacheEntry;
 }
 
-/** execFile 錯誤的型別（Node.js child_process） */
-interface ExecError {
-  code?: string | number;
-  killed?: boolean;
-  exitCode?: number | null;
-  stderr?: string;
-  message?: string;
-}
-
 /**
  * npx skills CLI 封裝 + skills.sh registry 解析。
  * 職責分離：不依賴 CliService（不同的 CLI、不同的 env 處理）。
  */
 export class SkillService {
   private npxPath: string | null = null;
-  private registryCacheWriteQueue: Promise<void> = Promise.resolve();
+  private readonly registryCacheWriteQueue = new WriteQueue();
   private readonly registryCachePath: string;
 
   constructor(cacheDir: string) {
@@ -278,100 +270,36 @@ export class SkillService {
   }
 
   /** 執行 npx CLI 並回傳 stdout */
-  private exec(args: string[], options?: { cwd?: string; timeout?: number }): Promise<string> {
+  private async exec(args: string[], options?: { cwd?: string; timeout?: number }): Promise<string> {
     const timeout = options?.timeout ?? SKILL_CLI_TIMEOUT_MS;
     const npxPath = this.resolveNpxPath();
 
-    return new Promise<string>((resolve, reject) => {
-      // 清除 CLAUDECODE 避免 nested session 衝突（同 CliService）
-      const env = { ...process.env };
-      for (const key of Object.keys(env)) {
-        if (key.startsWith('CLAUDECODE')) {
-          delete env[key];
-        }
+    // 清除 CLAUDECODE 避免 nested session 衝突（同 CliService）
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (key.startsWith('CLAUDECODE')) {
+        delete env[key];
       }
+    }
 
-      const child = spawn(npxPath, args, {
-        cwd: options?.cwd,
+    try {
+      const result = await spawnWithTimeout({
+        command: npxPath,
+        args,
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: options?.cwd,
+        timeout,
       });
-
-      let stdout = '';
-      let stderr = '';
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      let settled = false;
-      let timedOut = false;
-
-      const finish = (error?: ExecError): void => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        if (error) {
-          reject(new SkillError(
-            error.stderr || error.message || `npx skills failed`,
-            `npx ${args.join(' ')}`,
-            error.exitCode ?? null,
-            error.stderr ?? '',
-          ));
-        } else {
-          resolve(stdout.trim());
-        }
-      };
-
-      const appendChunk = (stream: 'stdout' | 'stderr', chunk: Buffer | string): void => {
-        const text = typeof chunk === 'string' ? chunk : chunk.toString();
-        const bytes = Buffer.byteLength(text);
-
-        if (stream === 'stdout') {
-          stdoutBytes += bytes;
-          if (stdoutBytes > MAX_STDIO_BUFFER_BYTES) {
-            child.kill('SIGTERM');
-            finish({ code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', message: 'stdout exceeded', stderr });
-            return;
-          }
-          stdout += text;
-        } else {
-          stderrBytes += bytes;
-          if (stderrBytes > MAX_STDIO_BUFFER_BYTES) {
-            child.kill('SIGTERM');
-            finish({ code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', message: 'stderr exceeded', stderr });
-            return;
-          }
-          stderr += text;
-        }
-      };
-
-      child.stdout.on('data', (chunk) => appendChunk('stdout', chunk));
-      child.stderr.on('data', (chunk) => appendChunk('stderr', chunk));
-
-      child.on('error', (error: NodeJS.ErrnoException) => {
-        finish({ code: error.code, killed: child.killed, stderr, message: error.message });
-      });
-
-      child.on('close', (code, signal) => {
-        if (settled) return;
-        if (timedOut) {
-          finish({ killed: true, code: 'ETIMEDOUT', stderr, message: `Command timed out after ${timeout}ms` });
-          return;
-        }
-        if (signal) {
-          finish({ killed: true, code: signal, stderr, message: stderr || `Terminated by ${signal}` });
-          return;
-        }
-        if (code === 0) {
-          finish();
-          return;
-        }
-        finish({ exitCode: code ?? null, stderr, message: stderr || `Exit code ${code ?? 'unknown'}` });
-      });
-
-      const timeoutId = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-      }, timeout);
-    });
+      return result.stdout;
+    } catch (error) {
+      const err = error as SpawnError;
+      throw new SkillError(
+        err.stderr || err.message || 'npx skills failed',
+        `npx ${args.join(' ')}`,
+        err.exitCode ?? null,
+        err.stderr ?? '',
+      );
+    }
   }
 
   /** 解析 npx skills find 的文字輸出 */
@@ -487,7 +415,7 @@ export class SkillService {
 
   /** 寫入 registry file cache；序列化避免併發寫入 TOCTOU；寫入失敗靜默忽略 */
   private writeRegistryCache(key: string, data: RegistrySkill[]): Promise<void> {
-    const task = this.registryCacheWriteQueue.then(async () => {
+    return this.registryCacheWriteQueue.enqueue(async () => {
       try {
         await mkdir(dirname(this.registryCachePath), { recursive: true });
         let cache: RegistryCacheFile = {};
@@ -502,13 +430,11 @@ export class SkillService {
         // cache 寫入失敗不影響主流程
       }
     });
-    this.registryCacheWriteQueue = task.catch(() => {});
-    return task;
   }
 
   /** 清除 in-memory cache 狀態（磁碟快取由 cacheDir rm 處理） */
   invalidateCache(): void {
-    this.registryCacheWriteQueue = Promise.resolve();
+    this.registryCacheWriteQueue.reset();
   }
 
   /** 解析 SKILL.md frontmatter */

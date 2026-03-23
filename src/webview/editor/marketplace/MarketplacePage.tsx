@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
+import { toErrorMessage } from '../../../shared/errorUtils';
 import { MarketplaceCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, MarketplaceIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -35,7 +36,7 @@ export function MarketplacePage(): React.ReactElement {
       const data = await sendRequest<Marketplace[]>({ type: 'marketplace.list' });
       setMarketplaces(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -64,7 +65,7 @@ export function MarketplacePage(): React.ReactElement {
       setPreviewPlugins(plugins);
       setPreviewSource(source);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setPreviewing(false);
     }
@@ -94,7 +95,7 @@ export function MarketplacePage(): React.ReactElement {
       await fetchList();
       addToast('Marketplace added');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleAdd(source));
     } finally {
       setAdding(false);
@@ -115,7 +116,7 @@ export function MarketplacePage(): React.ReactElement {
       await fetchList();
       addToast('Marketplace added');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleAdd(source));
     } finally {
       setAdding(false);
@@ -131,7 +132,7 @@ export function MarketplacePage(): React.ReactElement {
       await fetchList();
       addToast('Marketplace removed');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleRemove(name));
     }
   };
@@ -145,7 +146,7 @@ export function MarketplacePage(): React.ReactElement {
       await fetchList();
       addToast(name ? `Updated ${name}` : 'All marketplaces updated');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleUpdate(name));
     } finally {
       setUpdating(null);
@@ -159,7 +160,7 @@ export function MarketplacePage(): React.ReactElement {
       await sendRequest({ type: 'marketplace.toggleAutoUpdate', name });
       await fetchList();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleToggleAutoUpdate(name));
     }
   };
@@ -170,7 +171,7 @@ export function MarketplacePage(): React.ReactElement {
     try {
       await sendRequest({ type: 'marketplace.export' });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleExport());
     }
   };
@@ -182,7 +183,7 @@ export function MarketplacePage(): React.ReactElement {
       await sendRequest<string[]>({ type: 'marketplace.import' });
       await fetchList();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
       setRetryAction(() => () => handleImport());
     }
   };

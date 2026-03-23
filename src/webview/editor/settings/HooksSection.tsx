@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
+import { toErrorMessage } from '../../../shared/errorUtils';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { HookCommand } from '../../../shared/types';
@@ -22,7 +23,7 @@ function truncate(s: string): string {
 }
 
 function formatExplainError(baseMessage: string, error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = toErrorMessage(error);
   const firstLine = message.split(/\r?\n/, 1)[0]?.trim() ?? '';
   if (!firstLine) return baseMessage;
 
@@ -291,7 +292,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
     try {
       await sendRequest({ type: 'hooks.openFile', path: filePath });
     } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
+      addToast(toErrorMessage(e), 'error');
     } finally {
       setOpeningPath(null);
     }
@@ -302,7 +303,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
     try {
       await sendRequest({ type: 'settings.openInEditor', scope });
     } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
+      addToast(toErrorMessage(e), 'error');
     } finally {
       setOpening(false);
     }

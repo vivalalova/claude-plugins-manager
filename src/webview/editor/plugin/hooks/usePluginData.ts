@@ -6,6 +6,7 @@ import type {
   MergedPlugin,
   PluginListResponse,
 } from '../../../../shared/types';
+import { toErrorMessage } from '../../../../shared/errorUtils';
 
 /** workspace folder 資訊 */
 export interface WorkspaceFolder {
@@ -158,7 +159,7 @@ export function usePluginData(): UsePluginDataReturn {
         setWorkspaceFolders(workspaceResult.value);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import { type Dispatch, type SetStateAction, useCallback, useRef, useState } from 'react';
 import { sendRequest } from '../../../vscode';
 import type { MergedPlugin, PluginScope } from '../../../../shared/types';
+import { toErrorMessage } from '../../../../shared/errorUtils';
 import {
   isPluginInstalled,
   isPluginEnabled,
@@ -153,7 +154,7 @@ export function usePluginOperations(
       addToast(`${enable ? 'Enabled' : 'Disabled'} ${pluginId}`);
     } catch (e) {
       setInstallError({
-        message: e instanceof Error ? e.message : String(e),
+        message: toErrorMessage(e),
         pluginId,
         scope,
         enable,
@@ -173,7 +174,7 @@ export function usePluginOperations(
       await fetchAll(false);
       addToast(`Updated ${pluginId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   }, [setError, fetchAll, addToast]);
 
@@ -198,7 +199,7 @@ export function usePluginOperations(
         try {
           await sendRequest({ type: 'plugin.update', plugin: p.id, scope });
         } catch (e) {
-          errors.push({ pluginId: p.id, scope, message: e instanceof Error ? e.message : String(e) });
+          errors.push({ pluginId: p.id, scope, message: toErrorMessage(e) });
         }
       }
     }
@@ -243,7 +244,7 @@ export function usePluginOperations(
             await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
           }
         } catch (e) {
-          errors.push({ marketplace, pluginId: plugin.id, message: e instanceof Error ? e.message : String(e) });
+          errors.push({ marketplace, pluginId: plugin.id, message: toErrorMessage(e) });
         }
       }
     } finally {
@@ -292,7 +293,7 @@ export function usePluginOperations(
         try {
           await sendRequest({ type: 'plugin.disable', plugin: ops[i].plugin.id, scope: ops[i].scope });
         } catch (e) {
-          errors.push({ marketplace, pluginId: ops[i].plugin.id, message: e instanceof Error ? e.message : String(e) });
+          errors.push({ marketplace, pluginId: ops[i].plugin.id, message: toErrorMessage(e) });
         }
       }
     } finally {
@@ -316,7 +317,7 @@ export function usePluginOperations(
     try {
       await sendRequest({ type: 'plugin.export' });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 
@@ -338,7 +339,7 @@ export function usePluginOperations(
       await fetchAll(false);
       if (failMsg) setError(failMsg);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 

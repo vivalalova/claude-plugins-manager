@@ -1,6 +1,5 @@
-import { type Dispatch, type RefObject, type SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { sendRequest, getViewState, setViewState, setGlobalState, initGlobalState } from '../../../vscode';
-import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { collectPluginTexts, computeTranslateFingerprint, runConcurrent } from '../translateUtils';
 import type { TranslateResult } from '../../../../extension/services/TranslationService';
 import type { MergedPlugin } from '../../../../shared/types';
@@ -28,14 +27,10 @@ export interface UseTranslationReturn {
   draftEmail: string;
   /** 設定草稿 email */
   setDraftEmail: Dispatch<SetStateAction<string>>;
-  /** dialog title 的 aria id */
-  translateTitleId: string;
   /** email input 的 aria id */
   translateEmailId: string;
   /** language select 的 aria id */
   translateLangId: string;
-  /** focus trap ref（掛在 dialog 上） */
-  translateTrapRef: RefObject<HTMLDivElement | null>;
   /** 排隊等待翻譯的文字集合 */
   queuedTexts: Set<string>;
   /** 正在翻譯中的文字集合 */
@@ -68,10 +63,8 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftLang, setDraftLang] = useState('');
   const [draftEmail, setDraftEmail] = useState('');
-  const translateTitleId = useId();
   const translateEmailId = useId();
   const translateLangId = useId();
-  const translateTrapRef = useFocusTrap(() => setDialogOpen(false), dialogOpen);
   const [queuedTexts, setQueuedTexts] = useState<Set<string>>(new Set());
   const [activeTexts, setActiveTexts] = useState<Set<string>>(new Set());
   const [translateWarning, setTranslateWarning] = useState<string | null>(null);
@@ -217,10 +210,8 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
     setDraftLang,
     draftEmail,
     setDraftEmail,
-    translateTitleId,
     translateEmailId,
     translateLangId,
-    translateTrapRef,
     queuedTexts,
     activeTexts,
     translateWarning,

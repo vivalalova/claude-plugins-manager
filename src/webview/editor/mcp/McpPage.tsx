@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
+import { toErrorMessage } from '../../../shared/errorUtils';
 import { McpCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, ServerIcon } from '../../components/EmptyState';
 import { JsonHighlight } from '../../components/JsonHighlight';
@@ -69,7 +70,7 @@ export function McpPage(): React.ReactElement {
       const data = await sendRequest<McpServer[]>({ type: 'mcp.list' });
       setServers(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -129,7 +130,7 @@ export function McpPage(): React.ReactElement {
       await fetchList();
       addToast('MCP server removed');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setRemovingServer(null);
     }
@@ -141,7 +142,7 @@ export function McpPage(): React.ReactElement {
       const detail = await sendRequest<string>({ type: 'mcp.getDetail', name });
       setDetailText(typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 
@@ -151,7 +152,7 @@ export function McpPage(): React.ReactElement {
       await sendRequest({ type: 'mcp.resetProjectChoices' });
       await fetchList();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 
@@ -163,7 +164,7 @@ export function McpPage(): React.ReactElement {
       const data = await sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000);
       setServers(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setRetrying(false);
     }
@@ -186,7 +187,7 @@ export function McpPage(): React.ReactElement {
         }));
       }
     } catch (e) {
-      setTestErrors((prev) => ({ ...prev, [serverKey]: e instanceof Error ? e.message : String(e) }));
+      setTestErrors((prev) => ({ ...prev, [serverKey]: toErrorMessage(e) }));
     } finally {
       setTestingServer(null);
     }
@@ -199,7 +200,7 @@ export function McpPage(): React.ReactElement {
       await sendRequest({ type: 'mcp.restartPolling' });
     } catch (e) {
       setPollUnavailable(true);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 

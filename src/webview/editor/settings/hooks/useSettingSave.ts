@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useToast } from '../../../components/Toast';
+import { toErrorMessage } from '../../../../shared/errorUtils';
 
 /**
  * Encapsulates the common saving pattern: setSaving(true) → try → catch(addToast) → finally(setSaving(false)).
@@ -17,7 +18,7 @@ export function useSettingSave(): {
     try {
       return await fn();
     } catch (e) {
-      addToast(e instanceof Error ? e.message : String(e), 'error');
+      addToast(toErrorMessage(e), 'error');
       return undefined;
     } finally {
       setSaving(false);

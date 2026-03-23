@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
+import { toErrorMessage } from '../../../../shared/errorUtils';
 import type { ClaudeSettings } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
 import { useSettingSave } from '../hooks/useSettingSave';
@@ -192,7 +193,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     }
     let parsed: unknown;
     try { parsed = JSON.parse(trimmed); } catch (e) {
-      setJsonError(t('settings.advanced.sandbox.invalidJson' as Parameters<typeof t>[0], { error: e instanceof Error ? e.message : String(e) }));
+      setJsonError(t('settings.advanced.sandbox.invalidJson' as Parameters<typeof t>[0], { error: toErrorMessage(e) }));
       return;
     }
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {

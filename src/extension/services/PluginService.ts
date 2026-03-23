@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
@@ -13,6 +12,7 @@ import type {
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { escapeShellArg, getWorkspacePath } from '../utils/workspace';
+import { exportShellScript, importShellScript } from '../utils/scriptIO';
 import { parseShellToken } from '../utils/shellTokenParser';
 
 /**
@@ -194,32 +194,14 @@ export class PluginService {
       throw new Error('No enabled plugins to export.');
     }
 
-    const lines = [
-      '#!/bin/bash',
-      '# Claude Code Plugin Setup',
-      `# Exported ${enabledEntries.length} plugin(s)`,
-      '',
-    ];
-    for (const p of enabledEntries) {
-      const escaped = escapeShellArg(p.id);
-      lines.push(`claude plugin install '${escaped}' --scope ${p.scope}`);
-    }
-
-    const uri = await vscode.window.showSaveDialog({
-      defaultUri: vscode.Uri.file('claude-plugins.sh'),
-      filters: { 'Shell Script': ['sh'] },
+    await exportShellScript({
+      defaultFilename: 'claude-plugins.sh',
+      header: '# Claude Code Plugin Setup',
+      count: enabledEntries.length,
+      lines: enabledEntries.map((p) =>
+        `claude plugin install '${escapeShellArg(p.id)}' --scope ${p.scope}`,
+      ),
     });
-    if (!uri) {
-      return;
-    }
-
-    await vscode.workspace.fs.writeFile(
-      uri,
-      Buffer.from(lines.join('\n') + '\n'),
-    );
-    vscode.window.showInformationMessage(
-      `Exported ${enabledEntries.length} plugin(s) to ${uri.fsPath}`,
-    );
   }
 
   /**
@@ -228,68 +210,27 @@ export class PluginService {
    * 回傳每個 plugin 的結果摘要。
    */
   async importScript(): Promise<string[]> {
-    const uris = await vscode.window.showOpenDialog({
-      canSelectFiles: true,
-      canSelectMany: false,
-      filters: {
-        'Shell Script': ['sh'],
-        'All Files': ['*'],
+    const VALID_SCOPES = new Set<PluginScope>(['user', 'project', 'local']);
+
+    return importShellScript({
+      prefix: 'claude plugin install ',
+      emptyMessage: 'No "claude plugin install" commands found in the file.',
+      parseLine: (token, rest) => {
+        let rawScope = 'user';
+        const scopeMatch = rest.trim().match(/^--scope(?:=|\s+)(.*)/);
+        if (scopeMatch) {
+          try {
+            const parsedScope = parseShellToken(scopeMatch[1].trim());
+            rawScope = parsedScope?.token ?? 'user';
+          } catch { /* malformed scope → fallback user */ }
+        }
+        const scope: PluginScope = VALID_SCOPES.has(rawScope as PluginScope) ? (rawScope as PluginScope) : 'user';
+        return {
+          label: `Installed: ${token} (${scope})`,
+          execute: () => this.install(token, scope),
+        };
       },
     });
-    if (!uris || uris.length === 0) {
-      return [];
-    }
-
-    const rawFile = await vscode.workspace.fs.readFile(uris[0]);
-    const content = Buffer.from(rawFile).toString('utf-8');
-
-    const VALID_SCOPES = new Set<PluginScope>(['user', 'project', 'local']);
-    const entries: Array<{ plugin: string; scope: PluginScope }> = [];
-    const prefix = 'claude plugin install ';
-
-    for (const rawLine of content.split('\n')) {
-      const line = rawLine.trim();
-      if (!line.startsWith(prefix)) continue;
-
-      let parsedPlugin;
-      try {
-        parsedPlugin = parseShellToken(line.slice(prefix.length).trim());
-      } catch {
-        continue; // skip malformed plugin token
-      }
-      if (!parsedPlugin) continue;
-      const plugin = parsedPlugin.token;
-
-      let rawScope = 'user';
-      const rest = parsedPlugin.rest.trim();
-      const scopeMatch = rest.match(/^--scope(?:=|\s+)(.*)/);
-      if (scopeMatch) {
-        try {
-          const parsedScope = parseShellToken(scopeMatch[1].trim());
-          rawScope = parsedScope?.token ?? 'user';
-        } catch {
-          // malformed scope value → fallback user
-        }
-      }
-
-      const scope: PluginScope = VALID_SCOPES.has(rawScope as PluginScope) ? (rawScope as PluginScope) : 'user';
-      entries.push({ plugin, scope });
-    }
-
-    if (entries.length === 0) {
-      throw new Error('No "claude plugin install" commands found in the file.');
-    }
-
-    const results: string[] = [];
-    for (const entry of entries) {
-      try {
-        await this.install(entry.plugin, entry.scope);
-        results.push(`Installed: ${entry.plugin} (${entry.scope})`);
-      } catch (e) {
-        results.push(`Failed: ${entry.plugin} (${entry.scope}) — ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-    return results;
   }
 
   /** 更新 plugin（保留 CLI — 需 git pull + re-cache） */

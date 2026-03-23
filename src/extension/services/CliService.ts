@@ -1,8 +1,9 @@
-import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { CLI_TIMEOUT_MS, CLI_MAX_RETRIES, CLI_BASE_BACKOFF_MS, CLI_RETRYABLE_CODES } from '../constants';
+import { spawnWithTimeout } from '../utils/spawnRunner';
+import type { SpawnError } from '../utils/spawnRunner';
 /** CLI 執行錯誤 */
 export class CliError extends Error {
   constructor(
@@ -15,8 +16,6 @@ export class CliError extends Error {
     this.name = 'CliError';
   }
 }
- 
-const MAX_STDIO_BUFFER_BYTES = 10 * 1024 * 1024;
 
 /** CLI 執行選項 */
 export interface CliExecOptions {
@@ -24,15 +23,6 @@ export interface CliExecOptions {
   timeout?: number;
   /** 工作目錄（project scope 操作需要） */
   cwd?: string;
-}
-
-/** execFile 錯誤的型別（Node.js child_process） */
-interface ExecError {
-  code?: string | number;
-  killed?: boolean;
-  exitCode?: number | null;
-  stderr?: string;
-  message?: string;
 }
 
 /**
@@ -133,7 +123,7 @@ export class CliService {
    * ENOENT（CLI 找不到）和非零 exit code（CLI 正常執行但回報錯誤）不重試。
    */
   static isRetryable(error: unknown): boolean {
-    const err = error as ExecError;
+    const err = error as SpawnError;
     // killed 優先：process 被 timeout kill 時可能同時帶 exitCode
     if (err.killed === true) return true;
     if (err.code === 'ENOENT') return false;
@@ -146,112 +136,25 @@ export class CliService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private runCommand(
+  private async runCommand(
     args: string[],
     env: NodeJS.ProcessEnv,
     cwd: string | undefined,
     timeout: number,
   ): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const child = spawn(this.claudePath, args, {
-        cwd,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-
-      let stdout = '';
-      let stderr = '';
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      let settled = false;
-      let timedOut = false;
-
-      const finishResolve = (value: string): void => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        resolve(value.trim());
-      };
-
-      const finishReject = (error: ExecError): void => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        reject(error);
-      };
-
-      const appendChunk = (stream: 'stdout' | 'stderr', chunk: Buffer | string): void => {
-        const text = typeof chunk === 'string' ? chunk : chunk.toString();
-        const bytes = Buffer.byteLength(text);
-
-        if (stream === 'stdout') {
-          stdoutBytes += bytes;
-          if (stdoutBytes > MAX_STDIO_BUFFER_BYTES) {
-            child.kill('SIGTERM');
-            finishReject({ code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', message: 'stdout maxBuffer length exceeded', stderr });
-            return;
-          }
-          stdout += text;
-          return;
-        }
-
-        stderrBytes += bytes;
-        if (stderrBytes > MAX_STDIO_BUFFER_BYTES) {
-          child.kill('SIGTERM');
-          finishReject({ code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER', message: 'stderr maxBuffer length exceeded', stderr });
-          return;
-        }
-        stderr += text;
-      };
-
-      child.stdout.on('data', (chunk) => appendChunk('stdout', chunk));
-      child.stderr.on('data', (chunk) => appendChunk('stderr', chunk));
-
-      child.on('error', (error: NodeJS.ErrnoException) => {
-        finishReject({
-          code: error.code,
-          killed: child.killed,
-          stderr,
-          message: error.message,
-        });
-      });
-
-      child.on('close', (code, signal) => {
-        if (settled) return;
-        if (timedOut) {
-          finishReject({ killed: true, code: 'ETIMEDOUT', stderr, message: `Command timed out after ${timeout}ms` });
-          return;
-        }
-        if (signal) {
-          finishReject({
-            killed: true,
-            code: signal,
-            stderr,
-            message: stderr || `Command terminated by signal ${signal}`,
-          });
-          return;
-        }
-        if (code === 0) {
-          finishResolve(stdout);
-          return;
-        }
-        finishReject({
-          exitCode: code ?? null,
-          stderr,
-          message: stderr || `Command failed with exit code ${code ?? 'unknown'}`,
-        });
-      });
-
-      const timeoutId = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-      }, timeout);
+    const result = await spawnWithTimeout({
+      command: this.claudePath,
+      args,
+      env,
+      cwd,
+      timeout,
     });
+    return result.stdout;
   }
 
   /** 將原始 execFile 錯誤轉換為 CliError */
   private toCliError(error: unknown, command: string, timeout: number): CliError {
-    const err = error as ExecError;
+    const err = error as SpawnError;
 
     if (err.code === 'ENOENT') {
       return new CliError(

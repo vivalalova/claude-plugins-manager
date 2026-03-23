@@ -20,8 +20,6 @@ export interface PluginDialogsProps {
 
   // TranslateDialog
   dialogOpen: boolean;
-  trapRef: React.RefObject<HTMLDivElement | null>;
-  titleId: string;
   emailId: string;
   langId: string;
   draftEmail: string;
@@ -42,8 +40,6 @@ export function PluginDialogs({
   showHelp,
   onHelpClose,
   dialogOpen,
-  trapRef,
-  titleId,
   emailId,
   langId,
   draftEmail,
@@ -71,8 +67,6 @@ export function PluginDialogs({
 
       {dialogOpen && (
         <TranslateDialog
-          trapRef={trapRef}
-          titleId={titleId}
           emailId={emailId}
           langId={langId}
           draftEmail={draftEmail}

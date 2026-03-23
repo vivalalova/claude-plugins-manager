@@ -4,6 +4,7 @@ import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import type { ExtensionInfo } from '../../../shared/types';
+import { toErrorMessage } from '../../../shared/errorUtils';
 import './InfoPage.css';
 
 export function InfoPage(): React.ReactElement {
@@ -18,7 +19,7 @@ export function InfoPage(): React.ReactElement {
   useEffect(() => {
     sendRequest<ExtensionInfo>({ type: 'extension.getInfo' })
       .then(setInfo)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => setError(toErrorMessage(e)))
       .finally(() => setLoading(false));
   }, []);
 

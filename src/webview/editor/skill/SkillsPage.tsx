@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest, onPushMessage, getViewState, setViewState, setGlobalState, initGlobalState } from '../../vscode';
+import { toErrorMessage } from '../../../shared/errorUtils';
 import { SkillCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, SkillIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -85,7 +86,7 @@ export function SkillsPage(): React.ReactElement {
       const data = await sendRequest<AgentSkill[]>({ type: 'skill.list' });
       setSkills(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -118,7 +119,7 @@ export function SkillsPage(): React.ReactElement {
     setOnlineError(null);
     sendRequest<SkillSearchResult[]>({ type: 'skill.find', query })
       .then((results) => { if (searchIdRef.current === id) setOnlineResults(results); })
-      .catch((e) => { if (searchIdRef.current === id) setOnlineError(e instanceof Error ? e.message : String(e)); })
+      .catch((e) => { if (searchIdRef.current === id) setOnlineError(toErrorMessage(e)); })
       .finally(() => { if (searchIdRef.current === id) setOnlineLoading(false); });
   }, [debouncedSearch, pageTab]);
 
@@ -146,7 +147,7 @@ export function SkillsPage(): React.ReactElement {
           registryCacheRef.current.set(cacheKey, results);
         }
       })
-      .catch((e) => { if (searchIdRef.current === id) setRegistryError(e instanceof Error ? e.message : String(e)); })
+      .catch((e) => { if (searchIdRef.current === id) setRegistryError(toErrorMessage(e)); })
       .finally(() => { if (searchIdRef.current === id) setRegistryLoading(false); });
   }, [debouncedSearch, registrySort, pageTab]);
 
@@ -205,7 +206,7 @@ export function SkillsPage(): React.ReactElement {
         addToast(t('skill.search.installDone').replace('{source}', source), 'success');
       }
     } catch (e) {
-      addToast(t('skill.error.add') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+      addToast(t('skill.error.add') + ': ' + (toErrorMessage(e)), 'error');
     } finally {
       setAddingSkill(false);
     }
@@ -220,7 +221,7 @@ export function SkillsPage(): React.ReactElement {
       registryCacheRef.current.clear();
       await fetchList();
     } catch (e) {
-      addToast(t('skill.error.remove') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+      addToast(t('skill.error.remove') + ': ' + (toErrorMessage(e)), 'error');
     } finally {
       setRemovingSkills((prev) => { const next = new Set(prev); next.delete(key); return next; });
     }
@@ -251,7 +252,7 @@ export function SkillsPage(): React.ReactElement {
         setCheckResult(result);
       }
     } catch (e) {
-      addToast(t('skill.check.error') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+      addToast(t('skill.check.error') + ': ' + (toErrorMessage(e)), 'error');
     } finally {
       setChecking(false);
     }
@@ -266,7 +267,7 @@ export function SkillsPage(): React.ReactElement {
       await fetchList();
       addToast(t('skill.update.done'), 'success');
     } catch (e) {
-      addToast(t('skill.update.error') + ': ' + (e instanceof Error ? e.message : String(e)), 'error');
+      addToast(t('skill.update.error') + ': ' + (toErrorMessage(e)), 'error');
     } finally {
       setUpdating(false);
     }

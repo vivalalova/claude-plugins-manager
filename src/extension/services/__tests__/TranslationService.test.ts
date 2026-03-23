@@ -57,8 +57,9 @@ describe('TranslationService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // 預設無 cache 檔案
-    mockReadFile.mockRejectedValue(new Error('ENOENT'));
+    // 預設無 cache 檔案（readJsonFile 依 err.code === 'ENOENT' 判斷）
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    mockReadFile.mockRejectedValue(enoent);
     mockWriteFile.mockResolvedValue(undefined);
     mockMkdir.mockResolvedValue(undefined);
     service = new TranslationService('/tmp/test-cache');
@@ -196,7 +197,7 @@ describe('TranslationService', () => {
       mockReadFile.mockResolvedValue(JSON.stringify(existingCache));
 
       // 建立新的 service 使其重新載入 cache
-      const svc = new TranslationService();
+      const svc = new TranslationService('/tmp/test-cache');
       mockFetchResponse('[1] 新翻譯');
       const { translations } = await svc.translate(['other text'], 'zh-TW');
 

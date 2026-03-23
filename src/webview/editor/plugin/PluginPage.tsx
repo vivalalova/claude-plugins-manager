@@ -94,10 +94,8 @@ export function PluginPage(): React.ReactElement {
     setDraftLang,
     draftEmail,
     setDraftEmail,
-    translateTitleId,
     translateEmailId,
     translateLangId,
-    translateTrapRef,
     queuedTexts,
     activeTexts,
     translateWarning,
@@ -368,8 +366,6 @@ export function PluginPage(): React.ReactElement {
         showHelp={showHelp}
         onHelpClose={() => setShowHelp(false)}
         dialogOpen={dialogOpen}
-        trapRef={translateTrapRef}
-        titleId={translateTitleId}
         emailId={translateEmailId}
         langId={translateLangId}
         draftEmail={draftEmail}

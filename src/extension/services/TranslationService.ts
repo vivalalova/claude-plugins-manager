@@ -1,7 +1,9 @@
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { createHash } from 'crypto';
 import { TRANSLATE_LANGS } from '../../shared/types';
+import { WriteQueue } from '../utils/WriteQueue';
+import { readJsonFile } from '../utils/jsonFile';
 
 /** MyMemory API timeout（毫秒） */
 const API_TIMEOUT_MS = 15_000;
@@ -38,7 +40,7 @@ export interface TranslateResult {
  */
 export class TranslationService {
   private cache: TranslationCache | null = null;
-  private pendingSave: Promise<void> = Promise.resolve();
+  private readonly pendingSave = new WriteQueue();
   private dirCreated = false;
 
   constructor(private readonly cacheDir: string) {}
@@ -47,7 +49,7 @@ export class TranslationService {
   invalidateCache(): void {
     this.cache = null;
     this.dirCreated = false;
-    this.pendingSave = Promise.resolve();
+    this.pendingSave.reset();
   }
 
   /**
@@ -238,25 +240,23 @@ export class TranslationService {
   /** 載入 cache */
   private async loadCache(): Promise<TranslationCache> {
     if (this.cache) return this.cache;
-    try {
-      const raw = await readFile(this.cachePath(), 'utf-8');
-      this.cache = JSON.parse(raw) as TranslationCache;
-    } catch {
-      this.cache = { version: 1, entries: {} };
-    }
+    this.cache = await readJsonFile<TranslationCache>(this.cachePath(), { version: 1, entries: {} });
     return this.cache;
   }
 
-  /** 儲存 cache（排隊寫入，避免並發損壞檔案） */
+  /** 儲存 cache（排隊寫入，避免並發損壞檔案；寫入失敗不影響主流程） */
   private saveCache(cache: TranslationCache): Promise<void> {
-    this.pendingSave = this.pendingSave.then(async () => {
-      if (!this.dirCreated) {
-        await mkdir(this.cacheDir, { recursive: true });
-        this.dirCreated = true;
+    return this.pendingSave.enqueue(async () => {
+      try {
+        if (!this.dirCreated) {
+          await mkdir(this.cacheDir, { recursive: true });
+          this.dirCreated = true;
+        }
+        await writeFile(this.cachePath(), JSON.stringify(cache, null, 2));
+      } catch {
+        // 寫入失敗不影響主流程
       }
-      await writeFile(this.cachePath(), JSON.stringify(cache, null, 2));
-    }).catch(() => { /* 寫入失敗不影響主流程 */ });
-    return this.pendingSave;
+    });
   }
 
   /** Cache 檔案路徑 */

@@ -2,6 +2,7 @@ import type { Memento } from 'vscode';
 import { readFile, rm, readdir, rmdir } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
+import { WriteQueue } from '../utils/WriteQueue';
 
 /** 舊版 preferences.json 路徑 */
 const OLD_PREFS_DIR = join(homedir(), '.claude', 'claude-plugins-manager');
@@ -14,7 +15,7 @@ const MIGRATED_KEY = '_preferences_migrated';
  */
 export class PreferencesService {
   private static readonly STATE_KEY = 'preferences';
-  private writeQueue: Promise<void> = Promise.resolve();
+  private readonly writeQueue = new WriteQueue();
 
   constructor(private readonly state: Memento) {}
 
@@ -25,13 +26,11 @@ export class PreferencesService {
 
   /** 寫入單一 UI 偏好 key（序列化避免併發覆蓋） */
   async write(key: string, value: unknown): Promise<void> {
-    const task = this.writeQueue.then(async () => {
+    return this.writeQueue.enqueue(async () => {
       const prefs = this.readAll();
       prefs[key] = value;
       await this.state.update(PreferencesService.STATE_KEY, prefs);
     });
-    this.writeQueue = task.catch(() => {});
-    return task;
   }
 
   /**

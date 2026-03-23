@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useId } from 'react';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { DialogOverlay } from '../../components/DialogOverlay';
 import type { SkillScope } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 import { ALL_AGENTS } from './agents';
@@ -32,7 +32,6 @@ export function AddSkillDialog({
   const [showAllAgents, setShowAllAgents] = useState(false);
   const [validationError, setValidationError] = useState('');
   const titleId = useId();
-  const trapRef = useFocusTrap(onClose, open);
 
   // cachedAgents 變更時同步（例如 viewState 恢復）
   useEffect(() => {
@@ -72,114 +71,93 @@ export function AddSkillDialog({
     onSubmit(trimmed, scope, [...agents]);
   };
 
-  const handleOverlayDismiss = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-  ): void => {
-    if (e.target !== e.currentTarget) return;
-    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
-    onClose();
-  };
-
   return (
-    <div
-      className="confirm-overlay"
-      onClick={handleOverlayDismiss}
-      onKeyDown={handleOverlayDismiss}
-      tabIndex={0}
-    >
-      <div
-        ref={trapRef}
-        className="confirm-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className="confirm-dialog-title" id={titleId}>{t('skill.add.title')}</div>
+    <DialogOverlay titleId={titleId} onClose={onClose}>
+      <div className="confirm-dialog-title" id={titleId}>{t('skill.add.title')}</div>
 
-        <div className="skill-dialog-field">
-          <label htmlFor="skill-source" className="skill-dialog-label">
-            {t('skill.add.source')}
+      <div className="skill-dialog-field">
+        <label htmlFor="skill-source" className="skill-dialog-label">
+          {t('skill.add.source')}
+        </label>
+        <input
+          id="skill-source"
+          type="text"
+          className="search-bar skill-dialog-input"
+          placeholder={t('skill.add.sourcePlaceholder')}
+          value={source}
+          onChange={(e) => { setSource(e.target.value); setValidationError(''); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+          autoFocus
+        />
+        {validationError && (
+          <div className="skill-dialog-error">{validationError}</div>
+        )}
+      </div>
+
+      <div className="skill-dialog-field">
+        <label className="skill-dialog-label">
+          {t('skill.add.scope')}
+        </label>
+        <div className="skill-dialog-radio-group">
+          <label className="skill-dialog-radio">
+            <input
+              type="radio"
+              name="skill-scope"
+              checked={scope === 'global'}
+              onChange={() => setScope('global')}
+            />
+            {t('skill.add.scopeGlobal')}
           </label>
-          <input
-            id="skill-source"
-            type="text"
-            className="search-bar skill-dialog-input"
-            placeholder={t('skill.add.sourcePlaceholder')}
-            value={source}
-            onChange={(e) => { setSource(e.target.value); setValidationError(''); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-            autoFocus
-          />
-          {validationError && (
-            <div className="skill-dialog-error">{validationError}</div>
-          )}
-        </div>
-
-        <div className="skill-dialog-field">
-          <label className="skill-dialog-label">
-            {t('skill.add.scope')}
+          <label className={`skill-dialog-radio${!hasWorkspace ? ' skill-dialog-radio--disabled' : ''}`}>
+            <input
+              type="radio"
+              name="skill-scope"
+              checked={scope === 'project'}
+              onChange={() => setScope('project')}
+              disabled={!hasWorkspace}
+            />
+            {t('skill.add.scopeProject')}
           </label>
-          <div className="skill-dialog-radio-group">
-            <label className="skill-dialog-radio">
-              <input
-                type="radio"
-                name="skill-scope"
-                checked={scope === 'global'}
-                onChange={() => setScope('global')}
-              />
-              {t('skill.add.scopeGlobal')}
-            </label>
-            <label className={`skill-dialog-radio${!hasWorkspace ? ' skill-dialog-radio--disabled' : ''}`}>
-              <input
-                type="radio"
-                name="skill-scope"
-                checked={scope === 'project'}
-                onChange={() => setScope('project')}
-                disabled={!hasWorkspace}
-              />
-              {t('skill.add.scopeProject')}
-            </label>
-          </div>
-        </div>
-
-        <div className="skill-dialog-field">
-          <label className="skill-dialog-label">
-            {t('skill.add.agents')}
-          </label>
-          <div className="skill-dialog-hint">
-            {t('skill.add.agentsHint')}
-          </div>
-          <div className="skill-dialog-agents-grid">
-            {ALL_AGENTS.filter((a) => a.visible || showAllAgents).map((a) => (
-              <label key={a.name} className="skill-dialog-agent-label">
-                <input
-                  type="checkbox"
-                  checked={agents.has(a.name)}
-                  onChange={() => toggleAgent(a.name)}
-                />
-                {a.label}
-              </label>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="skill-dialog-toggle-link"
-            onClick={() => setShowAllAgents((p) => !p)}
-          >
-            {showAllAgents ? t('skill.add.agentsShowLess') : t('skill.add.agentsShowAll')}
-          </button>
-        </div>
-
-        <div className="confirm-dialog-actions">
-          <button className="btn btn-secondary" onClick={onClose} disabled={adding}>
-            {t('skill.add.cancel')}
-          </button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={adding}>
-            {adding ? t('skill.page.adding') : t('skill.add.confirm')}
-          </button>
         </div>
       </div>
-    </div>
+
+      <div className="skill-dialog-field">
+        <label className="skill-dialog-label">
+          {t('skill.add.agents')}
+        </label>
+        <div className="skill-dialog-hint">
+          {t('skill.add.agentsHint')}
+        </div>
+        <div className="skill-dialog-agents-grid">
+          {ALL_AGENTS.filter((a) => a.visible || showAllAgents).map((a) => (
+            <label key={a.name} className="skill-dialog-agent-label">
+              <input
+                type="checkbox"
+                checked={agents.has(a.name)}
+                onChange={() => toggleAgent(a.name)}
+              />
+              {a.label}
+            </label>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="skill-dialog-toggle-link"
+          onClick={() => setShowAllAgents((p) => !p)}
+        >
+          {showAllAgents ? t('skill.add.agentsShowLess') : t('skill.add.agentsShowAll')}
+        </button>
+      </div>
+
+      <div className="confirm-dialog-actions">
+        <button className="btn btn-secondary" onClick={onClose} disabled={adding}>
+          {t('skill.add.cancel')}
+        </button>
+        <button className="btn btn-primary" onClick={handleSubmit} disabled={adding}>
+          {adding ? t('skill.page.adding') : t('skill.add.confirm')}
+        </button>
+      </div>
+    </DialogOverlay>
   );
 }
 

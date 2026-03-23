@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 import type { PluginScope } from '../../../shared/types';
 import type { WorkspaceFolder } from './hooks/usePluginData';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { DialogOverlay } from '../../components/DialogOverlay';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface BulkEnableScopeDialogProps {
@@ -29,54 +29,32 @@ export function BulkEnableScopeDialog({
 }: BulkEnableScopeDialogProps): React.ReactElement {
   const { t } = useI18n();
   const titleId = useId();
-  const containerRef = useFocusTrap(onCancel);
-  const handleOverlayDismiss = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-  ): void => {
-    if (e.target !== e.currentTarget) return;
-    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
-    if ('preventDefault' in e) e.preventDefault();
-    onCancel();
-  };
 
   return (
-    <div
-      className="confirm-overlay"
-      onClick={handleOverlayDismiss}
-      onKeyDown={handleOverlayDismiss}
-      tabIndex={0}
-    >
-      <div
-        ref={containerRef}
-        className="confirm-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className="confirm-dialog-title" id={titleId}>
-          {t('bulk.title', { marketplace })}
-        </div>
-        <div className="confirm-dialog-message">
-          {t('bulk.message', { count: itemCount })}
-        </div>
-        <div className="scope-checkboxes" style={{ marginBottom: 16 }}>
-          {(['user', 'project', 'local'] as const)
-            .filter((s) => s === 'user' || workspaceFolders.length > 0)
-            .map((s) => (
-              <button
-                key={s}
-                className={`filter-chip${scope === s ? ' filter-chip--active' : ''}`}
-                onClick={() => onScopeChange(s)}
-              >
-                {s === 'user' ? t('bulk.scopeUser') : s === 'project' ? t('bulk.scopeProject') : t('bulk.scopeLocal')}
-              </button>
-            ))}
-        </div>
-        <div className="confirm-dialog-actions">
-          <button className="btn btn-secondary" onClick={onCancel}>{t('bulk.cancel')}</button>
-          <button className="btn btn-primary" onClick={onConfirm}>{t('bulk.confirm')}</button>
-        </div>
+    <DialogOverlay titleId={titleId} onClose={onCancel}>
+      <div className="confirm-dialog-title" id={titleId}>
+        {t('bulk.title', { marketplace })}
       </div>
-    </div>
+      <div className="confirm-dialog-message">
+        {t('bulk.message', { count: itemCount })}
+      </div>
+      <div className="scope-checkboxes" style={{ marginBottom: 16 }}>
+        {(['user', 'project', 'local'] as const)
+          .filter((s) => s === 'user' || workspaceFolders.length > 0)
+          .map((s) => (
+            <button
+              key={s}
+              className={`filter-chip${scope === s ? ' filter-chip--active' : ''}`}
+              onClick={() => onScopeChange(s)}
+            >
+              {s === 'user' ? t('bulk.scopeUser') : s === 'project' ? t('bulk.scopeProject') : t('bulk.scopeLocal')}
+            </button>
+          ))}
+      </div>
+      <div className="confirm-dialog-actions">
+        <button className="btn btn-secondary" onClick={onCancel}>{t('bulk.cancel')}</button>
+        <button className="btn btn-primary" onClick={onConfirm}>{t('bulk.confirm')}</button>
+      </div>
+    </DialogOverlay>
   );
 }
