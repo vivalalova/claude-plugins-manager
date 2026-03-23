@@ -213,7 +213,7 @@ describe('HooksSection — disableAllHooks toggle', () => {
     });
   });
 
-  it('toggle on→off → 呼叫 onSave("disableAllHooks", false)', async () => {
+  it('toggle on→off → 值等於 default，呼叫 onDelete("disableAllHooks")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ disableAllHooks: true }, onSave, onDelete);
@@ -222,7 +222,8 @@ describe('HooksSection — disableAllHooks toggle', () => {
     fireEvent.click(screen.getByRole('checkbox'));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('disableAllHooks', false);
+      expect(onDelete).toHaveBeenCalledWith('disableAllHooks');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 

@@ -230,7 +230,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
   });
 
-  it('toggle on→off → 呼叫 onSave("fastMode", false)', async () => {
+  it('toggle on→off → 值等於 default，呼叫 onDelete("fastMode")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ fastMode: true }, onSave, onDelete);
@@ -239,8 +239,8 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Fast Mode' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('fastMode', false);
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith('fastMode');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 
@@ -309,7 +309,7 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
   });
 
-  it('fastModePerSessionOptIn=true, toggle off → onSave("fastModePerSessionOptIn", false)', async () => {
+  it('fastModePerSessionOptIn=true, toggle off → 值等於 default，呼叫 onDelete', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ fastModePerSessionOptIn: true }, onSave, onDelete);
@@ -318,8 +318,8 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('fastModePerSessionOptIn', false);
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith('fastModePerSessionOptIn');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });
@@ -478,15 +478,17 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     });
   });
 
-  it('autoUpdatesChannel 未設定, 選擇 latest → onSave("autoUpdatesChannel", "latest")', async () => {
+  it('autoUpdatesChannel 未設定, 選擇 latest（=default）→ onDelete("autoUpdatesChannel")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
 
     await waitFor(() => screen.getByRole('combobox', { name: 'Auto Updates Channel' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Auto Updates Channel' }), { target: { value: 'latest' } });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('autoUpdatesChannel', 'latest');
+      expect(onDelete).toHaveBeenCalledWith('autoUpdatesChannel');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 

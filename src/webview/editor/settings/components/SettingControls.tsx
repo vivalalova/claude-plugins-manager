@@ -108,7 +108,12 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
   const resetLabel = t('settings.common.reset');
 
   const handleChange = (): void => {
-    void withSave(() => onSave(settingKey, !checked));
+    const newVal = !checked;
+    void withSave(() =>
+      defaultValue !== undefined && newVal === defaultValue
+        ? onDelete(settingKey)
+        : onSave(settingKey, newVal),
+    );
   };
 
   const handleReset = (): void => {
@@ -187,7 +192,7 @@ export function EnumDropdown({
   const handleChange = (val: string): void => {
     if (val === '__unknown__') return;
     void withSave(async () => {
-      if (val === '') {
+      if (val === '' || (defaultValue !== undefined && val === defaultValue)) {
         await onDelete(settingKey);
       } else {
         await onSave(settingKey, val);
@@ -280,8 +285,9 @@ export function TextSetting({
   const handleSave = (): void => {
     void withSave(async () => {
       const trimmed = inputValue.trim();
-      if (!trimmed) {
+      if (!trimmed || (defaultValue !== undefined && trimmed === defaultValue)) {
         await onDelete(settingKey);
+        setInputValue('');
       } else {
         await onSave(settingKey, trimmed);
       }
@@ -659,8 +665,9 @@ export function NumberSetting({
   const handleSave = (): void => {
     if (saveDisabled) return;
     void withSave(async () => {
-      if (isEmpty) {
+      if (isEmpty || (defaultValue !== undefined && parsedValue === defaultValue)) {
         await onDelete(settingKey);
+        setInputValue('');
       } else {
         await onSave(settingKey, parsedValue);
       }

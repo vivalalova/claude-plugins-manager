@@ -140,15 +140,15 @@ describe('AdvancedSection — skipWebFetchPreflight toggle', () => {
     });
   });
 
-  it('skipWebFetchPreflight=true, toggle off → onSave("skipWebFetchPreflight", false), onDelete 不呼叫', async () => {
+  it('skipWebFetchPreflight=true, toggle off → 值等於 default，呼叫 onDelete', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ skipWebFetchPreflight: true }, onSave, onDelete);
     const field = screen.getByText('Skip WebFetch Preflight').closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('checkbox'));
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('skipWebFetchPreflight', false);
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith('skipWebFetchPreflight');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 

@@ -181,7 +181,7 @@ describe('DisplaySection — 驗收條件', () => {
     });
   });
 
-  it('prefersReducedMotion=true, 點擊 → onSave("prefersReducedMotion", false)', async () => {
+  it('prefersReducedMotion=true, 點擊 → 值等於 default，呼叫 onDelete', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ prefersReducedMotion: true }, onSave, onDelete);
@@ -190,8 +190,8 @@ describe('DisplaySection — 驗收條件', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Reduce Motion' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('prefersReducedMotion', false);
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith('prefersReducedMotion');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 
