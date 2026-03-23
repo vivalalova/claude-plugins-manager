@@ -21,6 +21,7 @@
 
 .input::placeholder {
   color: var(--vscode-input-placeholderForeground);
+  opacity: 0.5;
 }
 
 .select {
