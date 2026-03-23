@@ -13,6 +13,7 @@ import { AddSkillDialog, RemoveConfirmDialog } from './SkillDialogs';
 import { SkillDetailPanel } from './SkillDetailPanel';
 import { useToast } from '../../components/Toast';
 import { useDebouncedValue } from '../../hooks/useDebounce';
+import { PageHeader } from '../../components/PageHeader';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -343,9 +344,9 @@ export function SkillsPage(): React.ReactElement {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">{t('skill.page.title')}</div>
-        <div className="page-actions">
+      <PageHeader
+        title={t('skill.page.title')}
+        actions={<>
           <button className="btn btn-primary" onClick={() => setShowAddDialog(true)}>
             {t('skill.page.add')}
           </button>
@@ -360,8 +361,8 @@ export function SkillsPage(): React.ReactElement {
           <button className="btn btn-secondary" onClick={fetchList} disabled={loading}>
             {t('skill.page.refresh')}
           </button>
-        </div>
-      </div>
+        </>}
+      />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 

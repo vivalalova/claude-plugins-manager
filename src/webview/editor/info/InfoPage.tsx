@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import type { ExtensionInfo } from '../../../shared/types';
 import { toErrorMessage } from '../../../shared/errorUtils';
 import './InfoPage.css';
+import { PageHeader } from '../../components/PageHeader';
 
 export function InfoPage(): React.ReactElement {
   const { t } = useI18n();
@@ -90,9 +91,7 @@ export function InfoPage(): React.ReactElement {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h2 className="page-title">{t('info.title')}</h2>
-      </div>
+      <PageHeader title={t('info.title')} titleAs="h2" />
 
       <div className="info-sections">
         {/* Extension section */}

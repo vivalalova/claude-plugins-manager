@@ -13,6 +13,7 @@ export const en = {
   'sidebar.info': 'Extension Info',
   'sidebar.info.desc': 'View extension info, cache paths, and CLI details',
   // SettingsPage
+  'settings.page.title': 'Settings Manager',
   'settings.scope.user': 'User',
   'settings.scope.project': 'Project',
   'settings.scope.local': 'Local',

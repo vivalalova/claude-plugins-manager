@@ -229,6 +229,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'skeleton.skills': 'スキルを読み込み中',
   'error.dismiss': '閉じる',
   // SettingsPage
+  'settings.page.title': '設定管理',
   'settings.scope.user': 'ユーザー',
   'settings.scope.project': 'プロジェクト',
   'settings.scope.local': 'ローカル',

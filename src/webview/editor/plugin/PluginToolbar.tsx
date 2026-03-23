@@ -3,6 +3,8 @@ import { useI18n } from '../../i18n/I18nContext';
 import { CONTENT_TYPE_FILTERS } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
 import { TRANSLATE_LANGS } from '../../../shared/types';
+import { SearchInput } from '../../components/SearchInput';
+import { FilterChips } from '../../components/FilterChips';
 
 type SortBy = 'name' | 'lastUpdated';
 
@@ -66,28 +68,15 @@ export function PluginToolbar({
 
   return (
     <>
-      <div className="search-row">
-        <div className="search-input-wrapper">
-          <input
-            ref={searchInputRef}
-            className="input search-bar"
-            type="text"
-            placeholder={t('plugin.page.searchPlaceholder')}
-            aria-label={t('plugin.page.searchPlaceholder')}
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          {search && (
-            <button
-              type="button"
-              className="search-clear-btn"
-              aria-label={t('plugin.page.clearSearch')}
-              onClick={onSearchClear}
-            >
-              &#x2715;
-            </button>
-          )}
-        </div>
+      <SearchInput
+        inputRef={searchInputRef}
+        value={search}
+        onChange={onSearchChange}
+        onClear={onSearchClear}
+        placeholder={t('plugin.page.searchPlaceholder')}
+        ariaLabel={t('plugin.page.searchPlaceholder')}
+        clearAriaLabel={t('plugin.page.clearSearch')}
+      >
         <button
           className="btn btn-secondary translate-btn"
           onClick={onTranslateOpen}
@@ -95,42 +84,29 @@ export function PluginToolbar({
         >
           {translateLang ? TRANSLATE_LANGS[translateLang] ?? translateLang : t('plugin.page.translate')}
         </button>
-      </div>
+      </SearchInput>
 
-      <div className="filter-chips">
-        <button
-          className={`filter-chip${filterEnabled ? ' filter-chip--active' : ''}`}
-          onClick={onFilterEnabledToggle}
-        >
-          {t('plugin.page.filterEnabled')}
-        </button>
-        <button
-          className={`filter-chip${showHidden ? ' filter-chip--active' : ''}`}
-          onClick={onShowHiddenToggle}
-        >
-          {t('plugin.page.showHidden')}
-        </button>
-        {CONTENT_TYPE_FILTERS.map((type) => (
-          <button
-            key={type}
-            className={`filter-chip${contentTypeFilters.has(type) ? ' filter-chip--active' : ''}`}
-            onClick={() => onContentTypeFilterToggle(type)}
-          >
-            {CONTENT_TYPE_LABELS[type]}
-          </button>
-        ))}
-        <span className="filter-separator" aria-hidden="true" />
-        {PLUGIN_SORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            className={`filter-chip${sortBy === opt.value ? ' filter-chip--active' : ''}`}
-            aria-pressed={sortBy === opt.value}
-            onClick={() => onSortByChange(opt.value)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      <FilterChips
+        groups={[
+          [
+            { key: 'enabled', label: t('plugin.page.filterEnabled'), active: filterEnabled, onSelect: onFilterEnabledToggle },
+            { key: 'hidden', label: t('plugin.page.showHidden'), active: showHidden, onSelect: onShowHiddenToggle },
+            ...CONTENT_TYPE_FILTERS.map((type) => ({
+              key: type,
+              label: CONTENT_TYPE_LABELS[type],
+              active: contentTypeFilters.has(type),
+              onSelect: () => onContentTypeFilterToggle(type),
+            })),
+          ],
+          PLUGIN_SORT_OPTIONS.map((opt) => ({
+            key: opt.value,
+            label: opt.label,
+            active: sortBy === opt.value,
+            ariaPressed: sortBy === opt.value,
+            onSelect: () => onSortByChange(opt.value),
+          })),
+        ]}
+      />
     </>
   );
 }

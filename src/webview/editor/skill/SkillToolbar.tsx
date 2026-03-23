@@ -1,6 +1,8 @@
 import React from 'react';
 import type { RegistrySort, SkillScope } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
+import { SearchInput } from '../../components/SearchInput';
+import { FilterChips, type ChipDescriptor } from '../../components/FilterChips';
 
 export type PageTab = 'installed' | 'online' | 'registry';
 
@@ -52,69 +54,45 @@ export function SkillToolbar({
       ? t('skill.registry.searchPlaceholder')
       : t('skill.page.searchPlaceholder');
 
+  const chipGroups: ChipDescriptor[][] = [
+    TAB_OPTIONS.map((opt) => ({
+      key: opt.value,
+      label: t(opt.labelKey as 'skill.tab.installed'),
+      active: pageTab === opt.value,
+      onSelect: () => onPageTabChange(opt.value),
+    })),
+  ];
+  if (pageTab === 'installed') {
+    chipGroups.push(
+      SCOPE_OPTIONS.map((opt) => ({
+        key: opt.value ?? 'all',
+        label: t(opt.labelKey as 'skill.page.scopeAll'),
+        active: scopeFilter === opt.value,
+        onSelect: () => onScopeFilterChange(opt.value),
+      })),
+    );
+  }
+  if (pageTab === 'registry') {
+    chipGroups.push(
+      SORT_OPTIONS.map((opt) => ({
+        key: opt.value,
+        label: t(opt.labelKey as 'skill.registry.allTime'),
+        active: registrySort === opt.value,
+        onSelect: () => onRegistrySortChange(opt.value),
+      })),
+    );
+  }
+
   return (
     <>
-      <div className="search-row">
-        <div className="search-input-wrapper">
-          <input
-            type="text"
-            className="search-bar"
-            placeholder={placeholder}
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          {search && (
-            <button
-              className="search-clear-btn"
-              onClick={() => onSearchChange('')}
-              title={t('skill.page.clearSearch')}
-              aria-label={t('skill.page.clearSearch')}
-            >
-              &#x2715;
-            </button>
-          )}
-        </div>
-      </div>
+      <SearchInput
+        value={search}
+        onChange={onSearchChange}
+        placeholder={placeholder}
+        clearAriaLabel={t('skill.page.clearSearch')}
+      />
 
-      <div className="filter-chips">
-        {TAB_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            className={`filter-chip${pageTab === opt.value ? ' filter-chip--active' : ''}`}
-            onClick={() => onPageTabChange(opt.value)}
-          >
-            {t(opt.labelKey as 'skill.tab.installed')}
-          </button>
-        ))}
-        {pageTab === 'installed' && (
-          <>
-            <span className="filter-separator" aria-hidden="true" />
-            {SCOPE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value ?? 'all'}
-                className={`filter-chip${scopeFilter === opt.value ? ' filter-chip--active' : ''}`}
-                onClick={() => onScopeFilterChange(opt.value)}
-              >
-                {t(opt.labelKey as 'skill.page.scopeAll')}
-              </button>
-            ))}
-          </>
-        )}
-        {pageTab === 'registry' && (
-          <>
-            <span className="filter-separator" aria-hidden="true" />
-            {SORT_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                className={`filter-chip${registrySort === opt.value ? ' filter-chip--active' : ''}`}
-                onClick={() => onRegistrySortChange(opt.value)}
-              >
-                {t(opt.labelKey as 'skill.registry.allTime')}
-              </button>
-            ))}
-          </>
-        )}
-      </div>
+      <FilterChips groups={chipGroups} />
     </>
   );
 }

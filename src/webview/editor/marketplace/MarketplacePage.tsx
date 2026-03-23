@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
 import { VirtualCardList } from '../plugin/VirtualCardList';
 import { useToast } from '../../components/Toast';
+import { PageHeader } from '../../components/PageHeader';
 import type { Marketplace, PreviewPlugin } from '../../../shared/types';
 
 /**
@@ -190,9 +191,9 @@ export function MarketplacePage(): React.ReactElement {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">Marketplaces Manager</div>
-        <div className="page-actions">
+      <PageHeader
+        title="Marketplaces Manager"
+        actions={<>
           <button
             className="btn btn-secondary"
             onClick={() => fetchList()}
@@ -220,8 +221,8 @@ export function MarketplacePage(): React.ReactElement {
           >
             {updating === '__all__' ? 'Updating...' : 'Update All'}
           </button>
-        </div>
-      </div>
+        </>}
+      />
 
       {error && (
         <ErrorBanner

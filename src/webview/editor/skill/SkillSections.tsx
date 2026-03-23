@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SkillCard } from './SkillCard';
+import { CollapsibleSection } from '../../components/CollapsibleSection';
 import type { AgentSkill } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -35,36 +36,26 @@ export function SkillSections({
 
   const renderSection = (title: string, scopeKey: string, skills: AgentSkill[]): React.ReactNode => {
     if (skills.length === 0) return null;
-    const isCollapsed = collapsed.has(scopeKey);
     return (
-      <div className="plugin-section">
-        <div className="section-header">
-          <button
-            className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
-            onClick={() => toggleCollapsed(scopeKey)}
-          >
-            <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
-            <span className="section-toggle-label">{title}</span>
-            <span className="section-count">{skills.length}</span>
-          </button>
+      <CollapsibleSection
+        label={title}
+        badge={skills.length}
+        isCollapsed={collapsed.has(scopeKey)}
+        onToggle={() => toggleCollapsed(scopeKey)}
+      >
+        <div className="card-list">
+          {skills.map((skill) => (
+            <SkillCard
+              key={`${skill.scope}:${skill.name}`}
+              skill={skill}
+              removing={removingSkills.has(`${skill.scope}:${skill.name}`)}
+              onRemove={() => onRemove(skill.name, skill.scope)}
+              onOpenFile={() => onOpenFile(skill.path)}
+              onViewDetail={() => onViewDetail(skill)}
+            />
+          ))}
         </div>
-        <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
-          <div className="section-body-inner">
-            <div className="card-list">
-              {skills.map((skill) => (
-                <SkillCard
-                  key={`${skill.scope}:${skill.name}`}
-                  skill={skill}
-                  removing={removingSkills.has(`${skill.scope}:${skill.name}`)}
-                  onRemove={() => onRemove(skill.name, skill.scope)}
-                  onOpenFile={() => onOpenFile(skill.path)}
-                  onViewDetail={() => onViewDetail(skill)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      </CollapsibleSection>
     );
   };
 

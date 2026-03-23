@@ -15,6 +15,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'sidebar.info': 'Extension 資訊',
   'sidebar.info.desc': '查看 extension 版本、快取路徑及 CLI 資訊',
   // SettingsPage
+  'settings.page.title': '設定管理',
   'settings.scope.user': '使用者',
   'settings.scope.project': '專案',
   'settings.scope.local': '本機',

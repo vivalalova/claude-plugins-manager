@@ -13,6 +13,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useToast } from '../../components/Toast';
 import type { McpAddParams, McpServer } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
+import { PageHeader } from '../../components/PageHeader';
 
 /** 檢查字串是否為合法 JSON */
 function isValidJson(str: string): boolean {
@@ -252,9 +253,9 @@ export function McpPage(): React.ReactElement {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">MCP Servers Manager</div>
-        <div className="page-actions">
+      <PageHeader
+        title="MCP Servers Manager"
+        actions={<>
           <button className="btn btn-secondary" onClick={handleRefreshStatus} disabled={loading || retrying}>
             {retrying ? 'Refreshing...' : 'Refresh'}
           </button>
@@ -264,8 +265,8 @@ export function McpPage(): React.ReactElement {
           <button className="btn btn-primary" onClick={() => setShowAddDialog(true)}>
             Add Server
           </button>
-        </div>
-      </div>
+        </>}
+      />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 

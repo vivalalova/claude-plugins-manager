@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
+import { CollapsibleSection } from '../../components/CollapsibleSection';
 import { PluginCard } from './PluginCard';
 import { VirtualCardList } from './VirtualCardList';
 import { getSectionName, getVisibleItems } from './filterUtils';
@@ -93,41 +94,33 @@ export function PluginSections({
     const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0, visibleCount: 0 };
     const mpBulk = bulkProgress.get(marketplace);
     return (
-      <div key={marketplace} className="plugin-section">
-        <div
-          className="section-header"
-          draggable
-          title={t('plugin.section.dragHandle')}
-          onDragStart={(e) => {
-            e.stopPropagation();
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', marketplace);
-            setDraggedMarketplace(marketplace);
-          }}
-          onDragEnd={() => { setDraggedMarketplace(null); setDragOverSectionId(null); }}
-        >
-          <button
-            className={`section-toggle${isCollapsed ? ' section-toggle--collapsed' : ''}`}
-            onClick={() => setExpanded((prev) => {
-              const next = new Set(prev);
-              if (next.has(marketplace)) next.delete(marketplace);
-              else next.add(marketplace);
-              return next;
-            })}
-          >
-            <span className={`section-chevron${isCollapsed ? ' section-chevron--collapsed' : ''}`}>&#9662;</span>
-            <span className="section-toggle-label">{marketplace}</span>
-            <span className="section-count">
-              {stats.enabledCount} / {stats.visibleCount}
-              {stats.hiddenCount > 0 && ` (${t('plugin.section.hiddenCount', { count: stats.hiddenCount })})`}
-            </span>
+      <CollapsibleSection
+        key={marketplace}
+        label={marketplace}
+        badge={
+          <>
+            {stats.enabledCount} / {stats.visibleCount}
+            {stats.hiddenCount > 0 && ` (${t('plugin.section.hiddenCount', { count: stats.hiddenCount })})`}
+          </>
+        }
+        extra={
+          <>
             {stats.updateCount > 0 && (
               <span className="section-updates">{t(stats.updateCount > 1 ? 'plugin.section.updatesPlural' : 'plugin.section.updates', { count: stats.updateCount })}</span>
             )}
             {marketplaceSources[marketplace] && (
               <span className="section-source">{marketplaceSources[marketplace]}</span>
             )}
-          </button>
+          </>
+        }
+        isCollapsed={isCollapsed}
+        onToggle={() => setExpanded((prev) => {
+          const next = new Set(prev);
+          if (next.has(marketplace)) next.delete(marketplace);
+          else next.add(marketplace);
+          return next;
+        })}
+        headerActions={
           <button
             className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
             disabled={!!mpBulk || isUpdatingAll}
@@ -141,31 +134,39 @@ export function PluginSections({
               ? t(mpBulk.action === 'enable' ? 'plugin.section.enabling' : 'plugin.section.disabling', { current: mpBulk.current, total: mpBulk.total })
               : stats.allEnabled ? t('plugin.section.disableAll') : t('plugin.section.enableAll')}
           </button>
-        </div>
-        <div className={`section-body${isCollapsed ? ' section-body--collapsed' : ''}`}>
-          <div className="section-body-inner">
-            <VirtualCardList
-              items={visibleItems}
-              keyExtractor={(plugin) => plugin.id}
-              className="card-list"
-              renderItem={(plugin) => (
-                <PluginCard
-                  plugin={plugin}
-                  workspaceName={workspaceFolders[0]?.name}
-                  marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
-                  translations={translations}
-                  translateStatus={translateStatusMap.get(plugin.id)}
-                  loadingScopes={loadingPlugins.get(plugin.id)}
-                  hidden={hiddenPlugins.has(plugin.id)}
-                  onToggle={onToggle}
-                  onUpdate={onUpdate}
-                  onToggleHidden={onToggleHidden}
-                />
-              )}
+        }
+        headerProps={{
+          draggable: true,
+          title: t('plugin.section.dragHandle'),
+          onDragStart: (e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', marketplace);
+            setDraggedMarketplace(marketplace);
+          },
+          onDragEnd: () => { setDraggedMarketplace(null); setDragOverSectionId(null); },
+        }}
+      >
+        <VirtualCardList
+          items={visibleItems}
+          keyExtractor={(plugin) => plugin.id}
+          className="card-list"
+          renderItem={(plugin) => (
+            <PluginCard
+              plugin={plugin}
+              workspaceName={workspaceFolders[0]?.name}
+              marketplaceUrl={plugin.marketplaceName ? marketplaceSources[plugin.marketplaceName] : undefined}
+              translations={translations}
+              translateStatus={translateStatusMap.get(plugin.id)}
+              loadingScopes={loadingPlugins.get(plugin.id)}
+              hidden={hiddenPlugins.has(plugin.id)}
+              onToggle={onToggle}
+              onUpdate={onUpdate}
+              onToggleHidden={onToggleHidden}
             />
-          </div>
-        </div>
-      </div>
+          )}
+        />
+      </CollapsibleSection>
     );
   };
 

@@ -13,6 +13,7 @@ import type { MergedPlugin } from '../../../shared/types';
 import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
 import { usePluginOperations } from './hooks/usePluginOperations';
+import { PageHeader } from '../../components/PageHeader';
 import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
@@ -179,9 +180,9 @@ export function PluginPage(): React.ReactElement {
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div className="page-title">{t('plugin.page.title')}</div>
-        <div className="page-actions">
+      <PageHeader
+        title={t('plugin.page.title')}
+        actions={<>
           {hasInstalledPlugins && (
             <button
               className="btn btn-secondary"
@@ -213,8 +214,8 @@ export function PluginPage(): React.ReactElement {
           >
             {t('plugin.page.import')}
           </button>
-        </div>
-      </div>
+        </>}
+      />
 
       <PluginToolbar
         searchInputRef={searchInputRef}

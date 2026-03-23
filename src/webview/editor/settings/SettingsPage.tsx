@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { sendRequest, onPushMessage } from '../../vscode';
 import { toErrorMessage } from '../../../shared/errorUtils';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { PageHeader } from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
@@ -255,6 +256,8 @@ export function SettingsPage(): React.ReactElement {
 
   return (
     <div className="page-container settings-page settings-page--fixed-shell">
+      <PageHeader title={t('settings.page.title')} />
+
       {/* Scope tabs */}
       <div className="settings-scope-tabs settings-scope-tabs--fixed">
         {SCOPES.map((s) => {
