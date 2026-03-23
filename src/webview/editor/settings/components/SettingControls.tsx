@@ -71,12 +71,16 @@ function formatSettingKeyHint(settingKey: string, defaultValue?: unknown): strin
 }
 
 export function SettingLabelText({ label, settingKey, defaultValue, overriddenScope }: SettingLabelTextProps): React.ReactElement {
+  const hint = formatSettingKeyHint(settingKey, defaultValue);
+  const showHint = label !== settingKey || hint !== `(${settingKey})`;
   return (
     <>
       <span>{label}</span>
-      <span className="settings-key-hint" aria-hidden="true">
-        {formatSettingKeyHint(settingKey, defaultValue)}
-      </span>
+      {showHint && (
+        <span className="settings-key-hint" aria-hidden="true">
+          {hint}
+        </span>
+      )}
       {overriddenScope && <OverrideBadge scope={overriddenScope} />}
     </>
   );

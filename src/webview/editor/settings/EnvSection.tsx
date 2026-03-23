@@ -86,9 +86,11 @@ function EnvSensitiveField({ envKey, knownVar, value, scope, onSave, onDelete, d
     <div className="settings-field">
       <label className="settings-label" htmlFor={`env-${envKey}`}>
         <span>{envKey}</span>
-        <span className="settings-key-hint" aria-hidden="true">
-          ({envKey}{defaultVal ? `: ${defaultVal}` : ''})
-        </span>
+        {defaultVal && (
+          <span className="settings-key-hint" aria-hidden="true">
+            ({envKey}: {defaultVal})
+          </span>
+        )}
       </label>
       {description && <p className="settings-field-description">{description}</p>}
       <div className="settings-model-row">
@@ -130,6 +132,96 @@ function EnvSensitiveField({ envKey, knownVar, value, scope, onSave, onDelete, d
           {saveLabel}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EnvCustomField (single-row: [key] [value] [clear] [save])
+// ---------------------------------------------------------------------------
+
+interface EnvCustomFieldProps {
+  envKey: string;
+  value: string | undefined;
+  scope: PluginScope;
+  onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+  disabled: boolean;
+}
+
+function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: EnvCustomFieldProps): React.ReactElement {
+  const { t } = useI18n();
+  const [keyInput, setKeyInput] = useState(envKey);
+  const [inputValue, setInputValue] = useState(value ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setKeyInput(envKey);
+    setInputValue(value ?? '');
+  }, [scope, envKey, value]);
+
+  const handleSave = async (): Promise<void> => {
+    const trimmedKey = keyInput.trim();
+    const trimmedVal = inputValue.trim();
+    setSaving(true);
+    try {
+      if (!trimmedVal) {
+        await onDelete(envKey);
+      } else if (trimmedKey !== envKey) {
+        await onDelete(envKey);
+        await onSave(trimmedKey, trimmedVal);
+      } else {
+        await onSave(envKey, trimmedVal);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      await onDelete(envKey);
+      setInputValue('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="env-custom-row">
+      <input
+        className="input env-custom-key"
+        type="text"
+        value={keyInput}
+        onChange={(e) => setKeyInput(e.target.value)}
+        disabled={disabled || saving}
+      />
+      <input
+        className="input"
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        disabled={disabled || saving}
+      />
+      {value !== undefined && (
+        <button
+          className="btn btn-secondary"
+          onClick={() => void handleClear()}
+          disabled={disabled || saving}
+          type="button"
+        >
+          {t('settings.common.clear')}
+        </button>
+      )}
+      <button
+        className="btn btn-primary"
+        onClick={() => void handleSave()}
+        disabled={disabled || saving}
+        type="button"
+      >
+        {t('settings.common.save')}
+      </button>
     </div>
   );
 }
@@ -379,17 +471,14 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
 
       <EnvCategoryGroup groupKey="settings.env.customCategory">
         {customEntries.map(([key]) => (
-          <TextSetting
+          <EnvCustomField
             key={key}
-            label={key}
+            envKey={key}
             value={currentEnv[key]}
-            placeholder={t('settings.env.valuePlaceholder')}
-            saveLabel={t('settings.common.save')}
-            clearLabel={t('settings.common.clear')}
-            settingKey={key}
             scope={scope}
             onSave={envOnSave}
             onDelete={envOnDelete}
+            disabled={saving}
           />
         ))}
         <AddEnvForm

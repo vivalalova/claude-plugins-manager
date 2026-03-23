@@ -251,7 +251,7 @@ describe('EnvSection — Custom vars', () => {
     renderEnvSection({ env: { MY_CUSTOM_VAR: 'hello' } });
 
     await waitFor(() => {
-      expect(screen.getByText('MY_CUSTOM_VAR')).toBeTruthy();
+      expect(screen.getByDisplayValue('MY_CUSTOM_VAR')).toBeTruthy();
       expect(screen.getByDisplayValue('hello')).toBeTruthy();
     });
   });

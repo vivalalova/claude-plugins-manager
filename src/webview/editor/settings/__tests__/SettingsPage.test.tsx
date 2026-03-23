@@ -386,7 +386,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Env').closest('button')!);
 
     await waitFor(() => {
-      expect(screen.getByText('MY_VAR')).toBeTruthy();
+      expect(screen.getByDisplayValue('MY_VAR')).toBeTruthy();
       expect(screen.getByDisplayValue('hello')).toBeTruthy();
       expect(screen.getByDisplayValue('https://api.example.com')).toBeTruthy();
     });

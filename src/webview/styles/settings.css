@@ -453,6 +453,25 @@
   flex: 1;
 }
 
+.env-custom-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.env-custom-key {
+  flex: 1;
+  min-width: 140px;
+  opacity: 0.8;
+  cursor: default;
+}
+
+.env-custom-row .input {
+  flex: 1;
+  min-width: 80px;
+}
+
 .env-add-form {
   display: flex;
   flex-wrap: wrap;
