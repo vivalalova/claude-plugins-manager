@@ -7,6 +7,18 @@ import { useSettingSave } from '../hooks/useSettingSave';
 
 type SandboxValue = NonNullable<ClaudeSettings['sandbox']>;
 type SandboxMode = 'structured' | 'json';
+type SandboxBooleanKey =
+  | 'enabled'
+  | 'autoAllowBashIfSandboxed'
+  | 'enableWeakerNetworkIsolation'
+  | 'enableWeakerNestedSandbox'
+  | 'allowUnsandboxedCommands';
+type SandboxFilesystemKey = keyof NonNullable<SandboxValue['filesystem']>;
+type SandboxNetworkBooleanKey =
+  | 'allowAllUnixSockets'
+  | 'allowLocalBinding'
+  | 'allowManagedDomainsOnly';
+type SandboxNetworkNumberKey = 'httpProxyPort' | 'socksProxyPort';
 
 interface SandboxEditorProps {
   sandbox: ClaudeSettings['sandbox'];
@@ -184,6 +196,31 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     void saveSandbox({ ...draft, network: { ...draft.network, [key]: val } });
   };
 
+  const generalCheckboxes: Array<{ key: SandboxBooleanKey; label: string }> = [
+    { key: 'enabled', label: tk('enabled') },
+    { key: 'autoAllowBashIfSandboxed', label: tk('autoAllowBash') },
+    { key: 'enableWeakerNetworkIsolation', label: tk('weakerNetwork') },
+    { key: 'enableWeakerNestedSandbox', label: tk('weakerNested') },
+    { key: 'allowUnsandboxedCommands', label: tk('allowUnsandboxed') },
+  ];
+
+  const filesystemTagLists: Array<{ key: SandboxFilesystemKey; labelKey: string }> = [
+    { key: 'allowWrite', labelKey: 'filesystem.allowWrite' },
+    { key: 'denyWrite', labelKey: 'filesystem.denyWrite' },
+    { key: 'denyRead', labelKey: 'filesystem.denyRead' },
+  ];
+
+  const networkCheckboxes: Array<{ key: SandboxNetworkBooleanKey; label: string }> = [
+    { key: 'allowAllUnixSockets', label: tk('network.allowAllUnixSockets') },
+    { key: 'allowLocalBinding', label: tk('network.allowLocalBinding') },
+    { key: 'allowManagedDomainsOnly', label: tk('network.managedDomainsOnly') },
+  ];
+
+  const networkNumberInputs: Array<{ key: SandboxNetworkNumberKey; labelKey: string }> = [
+    { key: 'httpProxyPort', labelKey: 'network.httpProxyPort' },
+    { key: 'socksProxyPort', labelKey: 'network.socksProxyPort' },
+  ];
+
   // --- JSON mode handlers ---
   const handleJsonSave = (): void => {
     const trimmed = jsonText.trim();
@@ -254,16 +291,15 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
       ) : (
         <div>
           {/* General */}
-          <SandboxCheckbox label={tk('enabled')} checked={draft.enabled ?? false} saving={saving}
-            onChange={(v) => updateBool('enabled', v)} />
-          <SandboxCheckbox label={tk('autoAllowBash')} checked={draft.autoAllowBashIfSandboxed ?? false} saving={saving}
-            onChange={(v) => updateBool('autoAllowBashIfSandboxed', v)} />
-          <SandboxCheckbox label={tk('weakerNetwork')} checked={draft.enableWeakerNetworkIsolation ?? false} saving={saving}
-            onChange={(v) => updateBool('enableWeakerNetworkIsolation', v)} />
-          <SandboxCheckbox label={tk('weakerNested')} checked={draft.enableWeakerNestedSandbox ?? false} saving={saving}
-            onChange={(v) => updateBool('enableWeakerNestedSandbox', v)} />
-          <SandboxCheckbox label={tk('allowUnsandboxed')} checked={draft.allowUnsandboxedCommands ?? false} saving={saving}
-            onChange={(v) => updateBool('allowUnsandboxedCommands', v)} />
+          {generalCheckboxes.map(({ key, label }) => (
+            <SandboxCheckbox
+              key={key}
+              label={label}
+              checked={draft[key] ?? false}
+              saving={saving}
+              onChange={(value) => updateBool(key, value)}
+            />
+          ))}
 
           <SandboxTagList label={tk('excludedCommands')} items={draft.excludedCommands ?? []}
             empty={tk('excludedCommands.empty')} placeholder={tk('excludedCommands.placeholder')}
@@ -274,18 +310,18 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
           <h4 style={{ fontSize: 12, fontWeight: 600, marginTop: 12, marginBottom: 6, borderTop: '1px solid var(--vscode-editorWidget-border)', paddingTop: 8 }}>
             {tk('filesystem')}
           </h4>
-          <SandboxTagList label={tk('filesystem.allowWrite')} items={draft.filesystem?.allowWrite ?? []}
-            empty={tk('filesystem.allowWrite.empty')} placeholder={tk('filesystem.allowWrite.placeholder')}
-            duplicate={tk('filesystem.allowWrite.duplicate')} saving={saving}
-            onChange={(items) => updateFs('allowWrite', items)} />
-          <SandboxTagList label={tk('filesystem.denyWrite')} items={draft.filesystem?.denyWrite ?? []}
-            empty={tk('filesystem.denyWrite.empty')} placeholder={tk('filesystem.denyWrite.placeholder')}
-            duplicate={tk('filesystem.denyWrite.duplicate')} saving={saving}
-            onChange={(items) => updateFs('denyWrite', items)} />
-          <SandboxTagList label={tk('filesystem.denyRead')} items={draft.filesystem?.denyRead ?? []}
-            empty={tk('filesystem.denyRead.empty')} placeholder={tk('filesystem.denyRead.placeholder')}
-            duplicate={tk('filesystem.denyRead.duplicate')} saving={saving}
-            onChange={(items) => updateFs('denyRead', items)} />
+          {filesystemTagLists.map(({ key, labelKey }) => (
+            <SandboxTagList
+              key={key}
+              label={tk(labelKey)}
+              items={draft.filesystem?.[key] ?? []}
+              empty={tk(`${labelKey}.empty`)}
+              placeholder={tk(`${labelKey}.placeholder`)}
+              duplicate={tk(`${labelKey}.duplicate`)}
+              saving={saving}
+              onChange={(items) => updateFs(key, items)}
+            />
+          ))}
 
           {/* Network */}
           <h4 style={{ fontSize: 12, fontWeight: 600, marginTop: 12, marginBottom: 6, borderTop: '1px solid var(--vscode-editorWidget-border)', paddingTop: 8 }}>
@@ -295,18 +331,25 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
             empty={tk('network.allowedDomains.empty')} placeholder={tk('network.allowedDomains.placeholder')}
             duplicate={tk('network.allowedDomains.duplicate')} saving={saving}
             onChange={(items) => updateNet('allowedDomains', items)} />
-          <SandboxCheckbox label={tk('network.allowAllUnixSockets')} checked={draft.network?.allowAllUnixSockets ?? false} saving={saving}
-            onChange={(v) => updateNet('allowAllUnixSockets', v)} />
-          <SandboxCheckbox label={tk('network.allowLocalBinding')} checked={draft.network?.allowLocalBinding ?? false} saving={saving}
-            onChange={(v) => updateNet('allowLocalBinding', v)} />
-          <SandboxCheckbox label={tk('network.managedDomainsOnly')} checked={draft.network?.allowManagedDomainsOnly ?? false} saving={saving}
-            onChange={(v) => updateNet('allowManagedDomainsOnly', v)} />
-          <SandboxNumberInput label={tk('network.httpProxyPort')} value={draft.network?.httpProxyPort}
-            placeholder={tk('network.httpProxyPort.placeholder')} saving={saving}
-            onChange={(v) => updateNet('httpProxyPort', v)} />
-          <SandboxNumberInput label={tk('network.socksProxyPort')} value={draft.network?.socksProxyPort}
-            placeholder={tk('network.socksProxyPort.placeholder')} saving={saving}
-            onChange={(v) => updateNet('socksProxyPort', v)} />
+          {networkCheckboxes.map(({ key, label }) => (
+            <SandboxCheckbox
+              key={key}
+              label={label}
+              checked={draft.network?.[key] ?? false}
+              saving={saving}
+              onChange={(value) => updateNet(key, value)}
+            />
+          ))}
+          {networkNumberInputs.map(({ key, labelKey }) => (
+            <SandboxNumberInput
+              key={key}
+              label={tk(labelKey)}
+              value={draft.network?.[key]}
+              placeholder={tk(`${labelKey}.placeholder`)}
+              saving={saving}
+              onChange={(value) => updateNet(key, value)}
+            />
+          ))}
 
           {/* Clear */}
           {sandbox && (
