@@ -334,6 +334,26 @@ describe('EnvSection — Custom vars', () => {
     });
   });
 
+  it('lowercase key → 顯示 invalid key 錯誤', async () => {
+    const onSave = vi.fn();
+    renderEnvSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
+
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const valueInputs = screen.getAllByPlaceholderText('value');
+    const valueInput = valueInputs[valueInputs.length - 1];
+
+    fireEvent.change(keyInput, { target: { value: 'lower_case' } });
+    fireEvent.change(valueInput, { target: { value: 'new' } });
+    fireEvent.click(screen.getByText('Add'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Key must contain only A-Z, 0-9, _')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
   it('Add 按鈕在 key 或 value 為空時 disabled', async () => {
     renderEnvSection({});
 
@@ -361,6 +381,48 @@ describe('EnvSection — Custom vars', () => {
       expect(onSave).toHaveBeenCalledTimes(2);
       expect(onSave).toHaveBeenNthCalledWith(1, 'env', expect.not.objectContaining({ OLD_KEY: expect.anything() }));
       expect(onSave).toHaveBeenNthCalledWith(2, 'env', expect.objectContaining({ NEW_KEY: 'new-value' }));
+    });
+  });
+
+  it('Custom field rename 到既有 key → 顯示錯誤且不得覆蓋原值', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({ env: { OLD_KEY: 'old-value', EXISTING_KEY: 'keep-value' } }, onSave);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
+      expect(screen.getByDisplayValue('old-value')).toBeTruthy();
+      expect(screen.getByDisplayValue('EXISTING_KEY')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('OLD_KEY'), { target: { value: ' EXISTING_KEY ' } });
+    fireEvent.change(screen.getByDisplayValue('old-value'), { target: { value: 'new-value' } });
+
+    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
+    fireEvent.click(saveButtons[saveButtons.length - 2]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Key already exists')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('Custom field rename 成空 key → 顯示錯誤且不得送出', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
+      expect(screen.getByDisplayValue('old-value')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('OLD_KEY'), { target: { value: '   ' } });
+
+    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
+    fireEvent.click(saveButtons[saveButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Key must contain only A-Z, 0-9, _')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

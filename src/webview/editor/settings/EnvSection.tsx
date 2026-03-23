@@ -11,12 +11,46 @@ import { BooleanToggle, TextSetting, NumberSetting } from './components/SettingC
 // ---------------------------------------------------------------------------
 
 const SENSITIVE_KEY_RE = /_SECRET$|_TOKEN$|_KEY$|_PASSWORD$|_CREDENTIAL$|^SECRET$|^TOKEN$|^PASSWORD$/i;
+type EnvEntryValidationResult = 'ok' | 'empty' | 'invalid' | 'duplicate';
 
 export function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY_RE.test(key);
 }
 
-const VALID_KEY_RE = /^[A-Z0-9_]+$/i;
+const VALID_KEY_RE = /^[A-Z0-9_]+$/;
+
+function normalizeEnvEntryDraft(key: string, value: string): { key: string; value: string } {
+  return {
+    key: key.trim(),
+    value: value.trim(),
+  };
+}
+
+function validateEnvEntryKey(key: string, existingKeys: string[]): EnvEntryValidationResult {
+  if (!key) {
+    return 'empty';
+  }
+  if (!VALID_KEY_RE.test(key)) {
+    return 'invalid';
+  }
+  if (existingKeys.includes(key)) {
+    return 'duplicate';
+  }
+  return 'ok';
+}
+
+function getEnvEntryErrorMessage(
+  validation: EnvEntryValidationResult,
+  t: ReturnType<typeof useI18n>['t'],
+): string {
+  if (validation === 'invalid') {
+    return t('settings.env.invalidKey');
+  }
+  if (validation === 'duplicate') {
+    return t('settings.env.duplicateKey');
+  }
+  return '';
+}
 
 function useEnvVarDescription(envKey: string): string | null {
   const { t } = useI18n();
@@ -163,13 +197,22 @@ function EnvSensitiveField({ envKey, knownVar, value, scope, onSave, onDelete, d
 interface EnvCustomFieldProps {
   envKey: string;
   value: string | undefined;
+  existingKeys: string[];
   scope: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
   disabled: boolean;
 }
 
-function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: EnvCustomFieldProps): React.ReactElement {
+function EnvCustomField({
+  envKey,
+  value,
+  existingKeys,
+  scope,
+  onSave,
+  onDelete,
+  disabled,
+}: EnvCustomFieldProps): React.ReactElement {
   const { t } = useI18n();
   const createDraft = useCallback(() => ({
     keyInput: envKey,
@@ -177,23 +220,45 @@ function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: En
   }), [envKey, value]);
   const resetKey = `${scope}:${envKey}:${value ?? ''}`;
   const { draft, setDraft, saving, runWithSaving } = useEnvFieldDraft(createDraft, resetKey);
+  const [error, setError] = useState('');
 
   const handleSave = async (): Promise<void> => {
-    const trimmedKey = draft.keyInput.trim();
-    const trimmedVal = draft.inputValue.trim();
+    const normalizedDraft = normalizeEnvEntryDraft(draft.keyInput, draft.inputValue);
+    if (!normalizedDraft.value) {
+      setError('');
+      await runWithSaving(async () => {
+        await onDelete(envKey);
+      });
+      return;
+    }
+    if (!normalizedDraft.key) {
+      setError(t('settings.env.invalidKey'));
+      return;
+    }
+
+    const validation = validateEnvEntryKey(
+      normalizedDraft.key,
+      existingKeys.filter((key) => key !== envKey),
+    );
+    const validationError = getEnvEntryErrorMessage(validation, t);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError('');
     await runWithSaving(async () => {
-      if (!trimmedVal) {
+      if (normalizedDraft.key !== envKey) {
         await onDelete(envKey);
-      } else if (trimmedKey !== envKey) {
-        await onDelete(envKey);
-        await onSave(trimmedKey, trimmedVal);
+        await onSave(normalizedDraft.key, normalizedDraft.value);
       } else {
-        await onSave(envKey, trimmedVal);
+        await onSave(envKey, normalizedDraft.value);
       }
     });
   };
 
   const handleClear = async (): Promise<void> => {
+    setError('');
     await runWithSaving(async () => {
       await onDelete(envKey);
       setDraft((current) => ({ ...current, inputValue: '' }));
@@ -201,39 +266,48 @@ function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: En
   };
 
   return (
-    <div className="env-custom-row">
-      <input
-        className="input env-custom-key"
-        type="text"
-        value={draft.keyInput}
-        onChange={(e) => setDraft((current) => ({ ...current, keyInput: e.target.value }))}
-        disabled={disabled || saving}
-      />
-      <input
-        className="input"
-        type="text"
-        value={draft.inputValue}
-        onChange={(e) => setDraft((current) => ({ ...current, inputValue: e.target.value }))}
-        disabled={disabled || saving}
-      />
-      {value !== undefined && (
+    <div>
+      <div className="env-custom-row">
+        <input
+          className="input env-custom-key"
+          type="text"
+          value={draft.keyInput}
+          onChange={(e) => {
+            setDraft((current) => ({ ...current, keyInput: e.target.value }));
+            setError('');
+          }}
+          disabled={disabled || saving}
+        />
+        <input
+          className="input"
+          type="text"
+          value={draft.inputValue}
+          onChange={(e) => {
+            setDraft((current) => ({ ...current, inputValue: e.target.value }));
+            setError('');
+          }}
+          disabled={disabled || saving}
+        />
+        {value !== undefined && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleClear()}
+            disabled={disabled || saving}
+            type="button"
+          >
+            {t('settings.common.clear')}
+          </button>
+        )}
         <button
-          className="btn btn-secondary"
-          onClick={() => void handleClear()}
+          className="btn btn-primary"
+          onClick={() => void handleSave()}
           disabled={disabled || saving}
           type="button"
         >
-          {t('settings.common.clear')}
+          {t('settings.common.save')}
         </button>
-      )}
-      <button
-        className="btn btn-primary"
-        onClick={() => void handleSave()}
-        disabled={disabled || saving}
-        type="button"
-      >
-        {t('settings.common.save')}
-      </button>
+      </div>
+      {error && <span className="env-add-error">{error}</span>}
     </div>
   );
 }
@@ -270,19 +344,24 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
   const [adding, setAdding] = useState(false);
 
   const validate = (key: string): string => {
-    if (!key.trim() || !valueInput.trim()) return '';
-    if (!VALID_KEY_RE.test(key)) return t('settings.env.invalidKey');
-    if (existingKeys.includes(key)) return t('settings.env.duplicateKey');
-    return '';
+    const normalizedDraft = normalizeEnvEntryDraft(key, valueInput);
+    if (!normalizedDraft.key || !normalizedDraft.value) {
+      return '';
+    }
+    return getEnvEntryErrorMessage(
+      validateEnvEntryKey(normalizedDraft.key, existingKeys),
+      t,
+    );
   };
 
   const handleAdd = async (): Promise<void> => {
     const err = validate(keyInput);
     if (err) { setError(err); return; }
-    if (!keyInput.trim() || !valueInput.trim()) return;
+    const normalizedDraft = normalizeEnvEntryDraft(keyInput, valueInput);
+    if (!normalizedDraft.key || !normalizedDraft.value) return;
     setAdding(true);
     try {
-      await onAdd(keyInput.trim(), valueInput.trim());
+      await onAdd(normalizedDraft.key, normalizedDraft.value);
       setKeyInput('');
       setValueInput('');
       setError('');
@@ -487,6 +566,7 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
             key={key}
             envKey={key}
             value={currentEnv[key]}
+            existingKeys={Object.keys(currentEnv)}
             scope={scope}
             onSave={envOnSave}
             onDelete={envOnDelete}
