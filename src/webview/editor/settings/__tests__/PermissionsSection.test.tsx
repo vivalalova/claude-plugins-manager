@@ -240,3 +240,124 @@ describe('PermissionsSection — disabledMcpjsonServers 互動', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// rule form 互動
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — rule form 互動', () => {
+  it('toolNameArg 規則缺少 pattern 時不得送出', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderSection({}, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('.perm-add-form')).toBeTruthy();
+    });
+
+    const form = container.querySelector('.perm-add-form') as HTMLElement;
+    const formatSelect = within(form).getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(formatSelect, { target: { value: 'toolNameArg' } });
+
+    const toolNameInput = within(form).getByPlaceholderText('e.g. WebFetch');
+    const addButton = within(form).getByRole('button', { name: 'Add Rule' }) as HTMLButtonElement;
+    fireEvent.change(toolNameInput, { target: { value: 'Bash' } });
+
+    expect(addButton.disabled).toBe(true);
+
+    fireEvent.keyDown(toolNameInput, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('toolNameArg 格式新增規則 → onSave 寫入 toolName(pattern)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderSection({}, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('.perm-add-form')).toBeTruthy();
+    });
+
+    const form = container.querySelector('.perm-add-form') as HTMLElement;
+    const formatSelect = within(form).getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(formatSelect, { target: { value: 'toolNameArg' } });
+
+    const toolNameInput = within(form).getByPlaceholderText('e.g. WebFetch');
+    const patternInput = within(form).getByPlaceholderText('e.g. git:*');
+    fireEvent.change(toolNameInput, { target: { value: 'Bash' } });
+    fireEvent.change(patternInput, { target: { value: 'npm test' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash(npm test)'] });
+    });
+  });
+
+  it('新增規則時會去除各欄位前後空白並用正規化值判斷重複', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderSection({ permissions: { allow: ['Bash(npm test)'] } }, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('.perm-add-form')).toBeTruthy();
+    });
+
+    const form = container.querySelector('.perm-add-form') as HTMLElement;
+    const formatSelect = within(form).getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(formatSelect, { target: { value: 'toolNameArg' } });
+
+    const toolNameInput = within(form).getByPlaceholderText('e.g. WebFetch');
+    const patternInput = within(form).getByPlaceholderText('e.g. git:*');
+    fireEvent.change(toolNameInput, { target: { value: '  Bash  ' } });
+    fireEvent.change(patternInput, { target: { value: '  npm test  ' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
+
+    await waitFor(() => {
+      expect(within(form).getByText('Rule already exists')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('切換 rule format → 清空前一格式未送出的輸入', async () => {
+    const { container } = renderSection({});
+
+    await waitFor(() => {
+      expect(container.querySelector('.perm-add-form')).toBeTruthy();
+    });
+
+    const form = container.querySelector('.perm-add-form') as HTMLElement;
+    const formatSelect = within(form).getByRole('combobox') as HTMLSelectElement;
+    const toolNameInput = within(form).getByPlaceholderText('e.g. WebFetch') as HTMLInputElement;
+
+    fireEvent.change(toolNameInput, { target: { value: 'Bash' } });
+    expect(toolNameInput.value).toBe('Bash');
+
+    fireEvent.change(formatSelect, { target: { value: 'mcp' } });
+
+    const mcpInput = within(form).getByPlaceholderText('e.g. mcp__context7__resolve-library-id');
+    expect((mcpInput as HTMLInputElement).value).toBe('');
+    expect(within(form).queryByPlaceholderText('e.g. WebFetch')).toBeNull();
+  });
+
+  it('mcp 格式新增重複規則 → 顯示錯誤且不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderSection({ permissions: { allow: ['mcp__memory__read_graph'] } }, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('.perm-add-form')).toBeTruthy();
+    });
+
+    const form = container.querySelector('.perm-add-form') as HTMLElement;
+    const formatSelect = within(form).getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(formatSelect, { target: { value: 'mcp' } });
+
+    const mcpInput = within(form).getByPlaceholderText('e.g. mcp__context7__resolve-library-id');
+    fireEvent.change(mcpInput, { target: { value: 'mcp__memory__read_graph' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
+
+    await waitFor(() => {
+      expect(within(form).getByText('Rule already exists')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});

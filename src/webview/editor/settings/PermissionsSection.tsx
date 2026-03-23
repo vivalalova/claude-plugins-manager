@@ -22,15 +22,91 @@ const KNOWN_DEFAULT_MODES = [
 
 type PermissionsList = 'allow' | 'deny' | 'ask';
 type RuleFormat = 'toolName' | 'toolNameArg' | 'mcp';
+interface PermissionRuleDraft {
+  format: RuleFormat;
+  toolName: string;
+  pattern: string;
+}
+type RuleSubmission =
+  | { kind: 'empty' }
+  | { kind: 'duplicate'; rule: string }
+  | { kind: 'ready'; rule: string };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+function normalizeRuleDraft(draft: PermissionRuleDraft): PermissionRuleDraft {
+  return {
+    ...draft,
+    toolName: draft.toolName.trim(),
+    pattern: draft.pattern.trim(),
+  };
+}
+
 function buildRule(format: RuleFormat, toolName: string, pattern: string): string {
   if (format === 'toolNameArg') return `${toolName}(${pattern})`;
   if (format === 'mcp') return pattern;
   return toolName;
+}
+
+function createPermissionRuleDraft(format: RuleFormat = 'toolName'): PermissionRuleDraft {
+  return {
+    format,
+    toolName: '',
+    pattern: '',
+  };
+}
+
+function changeRuleFormat(format: RuleFormat): PermissionRuleDraft {
+  return createPermissionRuleDraft(format);
+}
+
+function updateRuleDraft(
+  draft: PermissionRuleDraft,
+  patch: Partial<Pick<PermissionRuleDraft, 'toolName' | 'pattern'>>,
+): PermissionRuleDraft {
+  return {
+    ...draft,
+    ...patch,
+  };
+}
+
+function hasRequiredRuleParts(draft: PermissionRuleDraft): boolean {
+  const normalizedDraft = normalizeRuleDraft(draft);
+  if (normalizedDraft.format === 'mcp') {
+    return normalizedDraft.pattern.length > 0;
+  }
+  if (normalizedDraft.format === 'toolNameArg') {
+    return normalizedDraft.toolName.length > 0 && normalizedDraft.pattern.length > 0;
+  }
+  return normalizedDraft.toolName.length > 0;
+}
+
+function buildRuleSubmission(draft: PermissionRuleDraft, existingRules: string[]): RuleSubmission {
+  const normalizedDraft = normalizeRuleDraft(draft);
+  if (!hasRequiredRuleParts(normalizedDraft)) {
+    return { kind: 'empty' };
+  }
+  const rule = buildRule(
+    normalizedDraft.format,
+    normalizedDraft.toolName,
+    normalizedDraft.pattern,
+  );
+  if (!rule) {
+    return { kind: 'empty' };
+  }
+  if (existingRules.includes(rule)) {
+    return { kind: 'duplicate', rule };
+  }
+  return { kind: 'ready', rule };
+}
+
+function canSubmitRule(draft: PermissionRuleDraft, disabled = false): boolean {
+  if (disabled) {
+    return false;
+  }
+  return hasRequiredRuleParts(draft);
 }
 
 // ---------------------------------------------------------------------------
@@ -72,23 +148,21 @@ interface AddRuleFormProps {
 
 function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.ReactElement {
   const { t } = useI18n();
-  const [format, setFormat] = useState<RuleFormat>('toolName');
-  const [toolName, setToolName] = useState('');
-  const [pattern, setPattern] = useState('');
+  const [draft, setDraft] = useState<PermissionRuleDraft>(() => createPermissionRuleDraft());
   const [error, setError] = useState('');
 
   const handleAdd = (): void => {
-    const rule = buildRule(format, toolName, pattern);
-    if (!rule.trim()) return;
-
-    if (listRules.includes(rule)) {
+    const submission = buildRuleSubmission(draft, listRules);
+    if (submission.kind === 'empty') {
+      return;
+    }
+    if (submission.kind === 'duplicate') {
       setError(t('settings.permissions.duplicateRule'));
       return;
     }
     setError('');
-    onAdd(rule);
-    setToolName('');
-    setPattern('');
+    onAdd(submission.rule);
+    setDraft(changeRuleFormat(draft.format));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
@@ -96,24 +170,17 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
   };
 
   const isAddDisabled =
-    disabled ||
-    (format === 'toolName'
-      ? !toolName.trim()
-      : format === 'toolNameArg'
-        ? !toolName.trim()
-        : !pattern.trim());
+    !canSubmitRule(draft, disabled);
 
   return (
     <div className="perm-add-form">
       <select
         className="select perm-format-select"
-        value={format}
+        value={draft.format}
         disabled={disabled}
         onChange={(e) => {
-          setFormat(e.target.value as RuleFormat);
+          setDraft(changeRuleFormat(e.target.value as RuleFormat));
           setError('');
-          setToolName('');
-          setPattern('');
         }}
       >
         <option value="toolName">{t('settings.permissions.format.toolName')}</option>
@@ -121,25 +188,25 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
         <option value="mcp">{t('settings.permissions.format.mcp')}</option>
       </select>
 
-      {format === 'toolName' && (
+      {draft.format === 'toolName' && (
         <input
           className="input"
           type="text"
-          value={toolName}
-          onChange={(e) => { setToolName(e.target.value); setError(''); }}
+          value={draft.toolName}
+          onChange={(e) => { setDraft(updateRuleDraft(draft, { toolName: e.target.value })); setError(''); }}
           onKeyDown={handleKeyDown}
           placeholder={t('settings.permissions.placeholder.toolName')}
           disabled={disabled}
         />
       )}
 
-      {format === 'toolNameArg' && (
+      {draft.format === 'toolNameArg' && (
         <>
           <input
             className="input"
             type="text"
-            value={toolName}
-            onChange={(e) => { setToolName(e.target.value); setError(''); }}
+            value={draft.toolName}
+            onChange={(e) => { setDraft(updateRuleDraft(draft, { toolName: e.target.value })); setError(''); }}
             onKeyDown={handleKeyDown}
             placeholder={t('settings.permissions.placeholder.toolName')}
             style={{ flex: 1 }}
@@ -148,8 +215,8 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
           <input
             className="input"
             type="text"
-            value={pattern}
-            onChange={(e) => { setPattern(e.target.value); setError(''); }}
+            value={draft.pattern}
+            onChange={(e) => { setDraft(updateRuleDraft(draft, { pattern: e.target.value })); setError(''); }}
             onKeyDown={handleKeyDown}
             placeholder={t('settings.permissions.placeholder.pattern')}
             style={{ flex: 1 }}
@@ -158,12 +225,12 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
         </>
       )}
 
-      {format === 'mcp' && (
+      {draft.format === 'mcp' && (
         <input
           className="input"
           type="text"
-          value={pattern}
-          onChange={(e) => { setPattern(e.target.value); setError(''); }}
+          value={draft.pattern}
+          onChange={(e) => { setDraft(updateRuleDraft(draft, { pattern: e.target.value })); setError(''); }}
           onKeyDown={handleKeyDown}
           placeholder={t('settings.permissions.placeholder.mcp')}
           style={{ flex: 1 }}
