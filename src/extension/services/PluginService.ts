@@ -226,7 +226,8 @@ export class PluginService {
         }
         const scope: PluginScope = VALID_SCOPES.has(rawScope as PluginScope) ? (rawScope as PluginScope) : 'user';
         return {
-          label: `Installed: ${token} (${scope})`,
+          id: `${token} (${scope})`,
+          successLabel: `Installed: ${token} (${scope})`,
           execute: () => this.install(token, scope),
         };
       },

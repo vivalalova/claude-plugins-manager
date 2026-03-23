@@ -14,14 +14,11 @@ export interface ExportScriptConfig {
 export interface ImportScriptConfig {
   prefix: string;
   /** 從 prefix 後的 rest 解析成要執行的參數。回傳 null 則跳過該行。 */
-  parseLine: (token: string, rest: string) => { label: string; execute: () => Promise<void> } | null;
+  parseLine: (token: string, rest: string) => { id: string; successLabel: string; execute: () => Promise<void> } | null;
   emptyMessage: string;
 }
 
-/**
- * 匯出 shell script：showSaveDialog → writeFile → showInformationMessage。
- * lines 為空時 throw。
- */
+/** 匯出 shell script：showSaveDialog → writeFile → showInformationMessage。 */
 export async function exportShellScript(config: ExportScriptConfig): Promise<void> {
   const { defaultFilename, header, lines, count } = config;
 
@@ -63,7 +60,7 @@ export async function importShellScript(config: ImportScriptConfig): Promise<str
   const rawFile = await vscode.workspace.fs.readFile(uris[0]);
   const content = Buffer.from(rawFile).toString('utf-8');
 
-  const tasks: Array<{ label: string; execute: () => Promise<void> }> = [];
+  const tasks: Array<{ id: string; successLabel: string; execute: () => Promise<void> }> = [];
   for (const rawLine of content.split('\n')) {
     const line = rawLine.trim();
     if (!line.startsWith(prefix)) continue;
@@ -85,9 +82,9 @@ export async function importShellScript(config: ImportScriptConfig): Promise<str
   for (const task of tasks) {
     try {
       await task.execute();
-      results.push(task.label);
+      results.push(task.successLabel);
     } catch (e) {
-      results.push(`Failed: ${task.label} — ${toErrorMessage(e)}`);
+      results.push(`Failed: ${task.id} — ${toErrorMessage(e)}`);
     }
   }
   return results;

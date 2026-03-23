@@ -237,10 +237,14 @@ export class TranslationService {
     return createHash('sha256').update(text).digest('hex').slice(0, 16);
   }
 
-  /** 載入 cache */
+  /** 載入 cache（損壞時靜默重建，cache 非關鍵資料） */
   private async loadCache(): Promise<TranslationCache> {
     if (this.cache) return this.cache;
-    this.cache = await readJsonFile<TranslationCache>(this.cachePath(), { version: 1, entries: {} });
+    try {
+      this.cache = await readJsonFile<TranslationCache>(this.cachePath(), { version: 1, entries: {} });
+    } catch {
+      this.cache = { version: 1, entries: {} };
+    }
     return this.cache;
   }
 

@@ -12,7 +12,11 @@ export class WriteQueue {
     return task;
   }
 
-  /** 重置佇列（cache invalidation 時使用）。 */
+  /**
+   * 重置佇列（cache invalidation 時使用）。
+   * 注意：已排入但尚未完成的 task 仍會繼續執行，reset 後的新 enqueue 不等待舊 task。
+   * 適用於 cache 失效場景（舊 task 寫入的資料已無意義）。
+   */
   reset(): void {
     this.queue = Promise.resolve();
   }

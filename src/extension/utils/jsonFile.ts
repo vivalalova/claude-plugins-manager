@@ -17,7 +17,7 @@ export async function readJsonFile<T>(filePath: string, defaultValue: T): Promis
   }
   try {
     return JSON.parse(content) as T;
-  } catch {
-    throw new Error(`Invalid JSON in ${filePath}`);
+  } catch (cause) {
+    throw new Error(`Invalid JSON in ${filePath}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
   }
 }

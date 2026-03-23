@@ -246,7 +246,8 @@ export class MarketplaceService {
       prefix: 'claude plugin marketplace add ',
       emptyMessage: 'No "claude plugin marketplace add" commands found in the file.',
       parseLine: (token) => ({
-        label: `Added: ${token}`,
+        id: token,
+        successLabel: `Added: ${token}`,
         execute: () => this.add(token),
       }),
     });
