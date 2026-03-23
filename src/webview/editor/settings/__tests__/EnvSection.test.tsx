@@ -240,6 +240,45 @@ describe('EnvSection — Sensitive field', () => {
       expect(input.placeholder).toBe('••••••••');
     });
   });
+
+  it('Sensitive field Save → onSave 包含正確的 env object', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({}, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('#env-ANTHROPIC_API_KEY')).toBeTruthy();
+    });
+
+    const input = container.querySelector('#env-ANTHROPIC_API_KEY') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sk-live-456' } });
+
+    const field = input.closest('.settings-field')!;
+    const saveBtn = field.querySelector('.btn-primary') as HTMLButtonElement;
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ ANTHROPIC_API_KEY: 'sk-live-456' }));
+    });
+  });
+
+  it('Sensitive field Clear → 從 env 移除 key', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({ env: { ANTHROPIC_API_KEY: 'sk-123' } }, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('#env-ANTHROPIC_API_KEY')).toBeTruthy();
+    });
+
+    const input = container.querySelector('#env-ANTHROPIC_API_KEY') as HTMLInputElement;
+    const field = input.closest('.settings-field')!;
+    const buttons = field.querySelectorAll('.btn-secondary');
+    const clearBtn = buttons[buttons.length - 1] as HTMLButtonElement;
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('env', expect.not.objectContaining({ ANTHROPIC_API_KEY: expect.anything() }));
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -301,6 +340,28 @@ describe('EnvSection — Custom vars', () => {
     await waitFor(() => screen.getByText('Add'));
     const addBtn = screen.getByText('Add').closest('button')!;
     expect(addBtn.disabled).toBe(true);
+  });
+
+  it('Custom field rename → 先移除舊 key 再寫入新 key', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
+      expect(screen.getByDisplayValue('old-value')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('OLD_KEY'), { target: { value: 'NEW_KEY' } });
+    fireEvent.change(screen.getByDisplayValue('old-value'), { target: { value: 'new-value' } });
+
+    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
+    fireEvent.click(saveButtons[saveButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(2);
+      expect(onSave).toHaveBeenNthCalledWith(1, 'env', expect.not.objectContaining({ OLD_KEY: expect.anything() }));
+      expect(onSave).toHaveBeenNthCalledWith(2, 'env', expect.objectContaining({ NEW_KEY: 'new-value' }));
+    });
   });
 });
 

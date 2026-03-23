@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
@@ -27,6 +27,34 @@ function useEnvVarDescription(envKey: string): string | null {
   return localized !== i18nKey ? localized : null;
 }
 
+function useEnvFieldDraft<T>(
+  createDraft: () => T,
+  resetKey: string,
+): {
+  draft: T;
+  setDraft: Dispatch<SetStateAction<T>>;
+  saving: boolean;
+  runWithSaving: (action: () => Promise<void>) => Promise<void>;
+} {
+  const [draft, setDraft] = useState<T>(() => createDraft());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(createDraft());
+  }, [createDraft, resetKey]);
+
+  const runWithSaving = useCallback(async (action: () => Promise<void>): Promise<void> => {
+    setSaving(true);
+    try {
+      await action();
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  return { draft, setDraft, saving, runWithSaving };
+}
+
 // ---------------------------------------------------------------------------
 // EnvSensitiveField (password + reveal — TextSetting doesn't support this)
 // ---------------------------------------------------------------------------
@@ -44,43 +72,35 @@ interface EnvSensitiveFieldProps {
 function EnvSensitiveField({ envKey, knownVar, value, scope, onSave, onDelete, disabled }: EnvSensitiveFieldProps): React.ReactElement {
   const { t } = useI18n();
   const description = useEnvVarDescription(envKey);
-  const [inputValue, setInputValue] = useState('');
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [saving, setSaving] = useState(false);
   const saveLabel = t('settings.common.save');
   const clearLabel = t('settings.common.clear');
   const defaultVal = knownVar?.default;
-
-  useEffect(() => {
-    setInputValue('');
-    setIsRevealed(false);
-  }, [scope, value]);
+  const createDraft = useCallback(() => ({
+    inputValue: '',
+    isRevealed: false,
+  }), []);
+  const resetKey = `${scope}:${value ?? ''}`;
+  const { draft, setDraft, saving, runWithSaving } = useEnvFieldDraft(createDraft, resetKey);
 
   const handleSave = async (): Promise<void> => {
-    const trimmed = inputValue.trim();
-    setSaving(true);
-    try {
+    const trimmed = draft.inputValue.trim();
+    await runWithSaving(async () => {
       if (!trimmed) {
         await onDelete(envKey);
       } else {
         await onSave(envKey, trimmed);
       }
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+    await runWithSaving(async () => {
       await onDelete(envKey);
-      setInputValue('');
-    } finally {
-      setSaving(false);
-    }
+      setDraft((current) => ({ ...current, inputValue: '' }));
+    });
   };
 
-  const inputType = !isRevealed ? 'password' : 'text';
+  const inputType = !draft.isRevealed ? 'password' : 'text';
 
   return (
     <div className="settings-field">
@@ -99,18 +119,18 @@ function EnvSensitiveField({ envKey, knownVar, value, scope, onSave, onDelete, d
             id={`env-${envKey}`}
             className="input"
             type={inputType}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            value={draft.inputValue}
+            onChange={(e) => setDraft((current) => ({ ...current, inputValue: e.target.value }))}
             placeholder={value ? '••••••••' : t('settings.env.valuePlaceholder')}
             disabled={disabled || saving}
           />
           <button
             className="btn btn-secondary"
-            onClick={() => setIsRevealed((r) => !r)}
+            onClick={() => setDraft((current) => ({ ...current, isRevealed: !current.isRevealed }))}
             type="button"
             disabled={disabled || saving}
           >
-            {isRevealed ? '🙈' : '👁'}
+            {draft.isRevealed ? '🙈' : '👁'}
           </button>
         </div>
         {value !== undefined ? (
@@ -151,20 +171,17 @@ interface EnvCustomFieldProps {
 
 function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: EnvCustomFieldProps): React.ReactElement {
   const { t } = useI18n();
-  const [keyInput, setKeyInput] = useState(envKey);
-  const [inputValue, setInputValue] = useState(value ?? '');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setKeyInput(envKey);
-    setInputValue(value ?? '');
-  }, [scope, envKey, value]);
+  const createDraft = useCallback(() => ({
+    keyInput: envKey,
+    inputValue: value ?? '',
+  }), [envKey, value]);
+  const resetKey = `${scope}:${envKey}:${value ?? ''}`;
+  const { draft, setDraft, saving, runWithSaving } = useEnvFieldDraft(createDraft, resetKey);
 
   const handleSave = async (): Promise<void> => {
-    const trimmedKey = keyInput.trim();
-    const trimmedVal = inputValue.trim();
-    setSaving(true);
-    try {
+    const trimmedKey = draft.keyInput.trim();
+    const trimmedVal = draft.inputValue.trim();
+    await runWithSaving(async () => {
       if (!trimmedVal) {
         await onDelete(envKey);
       } else if (trimmedKey !== envKey) {
@@ -173,19 +190,14 @@ function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: En
       } else {
         await onSave(envKey, trimmedVal);
       }
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleClear = async (): Promise<void> => {
-    setSaving(true);
-    try {
+    await runWithSaving(async () => {
       await onDelete(envKey);
-      setInputValue('');
-    } finally {
-      setSaving(false);
-    }
+      setDraft((current) => ({ ...current, inputValue: '' }));
+    });
   };
 
   return (
@@ -193,15 +205,15 @@ function EnvCustomField({ envKey, value, scope, onSave, onDelete, disabled }: En
       <input
         className="input env-custom-key"
         type="text"
-        value={keyInput}
-        onChange={(e) => setKeyInput(e.target.value)}
+        value={draft.keyInput}
+        onChange={(e) => setDraft((current) => ({ ...current, keyInput: e.target.value }))}
         disabled={disabled || saving}
       />
       <input
         className="input"
         type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        value={draft.inputValue}
+        onChange={(e) => setDraft((current) => ({ ...current, inputValue: e.target.value }))}
         disabled={disabled || saving}
       />
       {value !== undefined && (
