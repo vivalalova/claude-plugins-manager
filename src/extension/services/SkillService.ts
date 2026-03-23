@@ -9,18 +9,10 @@ import { WriteQueue } from '../utils/WriteQueue';
 import { spawnWithTimeout } from '../utils/spawnRunner';
 import type { SpawnError } from '../utils/spawnRunner';
 
+import { CommandError } from '../utils/errors';
+
 /** SkillService 執行錯誤 */
-export class SkillError extends Error {
-  constructor(
-    message: string,
-    public readonly command: string,
-    public readonly exitCode: number | null,
-    public readonly stderr: string,
-  ) {
-    super(message);
-    this.name = 'SkillError';
-  }
-}
+export class SkillError extends CommandError {}
 
 const REGISTRY_CACHE_TTL_MS = 4 * 60 * 60 * 1000;
 

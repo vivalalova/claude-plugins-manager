@@ -1,9 +1,9 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { createHash } from 'crypto';
 import { TRANSLATE_LANGS } from '../../shared/types';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
+import { hashShort } from '../utils/crypto';
 
 /** MyMemory API timeout（毫秒） */
 const API_TIMEOUT_MS = 15_000;
@@ -74,7 +74,7 @@ export class TranslationService {
     // 分離已 cache / 未 cache
     const unique = [...new Set(texts)];
     for (const text of unique) {
-      const hash = this.hash(text);
+      const hash = hashShort(text);
       if (langCache[hash]) {
         translations[text] = langCache[hash];
       } else {
@@ -97,7 +97,7 @@ export class TranslationService {
           const original = batch[i];
           const trans = translated[i];
           if (trans) {
-            const hash = this.hash(original);
+            const hash = hashShort(original);
             langCache[hash] = trans;
             translations[original] = trans;
           }
@@ -230,11 +230,6 @@ export class TranslationService {
 
   protected sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /** SHA-256 hash（前 16 字元） */
-  private hash(text: string): string {
-    return createHash('sha256').update(text).digest('hex').slice(0, 16);
   }
 
   /** 載入 cache（損壞時靜默重建，cache 非關鍵資料） */

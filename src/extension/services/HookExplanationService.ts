@@ -1,10 +1,10 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
-import { createHash } from 'crypto';
 import type { CliService } from './CliService';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
+import { expandTildePath } from '../utils/pathUtils';
+import { hashShort } from '../utils/crypto';
 
 const CACHE_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 180 days
 
@@ -55,11 +55,8 @@ export class HookExplanationService {
     const explanationPromise = (async () => {
       let contentForPrompt = hookContent;
       if (filePath) {
-        const resolved = filePath.startsWith('~/')
-          ? join(homedir(), filePath.slice(2))
-          : filePath;
         try {
-          contentForPrompt = await readFile(resolved, 'utf-8');
+          contentForPrompt = await readFile(expandTildePath(filePath), 'utf-8');
         } catch {
           // 檔案不可讀，fallback 用原始 hookContent
         }
@@ -132,19 +129,15 @@ export class HookExplanationService {
 
   private async cacheKey(hookContent: string, locale: string, filePath?: string): Promise<string> {
     if (filePath) {
-      const resolved = filePath.startsWith('~/')
-        ? join(homedir(), filePath.slice(2))
-        : filePath;
+      const resolved = expandTildePath(filePath);
       try {
         const content = await readFile(resolved, 'utf-8');
-        const hash = createHash('sha256').update(content).digest('hex').slice(0, 16);
-        return `${resolved}:${hash}:${locale}`;
+        return `${resolved}:${hashShort(content)}:${locale}`;
       } catch {
         // file not accessible, fall through to hash
       }
     }
-    const hash = createHash('sha256').update(hookContent).digest('hex').slice(0, 16);
-    return `${hash}:0:${locale}`;
+    return `${hashShort(hookContent)}:0:${locale}`;
   }
 
   private isFresh(entry: CacheEntry): boolean {

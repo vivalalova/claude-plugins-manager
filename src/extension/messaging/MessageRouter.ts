@@ -13,6 +13,8 @@ import type { HookExplanationService } from '../services/HookExplanationService'
 import type { ExtensionInfoService } from '../services/ExtensionInfoService';
 import type { SkillService } from '../services/SkillService';
 import type { RequestMessage, ResponseMessage } from './protocol';
+import { expandTildePath } from '../utils/pathUtils';
+import { toErrorMessage } from '../../shared/errorUtils';
 
 type PostFn = (msg: ResponseMessage) => void;
 
@@ -48,7 +50,7 @@ export class MessageRouter {
       const data = await this.dispatch(message);
       post({ type: 'response', requestId, data });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = toErrorMessage(error);
       console.error(`[MessageRouter] ${message.type} failed:`, msg);
       post({ type: 'error', requestId, error: msg });
     }
@@ -148,7 +150,7 @@ export class MessageRouter {
         return this.settings.deleteSetting(message.scope, message.key);
       case 'hooks.checkFilePaths':
         return message.paths.filter((p) => {
-          const expanded = this.expandTildePath(p);
+          const expanded = expandTildePath(p);
           return (p.startsWith('/') || p.startsWith('~/')) && fs.existsSync(expanded);
         });
 
@@ -164,18 +166,14 @@ export class MessageRouter {
         );
         return;
 
-      case 'hooks.openFile': {
-        const resolved = this.expandTildePath(message.path);
-        this.assertAllowedPath(resolved);
-        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
-        return;
-      }
+      case 'hooks.openFile':
+        return this.openFileInEditor(message.path);
 
       case 'extension.getInfo':
         return this.extensionInfo.getInfo();
 
       case 'extension.revealPath': {
-        const resolved = this.expandTildePath(message.path);
+        const resolved = expandTildePath(message.path);
         this.assertAllowedPath(resolved);
         if (!fs.existsSync(resolved)) {
           throw new Error(`Path does not exist: ${resolved}`);
@@ -210,12 +208,8 @@ export class MessageRouter {
         return this.skill.getDetail(message.path);
       case 'skill.registry':
         return this.skill.fetchRegistry(message.sort, message.query);
-      case 'skill.openFile': {
-        const resolved = this.expandTildePath(message.path);
-        this.assertAllowedPath(resolved);
-        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
-        return;
-      }
+      case 'skill.openFile':
+        return this.openFileInEditor(message.path);
 
       case 'settings.openInEditor': {
         const filePath = this.settings.getSettingsPath(message.scope);
@@ -241,8 +235,11 @@ export class MessageRouter {
     }
   }
 
-  private expandTildePath(p: string): string {
-    return p.startsWith('~/') ? os.homedir() + p.slice(1) : p;
+  /** 開啟檔案於 VSCode 編輯器 */
+  private async openFileInEditor(filePath: string): Promise<void> {
+    const resolved = expandTildePath(filePath);
+    this.assertAllowedPath(resolved);
+    await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
   }
 
   /** 驗證路徑在允許範圍內（~/.claude/ 或 workspace），防止任意檔案存取 */
