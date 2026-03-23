@@ -7,7 +7,7 @@ export interface ExportScriptConfig {
   defaultFilename: string;
   header: string;
   lines: string[];
-  count: number;
+  entityLabel: string;
 }
 
 /** Import 設定 */
@@ -20,12 +20,13 @@ export interface ImportScriptConfig {
 
 /** 匯出 shell script：showSaveDialog → writeFile → showInformationMessage。 */
 export async function exportShellScript(config: ExportScriptConfig): Promise<void> {
-  const { defaultFilename, header, lines, count } = config;
+  const { defaultFilename, header, lines, entityLabel } = config;
+  const count = lines.length;
 
   const scriptLines = [
     '#!/bin/bash',
     header,
-    `# Exported ${count} item(s)`,
+    `# Exported ${count} ${entityLabel}(s)`,
     '',
     ...lines,
   ];
@@ -37,7 +38,7 @@ export async function exportShellScript(config: ExportScriptConfig): Promise<voi
   if (!uri) return;
 
   await vscode.workspace.fs.writeFile(uri, Buffer.from(scriptLines.join('\n') + '\n'));
-  vscode.window.showInformationMessage(`Exported ${count} item(s) to ${uri.fsPath}`);
+  vscode.window.showInformationMessage(`Exported ${count} ${entityLabel}(s) to ${uri.fsPath}`);
 }
 
 /**

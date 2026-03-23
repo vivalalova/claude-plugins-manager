@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { createHash } from 'crypto';
 import { HookExplanationService } from '../HookExplanationService';
 import type { CliService } from '../CliService';
+import { hashShort } from '../../utils/crypto';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -17,10 +17,6 @@ function makeCli(stdout = 'This hook runs a security guard script before each to
 async function writeCache(cachePath: string, data: Record<string, unknown>): Promise<void> {
   await mkdir(join(cachePath, '..'), { recursive: true });
   await writeFile(cachePath, JSON.stringify(data), 'utf-8');
-}
-
-function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16);
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +88,7 @@ describe('HookExplanationService — integration', () => {
 
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    const expectedKey = `${hookFile}:${hashContent(fileContent)}:en`;
+    const expectedKey = `${hookFile}:${hashShort(fileContent)}:en`;
     expect(cache[expectedKey]).toBeDefined();
     expect(cache[expectedKey].explanation).toBe(result.explanation);
   });
@@ -107,7 +103,7 @@ describe('HookExplanationService — integration', () => {
 
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    const expectedKey = `${hashContent(content)}:0:en`;
+    const expectedKey = `${hashShort(content)}:0:en`;
     expect(cache[expectedKey]).toBeDefined();
     expect(cache[expectedKey].explanation).toBe('inline explanation');
   });
@@ -118,7 +114,7 @@ describe('HookExplanationService — integration', () => {
     await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${hashContent(fileContent)}:zh-TW`]: {
+      [`${hookFile}:${hashShort(fileContent)}:zh-TW`]: {
         explanation: '這個 hook 執行守護腳本。',
         locale: 'zh-TW',
         createdAt: new Date().toISOString(),
@@ -138,7 +134,7 @@ describe('HookExplanationService — integration', () => {
     await writeFile(hookFile, oldContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${hashContent(oldContent)}:en`]: {
+      [`${hookFile}:${hashShort(oldContent)}:en`]: {
         explanation: 'old explanation',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -162,7 +158,7 @@ describe('HookExplanationService — integration', () => {
     await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${hashContent(fileContent)}:en`]: {
+      [`${hookFile}:${hashShort(fileContent)}:en`]: {
         explanation: 'English explanation.',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -209,7 +205,7 @@ describe('HookExplanationService — integration', () => {
 
     const { readFile } = await import('fs/promises');
     const cache = JSON.parse(await readFile(cachePath, 'utf-8')) as Record<string, { explanation: string }>;
-    const expectedKey = `${hashContent(content)}:0:en`;
+    const expectedKey = `${hashShort(content)}:0:en`;
     expect(cache[expectedKey]).toBeDefined();
   });
 
@@ -219,7 +215,7 @@ describe('HookExplanationService — integration', () => {
     await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${hashContent(fileContent)}:en`]: {
+      [`${hookFile}:${hashShort(fileContent)}:en`]: {
         explanation: 'stale explanation',
         locale: 'en',
         createdAt: new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString(),
@@ -360,7 +356,7 @@ describe('HookExplanationService — integration', () => {
     await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${hashContent(fileContent)}:en`]: {
+      [`${hookFile}:${hashShort(fileContent)}:en`]: {
         explanation: 'cached explanation',
         locale: 'en',
         createdAt: new Date().toISOString(),
@@ -378,7 +374,7 @@ describe('HookExplanationService — integration', () => {
   it('loadCached → 無 filePath 用 hookContent 作 uiKey', async () => {
     const content = 'echo "inline"';
     await writeCache(cachePath, {
-      [`${hashContent(content)}:0:zh-TW`]: {
+      [`${hashShort(content)}:0:zh-TW`]: {
         explanation: '行內解釋',
         locale: 'zh-TW',
         createdAt: new Date().toISOString(),
@@ -398,7 +394,7 @@ describe('HookExplanationService — integration', () => {
     await writeFile(hookFile, fileContent, 'utf-8');
 
     await writeCache(cachePath, {
-      [`${hookFile}:${hashContent(fileContent)}:en`]: {
+      [`${hookFile}:${hashShort(fileContent)}:en`]: {
         explanation: 'stale',
         locale: 'en',
         createdAt: new Date(Date.now() - 181 * 24 * 60 * 60 * 1000).toISOString(),

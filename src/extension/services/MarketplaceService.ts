@@ -225,7 +225,7 @@ export class MarketplaceService {
     await exportShellScript({
       defaultFilename: 'claude-marketplaces.sh',
       header: '# Claude Code Marketplace Setup',
-      count: marketplaces.length,
+      entityLabel: 'marketplace',
       lines,
     });
   }

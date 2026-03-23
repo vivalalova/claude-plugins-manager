@@ -197,7 +197,7 @@ export class PluginService {
     await exportShellScript({
       defaultFilename: 'claude-plugins.sh',
       header: '# Claude Code Plugin Setup',
-      count: enabledEntries.length,
+      entityLabel: 'plugin',
       lines: enabledEntries.map((p) =>
         `claude plugin install '${escapeShellArg(p.id)}' --scope ${p.scope}`,
       ),

@@ -1,4 +1,5 @@
 import { readFile } from 'fs/promises';
+import { toErrorMessage } from '../../shared/errorUtils';
 
 /**
  * 讀取 JSON 檔案並解析為指定型別。
@@ -18,6 +19,6 @@ export async function readJsonFile<T>(filePath: string, defaultValue: T): Promis
   try {
     return JSON.parse(content) as T;
   } catch (cause) {
-    throw new Error(`Invalid JSON in ${filePath}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    throw new Error(`Invalid JSON in ${filePath}: ${toErrorMessage(cause)}`, { cause });
   }
 }
