@@ -1,19 +1,17 @@
 import * as vscode from 'vscode';
-import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises';
-import { dirname, join, resolve } from 'path';
+import { writeFile, mkdir } from 'fs/promises';
+import { dirname, join } from 'path';
 import { homedir } from 'os';
 import type {
   EnabledPluginsMap,
   InstalledPluginsFile,
   PluginScope,
-  MarketplaceManifest,
   AvailablePlugin,
-  PluginContents,
-  PluginContentItem,
   PluginInstallEntry,
 } from '../../shared/types';
 import { KeyedWriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
+import { PluginCatalogScanner } from './PluginCatalogScanner';
 
 const CLAUDE_DIR = join(homedir(), '.claude');
 const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
@@ -29,6 +27,10 @@ const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
 export class SettingsFileService {
   private scanInflight: Promise<AvailablePlugin[]> | null = null;
   private readonly settingsWriteQueues = new KeyedWriteQueue();
+  private readonly pluginCatalogScanner = new PluginCatalogScanner({
+    knownMarketplacesPath: KNOWN_MARKETPLACES_PATH,
+    marketplacesDir: MARKETPLACES_DIR,
+  });
 
   private async updateScopedSettingsFile(
     scope: PluginScope,
@@ -258,86 +260,7 @@ export class SettingsFileService {
 
   /** 實際掃描邏輯（by scanAvailablePlugins 快取驅動） */
   private async doScan(): Promise<AvailablePlugin[]> {
-    let knownMarketplaces: Record<string, { installLocation?: string }>;
-    try {
-      knownMarketplaces = await readJsonFile<Record<string, { installLocation?: string }>>(
-        KNOWN_MARKETPLACES_PATH,
-        {},
-      );
-    } catch {
-      return [];
-    }
-
-    // 並行掃描所有 marketplace
-    const perMarketplace = await Promise.all(
-      Object.entries(knownMarketplaces).map(async ([mpName, mpEntry]) => {
-        const mpDir = mpEntry.installLocation ?? join(MARKETPLACES_DIR, mpName);
-        const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
-        try {
-          const manifest = await readJsonFile<MarketplaceManifest>(manifestPath, {} as MarketplaceManifest);
-          return Promise.all(
-            (manifest.plugins ?? []).map(async (p) => {
-              // source 可能是 object（遠端 URL 型 plugin），此時本地無目錄
-              const localSource = typeof p.source === 'string' ? p.source : null;
-              const sourceUrl = typeof p.source === 'object' && p.source !== null
-                ? extractSourceUrl(p.source as Record<string, unknown>)
-                : undefined;
-              const pluginDir = localSource ? resolve(mpDir, localSource) : null;
-              let contents: AvailablePlugin['contents'];
-              let pluginMeta: { description?: string; version?: string } = {};
-              let lastUpdated: string | undefined;
-
-              if (pluginDir) {
-                [contents, pluginMeta] = await Promise.all([
-                  this.scanPluginContents(pluginDir),
-                  readJsonFile<{ description?: string; version?: string }>(
-                    join(pluginDir, '.claude-plugin', 'plugin.json'),
-                    {},
-                  ).catch(() => ({} as { description?: string; version?: string })),
-                ]);
-                try {
-                  const entries = await readdir(pluginDir);
-                  // .git mtime 每次 git pull 都會更新，排除以避免 hasPluginUpdate 誤判
-                  const contentEntries = entries.filter((e) => e !== '.git');
-                  const stats = await Promise.all(
-                    contentEntries.map((entry) =>
-                      stat(join(pluginDir, entry)).catch((err: unknown) => {
-                        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-                        return null;
-                      }),
-                    ),
-                  );
-                  const latestMtime = Math.max(0, ...stats.map((s) => s?.mtimeMs ?? 0));
-                  if (latestMtime > 0) lastUpdated = new Date(latestMtime).toISOString();
-                } catch (err: unknown) {
-                  if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-                }
-              }
-
-              return {
-                pluginId: `${p.name}@${mpName}`,
-                name: p.name,
-                description: pluginMeta.description ?? p.description ?? '',
-                marketplaceName: mpName,
-                version: pluginMeta.version ?? p.version,
-                contents,
-                sourceDir: localSource ?? undefined,
-                sourceUrl,
-                lastUpdated,
-              } satisfies AvailablePlugin;
-            }),
-          );
-        } catch (scanErr) {
-          // marketplace 目錄可能不存在，其他錯誤記 log 協助 debug
-          if ((scanErr as NodeJS.ErrnoException).code !== 'ENOENT') {
-            console.warn(`[SettingsFileService] marketplace scan error (${mpName}):`, scanErr);
-          }
-          return [] as AvailablePlugin[];
-        }
-      }),
-    );
-
-    return perMarketplace.flat();
+    return this.pluginCatalogScanner.scanAvailablePlugins();
   }
 
   /**
@@ -345,160 +268,7 @@ export class SettingsFileService {
    * 回傳 Record<marketplace name, source URL string>。
    */
   async readMarketplaceSources(): Promise<Record<string, string>> {
-    const known = await readJsonFile<
-      Record<string, { source: { url?: string; repo?: string; path?: string } }>
-    >(KNOWN_MARKETPLACES_PATH, {});
-
-    const result: Record<string, string> = {};
-    for (const [name, entry] of Object.entries(known)) {
-      const src = entry?.source;
-      if (src) {
-        result[name] = src.url ?? src.repo ?? src.path ?? '';
-      }
-    }
-    return result;
-  }
-
-  /**
-   * 掃描 plugin 目錄，回傳其包含的 commands/skills/agents/mcpServers/hooks。
-   * 從 .md frontmatter 解析 name + description，fallback 為檔案名稱。
-   */
-  async scanPluginContents(pluginDir: string): Promise<PluginContents> {
-    const contents: PluginContents = {
-      commands: [],
-      skills: [],
-      agents: [],
-      mcpServers: [],
-      hooks: false,
-    };
-
-    const [commands, skills, agents, mcpKeys, hasHooks] = await Promise.all([
-      this.scanMdDir(join(pluginDir, 'commands')),
-      this.scanSkillsDir(join(pluginDir, 'skills')),
-      this.scanMdDir(join(pluginDir, 'agents')),
-      readJsonFile<Record<string, unknown>>(join(pluginDir, '.mcp.json'), {})
-        .then((mcp) => {
-          const servers = this.unwrapMcpServers(mcp);
-          return Object.keys(servers);
-        })
-        .catch(() => [] as string[]),
-      stat(join(pluginDir, 'hooks', 'hooks.json'))
-        .then(() => true)
-        .catch(() => false),
-    ]);
-
-    contents.commands = commands;
-    contents.skills = skills;
-    contents.agents = agents;
-    contents.mcpServers = mcpKeys;
-    contents.hooks = hasHooks;
-
-    return contents;
-  }
-
-  /** 解包 plugin .mcp.json，支援 `{ mcpServers: {...} }` 與直接 server map 兩種格式 */
-  private unwrapMcpServers(mcp: Record<string, unknown>): Record<string, unknown> {
-    const candidate = 'mcpServers' in mcp ? mcp.mcpServers : mcp;
-    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
-      throw new Error('mcpServers must be an object');
-    }
-    return candidate as Record<string, unknown>;
-  }
-
-  /**
-   * 掃描目錄下所有 .md 檔，從 frontmatter 解析 name + description。
-   * Fallback: name = 檔名（去 .md），description = ''。
-   */
-  private async scanMdDir(dir: string): Promise<PluginContentItem[]> {
-    let files: string[];
-    try {
-      files = await readdir(dir);
-    } catch {
-      return [];
-    }
-
-    const mdFiles = files.filter((f) => f.endsWith('.md'));
-    const fmResults = await Promise.all(
-      mdFiles.map((file) => this.parseFrontmatter(join(dir, file))),
-    );
-
-    return mdFiles.map((file, i) => {
-      const fallbackName = file.replace(/\.md$/, '');
-      const fm = fmResults[i];
-      return {
-        name: fm.name || fm.description ? (fm.name || fallbackName) : fallbackName,
-        description: fm.description ?? '',
-      };
-    });
-  }
-
-  /**
-   * 掃描 skills 目錄：每個子目錄有 SKILL.md，或者根目錄有 SKILL.md。
-   */
-  private async scanSkillsDir(dir: string): Promise<PluginContentItem[]> {
-    const rootSkillPath = join(dir, 'SKILL.md');
-    try {
-      await stat(rootSkillPath);
-      const fm = await this.parseFrontmatter(rootSkillPath);
-      return [{
-        name: fm.name || 'SKILL',
-        description: fm.description ?? '',
-      }];
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-      // ENOENT: fall through to directory-based scan
-    }
-
-    let entries: string[];
-    try {
-      const dirents = await readdir(dir, { withFileTypes: true });
-      entries = dirents.filter(d => d.isDirectory()).map(d => d.name);
-    } catch {
-      return [];
-    }
-
-    const results = await Promise.all(
-      entries.map(async (entry) => {
-        const skillMd = join(dir, entry, 'SKILL.md');
-        try {
-          await stat(skillMd);
-          const fm = await this.parseFrontmatter(skillMd);
-          return {
-            name: fm.name || entry,
-            description: fm.description ?? '',
-          };
-        } catch (e) {
-          if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-          return null;
-        }
-      }),
-    );
-    return results.filter((r): r is PluginContentItem => r !== null);
-  }
-
-  /** 從 .md 檔案解析 YAML frontmatter 的 name 和 description */
-  private async parseFrontmatter(
-    filePath: string,
-  ): Promise<{ name?: string; description?: string }> {
-    try {
-      const raw = await readFile(filePath, 'utf-8');
-      if (!raw.startsWith('---')) return {};
-
-      const endIdx = raw.indexOf('---', 3);
-      if (endIdx === -1) return {};
-
-      const yaml = raw.slice(3, endIdx);
-      const result: Record<string, string> = {};
-      for (const line of yaml.split('\n')) {
-        const match = line.match(/^(\w[\w-]*):\s*"?(.*?)"?\s*$/);
-        if (match) {
-          result[match[1]] = match[2];
-        }
-      }
-      return { name: result.name, description: result.description };
-    } catch {
-      return {};
-    }
+    return this.pluginCatalogScanner.readMarketplaceSources();
   }
 
   /** 取得當前 workspace 根路徑 */
@@ -511,31 +281,4 @@ export class SettingsFileService {
     }
     return folder.uri.fsPath;
   }
-}
-
-/**
- * 從 marketplace.json 的 object-type source 提取可瀏覽的 GitHub URL。
- * 支援 `{ url: "https://...git" }` 和 `{ url: "owner/repo", path: "sub/dir", ref: "main" }` 格式。
- */
-function extractSourceUrl(src: Record<string, unknown>): string | undefined {
-  const rawUrl = typeof src.url === 'string' ? src.url : undefined;
-  if (!rawUrl) return undefined;
-
-  // expand GitHub shorthand / strip .git
-  let baseUrl: string;
-  if (rawUrl.startsWith('https://')) {
-    baseUrl = rawUrl.replace(/\.git$/, '');
-  } else if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
-    baseUrl = `https://github.com/${rawUrl}`;
-  } else {
-    return undefined;
-  }
-
-  const subPath = typeof src.path === 'string' ? src.path : undefined;
-  if (subPath) {
-    const ref = typeof src.ref === 'string' ? src.ref : 'main';
-    return `${baseUrl}/tree/${ref}/${subPath}`;
-  }
-
-  return baseUrl;
 }

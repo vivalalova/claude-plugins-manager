@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { sendRequest, getViewState, setViewState, setGlobalState, initGlobalState } from '../../vscode';
+import { sendRequest } from '../../vscode';
 import { SkillCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, SkillIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -10,13 +10,14 @@ import { SkillSearchResultCard } from './SkillSearchResultCard';
 import { RegistrySkillCard } from './RegistrySkillCard';
 import { AddSkillDialog, RemoveConfirmDialog } from './SkillDialogs';
 import { SkillDetailPanel } from './SkillDetailPanel';
-import { useToast } from '../../components/Toast';
 import { PageHeader } from '../../components/PageHeader';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
-import { usePageAction } from '../../hooks/usePageAction';
 import { useRemoteListQuery } from '../../hooks/useRemoteListQuery';
+import { usePersistedSkillAgents } from './hooks/usePersistedSkillAgents';
+import { useSkillDetailState } from './hooks/useSkillDetailState';
+import { useSkillMutations } from './hooks/useSkillMutations';
 
 /**
  * Skills 管理頁面。
@@ -26,43 +27,24 @@ import { useRemoteListQuery } from '../../hooks/useRemoteListQuery';
  */
 export function SkillsPage(): React.ReactElement {
   const { t } = useI18n();
-  const { addToast } = useToast();
 
   // --- Installed state ---
   const [scopeFilter, setScopeFilter] = useState<SkillScope | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [addingSkill, setAddingSkill] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<{ name: string; scope: SkillScope } | null>(null);
-  const [removingSkills, setRemovingSkills] = useState<Set<string>>(new Set());
   const [hasWorkspace, setHasWorkspace] = useState(false);
 
   // --- Pending install from search/registry (Install 按鈕直接開 dialog) ---
   const [pendingInstall, setPendingInstall] = useState<string | null>(null);
 
   // --- Agent selection (persisted in viewState + globalState) ---
-  const [selectedAgents, setSelectedAgents] = useState<string[]>(() => getViewState<string[]>('skill.agents', ['claude-code']));
-  useEffect(() => {
-    void initGlobalState([{ key: 'skill.agents', fallback: ['claude-code'] }])
-      .then(() => {
-        setSelectedAgents(getViewState<string[]>('skill.agents', ['claude-code']));
-      })
-      .catch(() => {});
-  }, []);
+  const { selectedAgents, persistSelectedAgents } = usePersistedSkillAgents();
 
   // --- Shared ---
   const [search, setSearch] = useState('');
   const [pageTab, setPageTab] = useState<PageTab>('installed');
 
   // --- Check/Update state ---
-  const [checking, setChecking] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [checkResult, setCheckResult] = useState<string | null>(null);
-
-  // --- Detail state ---
-  const [detailSkill, setDetailSkill] = useState<AgentSkill | null>(null);
-  const [detailData, setDetailData] = useState<{ frontmatter: Record<string, string>; body: string } | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
   // --- Registry state ---
   const [registrySort, setRegistrySort] = useState<RegistrySort>('all-time');
   const loadInstalledSkills = useCallback(
@@ -85,7 +67,6 @@ export function SkillsPage(): React.ReactElement {
     load: loadInstalledSkills,
     pushFilter: shouldRefreshSkills,
   });
-  const runPageAction = usePageAction();
 
   useEffect(() => {
     sendRequest<Array<{ name: string }>>({ type: 'workspace.getFolders' })
@@ -116,6 +97,38 @@ export function SkillsPage(): React.ReactElement {
     load: loadRegistrySkills,
     getCacheKey: useCallback((query: string) => `${registrySort}:${query}`, [registrySort]),
   });
+  const clearRegistryCache = useCallback(() => {
+    registryQuery.clearCache();
+  }, [registryQuery]);
+  const closeAddDialog = useCallback(() => {
+    setShowAddDialog(false);
+    setPendingInstall(null);
+  }, []);
+  const {
+    addingSkill,
+    checking,
+    updating,
+    checkResult,
+    removingSkills,
+    handleAdd,
+    handleRemove,
+    handleCheckUpdates,
+    handleUpdateAll,
+  } = useSkillMutations({
+    fetchList,
+    clearRegistryCache,
+    persistSelectedAgents,
+    hasPendingInstall: () => pendingInstall !== null,
+    closeAddDialog,
+  });
+  const {
+    detailSkill,
+    detailData,
+    detailLoading,
+    handleViewDetail,
+    handleCopyPath,
+    closeDetail,
+  } = useSkillDetailState();
 
   // --- Installed skill names (for "Installed" badge in registry) ---
   const installedSkillNames = useMemo(() => new Set(skills.map((s) => s.name)), [skills]);
@@ -150,53 +163,6 @@ export function SkillsPage(): React.ReactElement {
   const projectSkills = useMemo(() => filtered.filter((s) => s.scope === 'project'), [filtered]);
 
   // --- Handlers ---
-  const handleAdd = async (source: string, scope: SkillScope, agents: string[]): Promise<void> => {
-    setAddingSkill(true);
-    setSelectedAgents(agents);
-    setViewState('skill.agents', agents);
-    void setGlobalState('skill.agents', agents);
-    const isPending = pendingInstall !== null;
-    await runPageAction({
-      action: () => sendRequest<void>({ type: 'skill.add', source, scope, agents }, 90_000),
-      onSuccess: async () => {
-        setShowAddDialog(false);
-        setPendingInstall(null);
-        registryQuery.clearCache();
-        await fetchList();
-      },
-      onError: (message) => {
-        addToast(t('skill.error.add') + ': ' + message, 'error');
-      },
-      onFinally: () => {
-        setAddingSkill(false);
-      },
-      successToast: isPending ? t('skill.search.installDone').replace('{source}', source) : undefined,
-    });
-  };
-
-  const handleRemove = async (name: string, scope: SkillScope): Promise<void> => {
-    const key = `${scope}:${name}`;
-    setRemovingSkills((prev) => new Set(prev).add(key));
-    setConfirmRemove(null);
-    await runPageAction({
-      action: () => sendRequest<void>({ type: 'skill.remove', name, scope }),
-      onSuccess: async () => {
-        registryQuery.clearCache();
-        await fetchList();
-      },
-      onError: (message) => {
-        addToast(t('skill.error.remove') + ': ' + message, 'error');
-      },
-      onFinally: () => {
-        setRemovingSkills((prev) => {
-          const next = new Set(prev);
-          next.delete(key);
-          return next;
-        });
-      },
-    });
-  };
-
   /** Install 按鈕 → 直接開 AddSkillDialog（source 預填） */
   const handlePendingInstall = (source: string): void => {
     setPendingInstall(source);
@@ -208,75 +174,6 @@ export function SkillsPage(): React.ReactElement {
 
   const handleOpenFile = (skillDir: string): void => {
     sendRequest<void>({ type: 'skill.openFile', path: skillDir + '/SKILL.md' }).catch(() => {});
-  };
-
-  const handleCheckUpdates = async (): Promise<void> => {
-    setChecking(true);
-    setCheckResult(null);
-    await runPageAction({
-      action: () => sendRequest<string>({ type: 'skill.check' }),
-      onSuccess: (result) => {
-        if (result.includes('No skills tracked') || result.includes('up to date') || result.includes('up-to-date')) {
-          addToast(t('skill.check.upToDate'), 'success');
-          setCheckResult(null);
-          return;
-        }
-        setCheckResult(result);
-      },
-      onError: (message) => {
-        addToast(t('skill.check.error') + ': ' + message, 'error');
-      },
-      onFinally: () => {
-        setChecking(false);
-      },
-    });
-  };
-
-  const handleUpdateAll = async (): Promise<void> => {
-    setUpdating(true);
-    await runPageAction({
-      action: () => sendRequest<void>({ type: 'skill.update' }, 90_000),
-      onSuccess: async () => {
-        setCheckResult(null);
-        registryQuery.clearCache();
-        await fetchList();
-      },
-      onError: (message) => {
-        addToast(t('skill.update.error') + ': ' + message, 'error');
-      },
-      onFinally: () => {
-        setUpdating(false);
-      },
-      successToast: t('skill.update.done'),
-    });
-  };
-
-  const handleViewDetail = async (skill: AgentSkill): Promise<void> => {
-    setDetailSkill(skill);
-    setDetailData(null);
-    setDetailLoading(true);
-    await runPageAction({
-      clearError: false,
-      action: () => sendRequest<{ frontmatter: Record<string, string>; body: string }>({ type: 'skill.getDetail', path: skill.path }),
-      onSuccess: (data) => {
-        setDetailData(data);
-      },
-      onError: () => {
-        setDetailData({ frontmatter: {}, body: '' });
-      },
-      onFinally: () => {
-        setDetailLoading(false);
-      },
-    });
-  };
-
-  const handleCopyPath = (): void => {
-    if (detailSkill) {
-      const mdPath = detailSkill.path + '/SKILL.md';
-      navigator.clipboard.writeText(mdPath).then(() => {
-        addToast(t('skill.detail.copied'), 'success');
-      }).catch(() => {});
-    }
   };
 
   // --- Render helpers ---
@@ -370,14 +267,17 @@ export function SkillsPage(): React.ReactElement {
         cachedAgents={selectedAgents}
         initialSource={pendingInstall ?? undefined}
         onSubmit={handleAdd}
-        onClose={() => { setShowAddDialog(false); setPendingInstall(null); }}
+        onClose={closeAddDialog}
       />
 
       {confirmRemove && (
         <RemoveConfirmDialog
           skillName={confirmRemove.name}
           skillScope={confirmRemove.scope}
-          onConfirm={() => handleRemove(confirmRemove.name, confirmRemove.scope)}
+          onConfirm={() => {
+            setConfirmRemove(null);
+            return handleRemove(confirmRemove.name, confirmRemove.scope);
+          }}
           onCancel={() => setConfirmRemove(null)}
         />
       )}
@@ -388,7 +288,7 @@ export function SkillsPage(): React.ReactElement {
           skillPath={detailSkill.path}
           detail={detailData}
           loading={detailLoading}
-          onClose={() => setDetailSkill(null)}
+          onClose={closeDetail}
           onOpenInEditor={() => handleOpenFile(detailSkill.path)}
           onCopyPath={handleCopyPath}
         />

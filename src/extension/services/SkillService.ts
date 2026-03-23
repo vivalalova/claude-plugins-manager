@@ -1,29 +1,24 @@
 import { existsSync, readdirSync } from 'fs';
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import { homedir } from 'os';
-import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS, SKILL_REGISTRY_URL } from '../constants';
+import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS } from '../constants';
 import { getWorkspacePath } from '../utils/workspace';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../shared/types';
 import { WriteQueue } from '../utils/WriteQueue';
 import { spawnWithTimeout } from '../utils/spawnRunner';
 import type { SpawnError } from '../utils/spawnRunner';
+import {
+  buildSkillRegistryUrl,
+  parseSkillRegistryHtml,
+  readSkillRegistryCache,
+  writeSkillRegistryCache,
+} from './skillRegistrySupport';
 
 import { CommandError } from '../utils/errors';
 
 /** SkillService 執行錯誤 */
 export class SkillError extends CommandError {}
-
-const REGISTRY_CACHE_TTL_MS = 4 * 60 * 60 * 1000;
-
-interface RegistryCacheEntry {
-  data: RegistrySkill[];
-  timestamp: number;
-}
-
-interface RegistryCacheFile {
-  [cacheKey: string]: RegistryCacheEntry;
-}
 
 /**
  * npx skills CLI 封裝 + skills.sh registry 解析。
@@ -62,17 +57,6 @@ export class SkillService {
   static stripAnsi(text: string): string {
     // eslint-disable-next-line no-control-regex
     return text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
-  }
-
-  /** 格式化安裝數為人類可讀字串（配合 skills.sh 格式：K/M 一律一位小數） */
-  static formatInstalls(count: number): string {
-    if (count >= 1_000_000) {
-      return `${(count / 1_000_000).toFixed(1)}M`;
-    }
-    if (count >= 1_000) {
-      return `${(count / 1_000).toFixed(1)}K`;
-    }
-    return String(count);
   }
 
   // ---------------------------------------------------------------------------
@@ -198,19 +182,10 @@ export class SkillService {
   /** 從 skills.sh 取得 registry 列表（4 小時 file-based cache） */
   async fetchRegistry(sort: RegistrySort, query?: string): Promise<RegistrySkill[]> {
     const cacheKey = `${sort}:${query ?? ''}`;
-    const cached = await this.readRegistryCache(cacheKey);
+    const cached = await readSkillRegistryCache(this.registryCachePath, cacheKey);
     if (cached) return cached;
 
-    let url: string;
-    if (query) {
-      url = sort === 'all-time'
-        ? `${SKILL_REGISTRY_URL}/?q=${encodeURIComponent(query)}`
-        : `${SKILL_REGISTRY_URL}/${sort}?q=${encodeURIComponent(query)}`;
-    } else {
-      url = sort === 'all-time'
-        ? `${SKILL_REGISTRY_URL}/`
-        : `${SKILL_REGISTRY_URL}/${sort}`;
-    }
+    const url = buildSkillRegistryUrl(sort, query);
 
     const response = await fetch(url, {
       headers: { 'User-Agent': 'claude-plugins-manager' },
@@ -225,8 +200,13 @@ export class SkillService {
     }
 
     const html = await response.text();
-    const data = this.parseRegistryHtml(html);
-    await this.writeRegistryCache(cacheKey, data);
+    const data = parseSkillRegistryHtml(html);
+    await writeSkillRegistryCache(
+      this.registryCachePath,
+      this.registryCacheWriteQueue,
+      cacheKey,
+      data,
+    );
     return data;
   }
 
@@ -334,99 +314,6 @@ export class SkillService {
     }
 
     return results;
-  }
-
-  /** 從 skills.sh HTML 解析 initialSkills JSON */
-  private parseRegistryHtml(html: string): RegistrySkill[] {
-    // Next.js RSC 將資料嵌入 __next_f.push([1,"..."]) 的 JS 字串中，
-    // 雙引號被 escape 為 \"，因此 key 格式為 \"initialSkills\":[...]
-    const match = /\\"initialSkills\\":([\s\S]*)/.exec(html);
-    if (!match) {
-      throw new SkillError(
-        'Failed to parse skills.sh: initialSkills not found in HTML. The page structure may have changed.',
-        'parseRegistryHtml',
-        null,
-        '',
-      );
-    }
-
-    // 以 balanced brackets 找到陣列結尾（陣列內容同樣是 escaped JSON）
-    const raw = match[1];
-    let depth = 0;
-    let endIdx = 0;
-    for (let i = 0; i < raw.length; i++) {
-      if (raw[i] === '[') depth++;
-      else if (raw[i] === ']') {
-        depth--;
-        if (depth === 0) {
-          endIdx = i + 1;
-          break;
-        }
-      }
-    }
-    if (endIdx === 0) {
-      throw new SkillError(
-        'Failed to parse skills.sh: initialSkills array is malformed.',
-        'parseRegistryHtml',
-        null,
-        '',
-      );
-    }
-
-    // Unescape JS string escapes（single-pass 避免順序問題）
-    const jsonStr = raw.slice(0, endIdx).replace(/\\(["\\/bfnrt])/g, (_, ch: string) => {
-      const escapeMap: Record<string, string> = {
-        '"': '"', '\\': '\\', '/': '/', 'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r', 't': '\t',
-      };
-      return escapeMap[ch] ?? ch;
-    });
-    const items = JSON.parse(jsonStr) as Array<{
-      source: string;
-      skillId: string;
-      name: string;
-      installs: number;
-    }>;
-
-    return items.map((item, index) => ({
-      rank: index + 1,
-      name: item.name,
-      repo: item.source,
-      installs: SkillService.formatInstalls(item.installs),
-      url: `${SKILL_REGISTRY_URL}/${item.source}/${item.skillId}`,
-    }));
-  }
-
-  /** 讀取 registry file cache；cache miss 或過期回傳 null */
-  private async readRegistryCache(key: string): Promise<RegistrySkill[] | null> {
-    try {
-      const raw = await readFile(this.registryCachePath, 'utf-8');
-      const cache = JSON.parse(raw) as RegistryCacheFile;
-      const entry = cache[key];
-      if (!entry) return null;
-      if (Date.now() - entry.timestamp > REGISTRY_CACHE_TTL_MS) return null;
-      return entry.data;
-    } catch {
-      return null;
-    }
-  }
-
-  /** 寫入 registry file cache；序列化避免併發寫入 TOCTOU；寫入失敗靜默忽略 */
-  private writeRegistryCache(key: string, data: RegistrySkill[]): Promise<void> {
-    return this.registryCacheWriteQueue.enqueue(async () => {
-      try {
-        await mkdir(dirname(this.registryCachePath), { recursive: true });
-        let cache: RegistryCacheFile = {};
-        try {
-          cache = JSON.parse(await readFile(this.registryCachePath, 'utf-8')) as RegistryCacheFile;
-        } catch {
-          // 檔案不存在或損毀，從空物件開始
-        }
-        cache[key] = { data, timestamp: Date.now() };
-        await writeFile(this.registryCachePath, JSON.stringify(cache), 'utf-8');
-      } catch {
-        // cache 寫入失敗不影響主流程
-      }
-    });
   }
 
   /** 清除 in-memory cache 狀態（磁碟快取由 cacheDir rm 處理） */

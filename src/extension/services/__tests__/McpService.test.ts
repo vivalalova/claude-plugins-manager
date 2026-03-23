@@ -720,6 +720,82 @@ describe('McpService', () => {
       expect(detail.config).toEqual({ command: 'npx', args: ['project-context7'] });
     });
 
+    it('plugin server detail 在多個 enabled entry 時優先採用 local install entry', async () => {
+      workspace.workspaceFolders = [
+        { uri: { fsPath: '/my/project' } },
+      ] as any;
+
+      settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({
+        user: { 'context7@official': true },
+        project: { 'context7@official': true },
+        local: { 'context7@official': true },
+      });
+
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({
+            version: 2,
+            plugins: {
+              'context7@official': [
+                {
+                  scope: 'user',
+                  installPath: '/cache/user',
+                  installedAt: '2026-01-01T00:00:00Z',
+                  lastUpdated: '2026-01-01T00:00:00Z',
+                },
+                {
+                  scope: 'project',
+                  projectPath: '/my/project',
+                  installPath: '/cache/project',
+                  installedAt: '2026-01-02T00:00:00Z',
+                  lastUpdated: '2026-01-02T00:00:00Z',
+                },
+                {
+                  scope: 'local',
+                  projectPath: '/my/project',
+                  installPath: '/cache/local',
+                  installedAt: '2026-01-03T00:00:00Z',
+                  lastUpdated: '2026-01-03T00:00:00Z',
+                },
+              ],
+            },
+          });
+        }
+        if (path === '/cache/local/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['local-context7'] },
+          });
+        }
+        if (path === '/cache/local/.claude-plugin/plugin.json') {
+          return JSON.stringify({ description: 'Local install' });
+        }
+        if (path === '/cache/project/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['project-context7'] },
+          });
+        }
+        if (path === '/cache/project/.claude-plugin/plugin.json') {
+          return JSON.stringify({ description: 'Project install' });
+        }
+        if (path === '/cache/user/.mcp.json') {
+          return JSON.stringify({
+            context7: { command: 'npx', args: ['user-context7'] },
+          });
+        }
+        if (path === '/cache/user/.claude-plugin/plugin.json') {
+          return JSON.stringify({ description: 'User install' });
+        }
+        throw enoent();
+      });
+
+      const detail = JSON.parse(await svc.getDetail('plugin:context7@official:context7'));
+
+      expect(detail.scope).toBe('local');
+      expect(detail.enabled).toBe(true);
+      expect(detail.installPath).toBe('/cache/local');
+      expect(detail.config).toEqual({ command: 'npx', args: ['local-context7'] });
+    });
+
     it('URL 型 server detail 會保留 url、transport、headers、env', async () => {
       workspace.workspaceFolders = [
         { uri: { fsPath: '/my/project' } },

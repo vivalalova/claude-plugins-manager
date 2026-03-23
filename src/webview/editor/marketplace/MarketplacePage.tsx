@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { sendRequest } from '../../vscode';
 import { MarketplaceCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, MarketplaceIcon } from '../../components/EmptyState';
@@ -7,9 +7,9 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { MarketplaceCard } from './MarketplaceCard';
 import { VirtualCardList } from '../plugin/VirtualCardList';
 import { PageHeader } from '../../components/PageHeader';
-import type { Marketplace, PreviewPlugin } from '../../../shared/types';
+import type { Marketplace } from '../../../shared/types';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
-import { usePageAction } from '../../hooks/usePageAction';
+import { useMarketplaceActions } from './hooks/useMarketplaceActions';
 
 /**
  * Marketplace 管理頁面。
@@ -17,14 +17,6 @@ import { usePageAction } from '../../hooks/usePageAction';
  */
 export function MarketplacePage(): React.ReactElement {
   const addInputRef = useRef<HTMLInputElement>(null);
-  const [addSource, setAddSource] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [updating, setUpdating] = useState<string | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [retryAction, setRetryAction] = useState<(() => Promise<void>) | null>(null);
-  const [previewing, setPreviewing] = useState(false);
-  const [previewPlugins, setPreviewPlugins] = useState<PreviewPlugin[] | null>(null);
-  const [previewSource, setPreviewSource] = useState('');
   const loadMarketplaces = useCallback(
     () => sendRequest<Marketplace[]>({ type: 'marketplace.list' }),
     [],
@@ -44,146 +36,31 @@ export function MarketplacePage(): React.ReactElement {
     load: loadMarketplaces,
     pushFilter: shouldRefreshMarketplaces,
   });
-  const runPageAction = usePageAction({ setError });
-
-  const runAddMarketplace = async (source: string): Promise<void> => {
-    const normalizedSource = source.trim();
-    if (!normalizedSource) {
-      return;
-    }
-
-    setAdding(true);
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest({ type: 'marketplace.add', source: normalizedSource }),
-      onSuccess: async () => {
-        setAddSource('');
-        await fetchList();
-      },
-      onError: (message) => {
-        setError(message);
-        setRetryAction(() => () => runAddMarketplace(normalizedSource));
-      },
-      onFinally: () => {
-        setAdding(false);
-      },
-      successToast: 'Marketplace added',
-    });
-  };
-
-  const handlePreview = async (): Promise<void> => {
-    const source = addSource.trim();
-    if (!source) return;
-    setPreviewing(true);
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest<PreviewPlugin[]>({ type: 'marketplace.preview', source }),
-      onSuccess: (plugins) => {
-        setPreviewPlugins(plugins);
-        setPreviewSource(source);
-      },
-      onFinally: () => {
-        setPreviewing(false);
-      },
-    });
-  };
-
-  const handleClosePreview = (): void => {
-    setPreviewPlugins(null);
-    setPreviewSource('');
-  };
-  const handlePreviewOverlayDismiss = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
-  ): void => {
-    if (e.target !== e.currentTarget) return;
-    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
-    if ('preventDefault' in e) e.preventDefault();
-    handleClosePreview();
-  };
-
-  const handleConfirmAdd = async (): Promise<void> => {
-    const source = previewSource;
-    handleClosePreview();
-    await runAddMarketplace(source);
-  };
-
-  const handleAdd = async (sourceOverride?: string): Promise<void> => {
-    await runAddMarketplace(sourceOverride ?? addSource);
-  };
-
-  const handleRemove = async (name: string): Promise<void> => {
-    setConfirmRemove(null);
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest({ type: 'marketplace.remove', name }),
-      onSuccess: async () => {
-        await fetchList();
-      },
-      onError: (message) => {
-        setError(message);
-        setRetryAction(() => () => handleRemove(name));
-      },
-      successToast: 'Marketplace removed',
-    });
-  };
-
-  const handleUpdate = async (name?: string): Promise<void> => {
-    setUpdating(name ?? '__all__');
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest({ type: 'marketplace.update', name }),
-      onSuccess: async () => {
-        await fetchList();
-      },
-      onError: (message) => {
-        setError(message);
-        setRetryAction(() => () => handleUpdate(name));
-      },
-      onFinally: () => {
-        setUpdating(null);
-      },
-      successToast: name ? `Updated ${name}` : 'All marketplaces updated',
-    });
-  };
-
-  const handleToggleAutoUpdate = async (name: string): Promise<void> => {
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest({ type: 'marketplace.toggleAutoUpdate', name }),
-      onSuccess: async () => {
-        await fetchList();
-      },
-      onError: (message) => {
-        setError(message);
-        setRetryAction(() => () => handleToggleAutoUpdate(name));
-      },
-    });
-  };
-
-  const handleExport = async (): Promise<void> => {
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest({ type: 'marketplace.export' }),
-      onError: (message) => {
-        setError(message);
-        setRetryAction(() => () => handleExport());
-      },
-    });
-  };
-
-  const handleImport = async (): Promise<void> => {
-    setRetryAction(null);
-    await runPageAction({
-      action: () => sendRequest<string[]>({ type: 'marketplace.import' }),
-      onSuccess: async () => {
-        await fetchList();
-      },
-      onError: (message) => {
-        setError(message);
-        setRetryAction(() => () => handleImport());
-      },
-    });
-  };
+  const {
+    addSource,
+    setAddSource,
+    adding,
+    updating,
+    confirmRemove,
+    setConfirmRemove,
+    retryAction,
+    setRetryAction,
+    previewing,
+    previewPlugins,
+    handlePreview,
+    handleClosePreview,
+    handlePreviewOverlayDismiss,
+    handleConfirmAdd,
+    handleAdd,
+    handleRemove,
+    handleUpdate,
+    handleToggleAutoUpdate,
+    handleExport,
+    handleImport,
+  } = useMarketplaceActions({
+    fetchList,
+    setError,
+  });
 
   return (
     <div className="page-container">

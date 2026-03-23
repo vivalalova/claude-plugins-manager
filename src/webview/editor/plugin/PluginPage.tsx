@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
@@ -6,16 +6,14 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginDialogs } from './PluginDialogs';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginSections } from './PluginSections';
-import { getCardTranslateStatus } from './translateUtils';
-import { isPluginEnabled, hasPluginUpdate, getVisibleItems } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
-import type { MergedPlugin } from '../../../shared/types';
 import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
 import { usePluginOperations } from './hooks/usePluginOperations';
 import { PageHeader } from '../../components/PageHeader';
 import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { usePluginPageViewState } from './hooks/usePluginPageViewState';
 
 
 /**
@@ -106,63 +104,19 @@ export function PluginPage(): React.ReactElement {
     retryTranslate,
   } = useTranslation(plugins);
 
-  /** 預計算 per-section 統計（single-pass） */
-  const sectionStats = useMemo(() => {
-    const map = new Map<string, { enabledCount: number; updateCount: number; allEnabled: boolean; hiddenCount: number; visibleCount: number }>();
-    for (const section of groupedSections) {
-      for (const [marketplace, items] of section.groups) {
-        if (items.length > 0) {
-          const visible = getVisibleItems(items, hiddenPlugins, showHidden);
-          let enabledCount = 0;
-          let updateCount = 0;
-          let allEnabled = true;
-          for (const p of visible) {
-            const enabled = isPluginEnabled(p);
-            if (enabled) {
-              enabledCount++;
-              if (hasPluginUpdate(p)) updateCount++;
-            } else {
-              allEnabled = false;
-            }
-          }
-          map.set(marketplace, {
-            enabledCount,
-            updateCount,
-            allEnabled: visible.length > 0 && allEnabled,
-            hiddenCount: items.length - visible.length,
-            visibleCount: visible.length,
-          });
-        }
-      }
-    }
-    return map;
-  }, [groupedSections, hiddenPlugins, showHidden]);
-
-  /** 預計算 per-plugin translateStatus，只計算可見 plugin */
-  const translateStatusMap = useMemo(() => {
-    const map = new Map<string, 'translating' | 'queued'>();
-    if (!translateLang) return map;
-    for (const section of groupedSections) {
-      for (const items of section.groups.values()) {
-        for (const p of items) {
-          const status = getCardTranslateStatus(p, translateLang, activeTexts, queuedTexts);
-          if (status) map.set(p.id, status);
-        }
-      }
-    }
-    return map;
-  }, [groupedSections, translateLang, activeTexts, queuedTexts]);
-
-  /** 所有可見 plugin（排除隱藏），供 handleUpdateAll 使用 */
-  const visiblePlugins = useMemo(() => {
-    const result: MergedPlugin[] = [];
-    for (const section of groupedSections) {
-      for (const items of section.groups.values()) {
-        result.push(...getVisibleItems(items, hiddenPlugins, showHidden));
-      }
-    }
-    return result;
-  }, [groupedSections, hiddenPlugins, showHidden]);
+  const {
+    sectionStats,
+    translateStatusMap,
+    visiblePlugins,
+    totalVisiblePlugins,
+  } = usePluginPageViewState({
+    groupedSections,
+    hiddenPlugins,
+    showHidden,
+    translateLang,
+    activeTexts,
+    queuedTexts,
+  });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showHelp, setShowHelp } = useKeyboardShortcuts({
@@ -170,13 +124,6 @@ export function PluginPage(): React.ReactElement {
     onSearchClear: () => { setSearch(''); flushSearch(''); },
     cardSelector: '.card[tabindex]',
   });
-
-  /** 總可見 plugin 數（用於空狀態判斷），從 sectionStats 派生 */
-  const totalVisiblePlugins = useMemo(() => {
-    let total = 0;
-    for (const s of sectionStats.values()) total += s.visibleCount;
-    return total;
-  }, [sectionStats]);
 
   return (
     <div className="page-container">

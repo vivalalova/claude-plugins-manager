@@ -7,6 +7,12 @@ import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } fr
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { getWorkspacePath } from '../utils/workspace';
+import {
+  extractPluginDetailConfig,
+  extractPluginServerConfigs,
+  resolvePluginInstall,
+  type InstalledPluginEntry,
+} from './mcpPluginSupport';
 
 /**
  * MCP Server 管理 + 即時狀態輪詢。
@@ -298,20 +304,18 @@ export class McpService {
       throw new Error(`Plugin not found: ${pluginKey}`);
     }
 
-    const entries = installed.plugins[pluginKey] as Array<{
-      installPath: string;
-      scope: string;
-      projectPath?: string;
-      installedAt: string;
-      lastUpdated: string;
-    }>;
+    const entries = installed.plugins[pluginKey] as InstalledPluginEntry[];
     const enabledByScope = await this.readEnabledPluginsByScope();
-    const relevantEntries = this.getRelevantPluginEntries(entries);
-    const entry = this.pickPreferredPluginEntry(relevantEntries, pluginKey, enabledByScope);
+    const { preferredEntry, enabled } = resolvePluginInstall(
+      entries,
+      pluginKey,
+      enabledByScope,
+      this.getWorkspaceCwd(),
+    );
 
     const [mcpRaw, metaRaw] = await Promise.all([
-      readFile(join(entry.installPath, '.mcp.json'), 'utf-8').catch(() => '{}'),
-      readFile(join(entry.installPath, '.claude-plugin', 'plugin.json'), 'utf-8').catch(() => '{}'),
+      readFile(join(preferredEntry.installPath, '.mcp.json'), 'utf-8').catch(() => '{}'),
+      readFile(join(preferredEntry.installPath, '.claude-plugin', 'plugin.json'), 'utf-8').catch(() => '{}'),
     ]);
 
     let mcpConfig: Record<string, unknown>;
@@ -322,14 +326,14 @@ export class McpService {
     const detail = {
       name: mcpServerName,
       plugin: pluginKey,
-      enabled: this.isPluginEnabledInEntries(relevantEntries, pluginKey, enabledByScope),
+      enabled,
       description: pluginMeta.description,
       author: pluginMeta.author,
-      config: mcpConfig[mcpServerName] ?? mcpConfig,
-      installPath: entry.installPath,
-      scope: entry.scope,
-      installedAt: entry.installedAt,
-      lastUpdated: entry.lastUpdated,
+      config: extractPluginDetailConfig(mcpConfig, mcpServerName),
+      installPath: preferredEntry.installPath,
+      scope: preferredEntry.scope,
+      installedAt: preferredEntry.installedAt,
+      lastUpdated: preferredEntry.lastUpdated,
     };
 
     return JSON.stringify(detail, null, 2);
@@ -406,30 +410,30 @@ export class McpService {
     if (installedRaw) {
       const enabledByScope = await this.readEnabledPluginsByScope();
       const installed = JSON.parse(installedRaw) as {
-        plugins: Record<string, Array<{ scope: string; installPath: string; projectPath?: string }>>;
+        plugins: Record<string, InstalledPluginEntry[]>;
       };
 
       await Promise.all(
         Object.entries(installed.plugins).map(async ([pluginKey, entries]) => {
-          const relevantEntries = this.getRelevantPluginEntries(entries);
-          if (relevantEntries.length === 0) {
+          let resolvedInstall;
+          try {
+            resolvedInstall = resolvePluginInstall(entries, pluginKey, enabledByScope, workspacePath);
+          } catch {
             return;
           }
 
-          const entry = this.pickPreferredPluginEntry(relevantEntries, pluginKey, enabledByScope);
-
           try {
-            const mcpRaw = await readFile(join(entry.installPath, '.mcp.json'), 'utf-8');
+            const mcpRaw = await readFile(join(resolvedInstall.preferredEntry.installPath, '.mcp.json'), 'utf-8');
             const mcpJson = JSON.parse(mcpRaw) as Record<string, unknown>;
-            const pluginServers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
+            const pluginServers = extractPluginServerConfigs(mcpJson);
             for (const [serverName, config] of Object.entries(pluginServers)) {
               if (this.isValidMcpServerConfig(config)) {
                 map.set(`plugin:${pluginKey}:${serverName}`, {
-                  scope: entry.scope as McpScope,
+                  scope: resolvedInstall.preferredEntry.scope as McpScope,
                   config,
                   plugin: {
                     id: pluginKey,
-                    enabled: this.isPluginEnabledInEntries(relevantEntries, pluginKey, enabledByScope),
+                    enabled: resolvedInstall.enabled,
                   },
                 });
               }
@@ -522,54 +526,6 @@ export class McpService {
       return { user: {}, project: {}, local: {} };
     }
     return this.settings.readAllEnabledPlugins();
-  }
-
-  private getRelevantPluginEntries<T extends { scope: string; projectPath?: string }>(entries: T[]): T[] {
-    const workspacePath = this.getWorkspaceCwd();
-    return entries.filter((entry) => {
-      if (entry.scope === 'user') {
-        return true;
-      }
-      if (!workspacePath) {
-        return false;
-      }
-      return entry.projectPath === workspacePath;
-    });
-  }
-
-  private pickPreferredPluginEntry<T extends { scope: string }>(
-    entries: T[],
-    pluginId: string,
-    enabledByScope: Record<McpScope, Record<string, boolean>>,
-  ): T {
-    if (entries.length === 0) {
-      throw new Error(`Plugin "${pluginId}" not available in current workspace`);
-    }
-
-    const enabledEntries = entries.filter((entry) => enabledByScope[entry.scope as McpScope]?.[pluginId] === true);
-    const pool = enabledEntries.length > 0 ? enabledEntries : entries;
-    return [...pool].sort((a, b) => this.getPluginEntryPriority(b.scope) - this.getPluginEntryPriority(a.scope))[0];
-  }
-
-  private isPluginEnabledInEntries(
-    entries: Array<{ scope: string }>,
-    pluginId: string,
-    enabledByScope: Record<McpScope, Record<string, boolean>>,
-  ): boolean {
-    return entries.some((entry) => enabledByScope[entry.scope as McpScope]?.[pluginId] === true);
-  }
-
-  private getPluginEntryPriority(scope: string): number {
-    switch (scope) {
-      case 'local':
-        return 3;
-      case 'project':
-        return 2;
-      case 'user':
-        return 1;
-      default:
-        return 0;
-    }
   }
 
   private isNotFoundError(error: unknown): boolean {

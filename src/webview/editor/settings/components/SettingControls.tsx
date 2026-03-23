@@ -86,6 +86,178 @@ export function SettingLabelText({ label, settingKey, defaultValue, overriddenSc
   );
 }
 
+interface SettingFieldShellProps {
+  label: string;
+  description?: string;
+  settingKey: string;
+  defaultValue?: unknown;
+  overriddenScope?: PluginScope;
+  htmlFor?: string;
+  children: React.ReactNode;
+}
+
+function SettingFieldShell({
+  label,
+  description,
+  settingKey,
+  defaultValue,
+  overriddenScope,
+  htmlFor,
+  children,
+}: SettingFieldShellProps): React.ReactElement {
+  const labelContent = (
+    <SettingLabelText
+      label={label}
+      settingKey={settingKey}
+      defaultValue={defaultValue}
+      overriddenScope={overriddenScope}
+    />
+  );
+
+  return (
+    <div className="settings-field">
+      {htmlFor ? (
+        <label className="settings-label" htmlFor={htmlFor}>
+          {labelContent}
+        </label>
+      ) : (
+        <label className="settings-label">
+          {labelContent}
+        </label>
+      )}
+      {description && <p className="settings-field-description">{description}</p>}
+      {children}
+    </div>
+  );
+}
+
+function useScopedInputValue(
+  scope: PluginScope,
+  value: string,
+): [string, React.Dispatch<React.SetStateAction<string>>] {
+  const [inputValue, setInputValue] = useState(value);
+
+  useEffect(() => {
+    setInputValue(value);
+  }, [scope, value]);
+
+  return [inputValue, setInputValue];
+}
+
+interface SecondaryActionButtonProps {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+  ariaLabel?: string;
+}
+
+function SecondaryActionButton({
+  label,
+  onClick,
+  disabled,
+  ariaLabel,
+}: SecondaryActionButtonProps): React.ReactElement {
+  return (
+    <button
+      className="btn btn-secondary"
+      onClick={onClick}
+      disabled={disabled}
+      type="button"
+      aria-label={ariaLabel}
+    >
+      {label}
+    </button>
+  );
+}
+
+interface ResetOrClearButtonProps {
+  value: unknown;
+  defaultValue?: unknown;
+  resetLabel: string;
+  clearLabel: string;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}
+
+function ResetOrClearButton({
+  value,
+  defaultValue,
+  resetLabel,
+  clearLabel,
+  label,
+  disabled,
+  onClick,
+}: ResetOrClearButtonProps): React.ReactElement | null {
+  if (shouldShowReset(value, defaultValue)) {
+    return (
+      <SecondaryActionButton
+        label={resetLabel}
+        onClick={onClick}
+        disabled={disabled}
+        ariaLabel={`${resetLabel} ${label}`}
+      />
+    );
+  }
+
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <SecondaryActionButton
+      label={clearLabel}
+      onClick={onClick}
+      disabled={disabled}
+    />
+  );
+}
+
+interface TagListProps {
+  items: string[];
+  emptyPlaceholder: string;
+  disabled: boolean;
+  renderItem?: (item: string, context: { disabled: boolean; onDelete: () => void }) => React.ReactNode;
+  onDeleteItem: (item: string) => void;
+}
+
+function TagList({
+  items,
+  emptyPlaceholder,
+  disabled,
+  renderItem,
+  onDeleteItem,
+}: TagListProps): React.ReactElement {
+  return (
+    <div className="general-tag-list">
+      {items.length === 0 ? (
+        <span className="perm-empty">{emptyPlaceholder}</span>
+      ) : (
+        items.map((item) => (
+          <React.Fragment key={item}>
+            {renderItem
+              ? renderItem(item, { disabled, onDelete: () => onDeleteItem(item) })
+              : (
+                <span className="perm-rule-tag">
+                  {item}
+                  <button
+                    className="perm-rule-tag-delete"
+                    onClick={() => onDeleteItem(item)}
+                    aria-label={`Remove ${item}`}
+                    type="button"
+                    disabled={disabled}
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+          </React.Fragment>
+        ))
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // BooleanToggle
 // ---------------------------------------------------------------------------
@@ -275,12 +447,8 @@ export function TextSetting({
 }: TextSettingProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
-  const [inputValue, setInputValue] = useState(value ?? '');
+  const [inputValue, setInputValue] = useScopedInputValue(scope, value ?? '');
   const resetLabel = t('settings.common.reset');
-
-  useEffect(() => {
-    setInputValue(value ?? '');
-  }, [scope, value]);
 
   const handleSave = (): void => {
     void withSave(async () => {
@@ -302,11 +470,14 @@ export function TextSetting({
   };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={settingKey}>
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
-      </label>
-      {description && <p className="settings-field-description">{description}</p>}
+    <SettingFieldShell
+      label={label}
+      description={description}
+      settingKey={settingKey}
+      defaultValue={defaultValue}
+      overriddenScope={overriddenScope}
+      htmlFor={settingKey}
+    >
       <div className="settings-model-row">
         <input
           id={settingKey}
@@ -317,26 +488,15 @@ export function TextSetting({
           placeholder={placeholder}
           disabled={saving}
         />
-        {shouldShowReset(value, defaultValue) ? (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={saving}
-            type="button"
-            aria-label={`${resetLabel} ${label}`}
-          >
-            {resetLabel}
-          </button>
-        ) : value ? (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={saving}
-            type="button"
-          >
-            {clearLabel}
-          </button>
-        ) : null}
+        <ResetOrClearButton
+          value={value}
+          defaultValue={defaultValue}
+          resetLabel={resetLabel}
+          clearLabel={clearLabel}
+          label={label}
+          disabled={saving}
+          onClick={() => void handleClear()}
+        />
         <button
           className="btn btn-primary"
           onClick={() => void handleSave()}
@@ -346,7 +506,7 @@ export function TextSetting({
           {saveLabel}
         </button>
       </div>
-    </div>
+    </SettingFieldShell>
   );
 }
 
@@ -384,11 +544,9 @@ export function TagInput({
   onSave,
 }: TagInputProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useScopedInputValue(scope, '');
   const [error, setError] = useState('');
-
   useEffect(() => {
-    setInputValue('');
     setError('');
   }, [scope]);
 
@@ -415,31 +573,19 @@ export function TagInput({
   };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
-      </label>
-      {description && <p className="settings-field-description">{description}</p>}
-      <div className="general-tag-list">
-        {tags.length === 0 ? (
-          <span className="perm-empty">{emptyPlaceholder}</span>
-        ) : (
-          tags.map((tag) => (
-            <span key={tag} className="perm-rule-tag">
-              {tag}
-              <button
-                className="perm-rule-tag-delete"
-                onClick={() => void handleDelete(tag)}
-                aria-label={`Remove ${tag}`}
-                type="button"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </span>
-          ))
-        )}
-      </div>
+    <SettingFieldShell
+      label={label}
+      description={description}
+      settingKey={settingKey}
+      defaultValue={defaultValue}
+      overriddenScope={overriddenScope}
+    >
+      <TagList
+        items={tags}
+        emptyPlaceholder={emptyPlaceholder}
+        disabled={saving}
+        onDeleteItem={(tag) => void handleDelete(tag)}
+      />
       <div className="general-tag-add-row">
         <input
           className="input"
@@ -460,7 +606,7 @@ export function TagInput({
         </button>
         {error && <span className="perm-add-error" role="alert">{error}</span>}
       </div>
-    </div>
+    </SettingFieldShell>
   );
 }
 
@@ -515,11 +661,10 @@ export function TagListSetting({
   onDeleteItem,
   onClear,
 }: TagListSettingProps): React.ReactElement {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useScopedInputValue(scope, '');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setInputValue('');
     setError('');
   }, [scope, resetTrigger]);
 
@@ -541,38 +686,19 @@ export function TagListSetting({
   };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={label} settingKey={settingKey} />
-      </label>
-      {description && <p className="settings-field-description">{description}</p>}
+    <SettingFieldShell
+      label={label}
+      description={description}
+      settingKey={settingKey}
+    >
       {beforeList}
-      <div className="general-tag-list">
-        {items.length === 0 ? (
-          <span className="perm-empty">{emptyPlaceholder}</span>
-        ) : (
-          items.map((item) => (
-            <React.Fragment key={item}>
-              {renderItem
-                ? renderItem(item, { disabled, onDelete: () => onDeleteItem(item) })
-                : (
-                  <span className="perm-rule-tag">
-                    {item}
-                    <button
-                      className="perm-rule-tag-delete"
-                      onClick={() => onDeleteItem(item)}
-                      aria-label={`Remove ${item}`}
-                      type="button"
-                      disabled={disabled}
-                    >
-                      ×
-                    </button>
-                  </span>
-                )}
-            </React.Fragment>
-          ))
-        )}
-      </div>
+      <TagList
+        items={items}
+        emptyPlaceholder={emptyPlaceholder}
+        disabled={disabled}
+        renderItem={renderItem}
+        onDeleteItem={onDeleteItem}
+      />
       <div className="general-tag-add-row">
         {inputVariant === 'multi-line' ? (
           <textarea
@@ -618,7 +744,7 @@ export function TagListSetting({
           </button>
         </div>
       )}
-    </div>
+    </SettingFieldShell>
   );
 }
 
@@ -667,12 +793,11 @@ export function NumberSetting({
 }: NumberSettingProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
-  const [inputValue, setInputValue] = useState(value !== undefined ? String(value) : '');
+  const [inputValue, setInputValue] = useScopedInputValue(
+    scope,
+    value !== undefined ? String(value) : '',
+  );
   const resetLabel = t('settings.common.reset');
-
-  useEffect(() => {
-    setInputValue(value !== undefined ? String(value) : '');
-  }, [scope, value]);
 
   const parsedValue = Number(inputValue);
   const isEmpty = inputValue === '';
@@ -705,11 +830,14 @@ export function NumberSetting({
   };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={settingKey}>
-        <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
-      </label>
-      {description && <p className="settings-field-description">{description}</p>}
+    <SettingFieldShell
+      label={label}
+      description={description}
+      settingKey={settingKey}
+      defaultValue={defaultValue}
+      overriddenScope={overriddenScope}
+      htmlFor={settingKey}
+    >
       <div className="settings-model-row">
         <input
           id={settingKey}
@@ -723,26 +851,15 @@ export function NumberSetting({
           step={step}
           disabled={saving}
         />
-        {shouldShowReset(value, defaultValue) ? (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={saving}
-            type="button"
-            aria-label={`${resetLabel} ${label}`}
-          >
-            {resetLabel}
-          </button>
-        ) : value !== undefined ? (
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleClear()}
-            disabled={saving}
-            type="button"
-          >
-            {clearLabel}
-          </button>
-        ) : null}
+        <ResetOrClearButton
+          value={value}
+          defaultValue={defaultValue}
+          resetLabel={resetLabel}
+          clearLabel={clearLabel}
+          label={label}
+          disabled={saving}
+          onClick={() => void handleClear()}
+        />
         <button
           className="btn btn-primary"
           onClick={() => void handleSave()}
@@ -753,6 +870,6 @@ export function NumberSetting({
         </button>
       </div>
       {validationError && <span className="perm-add-error" role="alert">{validationError}</span>}
-    </div>
+    </SettingFieldShell>
   );
 }
