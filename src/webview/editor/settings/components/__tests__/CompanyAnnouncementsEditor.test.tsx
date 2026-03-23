@@ -118,4 +118,19 @@ describe('CompanyAnnouncementsEditor — 刪除公告', () => {
       expect(onSave).toHaveBeenCalledWith('companyAnnouncements', ['Keep this']);
     });
   });
+
+  it('刪除既有公告時保留未送出的草稿輸入', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(['Keep this', 'Delete this'], onSave);
+    await waitFor(() => screen.getByPlaceholderText('e.g. Welcome to our Claude Code setup!'));
+
+    const input = screen.getByPlaceholderText('e.g. Welcome to our Claude Code setup!') as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: 'Draft announcement' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove "Delete this"' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('companyAnnouncements', ['Keep this']);
+    });
+    expect(input.value).toBe('Draft announcement');
+  });
 });

@@ -12,8 +12,47 @@ import type {
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { escapeShellArg, getWorkspacePath } from '../utils/workspace';
-import { exportShellScript, importShellScript } from '../utils/scriptIO';
 import { parseShellToken } from '../utils/shellTokenParser';
+import { createScriptRecipe } from './scriptRecipe';
+
+function createPluginScriptRecipe(service: PluginService): ReturnType<typeof createScriptRecipe> {
+  return createScriptRecipe({
+    export: {
+      defaultFilename: 'claude-plugins.sh',
+      header: '# Claude Code Plugin Setup',
+      entityLabel: 'plugin',
+      emptyMessage: 'No enabled plugins to export.',
+      buildLines: async () => {
+        const installed = await service.listInstalled();
+        const enabledEntries = installed.filter((plugin) => plugin.enabled);
+        return enabledEntries.map((plugin) =>
+          `claude plugin install '${escapeShellArg(plugin.id)}' --scope ${plugin.scope}`,
+        );
+      },
+    },
+    import: {
+      prefix: 'claude plugin install ',
+      emptyMessage: 'No "claude plugin install" commands found in the file.',
+      parseLine: (token, rest) => {
+        const validScopes = new Set<PluginScope>(['user', 'project', 'local']);
+        let rawScope = 'user';
+        const scopeMatch = rest.trim().match(/^--scope(?:=|\s+)(.*)/);
+        if (scopeMatch) {
+          try {
+            const parsedScope = parseShellToken(scopeMatch[1].trim());
+            rawScope = parsedScope?.token ?? 'user';
+          } catch { /* malformed scope → fallback user */ }
+        }
+        const scope: PluginScope = validScopes.has(rawScope as PluginScope) ? (rawScope as PluginScope) : 'user';
+        return {
+          id: `${token} (${scope})`,
+          successLabel: `Installed: ${token} (${scope})`,
+          execute: () => service.install(token, scope),
+        };
+      },
+    },
+  });
+}
 
 /**
  * Plugin CRUD。
@@ -193,20 +232,7 @@ export class PluginService {
    * 開啟 VSCode save dialog 讓用戶選擇儲存位置。
    */
   async exportScript(): Promise<void> {
-    const installed = await this.listInstalled();
-    const enabledEntries = installed.filter((p) => p.enabled);
-    if (enabledEntries.length === 0) {
-      throw new Error('No enabled plugins to export.');
-    }
-
-    await exportShellScript({
-      defaultFilename: 'claude-plugins.sh',
-      header: '# Claude Code Plugin Setup',
-      entityLabel: 'plugin',
-      lines: enabledEntries.map((p) =>
-        `claude plugin install '${escapeShellArg(p.id)}' --scope ${p.scope}`,
-      ),
-    });
+    await createPluginScriptRecipe(this).exportScript();
   }
 
   /**
@@ -215,28 +241,7 @@ export class PluginService {
    * 回傳每個 plugin 的結果摘要。
    */
   async importScript(): Promise<string[]> {
-    const VALID_SCOPES = new Set<PluginScope>(['user', 'project', 'local']);
-
-    return importShellScript({
-      prefix: 'claude plugin install ',
-      emptyMessage: 'No "claude plugin install" commands found in the file.',
-      parseLine: (token, rest) => {
-        let rawScope = 'user';
-        const scopeMatch = rest.trim().match(/^--scope(?:=|\s+)(.*)/);
-        if (scopeMatch) {
-          try {
-            const parsedScope = parseShellToken(scopeMatch[1].trim());
-            rawScope = parsedScope?.token ?? 'user';
-          } catch { /* malformed scope → fallback user */ }
-        }
-        const scope: PluginScope = VALID_SCOPES.has(rawScope as PluginScope) ? (rawScope as PluginScope) : 'user';
-        return {
-          id: `${token} (${scope})`,
-          successLabel: `Installed: ${token} (${scope})`,
-          execute: () => this.install(token, scope),
-        };
-      },
-    });
+    return createPluginScriptRecipe(this).importScript();
   }
 
   /** 更新 plugin（保留 CLI — 需 git pull + re-cache） */

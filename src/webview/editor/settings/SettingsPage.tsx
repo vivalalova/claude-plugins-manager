@@ -15,6 +15,7 @@ import { SettingLabelText } from './components/SettingControls';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 import { KNOWN_MODEL_OPTIONS } from '../../../shared/claude-settings-schema';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
+import { useObjectEditorState } from './components/ObjectSetting';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -44,44 +45,32 @@ interface ModelSectionProps {
   onDelete: (key: string) => Promise<void>;
 }
 
-function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps): React.ReactElement {
+function ModelSection({ scope: _scope, settings, onSave, onDelete }: ModelSectionProps): React.ReactElement {
   const { t } = useI18n();
   const { addToast } = useToast();
   const { saving, withSave } = useSettingSave();
 
   const currentModel = settings.model ?? '';
   const availableModels = settings.availableModels;
-  const [selectValue, setSelectValue] = useState('');
-  const [customInput, setCustomInput] = useState('');
-  const [showCustom, setShowCustom] = useState(false);
-
-  // Reset local state when scope/settings change
-  useEffect(() => {
+  const createDraft = useCallback(() => {
     const model = settings.model ?? '';
     if (model && !KNOWN_MODEL_OPTIONS.includes(model as typeof KNOWN_MODEL_OPTIONS[number])) {
-      setSelectValue('custom');
-      setCustomInput(model);
-      setShowCustom(true);
-    } else {
-      setSelectValue(model);
-      setCustomInput('');
-      setShowCustom(false);
+      return { selectValue: 'custom', customInput: model, showCustom: true };
     }
-  }, [scope, settings.model]);
+    return { selectValue: model, customInput: '', showCustom: false };
+  }, [settings.model]);
+  const [draft, setDraft] = useObjectEditorState(createDraft);
 
   const handleSelectChange = (val: string): void => {
     if (val === 'custom') {
-      setSelectValue('custom');
-      setShowCustom(true);
-      setCustomInput('');
+      setDraft({ selectValue: 'custom', customInput: '', showCustom: true });
     } else {
-      setSelectValue(val);
-      setShowCustom(false);
+      setDraft((prev) => ({ ...prev, selectValue: val, showCustom: false }));
     }
   };
 
   const handleSave = (): void => {
-    const modelToSave = showCustom ? customInput.trim() : selectValue;
+    const modelToSave = draft.showCustom ? draft.customInput.trim() : draft.selectValue;
     void withSave(async () => {
       if (!modelToSave) {
         await onDelete('model');
@@ -120,7 +109,7 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
         <div className="settings-model-row">
           <select
             className="select settings-model-select"
-            value={selectValue}
+            value={draft.selectValue}
             onChange={(e) => handleSelectChange(e.target.value)}
             disabled={saving}
           >
@@ -145,12 +134,12 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
           )}
         </div>
 
-        {showCustom && (
+        {draft.showCustom && (
           <input
             className="input settings-model-custom-input"
             type="text"
-            value={customInput}
-            onChange={(e) => setCustomInput(e.target.value)}
+            value={draft.customInput}
+            onChange={(e) => setDraft((prev) => ({ ...prev, customInput: e.target.value }))}
             placeholder="e.g. claude-opus-4-6"
             disabled={saving}
           />
@@ -161,7 +150,7 @@ function ModelSection({ scope, settings, onSave, onDelete }: ModelSectionProps):
         <button
           className="btn btn-primary"
           onClick={handleSave}
-          disabled={saving || (!selectValue && !customInput.trim() && !currentModel)}
+          disabled={saving || (!draft.selectValue && !draft.customInput.trim() && !currentModel)}
         >
           {t('settings.model.save')}
         </button>

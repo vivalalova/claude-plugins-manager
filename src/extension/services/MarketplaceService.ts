@@ -6,9 +6,9 @@ import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../../shared/types';
 import type { CliService } from './CliService';
 import { escapeShellArg } from '../utils/workspace';
-import { exportShellScript, importShellScript } from '../utils/scriptIO';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
+import { createScriptRecipe } from './scriptRecipe';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
 const GIT_CLONE_TIMEOUT_MS = 30_000;
@@ -38,6 +38,33 @@ const CONFIG_PATH = path.join(
   'plugins',
   'known_marketplaces.json',
 );
+
+function createMarketplaceScriptRecipe(service: MarketplaceService): ReturnType<typeof createScriptRecipe> {
+  return createScriptRecipe({
+    export: {
+      defaultFilename: 'claude-marketplaces.sh',
+      header: '# Claude Code Marketplace Setup',
+      entityLabel: 'marketplace',
+      emptyMessage: 'No marketplaces to export.',
+      buildLines: async () => {
+        const marketplaces = await service.list();
+        return marketplaces.flatMap((marketplace) => {
+          const source = marketplace.url ?? marketplace.repo ?? marketplace.path;
+          return source ? [`claude plugin marketplace add '${escapeShellArg(source)}'`] : [];
+        });
+      },
+    },
+    import: {
+      prefix: 'claude plugin marketplace add ',
+      emptyMessage: 'No "claude plugin marketplace add" commands found in the file.',
+      parseLine: (token) => ({
+        id: token,
+        successLabel: `Added: ${token}`,
+        execute: () => service.add(token),
+      }),
+    },
+  });
+}
 
 /**
  * Marketplace CRUD + autoUpdate toggle + 匯出匯入。
@@ -209,25 +236,7 @@ export class MarketplaceService {
    * 開啟 VSCode save dialog 讓用戶選擇儲存位置。
    */
   async exportScript(): Promise<void> {
-    const marketplaces = await this.list();
-    if (marketplaces.length === 0) {
-      throw new Error('No marketplaces to export.');
-    }
-
-    const lines: string[] = [];
-    for (const mp of marketplaces) {
-      const source = mp.url ?? mp.repo ?? mp.path;
-      if (source) {
-        lines.push(`claude plugin marketplace add '${escapeShellArg(source)}'`);
-      }
-    }
-
-    await exportShellScript({
-      defaultFilename: 'claude-marketplaces.sh',
-      header: '# Claude Code Marketplace Setup',
-      entityLabel: 'marketplace',
-      lines,
-    });
+    await createMarketplaceScriptRecipe(this).exportScript();
   }
 
   /**
@@ -236,16 +245,6 @@ export class MarketplaceService {
    * 回傳每個 source 的結果摘要。
    */
   async importScript(): Promise<string[]> {
-    return importShellScript({
-      prefix: 'claude plugin marketplace add ',
-      emptyMessage: 'No "claude plugin marketplace add" commands found in the file.',
-      parseLine: (token) => ({
-        id: token,
-        successLabel: `Added: ${token}`,
-        execute: () => this.add(token),
-      }),
-    });
+    return createMarketplaceScriptRecipe(this).importScript();
   }
-
-
 }

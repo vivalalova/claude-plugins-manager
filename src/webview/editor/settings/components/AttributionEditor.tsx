@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings } from '../../../../shared/types';
-import { SettingLabelText } from './SettingControls';
 import { useSettingSave } from '../hooks/useSettingSave';
+import { ObjectSetting, useObjectEditorState } from './ObjectSetting';
 
 interface AttributionEditorProps {
   attribution: ClaudeSettings['attribution'];
@@ -13,19 +13,17 @@ interface AttributionEditorProps {
 export function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
-  const [commit, setCommit] = useState(attribution?.commit ?? '');
-  const [pr, setPr] = useState(attribution?.pr ?? '');
-
-  useEffect(() => {
-    setCommit(attribution?.commit ?? '');
-    setPr(attribution?.pr ?? '');
-  }, [attribution?.commit, attribution?.pr]);
+  const createDraft = useCallback(() => ({
+    commit: attribution?.commit ?? '',
+    pr: attribution?.pr ?? '',
+  }), [attribution?.commit, attribution?.pr]);
+  const [draft, setDraft] = useObjectEditorState(createDraft);
 
   const handleSave = (): void => {
     void withSave(async () => {
       const obj: { commit?: string; pr?: string } = {};
-      if (commit.trim()) obj.commit = commit.trim();
-      if (pr.trim()) obj.pr = pr.trim();
+      if (draft.commit.trim()) obj.commit = draft.commit.trim();
+      if (draft.pr.trim()) obj.pr = draft.pr.trim();
 
       if (Object.keys(obj).length === 0) {
         await onDelete('attribution');
@@ -36,11 +34,21 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
   };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.advanced.attribution.label')} settingKey="attribution" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.attribution.description')}</p>
+    <ObjectSetting
+      label={t('settings.advanced.attribution.label')}
+      description={t('settings.advanced.attribution.description')}
+      settingKey="attribution"
+      actions={(
+        <button
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+          type="button"
+        >
+          {t('settings.advanced.attribution.save')}
+        </button>
+      )}
+    >
       <div className="settings-subfield">
         <label className="settings-label" htmlFor="attribution-commit">
           {t('settings.advanced.attribution.commit.label')}
@@ -49,8 +57,8 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
           id="attribution-commit"
           className="input"
           type="text"
-          value={commit}
-          onChange={(e) => setCommit(e.target.value)}
+          value={draft.commit}
+          onChange={(e) => setDraft((prev) => ({ ...prev, commit: e.target.value }))}
           placeholder={t('settings.advanced.attribution.commit.placeholder')}
           disabled={saving}
         />
@@ -63,22 +71,12 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
           id="attribution-pr"
           className="input"
           type="text"
-          value={pr}
-          onChange={(e) => setPr(e.target.value)}
+          value={draft.pr}
+          onChange={(e) => setDraft((prev) => ({ ...prev, pr: e.target.value }))}
           placeholder={t('settings.advanced.attribution.pr.placeholder')}
           disabled={saving}
         />
       </div>
-      <div className="settings-actions">
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-          type="button"
-        >
-          {t('settings.advanced.attribution.save')}
-        </button>
-      </div>
-    </div>
+    </ObjectSetting>
   );
 }

@@ -419,12 +419,14 @@ describe('MarketplacePage', () => {
 
   it('marketplace add 失敗 → Retry 用原始 source 重試', async () => {
     let addCallCount = 0;
+    const addSources: string[] = [];
     mockSendRequest.mockImplementation(async (req: { type: string; source?: string }) => {
       if (req.type === 'marketplace.list') {
         return addCallCount > 0 && addCallCount % 2 === 0 ? [makeMarketplace('test-mp')] : [];
       }
       if (req.type === 'marketplace.add') {
         addCallCount++;
+        addSources.push(req.source ?? '');
         if (addCallCount === 1) throw new Error('clone failed');
         return undefined;
       }
@@ -445,6 +447,8 @@ describe('MarketplacePage', () => {
       expect(screen.getByText('clone failed')).toBeTruthy();
     });
 
+    fireEvent.change(input, { target: { value: 'owner/changed-after-failure' } });
+
     // Retry → 用原始 source 重試
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -455,6 +459,7 @@ describe('MarketplacePage', () => {
     });
 
     expect(addCallCount).toBe(2);
+    expect(addSources).toEqual(['owner/test-mp', 'owner/test-mp']);
   });
 
   it('dismiss ErrorBanner → 清除 Retry 按鈕', async () => {

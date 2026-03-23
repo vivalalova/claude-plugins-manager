@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings } from '../../../../shared/types';
-import { SettingLabelText } from './SettingControls';
 import { useSettingSave } from '../hooks/useSettingSave';
+import { ObjectSetting, useObjectEditorState } from './ObjectSetting';
 
 interface StatusLineEditorProps {
   statusLine: ClaudeSettings['statusLine'];
@@ -13,23 +13,21 @@ interface StatusLineEditorProps {
 export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
-  const [command, setCommand] = useState(statusLine?.command ?? '');
-  const [paddingStr, setPaddingStr] = useState(statusLine?.padding !== undefined ? String(statusLine.padding) : '');
-
-  useEffect(() => {
-    setCommand(statusLine?.command ?? '');
-    setPaddingStr(statusLine?.padding !== undefined ? String(statusLine.padding) : '');
-  }, [statusLine?.command, statusLine?.padding]);
+  const createDraft = useCallback(() => ({
+    command: statusLine?.command ?? '',
+    paddingStr: statusLine?.padding !== undefined ? String(statusLine.padding) : '',
+  }), [statusLine?.command, statusLine?.padding]);
+  const [draft, setDraft] = useObjectEditorState(createDraft);
 
   const handleSave = (): void => {
     void withSave(async () => {
-      const trimmedCommand = command.trim();
+      const trimmedCommand = draft.command.trim();
       if (!trimmedCommand) {
         await onDelete('statusLine');
         return;
       }
       const obj: { type: 'command'; command: string; padding?: number } = { type: 'command', command: trimmedCommand };
-      const trimmedPadding = paddingStr.trim();
+      const trimmedPadding = draft.paddingStr.trim();
       if (trimmedPadding !== '' && /^\d+$/.test(trimmedPadding)) {
         obj.padding = parseInt(trimmedPadding, 10);
       }
@@ -42,11 +40,33 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
   };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.advanced.statusLine.label')} settingKey="statusLine" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.statusLine.description')}</p>
+    <ObjectSetting
+      label={t('settings.advanced.statusLine.label')}
+      description={t('settings.advanced.statusLine.description')}
+      settingKey="statusLine"
+      actions={(
+        <>
+          <button
+            className="btn btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+            type="button"
+          >
+            {t('settings.advanced.statusLine.save')}
+          </button>
+          {statusLine && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleDelete}
+              disabled={saving}
+              type="button"
+            >
+              {t('settings.advanced.statusLine.clear')}
+            </button>
+          )}
+        </>
+      )}
+    >
       <div className="settings-subfield">
         <label className="settings-label" htmlFor="statusLine-command">
           {t('settings.advanced.statusLine.command.label')}
@@ -55,8 +75,8 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
           id="statusLine-command"
           className="input"
           type="text"
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
+          value={draft.command}
+          onChange={(e) => setDraft((prev) => ({ ...prev, command: e.target.value }))}
           placeholder={t('settings.advanced.statusLine.command.placeholder')}
           disabled={saving}
         />
@@ -69,34 +89,14 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
           id="statusLine-padding"
           className="input"
           type="number"
-          value={paddingStr}
-          onChange={(e) => setPaddingStr(e.target.value)}
+          value={draft.paddingStr}
+          onChange={(e) => setDraft((prev) => ({ ...prev, paddingStr: e.target.value }))}
           placeholder={t('settings.advanced.statusLine.padding.placeholder')}
           min="0"
           step="1"
           disabled={saving}
         />
       </div>
-      <div className="settings-actions">
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-          type="button"
-        >
-          {t('settings.advanced.statusLine.save')}
-        </button>
-        {statusLine && (
-          <button
-            className="btn btn-secondary"
-            onClick={handleDelete}
-            disabled={saving}
-            type="button"
-          >
-            {t('settings.advanced.statusLine.clear')}
-          </button>
-        )}
-      </div>
-    </div>
+    </ObjectSetting>
   );
 }

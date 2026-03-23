@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
-import { SettingLabelText } from './SettingControls';
+import { TagListSetting } from './SettingControls';
 import { useSettingSave } from '../hooks/useSettingSave';
 
 interface CompanyAnnouncementsEditorProps {
@@ -13,82 +13,46 @@ interface CompanyAnnouncementsEditorProps {
 export function CompanyAnnouncementsEditor({ scope, announcements, onSave }: CompanyAnnouncementsEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
-  const [inputValue, setInputValue] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setInputValue('');
-    setError('');
-  }, [scope]);
-
-  const handleAdd = (): void => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    if (announcements.includes(trimmed)) {
-      setError(t('settings.advanced.companyAnnouncements.duplicate'));
-      return;
-    }
-    void withSave(async () => {
-      await onSave('companyAnnouncements', [...announcements, trimmed]);
-      setInputValue('');
-      setError('');
-    });
-  };
-
-  const handleDelete = (announcement: string): void => {
-    void withSave(() => onSave('companyAnnouncements', announcements.filter((a) => a !== announcement)));
-  };
 
   return (
-    <div className="settings-field">
-      <label className="settings-label">
-        <SettingLabelText label={t('settings.advanced.companyAnnouncements.label')} settingKey="companyAnnouncements" />
-      </label>
-      <p className="settings-field-description">{t('settings.advanced.companyAnnouncements.description')}</p>
-      <div className="general-tag-list">
-        {announcements.length === 0 ? (
-          <span className="perm-empty">{t('settings.advanced.companyAnnouncements.empty')}</span>
-        ) : (
-          announcements.map((announcement) => (
-            <div key={announcement} className="perm-rule-tag">
-              <textarea
-                className="input"
-                rows={2}
-                value={announcement}
-                readOnly
-              />
-              <button
-                className="perm-rule-tag-delete"
-                onClick={() => handleDelete(announcement)}
-                aria-label={`Remove "${announcement}"`}
-                type="button"
-                disabled={saving}
-              >
-                ×
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="general-tag-add-row">
-        <textarea
-          className="input"
-          rows={2}
-          value={inputValue}
-          onChange={(e) => { setInputValue(e.target.value); setError(''); }}
-          placeholder={t('settings.advanced.companyAnnouncements.placeholder')}
-          disabled={saving}
-        />
-        <button
-          className="btn btn-primary"
-          onClick={handleAdd}
-          disabled={saving || !inputValue.trim()}
-          type="button"
-        >
-          {t('settings.advanced.companyAnnouncements.add')}
-        </button>
-        {error && <p className="settings-field-description" role="alert" style={{ color: 'var(--vscode-errorForeground, red)' }}>{error}</p>}
-      </div>
-    </div>
+    <TagListSetting
+      label={t('settings.advanced.companyAnnouncements.label')}
+      description={t('settings.advanced.companyAnnouncements.description')}
+      scope={scope}
+      items={announcements}
+      emptyPlaceholder={t('settings.advanced.companyAnnouncements.empty')}
+      inputPlaceholder={t('settings.advanced.companyAnnouncements.placeholder')}
+      addLabel={t('settings.advanced.companyAnnouncements.add')}
+      duplicateError={t('settings.advanced.companyAnnouncements.duplicate')}
+      settingKey="companyAnnouncements"
+      disabled={saving}
+      inputVariant="multi-line"
+      inputRows={2}
+      renderItem={(announcement, { disabled: itemDisabled, onDelete }) => (
+        <div className="perm-rule-tag">
+          <textarea
+            className="input"
+            rows={2}
+            value={announcement}
+            readOnly
+          />
+          <button
+            className="perm-rule-tag-delete"
+            onClick={onDelete}
+            aria-label={`Remove "${announcement}"`}
+            type="button"
+            disabled={itemDisabled}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      onAddItem={(announcement) => {
+        void withSave(() => onSave('companyAnnouncements', [...announcements, announcement]));
+      }}
+      onDeleteItem={(announcement) => {
+        void withSave(() => onSave('companyAnnouncements', announcements.filter((item) => item !== announcement)));
+      }}
+    />
   );
 }

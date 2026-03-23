@@ -484,6 +484,9 @@ export interface TagListSettingProps {
   showClear?: boolean;
   beforeList?: React.ReactNode;
   afterInput?: React.ReactNode;
+  inputVariant?: 'single-line' | 'multi-line';
+  inputRows?: number;
+  renderItem?: (item: string, context: { disabled: boolean; onDelete: () => void }) => React.ReactNode;
   onAddItem: (item: string) => void;
   onDeleteItem: (item: string) => void;
   onClear?: () => void;
@@ -505,6 +508,9 @@ export function TagListSetting({
   showClear = false,
   beforeList,
   afterInput,
+  inputVariant = 'single-line',
+  inputRows = 2,
+  renderItem,
   onAddItem,
   onDeleteItem,
   onClear,
@@ -546,31 +552,48 @@ export function TagListSetting({
           <span className="perm-empty">{emptyPlaceholder}</span>
         ) : (
           items.map((item) => (
-            <span key={item} className="perm-rule-tag">
-              {item}
-              <button
-                className="perm-rule-tag-delete"
-                onClick={() => onDeleteItem(item)}
-                aria-label={`Remove ${item}`}
-                type="button"
-                disabled={disabled}
-              >
-                ×
-              </button>
-            </span>
+            <React.Fragment key={item}>
+              {renderItem
+                ? renderItem(item, { disabled, onDelete: () => onDeleteItem(item) })
+                : (
+                  <span className="perm-rule-tag">
+                    {item}
+                    <button
+                      className="perm-rule-tag-delete"
+                      onClick={() => onDeleteItem(item)}
+                      aria-label={`Remove ${item}`}
+                      type="button"
+                      disabled={disabled}
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+            </React.Fragment>
           ))
         )}
       </div>
       <div className="general-tag-add-row">
-        <input
-          className="input"
-          type="text"
-          value={inputValue}
-          onChange={(e) => { setInputValue(e.target.value); setError(''); }}
-          onKeyDown={handleKeyDown}
-          placeholder={inputPlaceholder}
-          disabled={disabled}
-        />
+        {inputVariant === 'multi-line' ? (
+          <textarea
+            className="input"
+            rows={inputRows}
+            value={inputValue}
+            onChange={(e) => { setInputValue(e.target.value); setError(''); }}
+            placeholder={inputPlaceholder}
+            disabled={disabled}
+          />
+        ) : (
+          <input
+            className="input"
+            type="text"
+            value={inputValue}
+            onChange={(e) => { setInputValue(e.target.value); setError(''); }}
+            onKeyDown={handleKeyDown}
+            placeholder={inputPlaceholder}
+            disabled={disabled}
+          />
+        )}
         <button
           className="btn btn-primary"
           onClick={handleAdd}

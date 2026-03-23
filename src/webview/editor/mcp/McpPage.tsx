@@ -15,6 +15,7 @@ import type { McpAddParams, McpServer } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 import { PageHeader } from '../../components/PageHeader';
 import { CardSection } from '../../components/CardSection';
+import { usePageAction } from '../../hooks/usePageAction';
 
 /** 檢查字串是否為合法 JSON */
 function isValidJson(str: string): boolean {
@@ -64,6 +65,7 @@ export function McpPage(): React.ReactElement {
   const [removingServer, setRemovingServer] = useState<string | null>(null);
   const detailTitleId = useId();
   const detailTrapRef = useFocusTrap(() => setDetailText(null), !!detailText);
+  const runPageAction = usePageAction({ setError });
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -125,51 +127,49 @@ export function McpPage(): React.ReactElement {
 
   const handleRemove = async (name: string, scope?: McpAddParams['scope']): Promise<void> => {
     setConfirmRemove(null);
-    setError(null);
     setRemovingServer(`${scope ?? 'none'}:${name}`);
-    try {
-      await sendRequest({ type: 'mcp.remove', name, scope });
-      await fetchList();
-      addToast('MCP server removed');
-    } catch (e) {
-      setError(toErrorMessage(e));
-    } finally {
-      setRemovingServer(null);
-    }
+    await runPageAction({
+      action: () => sendRequest({ type: 'mcp.remove', name, scope }),
+      onSuccess: async () => {
+        await fetchList();
+      },
+      onFinally: () => {
+        setRemovingServer(null);
+      },
+      successToast: 'MCP server removed',
+    });
   };
 
   const handleViewDetail = async (name: string): Promise<void> => {
-    setError(null);
-    try {
-      const detail = await sendRequest<string>({ type: 'mcp.getDetail', name });
-      setDetailText(typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2));
-    } catch (e) {
-      setError(toErrorMessage(e));
-    }
+    await runPageAction({
+      action: () => sendRequest<string>({ type: 'mcp.getDetail', name }),
+      onSuccess: (detail) => {
+        setDetailText(typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2));
+      },
+    });
   };
 
   const handleResetProjectChoices = async (): Promise<void> => {
-    setError(null);
-    try {
-      await sendRequest({ type: 'mcp.resetProjectChoices' });
-      await fetchList();
-    } catch (e) {
-      setError(toErrorMessage(e));
-    }
+    await runPageAction({
+      action: () => sendRequest({ type: 'mcp.resetProjectChoices' }),
+      onSuccess: async () => {
+        await fetchList();
+      },
+    });
   };
 
   /** 單次完整刷新（CLI health check） */
   const handleRefreshStatus = async (): Promise<void> => {
     setRetrying(true);
-    setError(null);
-    try {
-      const data = await sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000);
-      setServers(data);
-    } catch (e) {
-      setError(toErrorMessage(e));
-    } finally {
-      setRetrying(false);
-    }
+    await runPageAction({
+      action: () => sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000),
+      onSuccess: (data) => {
+        setServers(data);
+      },
+      onFinally: () => {
+        setRetrying(false);
+      },
+    });
   };
 
   /** 單一 server 連線測試（複用 mcp.refreshStatus，per-card loading） */
@@ -177,33 +177,37 @@ export function McpPage(): React.ReactElement {
     const serverKey = `${server.scope ?? 'none'}:${server.fullName}`;
     setTestingServer(serverKey);
     setTestErrors((prev) => { const next = { ...prev }; delete next[serverKey]; return next; });
-    setError(null);
-    try {
-      const data = await sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000);
-      setServers(data);
-      const updated = data.find((s) => s.fullName === server.fullName && s.scope === server.scope);
-      if (updated && updated.status !== 'connected') {
-        setTestErrors((prev) => ({
-          ...prev,
-          [serverKey]: updated.status === 'failed' ? 'Connection failed' : `Status: ${updated.status}`,
-        }));
-      }
-    } catch (e) {
-      setTestErrors((prev) => ({ ...prev, [serverKey]: toErrorMessage(e) }));
-    } finally {
-      setTestingServer(null);
-    }
+    await runPageAction({
+      action: () => sendRequest<McpServer[]>({ type: 'mcp.refreshStatus' }, 30_000),
+      onSuccess: (data) => {
+        setServers(data);
+        const updated = data.find((s) => s.fullName === server.fullName && s.scope === server.scope);
+        if (updated && updated.status !== 'connected') {
+          setTestErrors((prev) => ({
+            ...prev,
+            [serverKey]: updated.status === 'failed' ? 'Connection failed' : `Status: ${updated.status}`,
+          }));
+        }
+      },
+      onError: (message) => {
+        setTestErrors((prev) => ({ ...prev, [serverKey]: message }));
+      },
+      onFinally: () => {
+        setTestingServer(null);
+      },
+    });
   };
 
   /** 重啟 polling（poll unavailable 後） */
   const handleRestartPolling = async (): Promise<void> => {
     setPollUnavailable(false);
-    try {
-      await sendRequest({ type: 'mcp.restartPolling' });
-    } catch (e) {
-      setPollUnavailable(true);
-      setError(toErrorMessage(e));
-    }
+    await runPageAction({
+      action: () => sendRequest({ type: 'mcp.restartPolling' }),
+      onError: (message) => {
+        setPollUnavailable(true);
+        setError(message);
+      },
+    });
   };
 
   const handleEdit = (server: McpServer): void =>

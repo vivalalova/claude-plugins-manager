@@ -29,6 +29,11 @@ import { ToastProvider } from '../../../components/Toast';
 import type { AgentSkill, RegistrySkill, SkillSearchResult } from '../../../../shared/types';
 
 const renderPage = () => renderWithI18n(<ToastProvider><SkillsPage /></ToastProvider>);
+const waitForDebounce = async (): Promise<void> => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 550));
+  });
+};
 
 function makeSkill(name: string, scope: AgentSkill['scope'] = 'global', desc?: string): AgentSkill {
   return {
@@ -43,6 +48,7 @@ function makeSkill(name: string, scope: AgentSkill['scope'] = 'global', desc?: s
 describe('SkillsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     // 預設 getViewState 回傳 fallback
     mockGetViewState.mockImplementation((_key: string, fallback: unknown) => fallback);
   });
@@ -490,6 +496,59 @@ describe('SkillsPage', () => {
       const onlineInput = screen.getByPlaceholderText('Search skills online...');
       expect((onlineInput as HTMLInputElement).value).toBe('');
     });
+
+    it('較舊的 online 搜尋結果晚到時，不得覆寫較新的 query 結果', async () => {
+      let resolveFirst: ((value: SkillSearchResult[]) => void) | undefined;
+      let resolveSecond: ((value: SkillSearchResult[]) => void) | undefined;
+
+      mockSendRequest.mockImplementation((req: { type: string; query?: string }) => {
+        if (req.type === 'skill.list') return Promise.resolve([]);
+        if (req.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws' }]);
+        if (req.type === 'skill.find' && req.query === 'te') {
+          return new Promise<SkillSearchResult[]>((resolve) => {
+            resolveFirst = resolve;
+          });
+        }
+        if (req.type === 'skill.find' && req.query === 'tes') {
+          return new Promise<SkillSearchResult[]>((resolve) => {
+            resolveSecond = resolve;
+          });
+        }
+        return Promise.resolve(undefined);
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Online'));
+
+      const input = screen.getByPlaceholderText('Search skills online...');
+      fireEvent.change(input, { target: { value: 'te' } });
+      await waitForDebounce();
+
+      fireEvent.change(input, { target: { value: 'tes' } });
+      await waitForDebounce();
+
+      await act(async () => {
+        resolveSecond?.([
+          { fullId: 'owner/repo@latest', name: 'latest', repo: 'owner/repo', installs: '1.0K', url: 'https://skills.sh/owner/repo/latest' },
+        ]);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('latest')).toBeTruthy();
+      });
+
+      await act(async () => {
+        resolveFirst?.([
+          { fullId: 'owner/repo@stale', name: 'stale', repo: 'owner/repo', installs: '900', url: 'https://skills.sh/owner/repo/stale' },
+        ]);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('latest')).toBeTruthy();
+        expect(screen.queryByText('stale')).toBeNull();
+      });
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -585,6 +644,90 @@ describe('SkillsPage', () => {
       await waitFor(() => {
         expect(screen.getByText('skills.sh unavailable')).toBeTruthy();
       }, { timeout: 3000 });
+    });
+
+    it('query 改變時必須重新 fetch registry，不得誤用舊 cache', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string; sort?: string; query?: string }) => {
+        if (req.type === 'skill.list') return [];
+        if (req.type === 'workspace.getFolders') return [{ name: 'ws' }];
+        if (req.type === 'skill.registry') {
+          if (req.query === 'alpha') {
+            return [{ rank: 1, name: 'alpha-skill', repo: 'owner/alpha', installs: '1.0K', url: 'https://skills.sh/owner/alpha/alpha-skill' }];
+          }
+          if (req.query === 'beta') {
+            return [{ rank: 1, name: 'beta-skill', repo: 'owner/beta', installs: '2.0K', url: 'https://skills.sh/owner/beta/beta-skill' }];
+          }
+          return [];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      const input = screen.getByPlaceholderText('Search registry...');
+      fireEvent.change(input, { target: { value: 'alpha' } });
+      await waitForDebounce();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha-skill')).toBeTruthy();
+      });
+
+      fireEvent.change(input, { target: { value: 'beta' } });
+      await waitForDebounce();
+
+      await waitFor(() => {
+        expect(screen.getByText('beta-skill')).toBeTruthy();
+        expect(screen.queryByText('alpha-skill')).toBeNull();
+      });
+
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'skill.registry', sort: 'all-time', query: 'alpha' }),
+      );
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'skill.registry', sort: 'all-time', query: 'beta' }),
+      );
+    });
+
+    it('sort 改變時必須重新 fetch registry，不得誤用同 query cache', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string; sort?: string; query?: string }) => {
+        if (req.type === 'skill.list') return [];
+        if (req.type === 'workspace.getFolders') return [{ name: 'ws' }];
+        if (req.type === 'skill.registry') {
+          if (req.sort === 'all-time') {
+            return [{ rank: 1, name: 'all-time-skill', repo: 'owner/repo', installs: '5.0K', url: 'https://skills.sh/owner/repo/all-time-skill' }];
+          }
+          return [{ rank: 1, name: 'trending-skill', repo: 'owner/repo', installs: '6.0K', url: 'https://skills.sh/owner/repo/trending-skill' }];
+        }
+        return undefined;
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      const input = screen.getByPlaceholderText('Search registry...');
+      fireEvent.change(input, { target: { value: 'owner' } });
+      await waitForDebounce();
+
+      await waitFor(() => {
+        expect(screen.getByText('all-time-skill')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByText('Trending'));
+
+      await waitFor(() => {
+        expect(screen.getByText('trending-skill')).toBeTruthy();
+        expect(screen.queryByText('all-time-skill')).toBeNull();
+      });
+
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'skill.registry', sort: 'all-time', query: 'owner' }),
+      );
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'skill.registry', sort: 'trending', query: 'owner' }),
+      );
     });
   });
 
