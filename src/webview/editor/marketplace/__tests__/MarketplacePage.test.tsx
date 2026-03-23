@@ -264,6 +264,64 @@ describe('MarketplacePage', () => {
     expect(screen.queryByText('Loading marketplaces...')).toBeNull();
   });
 
+  it('較舊的靜默刷新結果晚到時，不得覆寫較新的手動刷新結果', async () => {
+    let pushCallback: ((msg: Record<string, unknown>) => void) | undefined;
+    let listCallCount = 0;
+    let resolveSilentRefresh: ((value: Marketplace[]) => void) | undefined;
+    let resolveManualRefresh: ((value: Marketplace[]) => void) | undefined;
+
+    mockOnPushMessage.mockImplementation((cb: (msg: Record<string, unknown>) => void) => {
+      pushCallback = cb;
+      return () => {};
+    });
+
+    mockSendRequest.mockImplementation((req: { type: string }) => {
+      if (req.type === 'marketplace.list') {
+        listCallCount++;
+        if (listCallCount === 1) return Promise.resolve([makeMarketplace('alpha')]);
+        if (listCallCount === 2) {
+          return new Promise<Marketplace[]>((resolve) => {
+            resolveSilentRefresh = resolve;
+          });
+        }
+        return new Promise<Marketplace[]>((resolve) => {
+          resolveManualRefresh = resolve;
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('alpha')).toBeTruthy();
+    });
+
+    await act(async () => {
+      pushCallback?.({ type: 'marketplace.refresh' });
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    });
+
+    await act(async () => {
+      resolveManualRefresh?.([makeMarketplace('beta')]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('beta')).toBeTruthy();
+    });
+
+    await act(async () => {
+      resolveSilentRefresh?.([makeMarketplace('gamma')]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('beta')).toBeTruthy();
+      expect(screen.queryByText('gamma')).toBeNull();
+    });
+  });
+
   it('Enter 鍵新增 marketplace', async () => {
     const calls: { type: string; source?: string }[] = [];
     mockSendRequest.mockImplementation(async (req: { type: string; source?: string }) => {

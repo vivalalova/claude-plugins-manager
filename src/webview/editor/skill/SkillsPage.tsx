@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sendRequest, onPushMessage, getViewState, setViewState, setGlobalState, initGlobalState } from '../../vscode';
+import { sendRequest, getViewState, setViewState, setGlobalState, initGlobalState } from '../../vscode';
 import { toErrorMessage } from '../../../shared/errorUtils';
 import { SkillCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, SkillIcon, NoResultsIcon } from '../../components/EmptyState';
@@ -16,6 +16,7 @@ import { useDebouncedValue } from '../../hooks/useDebounce';
 import { PageHeader } from '../../components/PageHeader';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
+import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 
 /**
  * Skills 管理頁面。
@@ -28,9 +29,6 @@ export function SkillsPage(): React.ReactElement {
   const { addToast } = useToast();
 
   // --- Installed state ---
-  const [skills, setSkills] = useState<AgentSkill[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [scopeFilter, setScopeFilter] = useState<SkillScope | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingSkill, setAddingSkill] = useState(false);
@@ -78,33 +76,32 @@ export function SkillsPage(): React.ReactElement {
   const [registryLoading, setRegistryLoading] = useState(false);
   const [registryError, setRegistryError] = useState<string | null>(null);
   const registryCacheRef = useRef<Map<string, RegistrySkill[]>>(new Map());
+  const loadInstalledSkills = useCallback(
+    () => sendRequest<AgentSkill[]>({ type: 'skill.list' }),
+    [],
+  );
+  const shouldRefreshSkills = useCallback(
+    (msg: { type?: string }) => msg.type === 'skill.refresh',
+    [],
+  );
 
-  // --- Fetch installed ---
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await sendRequest<AgentSkill[]>({ type: 'skill.list' });
-      setSkills(data);
-    } catch (e) {
-      setError(toErrorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data: skills,
+    loading,
+    error,
+    setError,
+    refresh: fetchList,
+  } = usePushSyncedResource<AgentSkill[]>({
+    initialData: [],
+    load: loadInstalledSkills,
+    pushFilter: shouldRefreshSkills,
+  });
 
   useEffect(() => {
-    fetchList();
     sendRequest<Array<{ name: string }>>({ type: 'workspace.getFolders' })
       .then((folders) => setHasWorkspace(folders.length > 0))
       .catch(() => {});
-  }, [fetchList]);
-
-  useEffect(() => {
-    return onPushMessage((msg) => {
-      if (msg.type === 'skill.refresh') fetchList();
-    });
-  }, [fetchList]);
+  }, []);
 
   // --- Online search effect ---
   useEffect(() => {
@@ -358,7 +355,7 @@ export function SkillsPage(): React.ReactElement {
               {updating ? t('skill.update.updating') : t('skill.update.button')}
             </button>
           )}
-          <button className="btn btn-secondary" onClick={fetchList} disabled={loading}>
+          <button className="btn btn-secondary" onClick={() => void fetchList()} disabled={loading}>
             {t('skill.page.refresh')}
           </button>
         </>}

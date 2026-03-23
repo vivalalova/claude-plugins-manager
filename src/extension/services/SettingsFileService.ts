@@ -30,6 +30,24 @@ export class SettingsFileService {
   private scanInflight: Promise<AvailablePlugin[]> | null = null;
   private readonly settingsWriteQueues = new KeyedWriteQueue();
 
+  private async updateScopedSettingsFile(
+    scope: PluginScope,
+    mutate: (settings: Record<string, unknown>) => boolean,
+  ): Promise<void> {
+    const path = this.getSettingsPath(scope);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      const settings = await readJsonFile<Record<string, unknown>>(path, {});
+      const shouldWrite = mutate(settings);
+      if (!shouldWrite) {
+        return;
+      }
+      if (scope !== 'user') {
+        await mkdir(dirname(path), { recursive: true });
+      }
+      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+    });
+  }
+
   /** 清除掃描快取，下次 scanAvailablePlugins 將重新掃描 */
   invalidateScanCache(): void {
     this.scanInflight = null;
@@ -64,14 +82,9 @@ export class SettingsFileService {
    * 使用 raw object 保留 $schema 等額外欄位；project/local scope 自動 mkdir。
    */
   async setSetting(scope: PluginScope, key: string, value: unknown): Promise<void> {
-    const path = this.getSettingsPath(scope);
-    return this.settingsWriteQueues.enqueue(path, async () => {
-      const settings = await readJsonFile<Record<string, unknown>>(path, {});
+    return this.updateScopedSettingsFile(scope, (settings) => {
       settings[key] = value;
-      if (scope !== 'user') {
-        await mkdir(dirname(path), { recursive: true });
-      }
-      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+      return true;
     });
   }
 
@@ -80,12 +93,12 @@ export class SettingsFileService {
    * 檔案不存在（ENOENT）則 no-op；readJsonFile 已處理 ENOENT 回傳 {}。
    */
   async deleteSetting(scope: PluginScope, key: string): Promise<void> {
-    const path = this.getSettingsPath(scope);
-    return this.settingsWriteQueues.enqueue(path, async () => {
-      const settings = await readJsonFile<Record<string, unknown>>(path, {});
-      if (!(key in settings)) return;
+    return this.updateScopedSettingsFile(scope, (settings) => {
+      if (!(key in settings)) {
+        return false;
+      }
       delete settings[key];
-      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+      return true;
     });
   }
 
@@ -125,14 +138,9 @@ export class SettingsFileService {
 
   /** 清除指定 scope 的所有 enabledPlugins（單次 read-write） */
   async clearAllEnabledPlugins(scope: PluginScope): Promise<void> {
-    const path = this.getSettingsPath(scope);
-    return this.settingsWriteQueues.enqueue(path, async () => {
-      const settings = await readJsonFile<Record<string, unknown>>(path, {});
+    return this.updateScopedSettingsFile(scope, (settings) => {
       settings.enabledPlugins = {};
-      if (scope !== 'user') {
-        await mkdir(dirname(path), { recursive: true });
-      }
-      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+      return true;
     });
   }
 
@@ -142,9 +150,7 @@ export class SettingsFileService {
     scope: PluginScope,
     enabled: boolean,
   ): Promise<void> {
-    const path = this.getSettingsPath(scope);
-    return this.settingsWriteQueues.enqueue(path, async () => {
-      const settings = await readJsonFile<Record<string, unknown>>(path, {});
+    return this.updateScopedSettingsFile(scope, (settings) => {
       const plugins = (settings.enabledPlugins ?? {}) as EnabledPluginsMap;
 
       if (enabled) {
@@ -154,13 +160,7 @@ export class SettingsFileService {
       }
 
       settings.enabledPlugins = plugins;
-
-      // project/local scope 可能尚未建立 .claude/ 目錄
-      if (scope !== 'user') {
-        await mkdir(dirname(path), { recursive: true });
-      }
-
-      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+      return true;
     });
   }
 

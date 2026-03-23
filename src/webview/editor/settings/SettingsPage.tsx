@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { sendRequest, onPushMessage } from '../../vscode';
-import { toErrorMessage } from '../../../shared/errorUtils';
+import { sendRequest } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
@@ -15,6 +14,7 @@ import { AdvancedSection } from './AdvancedSection';
 import { SettingLabelText } from './components/SettingControls';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 import { KNOWN_MODEL_OPTIONS } from '../../../shared/claude-settings-schema';
+import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -179,10 +179,6 @@ export function SettingsPage(): React.ReactElement {
 
   const [scope, setScope] = useState<PluginScope>('user');
   const [activeNav, setActiveNav] = useState<SettingsNavItem>('general');
-  const [settings, setSettings] = useState<ClaudeSettings>({});
-  const [userSettings, setUserSettings] = useState<ClaudeSettings>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [hasWorkspace, setHasWorkspace] = useState(false);
 
   // Check workspace availability
@@ -192,52 +188,48 @@ export function SettingsPage(): React.ReactElement {
       .catch(() => setHasWorkspace(false));
   }, []);
 
-  const fetchSettings = useCallback(async (targetScope: PluginScope, silent = false) => {
-    if (!silent) { setLoading(true); setError(null); }
-    try {
+  const loadSettings = useCallback(async () => {
       const [data, userData] = await Promise.all([
-        sendRequest<ClaudeSettings>({ type: 'settings.get', scope: targetScope }),
-        targetScope !== 'user'
+        sendRequest<ClaudeSettings>({ type: 'settings.get', scope }),
+        scope !== 'user'
           ? sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'user' })
           : Promise.resolve({} as ClaudeSettings),
       ]);
-      setSettings(data);
-      setUserSettings(userData);
-      setError(null);
-    } catch (e) {
-      if (!silent) setError(toErrorMessage(e));
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
+    return { settings: data, userSettings: userData };
+  }, [scope]);
 
-  useEffect(() => {
-    setSettings({});
-    setUserSettings({});
-    fetchSettings(scope);
-  }, [scope, fetchSettings]);
-
-  // Subscribe to settings.refresh push
-  useEffect(() => {
-    return onPushMessage((msg) => {
-      if (msg.type === 'settings.refresh') {
-        fetchSettings(scope, true);
-      }
-    });
-  }, [scope, fetchSettings]);
+  const {
+    data,
+    loading,
+    error,
+    setError,
+    setData,
+  } = usePushSyncedResource<{ settings: ClaudeSettings; userSettings: ClaudeSettings }>({
+    initialData: { settings: {}, userSettings: {} },
+    load: loadSettings,
+    pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
+  });
+  const settings = data.settings;
+  const userSettings = data.userSettings;
 
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  }, [scope]);
+    setData((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, [key]: value },
+    }));
+  }, [scope, setData]);
 
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
-    setSettings((prev) => {
-      const { [key]: _, ...rest } = prev as Record<string, unknown>;
-      return rest as ClaudeSettings;
+    setData((prev) => {
+      const { [key]: _, ...rest } = prev.settings as Record<string, unknown>;
+      return {
+        ...prev,
+        settings: rest as ClaudeSettings,
+      };
     });
-  }, [scope]);
+  }, [scope, setData]);
 
   const handleScopeClick = (s: PluginScope): void => {
     if (s !== 'user' && !hasWorkspace) return;

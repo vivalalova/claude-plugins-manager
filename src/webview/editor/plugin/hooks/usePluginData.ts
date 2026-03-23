@@ -1,12 +1,12 @@
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
-import { sendRequest, onPushMessage } from '../../../vscode';
+import { type Dispatch, type SetStateAction, useCallback } from 'react';
+import { sendRequest } from '../../../vscode';
 import type {
   InstalledPlugin,
   AvailablePlugin,
   MergedPlugin,
   PluginListResponse,
 } from '../../../../shared/types';
-import { toErrorMessage } from '../../../../shared/errorUtils';
+import { usePushSyncedResource } from '../../../hooks/usePushSyncedResource';
 
 /** workspace folder 資訊 */
 export interface WorkspaceFolder {
@@ -123,18 +123,7 @@ export function mergePlugins(
  * 管理 plugins 列表、loading/error 狀態、workspace folders、marketplace sources。
  */
 export function usePluginData(): UsePluginDataReturn {
-  const [plugins, setPlugins] = useState<MergedPlugin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([]);
-  const [marketplaceSources, setMarketplaceSources] = useState<Record<string, string>>({});
-  const latestRequestIdRef = useRef(0);
-
-  /** 拉取完整列表。showSpinner=false 時靜默刷新，避免畫面閃爍 */
-  const fetchAll = useCallback(async (showSpinner = true) => {
-    const requestId = ++latestRequestIdRef.current;
-    if (showSpinner) setLoading(true);
-    setError(null);
+  const loadPluginData = useCallback(async () => {
     const [pluginResult, workspaceResult] = await Promise.allSettled([
       sendRequest<PluginListResponse>(
         { type: 'plugin.listAvailable' },
@@ -142,49 +131,48 @@ export function usePluginData(): UsePluginDataReturn {
       sendRequest<WorkspaceFolder[]>({ type: 'workspace.getFolders' }),
     ]);
 
-    if (requestId !== latestRequestIdRef.current) {
-      return;
+    if (pluginResult.status !== 'fulfilled') {
+      throw pluginResult.reason;
     }
 
-    try {
-      if (pluginResult.status === 'fulfilled') {
-        const data = pluginResult.value;
-        setPlugins(mergePlugins(data.installed, data.available));
-        setMarketplaceSources(data.marketplaceSources ?? {});
-      } else {
-        throw pluginResult.reason;
-      }
-
-      if (workspaceResult.status === 'fulfilled') {
-        setWorkspaceFolders(workspaceResult.value);
-      }
-    } catch (e) {
-      setError(toErrorMessage(e));
-    } finally {
-      setLoading(false);
-    }
+    return {
+      plugins: mergePlugins(pluginResult.value.installed, pluginResult.value.available),
+      workspaceFolders: workspaceResult.status === 'fulfilled' ? workspaceResult.value : [],
+      marketplaceSources: pluginResult.value.marketplaceSources ?? {},
+    };
   }, []);
+  const shouldRefreshPluginData = useCallback(
+    (msg: { type?: string }) => msg.type === 'plugin.refresh' || msg.type === 'marketplace.refresh',
+    [],
+  );
 
-  // 初始載入
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-
-  // 訂閱檔案變更推送，自動靜默刷新
-  useEffect(() => {
-    const unsubscribe = onPushMessage((msg) => {
-      if (msg.type === 'plugin.refresh' || msg.type === 'marketplace.refresh') {
-        fetchAll(false);
-      }
-    });
-    return unsubscribe;
-  }, [fetchAll]);
-
-  return {
-    plugins,
+  const {
+    data,
     loading,
     error,
     setError,
-    workspaceFolders,
-    marketplaceSources,
+    refresh: fetchAll,
+  } = usePushSyncedResource<{
+    plugins: MergedPlugin[];
+    workspaceFolders: WorkspaceFolder[];
+    marketplaceSources: Record<string, string>;
+  }>({
+    initialData: {
+      plugins: [],
+      workspaceFolders: [],
+      marketplaceSources: {},
+    },
+    load: loadPluginData,
+    pushFilter: shouldRefreshPluginData,
+  });
+
+  return {
+    plugins: data.plugins,
+    loading,
+    error,
+    setError,
+    workspaceFolders: data.workspaceFolders,
+    marketplaceSources: data.marketplaceSources,
     fetchAll,
   };
 }

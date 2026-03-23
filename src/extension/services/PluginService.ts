@@ -26,6 +26,12 @@ export class PluginService {
     private readonly settings: SettingsFileService,
   ) {}
 
+  private getScopedProjectPath(scope?: PluginScope): string | undefined {
+    return scope && scope !== 'user'
+      ? this.getProjectPath(scope)
+      : undefined;
+  }
+
   /** 列出已安裝的 plugin（從 installed_plugins.json + settings 合併） */
   async listInstalled(): Promise<InstalledPlugin[]> {
     const [data, enabledByScope, available] = await Promise.all([
@@ -125,13 +131,14 @@ export class PluginService {
       version = existing[0].version;
     } else {
       // 尚未安裝：用 CLI 安裝（下載 cache + 寫 installed_plugins.json + enable）
-      const cwd = scope !== 'user' ? this.getProjectPath(scope) : undefined;
+      const cwd = this.getScopedProjectPath(scope);
       await this.cli.exec(
         ['plugin', 'install', plugin, '--scope', scope],
         { timeout: CLI_LONG_TIMEOUT_MS, cwd },
       );
       return;
     }
+    const projectPath = this.getScopedProjectPath(scope);
 
     const entry: PluginInstallEntry = {
       scope,
@@ -139,7 +146,7 @@ export class PluginService {
       version,
       installedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
-      ...(scope !== 'user' ? { projectPath: this.getProjectPath(scope) } : {}),
+      ...(projectPath ? { projectPath } : {}),
     };
 
     await this.settings.addInstallEntry(plugin, entry);
@@ -148,9 +155,7 @@ export class PluginService {
 
   /** 移除 plugin（從 installed_plugins.json 移除 entry + disable） */
   async uninstall(plugin: string, scope: PluginScope): Promise<void> {
-    const projectPath = scope !== 'user'
-      ? this.getProjectPath(scope)
-      : undefined;
+    const projectPath = this.getScopedProjectPath(scope);
 
     await this.settings.removeInstallEntry(plugin, scope, projectPath);
     await this.settings.setPluginEnabled(plugin, scope, false);
@@ -240,7 +245,7 @@ export class PluginService {
     if (scope) {
       args.push('--scope', scope);
     }
-    const cwd = scope && scope !== 'user' ? this.getProjectPath(scope) : undefined;
+    const cwd = this.getScopedProjectPath(scope);
     try {
       await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
     } catch (error) {

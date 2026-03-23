@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SkillCard } from './SkillCard';
-import { CollapsibleSection } from '../../components/CollapsibleSection';
+import { CardSection } from '../../components/CardSection';
 import type { AgentSkill } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -37,9 +37,10 @@ export function SkillSections({
   const renderSection = (title: string, scopeKey: string, skills: AgentSkill[]): React.ReactNode => {
     if (skills.length === 0) return null;
     return (
-      <CollapsibleSection
-        label={title}
-        badge={skills.length}
+      <CardSection
+        variant="collapsible"
+        title={title}
+        count={skills.length}
         isCollapsed={collapsed.has(scopeKey)}
         onToggle={() => toggleCollapsed(scopeKey)}
       >
@@ -55,7 +56,7 @@ export function SkillSections({
             />
           ))}
         </div>
-      </CollapsibleSection>
+      </CardSection>
     );
   };
 

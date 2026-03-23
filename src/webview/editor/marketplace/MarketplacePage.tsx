@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { sendRequest, onPushMessage } from '../../vscode';
+import React, { useCallback, useRef, useState } from 'react';
+import { sendRequest } from '../../vscode';
 import { toErrorMessage } from '../../../shared/errorUtils';
 import { MarketplaceCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, MarketplaceIcon } from '../../components/EmptyState';
@@ -10,6 +10,7 @@ import { VirtualCardList } from '../plugin/VirtualCardList';
 import { useToast } from '../../components/Toast';
 import { PageHeader } from '../../components/PageHeader';
 import type { Marketplace, PreviewPlugin } from '../../../shared/types';
+import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 
 /**
  * Marketplace 管理頁面。
@@ -18,9 +19,6 @@ import type { Marketplace, PreviewPlugin } from '../../../shared/types';
 export function MarketplacePage(): React.ReactElement {
   const { addToast } = useToast();
   const addInputRef = useRef<HTMLInputElement>(null);
-  const [marketplaces, setMarketplaces] = useState<Marketplace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [addSource, setAddSource] = useState('');
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -29,31 +27,25 @@ export function MarketplacePage(): React.ReactElement {
   const [previewing, setPreviewing] = useState(false);
   const [previewPlugins, setPreviewPlugins] = useState<PreviewPlugin[] | null>(null);
   const [previewSource, setPreviewSource] = useState('');
-
-  const fetchList = useCallback(async (showSpinner = true) => {
-    if (showSpinner) setLoading(true);
-    setError(null);
-    try {
-      const data = await sendRequest<Marketplace[]>({ type: 'marketplace.list' });
-      setMarketplaces(data);
-    } catch (e) {
-      setError(toErrorMessage(e));
-    } finally {
-      if (showSpinner) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchList(); }, [fetchList]);
-
-  // 訂閱檔案變更推送，自動靜默刷新
-  useEffect(() => {
-    const unsubscribe = onPushMessage((msg) => {
-      if (msg.type === 'marketplace.refresh') {
-        fetchList(false);
-      }
-    });
-    return unsubscribe;
-  }, [fetchList]);
+  const loadMarketplaces = useCallback(
+    () => sendRequest<Marketplace[]>({ type: 'marketplace.list' }),
+    [],
+  );
+  const shouldRefreshMarketplaces = useCallback(
+    (msg: { type?: string }) => msg.type === 'marketplace.refresh',
+    [],
+  );
+  const {
+    data: marketplaces,
+    loading,
+    error,
+    setError,
+    refresh: fetchList,
+  } = usePushSyncedResource<Marketplace[]>({
+    initialData: [],
+    load: loadMarketplaces,
+    pushFilter: shouldRefreshMarketplaces,
+  });
 
   const handlePreview = async (): Promise<void> => {
     const source = addSource.trim();

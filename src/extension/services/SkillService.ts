@@ -38,6 +38,26 @@ export class SkillService {
     this.registryCachePath = join(cacheDir, 'skill-registry.json');
   }
 
+  private getScopedExecContext(
+    scope: SkillScope,
+    timeout?: number,
+  ): { args: string[]; options: { cwd?: string; timeout?: number } } {
+    const args: string[] = [];
+    const options: { cwd?: string; timeout?: number } = {};
+
+    if (timeout !== undefined) {
+      options.timeout = timeout;
+    }
+
+    if (scope === 'global') {
+      args.push('--global');
+    } else {
+      options.cwd = getWorkspacePath();
+    }
+
+    return { args, options };
+  }
+
   /** 去除 ANSI escape codes（SGR + cursor + erase + mode sequences） */
   static stripAnsi(text: string): string {
     // eslint-disable-next-line no-control-regex
@@ -74,15 +94,10 @@ export class SkillService {
     }
 
     const args = ['skills', 'list', '--json'];
-    const options: { cwd?: string } = {};
+    const scoped = this.getScopedExecContext(scope);
+    args.push(...scoped.args);
 
-    if (scope === 'global') {
-      args.push('--global');
-    } else {
-      options.cwd = getWorkspacePath();
-    }
-
-    return this.execJsonList(args, options);
+    return this.execJsonList(args, scoped.options);
   }
 
   /** project scope list — 獨立方法避免 getWorkspacePath 在無 workspace 時拋錯影響 global 結果 */
@@ -137,15 +152,10 @@ export class SkillService {
     } else {
       args.push('--all');
     }
-    const options: { cwd?: string; timeout?: number } = { timeout: SKILL_CLI_LONG_TIMEOUT_MS };
+    const scoped = this.getScopedExecContext(scope, SKILL_CLI_LONG_TIMEOUT_MS);
+    args.push(...scoped.args);
 
-    if (scope === 'global') {
-      args.push('--global');
-    } else {
-      options.cwd = getWorkspacePath();
-    }
-
-    await this.exec(args, options);
+    await this.exec(args, scoped.options);
   }
 
   /**
@@ -154,15 +164,10 @@ export class SkillService {
    */
   async remove(name: string, scope: SkillScope): Promise<void> {
     const args = ['skills', 'remove', name, '--yes'];
-    const options: { cwd?: string } = {};
+    const scoped = this.getScopedExecContext(scope);
+    args.push(...scoped.args);
 
-    if (scope === 'global') {
-      args.push('--global');
-    } else {
-      options.cwd = getWorkspacePath();
-    }
-
-    await this.exec(args, options);
+    await this.exec(args, scoped.options);
   }
 
   /** 搜尋 skills（npx skills find）。空 query 會進入 interactive TUI，直接回傳空。 */

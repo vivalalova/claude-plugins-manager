@@ -743,4 +743,48 @@ describe('SettingsPage', () => {
       expect(getCalls('settings.get').length).toBeGreaterThan(beforeCount);
     });
   });
+
+  it('較舊的 scope fetch 結果晚到時，不得覆寫目前 scope 的資料', async () => {
+    let resolveProject!: (v: Record<string, unknown>) => void;
+    let resolveLocal!: (v: Record<string, unknown>) => void;
+
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({});
+      if (msg.type === 'settings.get' && msg.scope === 'project') {
+        return new Promise<Record<string, unknown>>((res) => { resolveProject = res; });
+      }
+      if (msg.type === 'settings.get' && msg.scope === 'local') {
+        return new Promise<Record<string, unknown>>((res) => { resolveLocal = res; });
+      }
+      if (msg.type === 'settings.set') return Promise.resolve(undefined);
+      if (msg.type === 'settings.delete') return Promise.resolve(undefined);
+      return Promise.resolve(null);
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Project')).toBeTruthy();
+      expect(screen.getByText('Local')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('Model').closest('button')!);
+    fireEvent.click(screen.getByText('Project').closest('button')!);
+    fireEvent.click(screen.getByText('Local').closest('button')!);
+
+    resolveLocal({ model: 'claude-sonnet-4-6' });
+    await waitFor(() => {
+      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
+      expect(modelSelect.value).toBe('claude-sonnet-4-6');
+    });
+
+    resolveProject({});
+    await waitFor(() => {
+      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
+      expect(modelSelect.value).toBe('claude-sonnet-4-6');
+    });
+  });
 });

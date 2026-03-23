@@ -14,6 +14,7 @@ import { useToast } from '../../components/Toast';
 import type { McpAddParams, McpServer } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
 import { PageHeader } from '../../components/PageHeader';
+import { CardSection } from '../../components/CardSection';
 
 /** 檢查字串是否為合法 JSON */
 function isValidJson(str: string): boolean {
@@ -223,32 +224,24 @@ export function McpPage(): React.ReactElement {
   };
 
   const renderServerSection = (title: string, sectionServers: McpServer[]): React.ReactElement => (
-    <section className="mcp-section" role="region" aria-label={title}>
-      <div className="mcp-section-header">
-        <div className="mcp-section-title-row">
-          <h2 className="mcp-section-title">{title}</h2>
-          <span className="mcp-section-count">{sectionServers.length}</span>
-        </div>
-      </div>
-      <div className="card-list">
-        {sectionServers.map((server) => (
-          <McpServerCard
-            key={`${server.scope ?? 'none'}:${server.fullName}`}
-            server={server}
-            onEdit={() => handleEdit(server)}
-            onRemove={() => setConfirmRemove({ name: server.name, scope: server.scope })}
-            onViewDetail={() => handleViewDetail(server.fullName)}
-            onTestConnection={() => handleTestConnection(server)}
-            onAuthenticate={handleRefreshStatus}
-            retrying={retrying}
-            testing={testingServer === `${server.scope ?? 'none'}:${server.fullName}`}
-            anyTesting={testingServer !== null}
-            testError={testErrors[`${server.scope ?? 'none'}:${server.fullName}`] ?? null}
-            removing={removingServer === `${server.scope ?? 'none'}:${server.name}`}
-          />
-        ))}
-      </div>
-    </section>
+    <CardSection title={title} count={sectionServers.length} ariaLabel={title}>
+      {sectionServers.map((server) => (
+        <McpServerCard
+          key={`${server.scope ?? 'none'}:${server.fullName}`}
+          server={server}
+          onEdit={() => handleEdit(server)}
+          onRemove={() => setConfirmRemove({ name: server.name, scope: server.scope })}
+          onViewDetail={() => handleViewDetail(server.fullName)}
+          onTestConnection={() => handleTestConnection(server)}
+          onAuthenticate={handleRefreshStatus}
+          retrying={retrying}
+          testing={testingServer === `${server.scope ?? 'none'}:${server.fullName}`}
+          anyTesting={testingServer !== null}
+          testError={testErrors[`${server.scope ?? 'none'}:${server.fullName}`] ?? null}
+          removing={removingServer === `${server.scope ?? 'none'}:${server.name}`}
+        />
+      ))}
+    </CardSection>
   );
 
   return (

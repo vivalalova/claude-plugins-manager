@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
-import { CollapsibleSection } from '../../components/CollapsibleSection';
+import { CardSection } from '../../components/CardSection';
 import { PluginCard } from './PluginCard';
 import { VirtualCardList } from './VirtualCardList';
 import { getSectionName, getVisibleItems } from './filterUtils';
@@ -94,10 +94,11 @@ export function PluginSections({
     const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0, visibleCount: 0 };
     const mpBulk = bulkProgress.get(marketplace);
     return (
-      <CollapsibleSection
+      <CardSection
         key={marketplace}
-        label={marketplace}
-        badge={
+        variant="collapsible"
+        title={marketplace}
+        count={
           <>
             {stats.enabledCount} / {stats.visibleCount}
             {stats.hiddenCount > 0 && ` (${t('plugin.section.hiddenCount', { count: stats.hiddenCount })})`}
@@ -166,7 +167,7 @@ export function PluginSections({
             />
           )}
         />
-      </CollapsibleSection>
+      </CardSection>
     );
   };
 

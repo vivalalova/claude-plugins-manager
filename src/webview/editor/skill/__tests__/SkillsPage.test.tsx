@@ -4,7 +4,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
-import { screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
 
 /* ── Mock vscode bridge ── */
 const { mockSendRequest, mockOnPushMessage, mockGetViewState, mockSetViewState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => ({
@@ -282,6 +282,59 @@ describe('SkillsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('new-skill')).toBeTruthy();
+    });
+  });
+
+  it('較舊的 skill.list 結果晚到時，不得覆寫較新的 refresh 結果', async () => {
+    let pushHandler: ((msg: { type: string }) => void) | null = null;
+    let listCallCount = 0;
+    let resolveInitialList: ((value: AgentSkill[]) => void) | undefined;
+    let resolveRefreshList: ((value: AgentSkill[]) => void) | undefined;
+
+    mockOnPushMessage.mockImplementation((handler: (msg: { type: string }) => void) => {
+      pushHandler = handler;
+      return () => {};
+    });
+
+    mockSendRequest.mockImplementation((req: { type: string }) => {
+      if (req.type === 'skill.list') {
+        listCallCount++;
+        if (listCallCount === 1) {
+          return new Promise<AgentSkill[]>((resolve) => {
+            resolveInitialList = resolve;
+          });
+        }
+        return new Promise<AgentSkill[]>((resolve) => {
+          resolveRefreshList = resolve;
+        });
+      }
+      if (req.type === 'workspace.getFolders') return Promise.resolve([]);
+      return Promise.resolve(undefined);
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(mockOnPushMessage).toHaveBeenCalled();
+    });
+
+    pushHandler?.({ type: 'skill.refresh' });
+
+    await act(async () => {
+      resolveRefreshList?.([makeSkill('fresh-skill')]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('fresh-skill')).toBeTruthy();
+    });
+
+    await act(async () => {
+      resolveInitialList?.([makeSkill('stale-skill')]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('fresh-skill')).toBeTruthy();
+      expect(screen.queryByText('stale-skill')).toBeNull();
     });
   });
 
