@@ -670,4 +670,5 @@ describe('SkillService', () => {
       expect(result).toHaveLength(2);
     });
   });
+
 });

@@ -17,9 +17,10 @@ export function PageHeader({
     <div className="page-header">
       <div className="page-header-text">
         <TitleTag className="page-title">{title}</TitleTag>
-        {subtitle !== undefined && (
-          <div className="page-subtitle">{subtitle}</div>
-        )}
+        {subtitle !== undefined && (<>
+          <span className="page-subtitle-sep" aria-hidden="true">/</span>
+          <span className="page-subtitle">{subtitle}</span>
+        </>)}
       </div>
       {actions !== undefined && (
         <div className="page-actions">{actions}</div>
