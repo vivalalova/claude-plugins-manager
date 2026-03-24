@@ -435,6 +435,18 @@ describe('HooksSection — open file button', () => {
 // ---------------------------------------------------------------------------
 
 describe('HooksSection — explain button', () => {
+  it('解釋按鈕 hover 提示使用 sonnet 解釋內容', async () => {
+    renderSection({
+      hooks: {
+        PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '/guard.sh' }] }],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Explain' }).getAttribute('title')).toBe('Use Sonnet to explain this content');
+    });
+  });
+
   it('點擊解釋按鈕 → 送 hooks.explain → 顯示解釋文字', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.explain') return Promise.resolve({ explanation: '這是安全守衛腳本。', fromCache: false });

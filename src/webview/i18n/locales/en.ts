@@ -155,6 +155,7 @@ export const en = {
   'settings.hooks.emptyAction': 'Open JSON Editor to add hooks',
   'settings.hooks.explain': 'Explain',
   'settings.hooks.explaining': 'Explaining...',
+  'settings.hooks.explainTooltip': 'Use Sonnet to explain this content',
   'settings.hooks.explanationError': 'Failed to get explanation',
   // General section
   'settings.general.docsHint': 'Reference: ',

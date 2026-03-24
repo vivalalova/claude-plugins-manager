@@ -157,6 +157,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.emptyAction': '開啟 JSON 編輯器以新增 Hooks',
   'settings.hooks.explain': '解釋',
   'settings.hooks.explaining': '解釋中…',
+  'settings.hooks.explainTooltip': '使用 sonnet 解釋內容',
   'settings.hooks.explanationError': '取得解釋失敗',
   // General section
   'settings.general.docsHint': '參數說明來源：',

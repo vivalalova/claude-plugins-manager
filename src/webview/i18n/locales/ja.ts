@@ -371,6 +371,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.emptyAction': 'JSON エディターを開いて Hook を追加',
   'settings.hooks.explain': '解説',
   'settings.hooks.explaining': '解説中…',
+  'settings.hooks.explainTooltip': 'Sonnetで内容を解説',
   'settings.hooks.explanationError': '解説の取得に失敗しました',
   // General section
   'settings.general.docsHint': '参考: ',

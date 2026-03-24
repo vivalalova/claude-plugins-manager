@@ -118,12 +118,13 @@ interface HookItemProps {
   openingPath: string | null;
   explainLabel: string;
   explainingLabel: string;
+  explainTooltip: string;
   onExplain: (hookContent: string, eventType: string, filePath: string | null) => Promise<void>;
   explanation: string | null;
   isExplaining: boolean;
 }
 
-function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
+function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainLabel, explainingLabel, explainTooltip, onExplain, explanation, isExplaining }: HookItemProps): React.ReactElement {
   const label = getHookLabel(hook);
   const detail = getHookDetail(hook);
   const fullCmd = getHookContent(hook);
@@ -151,7 +152,7 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
           type="button"
           disabled={isExplaining}
           aria-label={isExplaining ? explainingLabel : explainLabel}
-          title={explanation ? explainLabel : undefined}
+          title={explainTooltip}
           onClick={() => void onExplain(fullCmd, eventType, filePath)}
         >
           {isExplaining
@@ -373,6 +374,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
                             openingPath={openingPath}
                             explainLabel={t('settings.hooks.explain')}
                             explainingLabel={t('settings.hooks.explaining')}
+                            explainTooltip={t('settings.hooks.explainTooltip')}
                             onExplain={handleExplain}
                             explanation={explanations.get(uiKey) ?? null}
                             isExplaining={explaining.has(uiKey)}
