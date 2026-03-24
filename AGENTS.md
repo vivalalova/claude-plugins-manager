@@ -39,4 +39,4 @@
 
 ## Repo-local Skills
 
-- Claude settings docs 同步：先讀 [.agents/skills/sync-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.agents/skills/sync-settings-options/SKILL.md)
+- Claude settings docs 同步：先讀 [.claude/skills/update-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.claude/skills/update-settings-options/SKILL.md)

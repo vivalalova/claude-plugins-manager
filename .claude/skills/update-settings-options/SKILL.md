@@ -1,11 +1,11 @@
 ---
-name: sync-settings-options
+name: update-settings-options
 description: 同步 Claude settings docs 變更到 repo（type/UI/i18n/tests/docs）
 model: opus
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skill
 ---
 
-# sync-settings-options
+# update-settings-options
 
 同步 Claude settings docs 變更到 repo。4-phase automated pipeline。
 

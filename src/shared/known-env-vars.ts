@@ -1,7 +1,7 @@
 /**
  * Known Claude Code environment variables registry.
  * Source: https://code.claude.com/docs/en/env-vars
- * 同步維護：sync-settings-options skill Phase 1d
+ * 同步維護：update-settings-options skill Phase 1d
  */
 
 export type EnvVarCategory = 'model' | 'auth' | 'effort' | 'timeout' | 'feature' | 'telemetry';
