@@ -442,6 +442,20 @@ describe('MessageRouter', () => {
       );
     });
 
+    it('skill.openFile → 允許 ~/.<agent>/skills/ 路徑', async () => {
+      const vscode = await import('vscode');
+      const os = await import('os');
+      const skillPath = os.homedir() + '/.agents/skills/test-skill/SKILL.md';
+      await router.handle(
+        { type: 'skill.openFile', requestId: 's9b', path: skillPath } as RequestMessage,
+        post,
+      );
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'vscode.open',
+        expect.objectContaining({ fsPath: skillPath }),
+      );
+    });
+
     it('skill.openFile → 不允許的路徑回傳 error', async () => {
       await router.handle(
         { type: 'skill.openFile', requestId: 's10', path: '/etc/passwd' } as RequestMessage,

@@ -1,7 +1,6 @@
 import React from 'react';
 import type { AgentSkill } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
-import { getAgentColor } from './agents';
 
 interface SkillCardProps {
   skill: AgentSkill;
@@ -52,27 +51,6 @@ export const SkillCard = React.memo(function SkillCard({
       <div className="card-description">
         {skill.description || t('skill.card.noDescription')}
       </div>
-
-      {skill.agents.length > 0 && (
-        <div className="scope-chips-row">
-          {skill.agents.map((agent) => {
-            const color = getAgentColor(agent);
-            return (
-              <span
-                key={agent}
-                className="skill-agent-tag"
-                style={{ background: color.bg, color: color.fg }}
-              >
-                {agent}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {skill.path && (
-        <div className="skill-path">{skill.path}</div>
-      )}
     </div>
   );
 });

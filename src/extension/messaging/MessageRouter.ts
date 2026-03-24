@@ -242,9 +242,10 @@ export class MessageRouter {
     await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(resolved));
   }
 
-  /** 驗證路徑在允許範圍內（~/.claude/ 或 workspace），防止任意檔案存取 */
+  /** 驗證路徑在允許範圍內（~/.claude/、~/.<agent>/skills/、或 workspace），防止任意檔案存取 */
   private assertAllowedPath(resolved: string): void {
-    const claudeDir = path.join(os.homedir(), '.claude');
+    const home = os.homedir();
+    const claudeDir = path.join(home, '.claude');
     const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
     const allowed = [
       claudeDir,
@@ -253,8 +254,15 @@ export class MessageRouter {
       ...(this.extensionPath ? [path.dirname(this.extensionPath)] : []),
     ];
     const normalized = path.resolve(resolved);
-    if (!allowed.some((dir) => normalized.startsWith(dir + path.sep) || normalized === dir)) {
-      throw new Error(`Path not in allowed directories: ${resolved}`);
+    if (allowed.some((dir) => normalized.startsWith(dir + path.sep) || normalized === dir)) {
+      return;
     }
+    // 允許 ~/.<dotdir>/skills/ 下的路徑（各 agent 的 skills 安裝目錄）
+    const rel = path.relative(home, normalized);
+    const parts = rel.split(path.sep);
+    if (parts.length >= 3 && parts[0].startsWith('.') && parts[1] === 'skills') {
+      return;
+    }
+    throw new Error(`Path not in allowed directories: ${resolved}`);
   }
 }
