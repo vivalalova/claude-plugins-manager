@@ -23,7 +23,7 @@ export function SkillSections({
   onViewDetail,
 }: SkillSectionsProps): React.ReactElement {
   const { t } = useI18n();
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set(['global', 'project']));
 
   const toggleCollapsed = (key: string): void => {
     setCollapsed((prev) => {
