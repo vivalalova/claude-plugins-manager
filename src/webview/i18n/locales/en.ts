@@ -14,6 +14,7 @@ export const en = {
   'sidebar.info.desc': 'View extension info, cache paths, and CLI details',
   // SettingsPage
   'settings.page.title': 'Settings Manager',
+  'settings.page.subtitle': 'Configure Claude Code settings.json',
   'settings.scope.user': 'User',
   'settings.scope.project': 'Project',
   'settings.scope.local': 'Local',
@@ -306,6 +307,7 @@ export const en = {
   'settings.advanced.skipWebFetchPreflight.description': 'Skip the WebFetch blocklist preflight check (enterprise use)',
   // PluginPage
   'plugin.page.title': 'Plugins Manager',
+  'plugin.page.subtitle': 'Manage Claude Code hook-based plugins',
   'plugin.page.updateAll': 'Update All',
   'plugin.page.updating': 'Updating {current}/{total}...',
   'plugin.page.refresh': 'Refresh',
@@ -358,6 +360,12 @@ export const en = {
   'translate.noTranslation': 'Original (No Translation)',
   'translate.cancel': 'Cancel',
   'translate.confirm': 'OK',
+  // MarketplacePage
+  'marketplace.page.title': 'Marketplaces Manager',
+  'marketplace.page.subtitle': 'Manage plugin repository sources',
+  // McpPage
+  'mcp.page.title': 'MCP Servers Manager',
+  'mcp.page.subtitle': 'Manage Model Context Protocol server connections',
   // MarketplaceCard
   'marketplace.card.autoUpdate': 'Auto-update',
   'marketplace.card.update': 'Update',
@@ -414,6 +422,7 @@ export const en = {
   'filter.sortLastUpdated': 'Last Updated',
   // InfoPage
   'info.title': 'Extension Info',
+  'info.subtitle': 'Extension & CLI version information',
   'info.loading': 'Loading...',
   'info.error.load': 'Failed to load extension info',
   'info.section.extension': 'Extension',
@@ -444,6 +453,7 @@ export const en = {
   'info.clearCache.failed': 'Failed to clear cache',
   // SkillsPage
   'skill.page.title': 'Skills Manager',
+  'skill.page.subtitle': 'Powered by Vercel Skills CLI & skills.sh',
   'skill.page.refresh': 'Refresh',
   'skill.page.add': 'Add Skill',
   'skill.page.adding': 'Adding...',

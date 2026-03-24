@@ -10,12 +10,14 @@ import { PageHeader } from '../../components/PageHeader';
 import type { Marketplace } from '../../../shared/types';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { useMarketplaceActions } from './hooks/useMarketplaceActions';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * Marketplace 管理頁面。
  * Marketplace 無 scope 概念，全域唯一。
  */
 export function MarketplacePage(): React.ReactElement {
+  const { t } = useI18n();
   const addInputRef = useRef<HTMLInputElement>(null);
   const loadMarketplaces = useCallback(
     () => sendRequest<Marketplace[]>({ type: 'marketplace.list' }),
@@ -65,7 +67,8 @@ export function MarketplacePage(): React.ReactElement {
   return (
     <div className="page-container">
       <PageHeader
-        title="Marketplaces Manager"
+        title={t('marketplace.page.title')}
+        subtitle={t('marketplace.page.subtitle')}
         actions={<>
           <button
             className="btn btn-secondary"

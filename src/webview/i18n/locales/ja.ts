@@ -16,6 +16,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'sidebar.info.desc': 'Extension バージョン・キャッシュパス・CLI 情報を確認',
   // PluginPage
   'plugin.page.title': 'プラグインマネージャー',
+  'plugin.page.subtitle': 'Claude Code のフックベースプラグインを管理',
   'plugin.page.updateAll': 'すべて更新',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '更新',
@@ -68,6 +69,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'translate.noTranslation': '原文（翻訳なし）',
   'translate.cancel': 'キャンセル',
   'translate.confirm': 'OK',
+  // MarketplacePage
+  'marketplace.page.title': 'マーケットプレイス管理',
+  'marketplace.page.subtitle': 'プラグインリポジトリソースを管理',
+  // McpPage
+  'mcp.page.title': 'MCP サーバー管理',
+  'mcp.page.subtitle': 'Model Context Protocol サーバー接続を管理',
   // MarketplaceCard
   'marketplace.card.autoUpdate': '自動更新',
   'marketplace.card.update': '更新',
@@ -125,6 +132,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   // Toast / Skeleton / ErrorBanner
   // InfoPage
   'info.title': 'Extension 情報',
+  'info.subtitle': 'Extension と CLI のバージョン情報',
   'info.loading': '読み込み中...',
   'info.error.load': 'Extension 情報の読み込みに失敗しました',
   'info.section.extension': 'Extension',
@@ -155,6 +163,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'info.clearCache.failed': 'キャッシュのクリアに失敗しました',
   // SkillsPage
   'skill.page.title': 'スキル管理',
+  'skill.page.subtitle': 'Vercel Skills CLI と skills.sh を使用',
   'skill.page.refresh': '更新',
   'skill.page.add': 'スキル追加',
   'skill.page.adding': '追加中...',
@@ -230,6 +239,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'error.dismiss': '閉じる',
   // SettingsPage
   'settings.page.title': '設定管理',
+  'settings.page.subtitle': 'Claude Code settings.json を設定',
   'settings.scope.user': 'ユーザー',
   'settings.scope.project': 'プロジェクト',
   'settings.scope.local': 'ローカル',

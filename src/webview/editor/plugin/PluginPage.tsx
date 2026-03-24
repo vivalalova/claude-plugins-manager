@@ -129,6 +129,7 @@ export function PluginPage(): React.ReactElement {
     <div className="page-container">
       <PageHeader
         title={t('plugin.page.title')}
+        subtitle={t('plugin.page.subtitle')}
         actions={<>
           {hasInstalledPlugins && (
             <button

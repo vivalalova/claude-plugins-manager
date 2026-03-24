@@ -16,6 +16,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'sidebar.info.desc': '查看 extension 版本、快取路徑及 CLI 資訊',
   // SettingsPage
   'settings.page.title': '設定管理',
+  'settings.page.subtitle': '管理 Claude Code settings.json 設定檔',
   'settings.scope.user': '使用者',
   'settings.scope.project': '專案',
   'settings.scope.local': '本機',
@@ -308,6 +309,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.advanced.skipWebFetchPreflight.description': '略過 WebFetch 封鎖清單的預檢查（企業用途）',
   // PluginPage
   'plugin.page.title': '外掛管理員',
+  'plugin.page.subtitle': '管理 Claude Code hook 外掛',
   'plugin.page.updateAll': '全部更新',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '重新整理',
@@ -360,6 +362,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'translate.noTranslation': '原文（不翻譯）',
   'translate.cancel': '取消',
   'translate.confirm': '確定',
+  // MarketplacePage
+  'marketplace.page.title': 'Marketplaces 管理',
+  'marketplace.page.subtitle': '管理外掛來源儲存庫',
+  // McpPage
+  'mcp.page.title': 'MCP 伺服器管理',
+  'mcp.page.subtitle': '管理 Model Context Protocol 伺服器連線',
   // MarketplaceCard
   'marketplace.card.autoUpdate': '自動更新',
   'marketplace.card.update': '更新',
@@ -417,6 +425,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   // Toast / Skeleton / ErrorBanner
   // InfoPage
   'info.title': 'Extension 資訊',
+  'info.subtitle': 'Extension 與 CLI 版本資訊',
   'info.loading': '載入中...',
   'info.error.load': '載入 Extension 資訊失敗',
   'info.section.extension': 'Extension',
@@ -447,6 +456,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'info.clearCache.failed': '清除快取失敗',
   // SkillsPage
   'skill.page.title': 'Skills 管理',
+  'skill.page.subtitle': '基於 Vercel Skills CLI 與 skills.sh',
   'skill.page.refresh': '重新整理',
   'skill.page.add': '新增 Skill',
   'skill.page.adding': '新增中...',

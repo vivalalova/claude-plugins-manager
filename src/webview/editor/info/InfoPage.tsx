@@ -91,7 +91,7 @@ export function InfoPage(): React.ReactElement {
 
   return (
     <div className="page-container">
-      <PageHeader title={t('info.title')} titleAs="h2" />
+      <PageHeader title={t('info.title')} subtitle={t('info.subtitle')} titleAs="h2" />
 
       <div className="info-sections">
         {/* Extension section */}

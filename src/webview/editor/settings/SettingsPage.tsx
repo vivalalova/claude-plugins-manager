@@ -237,7 +237,7 @@ export function SettingsPage(): React.ReactElement {
 
   return (
     <div className="page-container settings-page settings-page--fixed-shell">
-      <PageHeader title={t('settings.page.title')} />
+      <PageHeader title={t('settings.page.title')} subtitle={t('settings.page.subtitle')} />
 
       {/* Scope tabs */}
       <div className="settings-scope-tabs settings-scope-tabs--fixed">

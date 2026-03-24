@@ -2,18 +2,25 @@ import React from 'react';
 
 export interface PageHeaderProps {
   title: React.ReactNode;
+  subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   titleAs?: 'div' | 'h1' | 'h2' | 'h3';
 }
 
 export function PageHeader({
   title,
+  subtitle,
   actions,
   titleAs: TitleTag = 'div',
 }: PageHeaderProps): React.ReactElement {
   return (
     <div className="page-header">
-      <TitleTag className="page-title">{title}</TitleTag>
+      <div className="page-header-text">
+        <TitleTag className="page-title">{title}</TitleTag>
+        {subtitle !== undefined && (
+          <div className="page-subtitle">{subtitle}</div>
+        )}
+      </div>
       {actions !== undefined && (
         <div className="page-actions">{actions}</div>
       )}

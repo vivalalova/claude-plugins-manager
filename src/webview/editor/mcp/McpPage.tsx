@@ -251,7 +251,8 @@ export function McpPage(): React.ReactElement {
   return (
     <div className="page-container">
       <PageHeader
-        title="MCP Servers Manager"
+        title={t('mcp.page.title')}
+        subtitle={t('mcp.page.subtitle')}
         actions={<>
           <button className="btn btn-secondary" onClick={handleRefreshStatus} disabled={loading || retrying}>
             {retrying ? 'Refreshing...' : 'Refresh'}

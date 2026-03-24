@@ -225,6 +225,7 @@ export function SkillsPage(): React.ReactElement {
     <div className="page-container">
       <PageHeader
         title={t('skill.page.title')}
+        subtitle={t('skill.page.subtitle')}
         actions={<>
           <button className="btn btn-primary" onClick={() => setShowAddDialog(true)}>
             {t('skill.page.add')}
