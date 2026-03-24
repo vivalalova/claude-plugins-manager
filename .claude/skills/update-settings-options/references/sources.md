@@ -21,7 +21,7 @@
 
 - `src/shared/types.ts`
 - `src/shared/claude-settings-schema.ts`
-- `src/shared/field-orders.ts`
+- `src/shared/claude-settings-schema.ts`（含 section 陣列順序）
 - `src/webview/editor/settings/` 現有 section 實作
 - 只補 literal enum、default、object shape
 

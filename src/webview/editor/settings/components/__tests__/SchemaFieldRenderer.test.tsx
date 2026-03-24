@@ -7,7 +7,7 @@ import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithI18n } from '../../../../__test-utils__/renderWithProviders';
 import { SchemaFieldRenderer } from '../SchemaFieldRenderer';
 import { ToastProvider } from '../../../../components/Toast';
-import type { SettingFieldSchema } from '../../../../../shared/claude-settings-schema';
+import type { FlatFieldSchema } from '../../../../../shared/claude-settings-schema';
 
 vi.mock('../../../../vscode', () => ({
   sendRequest: vi.fn().mockResolvedValue(undefined),
@@ -20,7 +20,7 @@ vi.mock('../../../../vscode', () => ({
 
 const renderField = (
   settingKey: string,
-  schema: SettingFieldSchema,
+  schema: FlatFieldSchema,
   value: unknown = undefined,
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
@@ -164,7 +164,7 @@ describe('SchemaFieldRenderer', () => {
 describe('SchemaFieldRenderer — override indicator', () => {
   const renderFieldWithOverride = (
     settingKey: string,
-    schema: SettingFieldSchema,
+    schema: FlatFieldSchema,
     value: unknown,
     overriddenScope?: 'user' | 'project' | 'local',
   ) =>

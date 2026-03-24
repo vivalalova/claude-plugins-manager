@@ -5,7 +5,6 @@ import { TagListSetting } from './components/SettingControls';
 import { SchemaSection } from './components/SchemaSection';
 import type { SectionProps } from './components/SchemaSection';
 import { useSettingSave } from './hooks/useSettingSave';
-import { DISPLAY_FIELD_ORDER } from '../../../shared/field-orders';
 
 interface SpinnerTagListEditorState<TExtra> {
   items: string[];
@@ -243,7 +242,7 @@ export function DisplaySection(props: SectionProps): React.ReactElement {
   return (
     <SchemaSection
       titleKey="settings.nav.display"
-      fieldOrder={DISPLAY_FIELD_ORDER}
+      section="display"
       renderCustom={(key, { scope, settings, onSave, onDelete }) => {
         switch (key) {
           case 'spinnerVerbs':

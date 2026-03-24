@@ -5,7 +5,7 @@ import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { HookCommand } from '../../../shared/types';
 import type { SectionProps } from './components/SchemaSection';
-import { CLAUDE_SETTINGS_SCHEMA } from '../../../shared/claude-settings-schema';
+import { SETTINGS_FLAT_SCHEMA } from '../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { getOverriddenScope } from './components/SettingControls';
 
@@ -316,7 +316,7 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
 
       <SchemaFieldRenderer
         settingKey="disableAllHooks"
-        schema={CLAUDE_SETTINGS_SCHEMA.disableAllHooks}
+        schema={SETTINGS_FLAT_SCHEMA['disableAllHooks']}
         value={settings.disableAllHooks}
         scope={scope}
         overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'disableAllHooks')}

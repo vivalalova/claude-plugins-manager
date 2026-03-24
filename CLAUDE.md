@@ -21,8 +21,7 @@ npm run watch              # concurrently watch extension + webview
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / skills.css / settings.css / common.css）
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；`String` + `options` = enum dropdown；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束
-- **Field Orders**：`src/shared/field-orders.ts` — 所有 Section 的 `*_FIELD_ORDER` + `EXCLUDED_FROM_FIELD_ORDER` 單一來源，Section 和 check-schema 共用
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；巢狀結構 `Record<SettingsSection, SettingFieldEntry[]>`，陣列順序即 UI 渲染順序；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；`String` + `options` = enum dropdown；`SETTINGS_FLAT_SCHEMA` 扁平索引供 key lookup；`getSectionFieldOrder(section)` 取渲染順序；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束
 - **Known Env Vars**：`src/shared/known-env-vars.ts` — 已知 env vars registry；`valueType` 用原生型別（`String`/`Number`/`Boolean`）供 EnvSection autocomplete + inline description（i18n）；`update-settings-options` skill Phase 1c 同步維護
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
@@ -74,9 +73,9 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 
 | Section | 渲染模式 | 涵蓋欄位 |
 | --- | --- | --- |
-| GeneralSection | **全 schema-driven**（`GENERAL_FIELD_ORDER` loop） | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
-| DisplaySection | **schema-driven**（`DISPLAY_FIELD_ORDER` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
-| AdvancedSection | **schema-driven**（`ADVANCED_FIELD_ORDER` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight |
+| GeneralSection | **全 schema-driven**（`getSectionFieldOrder('general')` loop） | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
+| DisplaySection | **schema-driven**（`getSectionFieldOrder('display')` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
+| AdvancedSection | **schema-driven**（`getSectionFieldOrder('advanced')` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight |
 | PermissionsSection | 手動（custom） | permissions（allow/deny/ask/defaultMode/additionalDirectories） |
 | EnvSection | 手動（custom） | env（key-value map） |
 | HooksSection | **混合**：disableAllHooks 用 SchemaFieldRenderer；hooks 本體手動 | hooks（四種 type）、disableAllHooks |
@@ -90,12 +89,11 @@ https://code.claude.com/docs/en/settings
 
 ## 新增 Setting Checklist
 
-1. **Schema**：`claude-settings-schema.ts` 加 key — `controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；enum 用 `String` + `options`；number 加 `min`/`max`/`step`；有預設加 `default`
+1. **Schema**：`claude-settings-schema.ts` 所屬 section 陣列加 `{ key, controlType, ... }`（陣列位置即渲染順序）；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；enum 用 `String` + `options`；number 加 `min`/`max`/`step`；有預設加 `default`；不渲染的 key 加 `hidden: true`
 2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
-3. **FIELD_ORDER**：所屬 Section 的 `*_FIELD_ORDER` 陣列加 key（控制渲染順序）；刻意排除的 key 加入 `EXCLUDED_FROM_FIELD_ORDER`（附原因）（`check:schema` 自動驗證完整性 + 反向驗證）
-4. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）
-5. **custom 欄位**：`controlType: 'custom'` → Section 內 switch case 手動渲染；建獨立 sub-editor
-6. **驗證**：`npm run verify`（含 lint + check:schema FIELD_ORDER/i18n 驗證）
+3. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）
+4. **custom 欄位**：`controlType: Object` → Section 內 `renderCustom` switch case 手動渲染；建獨立 sub-editor
+5. **驗證**：`npm run verify`（含 lint + check:schema i18n 驗證 + duplicate key 檢查）
 
 ## 已知陷阱
 
@@ -104,7 +102,7 @@ https://code.claude.com/docs/en/settings
 - CLI `marketplace list --json` 是精簡版，缺 `lastUpdated`/`autoUpdate`，完整資料要讀 `known_marketplaces.json`
 - `claude mcp list` 無 `--json`，需解析文字輸出
 - `SchemaFieldRenderer` 的 `custom` controlType 回傳 `null`，Section 必須在 loop 中 switch-case 手動處理
-- `check:schema` 自動驗證 FIELD_ORDER 完整性 + i18n key 完整性
+- `check:schema` 自動驗證 i18n key 完整性 + 跨 section duplicate key 檢查
 - `getSchemaDefault()`/`getSchemaEnumOptions()` 對不存在的 key 拋 Error（fail-fast）
 - `npx skills find` 無 `--json`，需文字解析（含 ANSI codes，用 `/\x1b\[[0-9;?]*[A-Za-z]/g` 去除）
 - `npx skills remove <name> --all` 會**忽略 name 移除全部**，UI 的 remove 禁帶 `--all`

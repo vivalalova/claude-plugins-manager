@@ -12,9 +12,7 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CLAUDE_SETTINGS_SCHEMA } from '../src/shared/claude-settings-schema';
-import type { SettingFieldSchema } from '../src/shared/claude-settings-schema';
-import { GENERAL_FIELD_ORDER, DISPLAY_FIELD_ORDER, ADVANCED_FIELD_ORDER, EXCLUDED_FROM_FIELD_ORDER } from '../src/shared/field-orders';
+import { CLAUDE_SETTINGS_SCHEMA, SETTINGS_FLAT_SCHEMA, type SettingFieldSchema, type SettingFieldEntry, type FlatFieldSchema } from '../src/shared/claude-settings-schema';
 import { en } from '../src/webview/i18n/locales/en';
 
 const TYPES_PATH = join(__dirname, '..', 'src', 'shared', 'types.ts');
@@ -80,49 +78,31 @@ export function validateSchemaFields(schema: Record<string, SettingFieldSchema>)
   return errors;
 }
 
-/** Phase 3: FIELD_ORDER completeness — every schema key in general/display/advanced must appear */
-export function validateFieldOrders(schema: Record<string, SettingFieldSchema>): string[] {
+/** Phase 3: 跨 section 無重複 key */
+export function validateNoDuplicateKeys(schema: Record<string, SettingFieldEntry[]>): string[] {
   const errors: string[] = [];
-
-  const sectionToFieldOrder: Record<string, readonly string[]> = {
-    general: GENERAL_FIELD_ORDER,
-    display: DISPLAY_FIELD_ORDER,
-    advanced: ADVANCED_FIELD_ORDER,
-  };
-
-  // Forward: schema key → FIELD_ORDER
-  for (const [key, field] of Object.entries(schema)) {
-    const order = sectionToFieldOrder[field.section];
-    if (!order) continue; // permissions/env/hooks — 手動渲染
-    if (EXCLUDED_FROM_FIELD_ORDER.has(key as keyof import('../src/shared/types').ClaudeSettings)) continue;
-    if (!order.includes(key)) {
-      errors.push(`${key}: in schema section '${field.section}' but missing from ${field.section.toUpperCase()}_FIELD_ORDER`);
-    }
-  }
-
-  // Reverse: FIELD_ORDER key → schema (catch stale/typo entries)
-  for (const [section, order] of Object.entries(sectionToFieldOrder)) {
-    for (const key of order) {
-      if (!schema[key]) {
-        errors.push(`${key}: in ${section.toUpperCase()}_FIELD_ORDER but not found in schema`);
-      } else if (schema[key].section !== section) {
-        errors.push(`${key}: in ${section.toUpperCase()}_FIELD_ORDER but schema section is '${schema[key].section}'`);
+  const seen = new Map<string, string>();
+  for (const [section, fields] of Object.entries(schema)) {
+    for (const { key } of fields) {
+      const prev = seen.get(key);
+      if (prev) {
+        errors.push(`${key}: duplicate key in sections '${prev}' and '${section}'`);
       }
+      seen.set(key, section);
     }
   }
-
   return errors;
 }
 
 /** Phase 4: i18n key completeness — every non-custom schema key must have label/description in en locale */
-export function validateI18nKeys(schema: Record<string, SettingFieldSchema>, localeKeys: Set<string>): string[] {
+export function validateI18nKeys(schema: Record<string, FlatFieldSchema>, localeKeys: Set<string>): string[] {
   const errors: string[] = [];
 
   for (const [key, field] of Object.entries(schema)) {
     // Skip manually-rendered sections, custom controls, and excluded keys
     if (['permissions', 'env', 'hooks'].includes(field.section)) continue;
     if (field.controlType === Object) continue;
-    if (EXCLUDED_FROM_FIELD_ORDER.has(key as keyof import('../src/shared/types').ClaudeSettings)) continue;
+    if (field.hidden) continue;
 
     const prefix = `settings.${field.section}.${key}`;
     if (!localeKeys.has(`${prefix}.label`)) {
@@ -154,7 +134,7 @@ function main(): void {
   // Phase 1: key sync
   const source = readFileSync(TYPES_PATH, 'utf-8');
   const typesKeys = parseClaudeSettingsKeys(source);
-  const schemaKeys = new Set(Object.keys(CLAUDE_SETTINGS_SCHEMA));
+  const schemaKeys = new Set(Object.keys(SETTINGS_FLAT_SCHEMA));
 
   const inTypesOnly = [...typesKeys].filter((k) => !schemaKeys.has(k)).sort();
   const inSchemaOnly = [...schemaKeys].filter((k) => !typesKeys.has(k)).sort();
@@ -163,14 +143,14 @@ function main(): void {
   for (const k of inSchemaOnly) errors.push(`Key in schema but missing from ClaudeSettings: ${k}`);
 
   // Phase 2: field validation
-  errors.push(...validateSchemaFields(CLAUDE_SETTINGS_SCHEMA));
+  errors.push(...validateSchemaFields(SETTINGS_FLAT_SCHEMA));
 
-  // Phase 3: FIELD_ORDER completeness
-  errors.push(...validateFieldOrders(CLAUDE_SETTINGS_SCHEMA));
+  // Phase 3: duplicate key check
+  errors.push(...validateNoDuplicateKeys(CLAUDE_SETTINGS_SCHEMA));
 
   // Phase 4: i18n key completeness
   const enKeys = new Set(Object.keys(en));
-  errors.push(...validateI18nKeys(CLAUDE_SETTINGS_SCHEMA, enKeys));
+  errors.push(...validateI18nKeys(SETTINGS_FLAT_SCHEMA, enKeys));
 
   if (errors.length === 0) {
     console.log('✅ Schema check passed (%d keys, %d phases, all constraints valid)', schemaKeys.size, 4);

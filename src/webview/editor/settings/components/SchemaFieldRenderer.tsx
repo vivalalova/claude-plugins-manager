@@ -1,13 +1,13 @@
 import React from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
-import type { SettingFieldSchema } from '../../../../shared/claude-settings-schema';
+import type { FlatFieldSchema } from '../../../../shared/claude-settings-schema';
 import { getSchemaDefault, getSchemaEnumOptions } from '../../../../shared/claude-settings-schema';
 import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './SettingControls';
 
 export interface SchemaFieldRendererProps {
   settingKey: string;
-  schema: SettingFieldSchema;
+  schema: FlatFieldSchema;
   value: unknown;
   scope: PluginScope;
   overriddenScope?: PluginScope;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
-import { CLAUDE_SETTINGS_SCHEMA } from '../../../../shared/claude-settings-schema';
+import { SETTINGS_FLAT_SCHEMA, getSectionFieldOrder, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { getOverriddenScope } from './SettingControls';
 
@@ -23,14 +23,14 @@ export interface SectionProps {
 
 interface SchemaSectionProps extends SectionProps {
   titleKey: string;
-  fieldOrder: readonly string[];
+  section: SettingsSection;
   renderCustom?: (key: string, props: { scope: PluginScope; settings: ClaudeSettings; overriddenScope?: PluginScope; onSave: SectionProps['onSave']; onDelete: SectionProps['onDelete'] }) => React.ReactNode | null;
   headerContent?: React.ReactNode;
 }
 
 export function SchemaSection({
   titleKey,
-  fieldOrder,
+  section,
   scope,
   settings,
   userSettings,
@@ -40,6 +40,7 @@ export function SchemaSection({
   headerContent,
 }: SchemaSectionProps): React.ReactElement {
   const { t } = useI18n();
+  const fieldOrder = getSectionFieldOrder(section);
 
   return (
     <div className="settings-section">
@@ -47,7 +48,7 @@ export function SchemaSection({
       {headerContent}
 
       {fieldOrder.map((key) => {
-        const schema = CLAUDE_SETTINGS_SCHEMA[key as keyof typeof CLAUDE_SETTINGS_SCHEMA];
+        const schema = SETTINGS_FLAT_SCHEMA[key];
         if (!schema) return null;
         const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
 

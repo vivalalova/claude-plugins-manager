@@ -7,7 +7,7 @@ import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/re
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { I18nProvider } from '../../../i18n/I18nContext';
 import { AdvancedSection } from '../AdvancedSection';
-import { ADVANCED_FIELD_ORDER } from '../../../../shared/field-orders';
+import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
 import { ToastProvider } from '../../../components/Toast';
 
 vi.mock('../../../vscode', () => ({
@@ -91,7 +91,7 @@ describe('AdvancedSection — 渲染', () => {
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
   });
 
-  it('欄位按 ADVANCED_FIELD_ORDER 順序渲染', async () => {
+  it('欄位按 schema 陣列順序渲染', async () => {
     const { container } = renderSection({});
     await waitFor(() => {
       const hints = container.querySelectorAll('.settings-key-hint');
@@ -99,7 +99,7 @@ describe('AdvancedSection — 渲染', () => {
         const match = el.textContent?.match(/^\((\w+)/);
         return match?.[1] ?? '';
       }).filter(Boolean);
-      expect(keys).toEqual([...ADVANCED_FIELD_ORDER]);
+      expect(keys).toEqual([...getSectionFieldOrder('advanced')]);
     });
   });
 });

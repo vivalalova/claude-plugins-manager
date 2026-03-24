@@ -1,6 +1,7 @@
 /**
- * Claude Code settings schema。
+ * Claude Code settings schema.
  * 單一來源：新增 key 先加到這裡，再同步 ClaudeSettings interface。
+ * 巢狀結構：section → fields[]，陣列順序即 UI 渲染順序。
  * 用 scripts/check-settings-schema.ts 驗證一致性。
  */
 
@@ -17,8 +18,6 @@ export type ControlType = StringConstructor | NumberConstructor | BooleanConstru
 export interface SettingFieldSchema {
   /** 預設值（undefined 表示無預設） */
   default?: unknown;
-  /** 所屬 UI section */
-  section: SettingsSection;
   /** UI 控制元件類型 */
   controlType: ControlType;
   /** enum 的選項陣列（controlType 為 String 時有效） */
@@ -29,210 +28,117 @@ export interface SettingFieldSchema {
   max?: number;
   /** number 欄位步進值 */
   step?: number;
+  /** true = 不渲染於 schema-driven loop（CLI 管理或手動渲染） */
+  hidden?: boolean;
 }
 
+/** Schema 陣列元素 — SettingFieldSchema + key 識別 */
+export type SettingFieldEntry = { key: string } & SettingFieldSchema;
+
+/** 含衍生 section 的扁平 field schema（供需要 section 資訊的消費者使用） */
+export type FlatFieldSchema = SettingFieldSchema & { readonly section: SettingsSection };
+
 /**
- * Settings schema — key 對應 ClaudeSettings interface 的欄位名稱。
- * 順序依 section 分群，同 section 內依邏輯相關性排列。
+ * Settings schema — 巢狀結構，section 分群。
+ * 陣列順序即 UI 渲染順序。
+ * hidden 的 entry 不參與 schema-driven loop。
  */
-export const CLAUDE_SETTINGS_SCHEMA: Record<string, SettingFieldSchema> = {
+export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]> = {
   // ── General ──
-  // model 不列入 GENERAL_FIELD_ORDER — 由 CLI 自動管理，UI 不直接暴露
-  model: {
-    section: 'general',
-    controlType: String,
-  },
-  effortLevel: {
-    default: 'high',
-    section: 'general',
-    controlType: String,
-    options: ['high', 'medium', 'low'] as const,
-  },
-  language: {
-    section: 'general',
-    controlType: String,
-  },
-  availableModels: {
-    section: 'general',
-    controlType: Array,
-  },
-  outputStyle: {
-    section: 'general',
-    controlType: String,
-  },
-  fastMode: {
-    default: false,
-    section: 'general',
-    controlType: Boolean,
-  },
-  fastModePerSessionOptIn: {
-    default: false,
-    section: 'general',
-    controlType: Boolean,
-  },
-  autoMemoryEnabled: {
-    default: true,
-    section: 'general',
-    controlType: Boolean,
-  },
-  autoUpdatesChannel: {
-    default: 'latest',
-    section: 'general',
-    controlType: String,
-    options: ['stable', 'latest'] as const,
-  },
-  cleanupPeriodDays: {
-    default: 30,
-    section: 'general',
-    controlType: Number,
-    min: 0,
-    step: 1,
-  },
-  alwaysThinkingEnabled: {
-    default: false,
-    section: 'general',
-    controlType: Boolean,
-  },
-  includeGitInstructions: {
-    default: true,
-    section: 'general',
-    controlType: Boolean,
-  },
-  respectGitignore: {
-    default: true,
-    section: 'general',
-    controlType: Boolean,
-  },
-  enableAllProjectMcpServers: {
-    default: false,
-    section: 'general',
-    controlType: Boolean,
-  },
-  enabledMcpjsonServers: {
-    section: 'permissions',
-    controlType: Array,
-  },
-  disabledMcpjsonServers: {
-    section: 'permissions',
-    controlType: Array,
-  },
+  general: [
+    { key: 'model', controlType: String, hidden: true },  // CLI 管理，UI 不暴露
+    { key: 'effortLevel', default: 'high', controlType: String, options: ['high', 'medium', 'low'] as const },
+    { key: 'language', controlType: String },
+    { key: 'availableModels', controlType: Array },
+    { key: 'enableAllProjectMcpServers', default: false, controlType: Boolean },
+    { key: 'includeGitInstructions', default: true, controlType: Boolean },
+    { key: 'respectGitignore', default: true, controlType: Boolean },
+    { key: 'fastMode', default: false, controlType: Boolean },
+    { key: 'fastModePerSessionOptIn', default: false, controlType: Boolean },
+    { key: 'autoMemoryEnabled', default: true, controlType: Boolean },
+    { key: 'alwaysThinkingEnabled', default: false, controlType: Boolean },
+    { key: 'outputStyle', controlType: String },
+    { key: 'autoUpdatesChannel', default: 'latest', controlType: String, options: ['stable', 'latest'] as const },
+    { key: 'cleanupPeriodDays', default: 30, controlType: Number, min: 0, step: 1 },
+  ],
 
   // ── Display ──
-  teammateMode: {
-    default: 'auto',
-    section: 'display',
-    controlType: String,
-    options: ['auto', 'in-process', 'tmux'] as const,
-  },
-  showTurnDuration: {
-    default: true,
-    section: 'display',
-    controlType: Boolean,
-  },
-  spinnerTipsEnabled: {
-    default: true,
-    section: 'display',
-    controlType: Boolean,
-  },
-  spinnerVerbs: {
-    section: 'display',
-    controlType: Object,
-  },
-  spinnerTipsOverride: {
-    section: 'display',
-    controlType: Object,
-  },
-  terminalProgressBarEnabled: {
-    default: true,
-    section: 'display',
-    controlType: Boolean,
-  },
-  prefersReducedMotion: {
-    default: false,
-    section: 'display',
-    controlType: Boolean,
-  },
+  display: [
+    { key: 'teammateMode', default: 'auto', controlType: String, options: ['auto', 'in-process', 'tmux'] as const },
+    { key: 'showTurnDuration', default: true, controlType: Boolean },
+    { key: 'spinnerTipsEnabled', default: true, controlType: Boolean },
+    { key: 'terminalProgressBarEnabled', default: true, controlType: Boolean },
+    { key: 'prefersReducedMotion', default: false, controlType: Boolean },
+    { key: 'spinnerVerbs', controlType: Object },
+    { key: 'spinnerTipsOverride', controlType: Object },
+  ],
 
   // ── Advanced ──
-  forceLoginMethod: {
-    section: 'advanced',
-    controlType: String,
-    options: ['claudeai', 'console'] as const,
-  },
-  forceLoginOrgUUID: {
-    section: 'advanced',
-    controlType: String,
-  },
-  attribution: {
-    section: 'advanced',
-    controlType: Object,
-  },
-  plansDirectory: {
-    default: '~/.claude/plans',
-    section: 'advanced',
-    controlType: String,
-  },
-  apiKeyHelper: {
-    section: 'advanced',
-    controlType: String,
-  },
-  otelHeadersHelper: {
-    section: 'advanced',
-    controlType: String,
-  },
-  awsCredentialExport: {
-    section: 'advanced',
-    controlType: String,
-  },
-  awsAuthRefresh: {
-    section: 'advanced',
-    controlType: String,
-  },
-  statusLine: {
-    section: 'advanced',
-    controlType: Object,
-  },
-  fileSuggestion: {
-    section: 'advanced',
-    controlType: Object,
-  },
-  sandbox: {
-    section: 'advanced',
-    controlType: Object,
-  },
-  companyAnnouncements: {
-    section: 'advanced',
-    controlType: Object,
-  },
-  skipWebFetchPreflight: {
-    default: false,
-    section: 'advanced',
-    controlType: Boolean,
-  },
+  advanced: [
+    { key: 'forceLoginMethod', controlType: String, options: ['claudeai', 'console'] as const },
+    { key: 'attribution', controlType: Object },
+    { key: 'statusLine', controlType: Object },
+    { key: 'fileSuggestion', controlType: Object },
+    { key: 'sandbox', controlType: Object },
+    { key: 'companyAnnouncements', controlType: Object },
+    { key: 'forceLoginOrgUUID', controlType: String },
+    { key: 'plansDirectory', default: '~/.claude/plans', controlType: String },
+    { key: 'apiKeyHelper', controlType: String },
+    { key: 'otelHeadersHelper', controlType: String },
+    { key: 'awsCredentialExport', controlType: String },
+    { key: 'awsAuthRefresh', controlType: String },
+    { key: 'skipWebFetchPreflight', default: false, controlType: Boolean },
+  ],
 
   // ── Permissions ──
-  permissions: {
-    section: 'permissions',
-    controlType: Object,
-  },
+  permissions: [
+    { key: 'enabledMcpjsonServers', controlType: Array },
+    { key: 'disabledMcpjsonServers', controlType: Array },
+    { key: 'permissions', controlType: Object },
+  ],
 
   // ── Env ──
-  env: {
-    section: 'env',
-    controlType: Object,
-  },
+  env: [
+    { key: 'env', controlType: Object },
+  ],
 
   // ── Hooks ──
-  hooks: {
-    section: 'hooks',
-    controlType: Object,
-  },
-  disableAllHooks: {
-    default: false,
-    section: 'hooks',
-    controlType: Boolean,
-  },
+  hooks: [
+    { key: 'disableAllHooks', default: false, controlType: Boolean },
+    { key: 'hooks', controlType: Object },
+  ],
 };
+
+// ---------------------------------------------------------------------------
+// Flat schema — 衍生的扁平索引，含 section 欄位
+// ---------------------------------------------------------------------------
+
+function buildFlatSchema(): Record<string, FlatFieldSchema> {
+  const flat: Record<string, FlatFieldSchema> = {};
+  for (const section of Object.keys(CLAUDE_SETTINGS_SCHEMA) as SettingsSection[]) {
+    for (const { key, ...field } of CLAUDE_SETTINGS_SCHEMA[section]) {
+      flat[key] = { ...field, section };
+    }
+  }
+  return flat;
+}
+
+/** 扁平索引：key → FlatFieldSchema（含 section） */
+export const SETTINGS_FLAT_SCHEMA: Record<string, FlatFieldSchema> = buildFlatSchema();
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * 取得 section 內的 UI 渲染順序（排除 hidden）。
+ * 順序即 CLAUDE_SETTINGS_SCHEMA 陣列中的宣告順序。
+ */
+export function getSectionFieldOrder(section: SettingsSection): string[] {
+  return CLAUDE_SETTINGS_SCHEMA[section]
+    .filter(f => !f.hidden)
+    .map(f => f.key);
+}
 
 /**
  * Model dropdown 的 fallback 選項。
@@ -249,7 +155,7 @@ export const KNOWN_MODEL_OPTIONS = [
  * 若 key 不存在，拋出 Error（fail-fast）；無預設則回傳 undefined。
  */
 export function getSchemaDefault<T = unknown>(key: string): T | undefined {
-  const field = CLAUDE_SETTINGS_SCHEMA[key];
+  const field = SETTINGS_FLAT_SCHEMA[key];
   if (!field) throw new Error(`Schema key "${key}" not found`);
   return field.default as T | undefined;
 }
@@ -259,7 +165,7 @@ export function getSchemaDefault<T = unknown>(key: string): T | undefined {
  * 若 key 不存在或無 options，拋出 Error（fail-fast）。
  */
 export function getSchemaEnumOptions(key: string): readonly string[] {
-  const field = CLAUDE_SETTINGS_SCHEMA[key];
+  const field = SETTINGS_FLAT_SCHEMA[key];
   if (!field) throw new Error(`Schema key "${key}" not found`);
   if (field.controlType !== String || !field.options) {
     throw new Error(`Schema key "${key}" is not an enum with options`);

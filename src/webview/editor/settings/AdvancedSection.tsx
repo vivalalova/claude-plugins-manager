@@ -7,7 +7,6 @@ import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
 import { SchemaSection } from './components/SchemaSection';
 import type { SectionProps } from './components/SchemaSection';
-import { ADVANCED_FIELD_ORDER } from '../../../shared/field-orders';
 
 export function AdvancedSection(props: SectionProps): React.ReactElement {
   const { t } = useI18n();
@@ -15,7 +14,7 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
   return (
     <SchemaSection
       titleKey="settings.nav.advanced"
-      fieldOrder={ADVANCED_FIELD_ORDER}
+      section="advanced"
       renderCustom={(key, { scope, settings, overriddenScope, onSave, onDelete }) => {
         switch (key) {
           case 'attribution':

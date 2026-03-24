@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CLAUDE_SETTINGS_SCHEMA, getSchemaDefault, getSchemaEnumOptions } from '../claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, SETTINGS_FLAT_SCHEMA, getSchemaDefault, getSchemaEnumOptions } from '../claude-settings-schema';
 
 const TYPES_PATH = join(__dirname, '..', 'types.ts');
 
@@ -22,7 +22,7 @@ function parseClaudeSettingsKeys(): Set<string> {
 
 describe('claude-settings-schema', () => {
   const typesKeys = parseClaudeSettingsKeys();
-  const schemaKeys = new Set(Object.keys(CLAUDE_SETTINGS_SCHEMA));
+  const schemaKeys = new Set(Object.keys(SETTINGS_FLAT_SCHEMA));
 
   it('schema 包含 ClaudeSettings 所有欄位', () => {
     const missing = [...typesKeys].filter((k) => !schemaKeys.has(k));
@@ -35,26 +35,26 @@ describe('claude-settings-schema', () => {
   });
 
   it('每個 schema entry 都有 section', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       expect(field.section, `${key}.section`).toBeTruthy();
     }
   });
 
   it('schema 新增 key → 測試偵測到 drift', () => {
-    const extendedSchema = { ...CLAUDE_SETTINGS_SCHEMA, testKey: { section: 'general' as const, controlType: String } };
-    const extendedKeys = new Set(Object.keys(extendedSchema));
+    const extendedFlat = { ...SETTINGS_FLAT_SCHEMA, testKey: { section: 'general' as const, controlType: String } };
+    const extendedKeys = new Set(Object.keys(extendedFlat));
     const extra = [...extendedKeys].filter((k) => !typesKeys.has(k));
     expect(extra).toEqual(['testKey']);
   });
 
   it('每個 schema entry 都有 controlType', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       expect(field.controlType, `${key} 缺少 controlType`).toBeTruthy();
     }
   });
 
   it('String + options 的 entry 必須有非空 options 陣列', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       if (field.controlType === String && field.options) {
         expect(field.options.length, `${key} options 不可為空`).toBeGreaterThan(0);
       }
@@ -62,7 +62,7 @@ describe('claude-settings-schema', () => {
   });
 
   it('非 String 的 entry 不應有 options', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       if (field.controlType !== String) {
         expect(field.options, `${key} controlType=${field.controlType.name} 不應有 options`).toBeUndefined();
       }
@@ -70,7 +70,7 @@ describe('claude-settings-schema', () => {
   });
 
   it('number 欄位的 min <= max', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       if (field.min !== undefined && field.max !== undefined) {
         expect(field.min, `${key} min(${field.min}) > max(${field.max})`).toBeLessThanOrEqual(field.max);
       }
@@ -78,7 +78,7 @@ describe('claude-settings-schema', () => {
   });
 
   it('min/max/step 只出現在 controlType=Number', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       if (field.controlType !== Number) {
         expect(field.min, `${key} 非 Number 不應有 min`).toBeUndefined();
         expect(field.max, `${key} 非 Number 不應有 max`).toBeUndefined();
@@ -89,7 +89,7 @@ describe('claude-settings-schema', () => {
 
   it('controlType 值屬於合法 ControlType', () => {
     const validControlTypes = [String, Number, Boolean, Array, Object];
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       expect(
         validControlTypes.includes(field.controlType),
         `${key} 的 controlType 不是合法值`,
@@ -99,7 +99,7 @@ describe('claude-settings-schema', () => {
 
   it('section 值屬於合法 SettingsSection', () => {
     const validSections = ['general', 'display', 'advanced', 'permissions', 'env', 'hooks'];
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       expect(
         validSections.includes(field.section),
         `${key} 的 section "${field.section}" 不是合法值`,
@@ -146,7 +146,7 @@ describe('getSchemaDefault', () => {
   });
 
   it('所有 Boolean entry 都有 default 值', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       if (field.controlType === Boolean) {
         expect(field.default, `${key} Boolean entry 缺少 default`).not.toBeUndefined();
         expect(typeof field.default, `${key} default 應為 boolean`).toBe('boolean');
@@ -155,7 +155,7 @@ describe('getSchemaDefault', () => {
   });
 
   it('String + options 的 default 值在 options 中', () => {
-    for (const [key, field] of Object.entries(CLAUDE_SETTINGS_SCHEMA)) {
+    for (const [key, field] of Object.entries(SETTINGS_FLAT_SCHEMA)) {
       if (field.controlType === String && field.options && field.default !== undefined) {
         expect(field.options).toContain(field.default);
       }

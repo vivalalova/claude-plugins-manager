@@ -74,7 +74,7 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 
 - `src/shared/types.ts` — ClaudeSettings interface 所有欄位
 - `src/shared/claude-settings-schema.ts` — schema definitions（controlType 用原生型別 + options/default）
-- `src/shared/field-orders.ts` — FIELD_ORDER arrays + EXCLUDED_FROM_FIELD_ORDER
+- `src/shared/claude-settings-schema.ts` 的陣列順序 — UI 渲染順序（`hidden: true` = 不渲染）
 - `src/shared/known-env-vars.ts` — KNOWN_ENV_VARS registry（valueType 用原生型別）
 - `src/webview/i18n/locales/en.ts` — i18n key 完整性
 
@@ -113,7 +113,7 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 
 1. `src/shared/types.ts` — 增刪改 ClaudeSettings 欄位
 2. `src/shared/claude-settings-schema.ts` — 增刪改 schema entry
-3. `src/shared/field-orders.ts` — 更新 FIELD_ORDER / EXCLUDED_FROM_FIELD_ORDER
+3. `src/shared/claude-settings-schema.ts` — 新 key 加入對應 section 陣列（位置即渲染順序；不渲染加 `hidden: true`）
 4. Section 元件 — 依 `references/surface-map.md` 分配，依 `references/editor-patterns.md` 選 control
 5. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys
 6. Tests — 對應 section test 檔
@@ -124,7 +124,7 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 
 ## Hard checklist
 
-- 新增 key：schema + type + field-order + render path + save/delete/toggle regression test
+- 新增 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
 - docs 有 default：補 key hint / default hint
 - 刪除 key：移除 first-party support，不清使用者 settings 檔
 - object shape 不明：放 AdvancedSection，保守 type

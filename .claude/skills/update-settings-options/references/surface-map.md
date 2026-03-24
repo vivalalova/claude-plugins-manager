@@ -31,7 +31,7 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 - type：`src/shared/types.ts`
 - schema：`src/shared/claude-settings-schema.ts`
-- field-orders：`src/shared/field-orders.ts`
+- schema（含渲染順序）：`src/shared/claude-settings-schema.ts`
 - UI：`src/webview/editor/settings/`
 - i18n：`src/webview/i18n/locales/en.ts`、`ja.ts`、`zh-TW.ts`
 - tests：section tests、shared controls tests
