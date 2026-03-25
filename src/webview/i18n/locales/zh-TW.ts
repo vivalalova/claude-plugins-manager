@@ -2,8 +2,6 @@ import type { TranslationKey } from './en';
 
 export const zhTW: Partial<Record<TranslationKey, string>> = {
   // Sidebar
-  'sidebar.marketplace': 'Marketplace',
-  'sidebar.marketplace.desc': '管理外掛來源',
   'sidebar.plugins': '外掛',
   'sidebar.plugins.desc': '安裝、啟用及設定外掛',
   'sidebar.mcp': 'MCP 伺服器',
@@ -323,16 +321,13 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.clearFilters': '清除篩選',
   'plugin.page.noPlugins': '未找到外掛',
   'plugin.page.noPluginsDesc': '請先新增 Marketplace 以探索並安裝外掛。',
-  'plugin.page.goToMarketplace': '前往 Marketplace',
+  'plugin.page.addMarketplace': '新增 Marketplace',
+  'plugin.page.updateAllMarketplaces': '更新所有 Marketplace',
   'plugin.page.clearSearch': '清除搜尋',
   'plugin.page.retry': '重試',
   'plugin.page.retryTranslation': '重試翻譯',
   'plugin.page.quotaExceeded': '翻譯配額已用完（每日 IP 限制）。請隔天再試，或換網路。',
   // Plugin section
-  'plugin.section.enableAll': '全部啟用',
-  'plugin.section.disableAll': '全部停用',
-  'plugin.section.enabling': '啟用中 {current}/{total}...',
-  'plugin.section.disabling': '停用中 {current}/{total}...',
   'plugin.section.updates': '{count} 個更新',
   'plugin.section.updatesPlural': '{count} 個更新',
   'plugin.section.dragHandle': '拖拉以移動此分組',
@@ -364,9 +359,6 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'translate.noTranslation': '原文（不翻譯）',
   'translate.cancel': '取消',
   'translate.confirm': '確定',
-  // MarketplacePage
-  'marketplace.page.title': 'Marketplaces 管理',
-  'marketplace.page.subtitle': '管理外掛來源儲存庫',
   // McpPage
   'mcp.page.title': 'MCP 伺服器管理',
   'mcp.page.subtitle': '管理 Model Context Protocol 伺服器連線',

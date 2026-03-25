@@ -3,6 +3,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PluginDialogs } from './PluginDialogs';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginSections } from './PluginSections';
@@ -15,6 +16,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePluginPageViewState } from './hooks/usePluginPageViewState';
+import { useMarketplaceActions } from '../marketplace/hooks/useMarketplaceActions';
 import { sendRequest } from '../../vscode';
 import type { PluginContentItem } from '../../../shared/types';
 import type { ContentDetail } from '../../components/ContentDetailPanel';
@@ -23,6 +25,7 @@ import type { ContentDetail } from '../../components/ContentDetailPanel';
 /**
  * Plugin 管理頁面。
  * Search bar 過濾，按 marketplace 分 N 個 section，組內按名稱排序。
+ * Marketplace 管理功能整合於 section header 及 PageHeader。
  */
 export function PluginPage(): React.ReactElement {
   const { t } = useI18n();
@@ -34,6 +37,7 @@ export function PluginPage(): React.ReactElement {
     setError,
     workspaceFolders,
     marketplaceSources,
+    marketplaces,
     fetchAll,
   } = usePluginData();
 
@@ -70,18 +74,9 @@ export function PluginPage(): React.ReactElement {
     updateAllProgress,
     updateAllErrors,
     setUpdateAllErrors,
-    bulkProgress,
-    bulkErrors,
-    setBulkErrors,
-    pendingBulkEnable,
-    setPendingBulkEnable,
-    bulkDialogScope,
-    setBulkDialogScope,
     handleToggle,
     handleUpdate,
     handleUpdateAll,
-    handleBulkEnable,
-    handleBulkDisable,
     handleExport,
     handleImport,
     isUpdatingAll,
@@ -121,6 +116,32 @@ export function PluginPage(): React.ReactElement {
     activeTexts,
     queuedTexts,
   });
+
+  // Marketplace actions
+  const {
+    addSource,
+    setAddSource,
+    adding,
+    updating: marketplaceUpdating,
+    confirmRemove,
+    setConfirmRemove,
+    retryAction,
+    setRetryAction,
+    previewing,
+    previewPlugins,
+    handlePreview,
+    handleClosePreview,
+    handlePreviewOverlayDismiss,
+    handleConfirmAdd,
+    handleAdd,
+    handleRemove,
+    handleUpdate: handleMarketplaceUpdate,
+    handleToggleAutoUpdate,
+    handleExport: handleMarketplaceExport,
+    handleImport: handleMarketplaceImport,
+  } = useMarketplaceActions({ fetchList: fetchAll, setError });
+
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const [contentDetailItem, setContentDetailItem] = useState<PluginContentItem | null>(null);
   const [contentDetail, setContentDetail] = useState<ContentDetail | null>(null);
@@ -163,6 +184,7 @@ export function PluginPage(): React.ReactElement {
   };
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
   const { showHelp, setShowHelp } = useKeyboardShortcuts({
     searchInputRef,
     onSearchClear: () => { setSearch(''); flushSearch(''); },
@@ -175,6 +197,12 @@ export function PluginPage(): React.ReactElement {
         title={t('plugin.page.title')}
         subtitle={t('plugin.page.subtitle')}
         actions={<>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowAddForm((v) => !v)}
+          >
+            {t('plugin.page.addMarketplace')}
+          </button>
           {hasInstalledPlugins && (
             <button
               className="btn btn-secondary"
@@ -186,6 +214,15 @@ export function PluginPage(): React.ReactElement {
                 : t('plugin.page.updateAll')}
             </button>
           )}
+          {marketplaces.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => handleMarketplaceUpdate()}
+              disabled={marketplaceUpdating !== null}
+            >
+              {marketplaceUpdating === '__all__' ? t('marketplace.card.updating') : t('plugin.page.updateAllMarketplaces')}
+            </button>
+          )}
           <button
             className="btn btn-secondary"
             onClick={() => fetchAll()}
@@ -195,19 +232,48 @@ export function PluginPage(): React.ReactElement {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={handleExport}
-            disabled={loading || !hasInstalledPlugins}
+            onClick={async () => { await handleExport(); await handleMarketplaceExport(); }}
+            disabled={loading || (!hasInstalledPlugins && marketplaces.length === 0)}
           >
             {t('plugin.page.export')}
           </button>
           <button
             className="btn btn-secondary"
-            onClick={handleImport}
+            onClick={async () => { await handleImport(); await handleMarketplaceImport(); }}
           >
             {t('plugin.page.import')}
           </button>
         </>}
       />
+
+      {showAddForm && (
+        <div className="form-inline">
+          <input
+            ref={addInputRef}
+            className="input"
+            placeholder="Git URL, GitHub owner/repo, or local path"
+            value={addSource}
+            onChange={(e) => setAddSource(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !previewing && handleAdd()}
+            disabled={adding || previewing}
+            autoFocus
+          />
+          <button
+            className="btn btn-secondary"
+            onClick={handlePreview}
+            disabled={previewing || adding || !addSource.trim()}
+          >
+            {previewing ? 'Loading...' : 'Preview'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => handleAdd()}
+            disabled={adding || !addSource.trim()}
+          >
+            {adding ? 'Adding...' : 'Add'}
+          </button>
+        </div>
+      )}
 
       <PluginToolbar
         searchInputRef={searchInputRef}
@@ -233,7 +299,15 @@ export function PluginPage(): React.ReactElement {
         onSortByChange={setSortBy}
       />
 
-      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {error && (
+        <ErrorBanner
+          message={error}
+          onDismiss={() => { setError(null); setRetryAction(null); }}
+          action={retryAction && (
+            <button className="btn btn-secondary btn-sm" onClick={retryAction}>Retry</button>
+          )}
+        />
+      )}
       {installError && (
         <ErrorBanner
           message={installError.message}
@@ -261,12 +335,6 @@ export function PluginPage(): React.ReactElement {
               {t('plugin.page.retry')}
             </button>
           }
-        />
-      )}
-      {bulkErrors.length > 0 && (
-        <ErrorBanner
-          message={`Bulk toggle: ${bulkErrors.length} failed — ${bulkErrors.map((e) => e.pluginId).join(', ')}`}
-          onDismiss={() => setBulkErrors([])}
         />
       )}
       {translateWarning && (
@@ -309,8 +377,8 @@ export function PluginPage(): React.ReactElement {
             title={t('plugin.page.noPlugins')}
             description={t('plugin.page.noPluginsDesc')}
             action={{
-              label: t('plugin.page.goToMarketplace'),
-              onClick: () => window.postMessage({ type: 'navigate', category: 'marketplace' }, '*'),
+              label: t('plugin.page.addMarketplace'),
+              onClick: () => setShowAddForm(true),
             }}
           />
         )
@@ -319,7 +387,6 @@ export function PluginPage(): React.ReactElement {
           groupedSections={groupedSections}
           sectionNames={sectionNames}
           sectionStats={sectionStats}
-          bulkProgress={bulkProgress}
           isUpdatingAll={isUpdatingAll}
           filterEnabled={filterEnabled}
           debouncedSearch={debouncedSearch}
@@ -333,8 +400,6 @@ export function PluginPage(): React.ReactElement {
           translations={translations}
           translateStatusMap={translateStatusMap}
           loadingPlugins={loadingPlugins}
-          onBulkDisable={handleBulkDisable}
-          onPendingBulkEnable={setPendingBulkEnable}
           onToggle={handleToggle}
           onUpdate={handleUpdate}
           onToggleHidden={toggleHidden}
@@ -345,6 +410,11 @@ export function PluginPage(): React.ReactElement {
           createSection={createSection}
           reorderSection={reorderSection}
           renameSection={renameSection}
+          marketplaces={marketplaces}
+          marketplaceUpdating={marketplaceUpdating}
+          onMarketplaceUpdate={(name) => handleMarketplaceUpdate(name)}
+          onMarketplaceRemove={(name) => setConfirmRemove(name)}
+          onMarketplaceToggleAutoUpdate={(name) => handleToggleAutoUpdate(name)}
         />
       )}
 
@@ -358,17 +428,58 @@ export function PluginPage(): React.ReactElement {
         />
       )}
 
+      {confirmRemove && (
+        <ConfirmDialog
+          title="Remove Marketplace"
+          message={`Remove "${confirmRemove}"? Plugins from this marketplace will no longer be available.`}
+          confirmLabel="Remove"
+          danger
+          onConfirm={() => handleRemove(confirmRemove)}
+          onCancel={() => setConfirmRemove(null)}
+        />
+      )}
+
+      {previewPlugins && (
+        <div
+          className="confirm-overlay"
+          onClick={handlePreviewOverlayDismiss}
+          onKeyDown={handlePreviewOverlayDismiss}
+          tabIndex={0}
+        >
+          <div
+            className="confirm-dialog confirm-dialog--preview"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="confirm-dialog-title">
+              Marketplace Preview — {previewPlugins.length} plugin{previewPlugins.length !== 1 ? 's' : ''}
+            </div>
+            <div className="preview-plugin-list">
+              {previewPlugins.map((p) => (
+                <div key={p.name} className="preview-plugin-item">
+                  <div className="preview-plugin-name">
+                    {p.name}
+                    {p.version && <span className="preview-plugin-version">{p.version}</span>}
+                  </div>
+                  {p.description && (
+                    <div className="preview-plugin-desc">{p.description}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="confirm-dialog-actions">
+              <button className="btn btn-secondary" onClick={handleClosePreview}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleConfirmAdd} disabled={adding}>
+                {adding ? 'Adding...' : 'Add Marketplace'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <PluginDialogs
-        pendingBulkEnable={pendingBulkEnable}
-        bulkDialogScope={bulkDialogScope}
-        workspaceFolders={workspaceFolders}
-        onBulkDialogScopeChange={setBulkDialogScope}
-        onBulkDialogCancel={() => setPendingBulkEnable(null)}
-        onBulkDialogConfirm={() => {
-          const { marketplace, items } = pendingBulkEnable!;
-          setPendingBulkEnable(null);
-          handleBulkEnable(marketplace, items, bulkDialogScope);
-        }}
         showHelp={showHelp}
         onHelpClose={() => setShowHelp(false)}
         dialogOpen={dialogOpen}

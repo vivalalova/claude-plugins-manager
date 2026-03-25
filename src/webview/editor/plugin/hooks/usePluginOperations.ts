@@ -5,7 +5,6 @@ import { toErrorMessage } from '../../../../shared/errorUtils';
 import {
   isPluginInstalled,
   isPluginEnabled,
-  isEnabledInScope,
   isInstalledInScope,
   getEnabledScopes,
   hasPluginUpdate,
@@ -27,13 +26,6 @@ interface UpdateAllError {
   message: string;
 }
 
-/** Bulk toggle 單一失敗項目 */
-interface BulkError {
-  marketplace: string;
-  pluginId: string;
-  message: string;
-}
-
 /** usePluginOperations 回傳值 */
 export interface UsePluginOperationsReturn {
   /** per-plugin per-scope 安裝中狀態 */
@@ -48,30 +40,12 @@ export interface UsePluginOperationsReturn {
   updateAllErrors: UpdateAllError[];
   /** 清除 updateAllErrors */
   setUpdateAllErrors: Dispatch<SetStateAction<UpdateAllError[]>>;
-  /** Marketplace 層級 bulk toggle 進度（key = marketplace name） */
-  bulkProgress: Map<string, { action: 'enable' | 'disable'; current: number; total: number }>;
-  /** Bulk toggle 完成後的失敗摘要 */
-  bulkErrors: BulkError[];
-  /** 清除 bulkErrors */
-  setBulkErrors: Dispatch<SetStateAction<BulkError[]>>;
-  /** Bulk enable scope dialog 等待確認的狀態 */
-  pendingBulkEnable: { marketplace: string; items: MergedPlugin[] } | null;
-  /** 設定 pendingBulkEnable */
-  setPendingBulkEnable: Dispatch<SetStateAction<{ marketplace: string; items: MergedPlugin[] } | null>>;
-  /** Bulk enable dialog 選取的 scope */
-  bulkDialogScope: PluginScope;
-  /** 設定 bulkDialogScope */
-  setBulkDialogScope: Dispatch<SetStateAction<PluginScope>>;
   /** Toggle = 勾 → install + enable，取消勾 → disable */
   handleToggle: (pluginId: string, scope: PluginScope, enable: boolean) => Promise<void>;
   /** 更新指定 plugin 的指定 scopes */
   handleUpdate: (pluginId: string, scopes: PluginScope[]) => Promise<void>;
   /** 批次更新所有已安裝 plugin（傳入可見列表則只更新可見的） */
   handleUpdateAll: (visiblePlugins?: MergedPlugin[]) => Promise<void>;
-  /** Marketplace 層級 bulk enable（指定 scope） */
-  handleBulkEnable: (marketplace: string, items: MergedPlugin[], scope: PluginScope) => Promise<void>;
-  /** Marketplace 層級 bulk disable（全部 scope） */
-  handleBulkDisable: (marketplace: string, items: MergedPlugin[]) => Promise<void>;
   /** 匯出 enabled plugins 為 shell script */
   handleExport: () => Promise<void>;
   /** 匯入 shell script 中的 plugin install 指令 */
@@ -100,11 +74,6 @@ export function usePluginOperations(
   const [installError, setInstallError] = useState<InstallError | null>(null);
   const [updateAllProgress, setUpdateAllProgress] = useState<{ current: number; total: number } | null>(null);
   const [updateAllErrors, setUpdateAllErrors] = useState<UpdateAllError[]>([]);
-  const [bulkProgress, setBulkProgress] = useState<Map<string, { action: 'enable' | 'disable'; current: number; total: number }>>(new Map());
-  const [bulkErrors, setBulkErrors] = useState<BulkError[]>([]);
-  const [pendingBulkEnable, setPendingBulkEnable] = useState<{ marketplace: string; items: MergedPlugin[] } | null>(null);
-  const [bulkDialogScope, setBulkDialogScope] = useState<PluginScope>('user');
-
   // Refs — 讓 useCallback 內部讀取最新值，避免 stale closure
   const pluginsRef = useRef(plugins);
   pluginsRef.current = plugins;
@@ -215,105 +184,6 @@ export function usePluginOperations(
     try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
   };
 
-  /** Marketplace 層級 bulk enable（指定 scope） */
-  const handleBulkEnable = async (marketplace: string, items: MergedPlugin[], scope: PluginScope): Promise<void> => {
-    if (bulkProgress.has(marketplace)) return;
-    const toProcess = items.filter((p) => !isEnabledInScope(p, scope));
-    if (toProcess.length === 0) return;
-
-    setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
-    setBulkProgress((prev) => {
-      const next = new Map(prev);
-      next.set(marketplace, { action: 'enable', current: 0, total: toProcess.length });
-      return next;
-    });
-    for (const p of toProcess) setPluginLoading(p.id, scope, true);
-
-    const errors: BulkError[] = [];
-    try {
-      for (let i = 0; i < toProcess.length; i++) {
-        setBulkProgress((prev) => {
-          const next = new Map(prev);
-          next.set(marketplace, { action: 'enable', current: i + 1, total: toProcess.length });
-          return next;
-        });
-        const plugin = toProcess[i];
-        try {
-          if (isInstalledInScope(plugin, scope)) {
-            await sendRequest({ type: 'plugin.enable', plugin: plugin.id, scope });
-          } else {
-            // plugin.install 已自動 enable，不需額外呼叫
-            await sendRequest({ type: 'plugin.install', plugin: plugin.id, scope }, 120_000);
-          }
-        } catch (e) {
-          errors.push({ marketplace, pluginId: plugin.id, message: toErrorMessage(e) });
-        }
-      }
-    } finally {
-      for (const p of toProcess) setPluginLoading(p.id, scope, false);
-      setBulkProgress((prev) => {
-        const next = new Map(prev);
-        next.delete(marketplace);
-        return next;
-      });
-    }
-    if (errors.length > 0) {
-      setBulkErrors((prev) => [...prev, ...errors]);
-    } else {
-      addToast(`Enabled all in ${marketplace}`);
-    }
-    try { await fetchAll(false); } catch { /* non-blocking */ }
-  };
-
-  /** Marketplace 層級 bulk disable（全部 scope） */
-  const handleBulkDisable = async (marketplace: string, items: MergedPlugin[]): Promise<void> => {
-    if (bulkProgress.has(marketplace)) return;
-    const ops: { plugin: MergedPlugin; scope: PluginScope }[] = [];
-    for (const p of items) {
-      for (const scope of getEnabledScopes(p)) {
-        ops.push({ plugin: p, scope });
-      }
-    }
-    if (ops.length === 0) return;
-
-    setBulkErrors((prev) => prev.filter((e) => e.marketplace !== marketplace));
-    setBulkProgress((prev) => {
-      const next = new Map(prev);
-      next.set(marketplace, { action: 'disable', current: 0, total: ops.length });
-      return next;
-    });
-    for (const op of ops) setPluginLoading(op.plugin.id, op.scope, true);
-
-    const errors: BulkError[] = [];
-    try {
-      for (let i = 0; i < ops.length; i++) {
-        setBulkProgress((prev) => {
-          const next = new Map(prev);
-          next.set(marketplace, { action: 'disable', current: i + 1, total: ops.length });
-          return next;
-        });
-        try {
-          await sendRequest({ type: 'plugin.disable', plugin: ops[i].plugin.id, scope: ops[i].scope });
-        } catch (e) {
-          errors.push({ marketplace, pluginId: ops[i].plugin.id, message: toErrorMessage(e) });
-        }
-      }
-    } finally {
-      for (const op of ops) setPluginLoading(op.plugin.id, op.scope, false);
-      setBulkProgress((prev) => {
-        const next = new Map(prev);
-        next.delete(marketplace);
-        return next;
-      });
-    }
-    if (errors.length > 0) {
-      setBulkErrors((prev) => [...prev, ...errors]);
-    } else {
-      addToast(`Disabled all in ${marketplace}`);
-    }
-    try { await fetchAll(false); } catch { /* non-blocking */ }
-  };
-
   const handleExport = async (): Promise<void> => {
     setError(null);
     try {
@@ -355,18 +225,9 @@ export function usePluginOperations(
     updateAllProgress,
     updateAllErrors,
     setUpdateAllErrors,
-    bulkProgress,
-    bulkErrors,
-    setBulkErrors,
-    pendingBulkEnable,
-    setPendingBulkEnable,
-    bulkDialogScope,
-    setBulkDialogScope,
     handleToggle,
     handleUpdate,
     handleUpdateAll,
-    handleBulkEnable,
-    handleBulkDisable,
     handleExport,
     handleImport,
     isUpdatingAll,

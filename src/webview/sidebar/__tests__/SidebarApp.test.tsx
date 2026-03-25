@@ -114,7 +114,7 @@ describe('SidebarApp attention badges', () => {
     expect(document.querySelectorAll('.sidebar-update-badge')).toHaveLength(0);
   });
 
-  it('marketplace 不顯示 badge（無 actionable 狀態）', async () => {
+  it('plugin update badge 顯示（有更新時）', async () => {
     setupMocks({
       plugins: {
         installed: [makeInstalled('a', 'mp', '2026-01-01T00:00:00Z')],
@@ -129,9 +129,8 @@ describe('SidebarApp attention badges', () => {
       expect(document.querySelectorAll('.sidebar-update-badge')).toHaveLength(1);
     });
 
-    const marketplaceButton = screen.getByText('Marketplace').closest('.sidebar-button')!;
-    expect(marketplaceButton.querySelector('.sidebar-update-badge')).toBeNull();
-    expect(marketplaceButton.querySelector('.sidebar-button-badge')).toBeNull();
+    const pluginButton = screen.getByText('Plugins').closest('.sidebar-button')!;
+    expect(pluginButton.querySelector('.sidebar-update-badge')).toBeTruthy();
   });
 
   describe('plugin update badge', () => {

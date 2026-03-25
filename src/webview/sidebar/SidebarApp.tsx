@@ -24,12 +24,6 @@ export function SidebarApp(): React.ReactElement {
 
   const categories = [
     {
-      id: 'marketplace' as CategoryId,
-      label: t('sidebar.marketplace'),
-      icon: '🏪',
-      description: t('sidebar.marketplace.desc'),
-    },
-    {
       id: 'plugin' as CategoryId,
       label: t('sidebar.plugins'),
       icon: '🔌',

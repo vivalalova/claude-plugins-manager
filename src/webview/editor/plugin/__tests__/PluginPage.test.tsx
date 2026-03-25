@@ -21,6 +21,32 @@ vi.mock('../../../vscode', () => ({
   initGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
+/* ── Mock useMarketplaceActions to prevent it interfering with plugin operations ── */
+vi.mock('../../marketplace/hooks/useMarketplaceActions', () => ({
+  useMarketplaceActions: () => ({
+    addSource: '',
+    setAddSource: vi.fn(),
+    adding: false,
+    updating: null,
+    confirmRemove: null,
+    setConfirmRemove: vi.fn(),
+    retryAction: null,
+    setRetryAction: vi.fn(),
+    previewing: false,
+    previewPlugins: null,
+    handlePreview: vi.fn(),
+    handleClosePreview: vi.fn(),
+    handlePreviewOverlayDismiss: vi.fn(),
+    handleConfirmAdd: vi.fn(),
+    handleAdd: vi.fn(),
+    handleRemove: vi.fn(),
+    handleUpdate: vi.fn(),
+    handleToggleAutoUpdate: vi.fn(),
+    handleExport: vi.fn().mockResolvedValue(undefined),
+    handleImport: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import { PluginPage } from '../PluginPage';
 import { ToastProvider } from '../../../components/Toast';
 import type {
@@ -165,12 +191,13 @@ describe('PluginPage — 核心流程', () => {
       });
     });
 
-    it('空 plugin 列表顯示 EmptyState + "Go to Marketplace" 按鈕觸發導航', async () => {
+    it('空 plugin 列表顯示 EmptyState + "Add Marketplace" 按鈕展開新增表單', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
         if (req.type === 'plugin.listAvailable') {
           return makeResponse([], []);
         }
+        if (req.type === 'marketplace.list') return [];
         return undefined;
       });
 
@@ -182,14 +209,13 @@ describe('PluginPage — 核心流程', () => {
 
       expect(screen.getByText('Add a marketplace first to discover and install plugins.')).toBeTruthy();
 
-      // 監聽 window.postMessage
-      const postMessageSpy = vi.spyOn(window, 'postMessage');
-      fireEvent.click(screen.getByRole('button', { name: 'Go to Marketplace' }));
-      expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'navigate', category: 'marketplace' },
-        '*',
-      );
-      postMessageSpy.mockRestore();
+      // 點擊 EmptyState 中的 "Add Marketplace" 按鈕 → 展開新增表單（input 出現）
+      const addButtons = screen.getAllByRole('button', { name: 'Add Marketplace' });
+      fireEvent.click(addButtons[addButtons.length - 1]);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path')).toBeTruthy();
+      });
     });
 
     it('filter 無符合 → EmptyState + "Clear filters" 重置所有過濾', async () => {

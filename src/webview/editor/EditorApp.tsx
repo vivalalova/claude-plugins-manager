@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { MarketplacePage } from './marketplace/MarketplacePage';
 import { PluginPage } from './plugin/PluginPage';
 import { McpPage } from './mcp/McpPage';
 import { SettingsPage } from './settings/SettingsPage';
@@ -26,7 +25,6 @@ export function EditorApp({ mode: initialMode }: EditorAppProps): React.ReactEle
 
   switch (mode) {
     case 'marketplace':
-      return <MarketplacePage />;
     case 'plugin':
       return <PluginPage />;
     case 'mcp':

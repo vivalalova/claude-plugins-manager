@@ -5,7 +5,7 @@ import { PluginCard } from './PluginCard';
 import { VirtualCardList } from './VirtualCardList';
 import { getSectionName, getVisibleItems } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
-import type { MergedPlugin, PluginContentItem, PluginScope } from '../../../shared/types';
+import type { Marketplace, MergedPlugin, PluginContentItem, PluginScope } from '../../../shared/types';
 import type { WorkspaceFolder } from './hooks/usePluginData';
 
 interface SectionStats {
@@ -20,7 +20,6 @@ export interface PluginSectionsProps {
   groupedSections: { id: number; groups: Map<string, MergedPlugin[]> }[];
   sectionNames: Record<number, string> | undefined;
   sectionStats: Map<string, SectionStats>;
-  bulkProgress: Map<string, { action: 'enable' | 'disable'; current: number; total: number }>;
   isUpdatingAll: boolean;
   filterEnabled: boolean;
   debouncedSearch: string;
@@ -34,8 +33,6 @@ export interface PluginSectionsProps {
   translations: Record<string, string>;
   translateStatusMap: Map<string, 'translating' | 'queued'>;
   loadingPlugins: Map<string, Set<PluginScope>>;
-  onBulkDisable: (marketplace: string, items: MergedPlugin[]) => void;
-  onPendingBulkEnable: (value: { marketplace: string; items: MergedPlugin[] }) => void;
   onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => Promise<void>;
   onUpdate: (pluginId: string, scopes: PluginScope[]) => Promise<void>;
   onToggleHidden: (pluginId: string) => void;
@@ -46,13 +43,18 @@ export interface PluginSectionsProps {
   createSection: (marketplace: string) => void;
   reorderSection: (sectionId: number, toIndex: number) => void;
   renameSection: (sectionId: number, name: string) => void;
+  // Marketplace actions
+  marketplaces: Marketplace[];
+  marketplaceUpdating: string | null;
+  onMarketplaceUpdate: (name: string) => void;
+  onMarketplaceRemove: (name: string) => void;
+  onMarketplaceToggleAutoUpdate: (name: string) => void;
 }
 
 export function PluginSections({
   groupedSections,
   sectionNames,
   sectionStats,
-  bulkProgress,
   isUpdatingAll,
   filterEnabled,
   debouncedSearch,
@@ -66,8 +68,6 @@ export function PluginSections({
   translations,
   translateStatusMap,
   loadingPlugins,
-  onBulkDisable,
-  onPendingBulkEnable,
   onToggle,
   onUpdate,
   onToggleHidden,
@@ -78,6 +78,11 @@ export function PluginSections({
   createSection,
   reorderSection,
   renameSection,
+  marketplaces,
+  marketplaceUpdating,
+  onMarketplaceUpdate,
+  onMarketplaceRemove,
+  onMarketplaceToggleAutoUpdate,
 }: PluginSectionsProps): React.ReactElement {
   const { t } = useI18n();
 
@@ -107,7 +112,8 @@ export function PluginSections({
     const visibleItems = getVisibleItems(items, hiddenPlugins, showHidden);
     const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
     const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0, visibleCount: 0 };
-    const mpBulk = bulkProgress.get(marketplace);
+    const mpData = marketplaces.find((m) => m.name === marketplace);
+    const isUpdating = marketplaceUpdating === marketplace;
     return (
       <CardSection
         key={marketplace}
@@ -136,21 +142,31 @@ export function PluginSections({
           else next.add(marketplace);
           return next;
         })}
-        headerActions={
-          <button
-            className={`section-bulk-btn${isCollapsed ? '' : ' section-bulk-btn--expanded'}`}
-            disabled={!!mpBulk || isUpdatingAll}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (stats.allEnabled) onBulkDisable(marketplace, visibleItems);
-              else onPendingBulkEnable({ marketplace, items: visibleItems });
-            }}
-          >
-            {mpBulk
-              ? t(mpBulk.action === 'enable' ? 'plugin.section.enabling' : 'plugin.section.disabling', { current: mpBulk.current, total: mpBulk.total })
-              : stats.allEnabled ? t('plugin.section.disableAll') : t('plugin.section.enableAll')}
-          </button>
-        }
+        headerActions={mpData ? (
+          <div className="section-marketplace-actions" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={mpData.autoUpdate}
+                onChange={() => onMarketplaceToggleAutoUpdate(marketplace)}
+              />
+              {t('marketplace.card.autoUpdate')}
+            </label>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => onMarketplaceUpdate(marketplace)}
+              disabled={isUpdating || isUpdatingAll}
+            >
+              {isUpdating ? t('marketplace.card.updating') : t('marketplace.card.update')}
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => onMarketplaceRemove(marketplace)}
+            >
+              {t('marketplace.card.remove')}
+            </button>
+          </div>
+        ) : undefined}
         headerProps={{
           draggable: true,
           title: t('plugin.section.dragHandle'),

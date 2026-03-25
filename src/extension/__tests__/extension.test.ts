@@ -154,7 +154,7 @@ describe('activate', () => {
     commandCalls.find(([id]) => id === COMMANDS.openPlugin)?.[1]();
     commandCalls.find(([id]) => id === COMMANDS.openMcp)?.[1]();
 
-    expect(state.editorOpenPanel).toHaveBeenNthCalledWith(1, 'marketplace');
+    expect(state.editorOpenPanel).toHaveBeenNthCalledWith(1, 'plugin');
     expect(state.editorOpenPanel).toHaveBeenNthCalledWith(2, 'plugin');
     expect(state.editorOpenPanel).toHaveBeenNthCalledWith(3, 'mcp');
 
