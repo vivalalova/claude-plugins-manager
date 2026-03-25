@@ -528,6 +528,72 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.sourceDir).toBe('./plugins/local-plugin');
     });
 
+    it('source 為 repo root 且 manifest 只宣告單一 skill 時，contents 與 sourceDir 都收斂到該 skill', async () => {
+      const mpName = `scan-mp-single-declared-skill-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const selectedSkillDir = join(mpDir, 'skills', 'claude-api');
+      const otherSkillDir = join(mpDir, 'skills', 'theme-factory');
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(selectedSkillDir, { recursive: true });
+      mkdirSync(otherSkillDir, { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'claude-api',
+            description: 'single declared skill from repo root',
+            source: './',
+            skills: ['./skills/claude-api'],
+          }],
+        }),
+      );
+
+      await writeFile(
+        join(selectedSkillDir, 'SKILL.md'),
+        [
+          '---',
+          'name: claude-api',
+          'description: Claude API docs',
+          '---',
+          '',
+          '# Claude API',
+        ].join('\n'),
+      );
+      await writeFile(
+        join(otherSkillDir, 'SKILL.md'),
+        [
+          '---',
+          'name: theme-factory',
+          'description: Should stay hidden',
+          '---',
+          '',
+          '# Theme Factory',
+        ].join('\n'),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `claude-api@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceDir).toBe('./skills/claude-api');
+      expect(plugin!.contents?.skills).toEqual([
+        expect.objectContaining({
+          name: 'claude-api',
+          description: 'Claude API docs',
+          path: expect.stringContaining('/skills/claude-api/SKILL.md'),
+        }),
+      ]);
+    });
+
     it('source 為 string 但目錄不存在 → sourceDir undefined、contents undefined', async () => {
       const mpName = `scan-mp-missing-dir-${testIdx}`;
       const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
