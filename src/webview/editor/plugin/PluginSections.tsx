@@ -5,7 +5,7 @@ import { PluginCard } from './PluginCard';
 import { VirtualCardList } from './VirtualCardList';
 import { getSectionName, getVisibleItems } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
-import type { MergedPlugin, PluginScope } from '../../../shared/types';
+import type { MergedPlugin, PluginContentItem, PluginScope } from '../../../shared/types';
 import type { WorkspaceFolder } from './hooks/usePluginData';
 
 interface SectionStats {
@@ -39,6 +39,7 @@ export interface PluginSectionsProps {
   onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => Promise<void>;
   onUpdate: (pluginId: string, scopes: PluginScope[]) => Promise<void>;
   onToggleHidden: (pluginId: string) => void;
+  onViewContent?: (item: PluginContentItem) => void;
   moveToSection: (marketplace: string, sectionId: number) => void;
   createSection: (marketplace: string) => void;
   reorderSection: (sectionId: number, toIndex: number) => void;
@@ -68,6 +69,7 @@ export function PluginSections({
   onToggle,
   onUpdate,
   onToggleHidden,
+  onViewContent,
   moveToSection,
   createSection,
   reorderSection,
@@ -164,6 +166,7 @@ export function PluginSections({
               onToggle={onToggle}
               onUpdate={onUpdate}
               onToggleHidden={onToggleHidden}
+              onViewContent={onViewContent}
             />
           )}
         />

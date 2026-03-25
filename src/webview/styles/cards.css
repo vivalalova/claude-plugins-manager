@@ -729,6 +729,22 @@
   border-left: 2px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
 }
 
+.content-item--clickable {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.12s ease;
+}
+
+.content-item--clickable:hover {
+  background: var(--vscode-list-hoverBackground);
+  border-left-color: var(--vscode-focusBorder);
+}
+
+.content-item--clickable:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
 .content-item-name {
   font-size: 12px;
   font-weight: 500;

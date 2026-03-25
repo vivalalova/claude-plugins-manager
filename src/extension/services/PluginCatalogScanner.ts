@@ -176,6 +176,7 @@ export class PluginCatalogScanner {
       return {
         name: fm.name || fm.description ? (fm.name || fallbackName) : fallbackName,
         description: fm.description ?? '',
+        path: join(dir, file),
       };
     });
   }
@@ -188,6 +189,7 @@ export class PluginCatalogScanner {
       return [{
         name: fm.name || 'SKILL',
         description: fm.description ?? '',
+        path: rootSkillPath,
       }];
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -212,6 +214,7 @@ export class PluginCatalogScanner {
           return {
             name: fm.name || entry,
             description: fm.description ?? '',
+            path: skillMd,
           };
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {

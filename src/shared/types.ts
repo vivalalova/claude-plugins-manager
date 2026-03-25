@@ -89,6 +89,8 @@ export interface MarketplaceManifest {
 export interface PluginContentItem {
   name: string;
   description: string;
+  /** .md 檔案的絕對路徑（供詳情面板讀取） */
+  path: string;
 }
 
 /** Plugin 內部包含的元件 */

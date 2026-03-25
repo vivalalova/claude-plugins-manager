@@ -25,6 +25,8 @@ interface PluginCardProps {
   onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => void;
   onUpdate: (pluginId: string, scopes: PluginScope[]) => void;
   onToggleHidden?: (pluginId: string) => void;
+  /** 點擊 content item 時的回呼（查看詳情） */
+  onViewContent?: (item: PluginContentItem) => void;
 }
 
 /**
@@ -43,6 +45,7 @@ export const PluginCard = React.memo(function PluginCard({
   onToggle,
   onUpdate,
   onToggleHidden,
+  onViewContent,
 }: PluginCardProps): React.ReactElement {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -159,7 +162,7 @@ export const PluginCard = React.memo(function PluginCard({
       {hasContents && (
         <div className={`plugin-contents${expanded ? '' : ' plugin-contents--collapsed'}`}>
           <div className="section-body-inner">
-            <PluginContentsView contents={plugin.contents!} translations={translations} />
+            <PluginContentsView contents={plugin.contents!} translations={translations} onViewItem={onViewContent} />
           </div>
         </div>
       )}
@@ -181,20 +184,22 @@ function pluginHasContents(c?: PluginContents): boolean {
 function PluginContentsView({
   contents,
   translations,
+  onViewItem,
 }: {
   contents: PluginContents;
   translations?: Record<string, string>;
+  onViewItem?: (item: PluginContentItem) => void;
 }): React.ReactElement {
   return (
     <div className="plugin-contents-grid">
       {contents.commands.length > 0 && (
-        <ContentSection label="Commands" items={contents.commands} translations={translations} />
+        <ContentSection label="Commands" items={contents.commands} translations={translations} onViewItem={onViewItem} />
       )}
       {contents.skills.length > 0 && (
-        <ContentSection label="Skills" items={contents.skills} translations={translations} />
+        <ContentSection label="Skills" items={contents.skills} translations={translations} onViewItem={onViewItem} />
       )}
       {contents.agents.length > 0 && (
-        <ContentSection label="Agents" items={contents.agents} translations={translations} />
+        <ContentSection label="Agents" items={contents.agents} translations={translations} onViewItem={onViewItem} />
       )}
       {contents.mcpServers.length > 0 && (
         <div className="content-section">
@@ -223,16 +228,31 @@ function ContentSection({
   label,
   items,
   translations,
+  onViewItem,
 }: {
   label: string;
   items: PluginContentItem[];
   translations?: Record<string, string>;
+  onViewItem?: (item: PluginContentItem) => void;
 }): React.ReactElement {
   return (
     <div className="content-section">
       <div className="content-section-label">{label}</div>
       {items.map((item) => (
-        <div key={item.name} className="content-item">
+        <div
+          key={item.name}
+          className={`content-item${onViewItem ? ' content-item--clickable' : ''}`}
+          onClick={onViewItem ? (e) => { e.stopPropagation(); onViewItem(item); } : undefined}
+          onKeyDown={onViewItem ? (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onViewItem(item);
+            }
+          } : undefined}
+          tabIndex={onViewItem ? 0 : undefined}
+          role={onViewItem ? 'button' : undefined}
+        >
           <span className="content-item-name">{item.name}</span>
           {item.description && (
             <span className="content-item-desc">

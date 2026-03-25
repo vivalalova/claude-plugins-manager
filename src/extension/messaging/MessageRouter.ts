@@ -98,6 +98,11 @@ export class MessageRouter {
         return this.plugin.exportScript();
       case 'plugin.import':
         return this.plugin.importScript();
+      case 'plugin.getContentDetail': {
+        const resolvedDetail = expandTildePath(message.path);
+        this.assertAllowedPath(resolvedDetail);
+        return this.settings.getContentDetail(resolvedDetail);
+      }
       case 'plugin.translate':
         return this.translation.translate(message.texts, message.targetLang, message.email);
 

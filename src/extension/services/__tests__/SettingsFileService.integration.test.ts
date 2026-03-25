@@ -572,7 +572,7 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin).toBeDefined();
       // 只應列出目錄型 skill，dashboard.html 應被跳過
       expect(plugin!.contents?.skills).toEqual([
-        { name: 'my-skill', description: 'A real skill' },
+        expect.objectContaining({ name: 'my-skill', description: 'A real skill', path: expect.stringContaining('SKILL.md') }),
       ]);
     });
 
@@ -621,7 +621,7 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
 
       expect(plugin).toBeDefined();
       expect(plugin!.contents?.skills).toEqual([
-        { name: 'root-skill', description: 'Root level skill' },
+        expect.objectContaining({ name: 'root-skill', description: 'Root level skill', path: expect.stringContaining('SKILL.md') }),
       ]);
     });
   });

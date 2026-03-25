@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import type {
@@ -102,6 +102,28 @@ export class SettingsFileService {
       delete settings[key];
       return true;
     });
+  }
+
+  /**
+   * 讀取 plugin content item 的 .md 檔並解析 frontmatter + body。
+   * 供 plugin.getContentDetail 請求使用。
+   */
+  async getContentDetail(filePath: string): Promise<{ frontmatter: Record<string, string>; body: string }> {
+    const content = await readFile(filePath, 'utf-8');
+    const fmRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
+    const match = fmRegex.exec(content);
+    if (!match) return { frontmatter: {}, body: content.trim() };
+    const fmBlock = match[1];
+    const body = match[2].trim();
+    const frontmatter: Record<string, string> = {};
+    for (const line of fmBlock.split('\n')) {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx === -1) continue;
+      const key = line.slice(0, colonIdx).trim();
+      const value = line.slice(colonIdx + 1).trim();
+      if (key) frontmatter[key] = value;
+    }
+    return { frontmatter, body };
   }
 
   /** 讀取指定 settings 檔的 enabledPlugins */

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
@@ -6,6 +6,7 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { PluginDialogs } from './PluginDialogs';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginSections } from './PluginSections';
+import { ContentDetailPanel } from '../../components/ContentDetailPanel';
 import type { ContentTypeFilter } from './filterUtils';
 import { usePluginData } from './hooks/usePluginData';
 import { usePluginFilters } from './hooks/usePluginFilters';
@@ -14,6 +15,9 @@ import { PageHeader } from '../../components/PageHeader';
 import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePluginPageViewState } from './hooks/usePluginPageViewState';
+import { sendRequest } from '../../vscode';
+import type { PluginContentItem } from '../../../shared/types';
+import type { ContentDetail } from '../../components/ContentDetailPanel';
 
 
 /**
@@ -117,6 +121,30 @@ export function PluginPage(): React.ReactElement {
     activeTexts,
     queuedTexts,
   });
+
+  const [contentDetailItem, setContentDetailItem] = useState<PluginContentItem | null>(null);
+  const [contentDetail, setContentDetail] = useState<ContentDetail | null>(null);
+  const [contentDetailLoading, setContentDetailLoading] = useState(false);
+
+  const handleViewContent = async (item: PluginContentItem): Promise<void> => {
+    setContentDetailItem(item);
+    setContentDetail(null);
+    setContentDetailLoading(true);
+    try {
+      const data = await sendRequest<ContentDetail>({ type: 'plugin.getContentDetail', path: item.path });
+      setContentDetail(data);
+    } catch (err) {
+      setContentDetailItem(null);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setContentDetailLoading(false);
+    }
+  };
+
+  const handleOpenContentInEditor = (): void => {
+    if (!contentDetailItem) return;
+    sendRequest({ type: 'hooks.openFile', path: contentDetailItem.path }).catch(() => {});
+  };
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showHelp, setShowHelp } = useKeyboardShortcuts({
@@ -294,10 +322,21 @@ export function PluginPage(): React.ReactElement {
           onToggle={handleToggle}
           onUpdate={handleUpdate}
           onToggleHidden={toggleHidden}
+          onViewContent={handleViewContent}
           moveToSection={moveToSection}
           createSection={createSection}
           reorderSection={reorderSection}
           renameSection={renameSection}
+        />
+      )}
+
+      {contentDetailItem && (
+        <ContentDetailPanel
+          name={contentDetailItem.name}
+          detail={contentDetail}
+          loading={contentDetailLoading}
+          onClose={() => setContentDetailItem(null)}
+          onOpenInEditor={handleOpenContentInEditor}
         />
       )}
 
