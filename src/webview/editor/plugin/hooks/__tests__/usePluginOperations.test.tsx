@@ -43,6 +43,7 @@ function makePlugin(
     projectInstalls?: InstalledPlugin[];
     localInstall?: InstalledPlugin | null;
     availableLastUpdated?: string;
+    settingsEnabledScopes?: MergedPlugin['settingsEnabledScopes'];
   },
 ): MergedPlugin {
   const [name, marketplaceName] = id.split('@');
@@ -55,6 +56,7 @@ function makePlugin(
     projectInstalls: options?.projectInstalls ?? [],
     localInstall: options?.localInstall ?? null,
     availableLastUpdated: options?.availableLastUpdated,
+    settingsEnabledScopes: options?.settingsEnabledScopes,
   };
 }
 
@@ -155,6 +157,125 @@ describe('usePluginOperations', () => {
     // 完成 alpha
     resolveAlpha();
     await act(async () => { await alphaPromise!; });
+  });
+
+  describe('settings-only enabled plugins（無 install entry）', () => {
+    it('handleToggle disable — settings-only enabled plugin 送出 plugin.disable', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const setError = vi.fn();
+      // settingsEnabledScopes 有 'user'，但 userInstall 為 null（未裝）
+      const plugin = makePlugin('alpha@mp', { settingsEnabledScopes: ['user'] });
+      mockSendRequest.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, setError));
+
+      await act(async () => {
+        await result.current.handleToggle('alpha@mp', 'user', false);
+      });
+
+      expect(mockSendRequest).toHaveBeenCalledWith({
+        type: 'plugin.disable',
+        plugin: 'alpha@mp',
+        scope: 'user',
+      });
+      expect(mockSendRequest).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'plugin.install' }),
+        expect.anything(),
+      );
+      expect(fetchAll).toHaveBeenCalledWith(false);
+      expect(addToastMock).toHaveBeenCalledWith('Disabled alpha@mp');
+      expect(result.current.installError).toBeNull();
+    });
+
+    it('handleToggle enable — 無安裝 entry 的 plugin 送出 plugin.install', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const setError = vi.fn();
+      // 無 install entry，無 settingsEnabledScopes → isInstalledInScope 回傳 false
+      const plugin = makePlugin('beta@mp');
+      mockSendRequest.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, setError));
+
+      await act(async () => {
+        await result.current.handleToggle('beta@mp', 'user', true);
+      });
+
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        { type: 'plugin.install', plugin: 'beta@mp', scope: 'user' },
+        120_000,
+      );
+      expect(mockSendRequest).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'plugin.enable' }),
+      );
+      expect(fetchAll).toHaveBeenCalledWith(false);
+      expect(addToastMock).toHaveBeenCalledWith('Enabled beta@mp');
+    });
+
+    it('handleBulkDisable — settings-only plugin 與已安裝 plugin 皆被 disable', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const setError = vi.fn();
+      const plugins = [
+        // 已安裝且 enabled 的 plugin
+        makePlugin('alpha@mp', { userInstall: { ...makeInstall('user', true), id: 'alpha@mp' } }),
+        // 僅有 settingsEnabledScopes，無 install entry
+        makePlugin('beta@mp', { settingsEnabledScopes: ['user'] }),
+      ];
+      mockSendRequest.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
+
+      await act(async () => {
+        await result.current.handleBulkDisable('mp', plugins);
+      });
+
+      const disableCalls = mockSendRequest.mock.calls
+        .map(([req]) => req as { type: string; plugin: string; scope: string })
+        .filter((req) => req.type === 'plugin.disable');
+
+      expect(disableCalls).toEqual(
+        expect.arrayContaining([
+          { type: 'plugin.disable', plugin: 'alpha@mp', scope: 'user' },
+          { type: 'plugin.disable', plugin: 'beta@mp', scope: 'user' },
+        ]),
+      );
+      expect(disableCalls).toHaveLength(2);
+      expect(fetchAll).toHaveBeenCalledWith(false);
+    });
+
+    it('handleUpdateAll — settings-only plugin 無安裝日期，hasPluginUpdate 回傳 false，不進入更新', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const setError = vi.fn();
+      const plugins = [
+        // 已安裝且 enabled 且有可用更新的 plugin → 應被更新
+        makePlugin('alpha@mp', {
+          userInstall: { ...makeInstall('user', true, '2026-01-01T00:00:00Z'), id: 'alpha@mp' },
+          availableLastUpdated: '2026-02-01T00:00:00Z',
+        }),
+        // settings-only：無 install entry → installedDates 為空 → hasPluginUpdate 回傳 false
+        makePlugin('beta@mp', {
+          settingsEnabledScopes: ['user'],
+          availableLastUpdated: '2026-02-01T00:00:00Z',
+        }),
+      ];
+      mockSendRequest.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
+
+      await act(async () => {
+        await result.current.handleUpdateAll();
+      });
+
+      const updateCalls = mockSendRequest.mock.calls
+        .map(([req]) => req as { type: string; plugin: string })
+        .filter((req) => req.type === 'plugin.update');
+
+      // 只有 alpha 被更新；beta 因無安裝 entry 被跳過
+      expect(updateCalls).toEqual([
+        { type: 'plugin.update', plugin: 'alpha@mp', scope: 'user' },
+      ]);
+      expect(fetchAll).toHaveBeenCalledWith(false);
+      expect(addToastMock).toHaveBeenCalledWith('All plugins updated');
+    });
   });
 
   it('Update All 只更新 enabled 且有更新的 scope，錯誤會累積但不中斷', async () => {

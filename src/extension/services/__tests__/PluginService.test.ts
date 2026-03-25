@@ -340,6 +340,42 @@ describe('PluginService', () => {
       // 仍只呼叫一次
       expect(settings.scanAvailablePlugins).toHaveBeenCalledTimes(1);
     });
+
+    it('listAvailable 包含 enabledByScope', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+      settings.readMarketplaceSources.mockResolvedValue({});
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'plugin-a@mp': true, 'plugin-b@mp': false },
+        project: { 'plugin-c@mp': true },
+        local: { 'plugin-d@mp': true },
+      });
+
+      const result = await svc.listAvailable();
+
+      expect(result.enabledByScope).toEqual({
+        user: { 'plugin-a@mp': true, 'plugin-b@mp': false },
+        project: { 'plugin-c@mp': true },
+        local: { 'plugin-d@mp': true },
+      });
+    });
+
+    it('enabledByScope 反映各 scope 實際設定', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+      settings.readMarketplaceSources.mockResolvedValue({});
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'foo@mp': true },
+        project: {},
+        local: {},
+      });
+
+      const result = await svc.listAvailable();
+
+      expect(result.enabledByScope.user).toEqual({ 'foo@mp': true });
+      expect(result.enabledByScope.project).toEqual({});
+      expect(result.enabledByScope.local).toEqual({});
+    });
   });
 
   /* ═══════ install ═══════ */

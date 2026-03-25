@@ -599,6 +599,138 @@ describe('PluginCard', () => {
     });
   });
 
+  describe('settingsEnabledScopes fallback', () => {
+    it('userInstall: null + settingsEnabledScopes: [user] → user checkbox checked', () => {
+      const plugin = createPlugin({
+        userInstall: null,
+        settingsEnabledScopes: ['user'],
+      });
+
+      renderWithI18n(
+        <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes[0].checked).toBe(true);
+      expect(checkboxes[1].checked).toBe(false);
+      expect(checkboxes[2].checked).toBe(false);
+    });
+
+    it('projectInstalls: [] + settingsEnabledScopes: [project] + workspace → project checkbox checked', () => {
+      const plugin = createPlugin({
+        projectInstalls: [],
+        settingsEnabledScopes: ['project'],
+      });
+
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          workspaceName="my-project"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes[0].checked).toBe(false);
+      expect(checkboxes[1].checked).toBe(true);
+      expect(checkboxes[2].checked).toBe(false);
+    });
+
+    it('localInstall: null + settingsEnabledScopes: [local] + workspace → local checkbox checked', () => {
+      const plugin = createPlugin({
+        localInstall: null,
+        settingsEnabledScopes: ['local'],
+      });
+
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          workspaceName="my-project"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes[0].checked).toBe(false);
+      expect(checkboxes[1].checked).toBe(false);
+      expect(checkboxes[2].checked).toBe(true);
+    });
+
+    it('settingsEnabledScopes: [user, project] → both user and project checkboxes checked', () => {
+      const plugin = createPlugin({
+        userInstall: null,
+        projectInstalls: [],
+        settingsEnabledScopes: ['user', 'project'],
+      });
+
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          workspaceName="my-project"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes[0].checked).toBe(true);
+      expect(checkboxes[1].checked).toBe(true);
+      expect(checkboxes[2].checked).toBe(false);
+    });
+
+    it('settingsEnabledScopes undefined + no installs → all checkboxes unchecked', () => {
+      const plugin = createPlugin({
+        userInstall: null,
+        projectInstalls: [],
+        localInstall: null,
+        settingsEnabledScopes: undefined,
+      });
+
+      renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          workspaceName="my-project"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes[0].checked).toBe(false);
+      expect(checkboxes[1].checked).toBe(false);
+      expect(checkboxes[2].checked).toBe(false);
+    });
+
+    it('userInstall.enabled: true + settingsEnabledScopes: [user] → user checkbox checked (both agree, no double-toggle)', () => {
+      const plugin = createPlugin({
+        userInstall: {
+          id: 'test-plugin@test-mp',
+          version: '1.0.0',
+          scope: 'user' as PluginScope,
+          enabled: true,
+          installPath: '/path',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        },
+        settingsEnabledScopes: ['user'],
+      });
+
+      renderWithI18n(
+        <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+      );
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes[0].checked).toBe(true);
+
+      // clicking unchecks — proves it's showing as checked exactly once, not toggling twice
+      fireEvent.click(checkboxes[0]);
+      expect(onToggle).toHaveBeenCalledTimes(1);
+      expect(onToggle).toHaveBeenCalledWith('test-plugin@test-mp', 'user', false);
+    });
+  });
+
   describe('隱藏按鈕', () => {
     it('onToggleHidden 傳入 → 顯示 Hide 按鈕', () => {
       const plugin = createPlugin();
