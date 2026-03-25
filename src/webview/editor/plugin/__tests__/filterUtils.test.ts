@@ -16,6 +16,9 @@ import {
   writeContentTypeFilters,
   CONTENT_TYPE_STORAGE_KEY,
   hasPluginUpdate,
+  isPluginEnabled,
+  isEnabledInScope,
+  getEnabledScopes,
   compareByName,
   compareByLastUpdated,
   getPluginComparator,
@@ -613,6 +616,104 @@ describe('getSectionName', () => {
 
   it('id 不在 names 中 → 回傳 fallback', () => {
     expect(getSectionName(2, { 1: 'My Tasks' }, 'Section 2')).toBe('Section 2');
+  });
+});
+
+/* ── isPluginEnabled / isEnabledInScope / getEnabledScopes — settingsEnabledScopes ── */
+
+function makeInstall(scope: PluginScope, enabled: boolean): InstalledPlugin {
+  return {
+    id: 'test@mp',
+    version: '1.0.0',
+    scope,
+    enabled,
+    installPath: '/path',
+    installedAt: '2026-01-01T00:00:00Z',
+    lastUpdated: '2026-01-01T00:00:00Z',
+  };
+}
+
+describe('isPluginEnabled — settingsEnabledScopes', () => {
+  it('無 install entries 但 settingsEnabledScopes 有值 → true', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: ['user'] };
+    expect(isPluginEnabled(p)).toBe(true);
+  });
+
+  it('install entry enabled:false 但 settingsEnabledScopes 有值 → true', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      userInstall: makeInstall('user', false),
+      settingsEnabledScopes: ['user'],
+    };
+    expect(isPluginEnabled(p)).toBe(true);
+  });
+
+  it('無 settingsEnabledScopes 且無 enabled installs → false', () => {
+    expect(isPluginEnabled(makeMerged())).toBe(false);
+  });
+
+  it('settingsEnabledScopes 為空陣列 → false', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: [] };
+    expect(isPluginEnabled(p)).toBe(false);
+  });
+});
+
+describe('isEnabledInScope — settingsEnabledScopes', () => {
+  it('user scope: userInstall=null, settingsEnabledScopes=[user] → true', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: ['user'] };
+    expect(isEnabledInScope(p, 'user')).toBe(true);
+  });
+
+  it('project scope: projectInstalls 空, settingsEnabledScopes=[project] → true', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: ['project'] };
+    expect(isEnabledInScope(p, 'project')).toBe(true);
+  });
+
+  it('local scope: settingsEnabledScopes=[local] → true', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: ['local'] };
+    expect(isEnabledInScope(p, 'local')).toBe(true);
+  });
+
+  it('user scope: settingsEnabledScopes=[project] → false（不同 scope）', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: ['project'] };
+    expect(isEnabledInScope(p, 'user')).toBe(false);
+  });
+
+  it('settingsEnabledScopes 未定義 → fallback install entry', () => {
+    const p: MergedPlugin = { ...makeMerged(), userInstall: makeInstall('user', true) };
+    expect(isEnabledInScope(p, 'user')).toBe(true);
+  });
+});
+
+describe('getEnabledScopes — settingsEnabledScopes', () => {
+  it('無 installs, settingsEnabledScopes=[user] → [user]', () => {
+    const p: MergedPlugin = { ...makeMerged(), settingsEnabledScopes: ['user'] };
+    expect(getEnabledScopes(p)).toEqual(['user']);
+  });
+
+  it('userInstall.enabled + settingsEnabledScopes=[user, project] → [user, project]', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      userInstall: makeInstall('user', true),
+      settingsEnabledScopes: ['user', 'project'],
+    };
+    expect(getEnabledScopes(p)).toEqual(['user', 'project']);
+  });
+
+  it('settingsEnabledScopes 三個 scope 全開 → [user, project, local]', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      settingsEnabledScopes: ['user', 'project', 'local'],
+    };
+    expect(getEnabledScopes(p)).toEqual(['user', 'project', 'local']);
+  });
+
+  it('settingsEnabledScopes 未定義 → 只看 install entries', () => {
+    const p: MergedPlugin = {
+      ...makeMerged(),
+      userInstall: makeInstall('user', true),
+    };
+    expect(getEnabledScopes(p)).toEqual(['user']);
   });
 });
 

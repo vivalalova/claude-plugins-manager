@@ -18,8 +18,10 @@ interface PluginCardProps {
   translations?: Record<string, string>;
   /** 翻譯狀態：translating = 進行中，queued = 排隊中 */
   translateStatus?: 'translating' | 'queued';
-  /** 正在安裝/停用中的 scope set */
+  /** 此 plugin 正在安裝/停用中的 scope set */
   loadingScopes?: ReadonlySet<PluginScope>;
+  /** 全域正在操作中的 scope set（跨 plugin，防 concurrent writes） */
+  globalLoadingScopes?: ReadonlySet<PluginScope>;
   /** 是否已隱藏 */
   hidden?: boolean;
   onToggle: (pluginId: string, scope: PluginScope, enable: boolean) => void;
@@ -52,6 +54,7 @@ export const PluginCard = React.memo(function PluginCard({
   onViewContent,
   onInstallOnly,
   installOnlyLoading,
+  globalLoadingScopes,
 }: PluginCardProps): React.ReactElement {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -62,7 +65,7 @@ export const PluginCard = React.memo(function PluginCard({
   const isExternal = !hasContents && !!plugin.sourceUrl;
   const canExpand = hasContents || isExternal;
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
-  const scopeControlsDisabled = !!loadingScopes?.size;
+  const scopeControlsDisabled = !!loadingScopes?.size || !!globalLoadingScopes?.size;
   const projectEnabled = plugin.projectInstalls.some((install) => install.enabled);
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -143,7 +146,7 @@ export const PluginCard = React.memo(function PluginCard({
         <ScopeToggle
           label={t('bulk.scopeUser')}
           scope="user"
-          enabled={plugin.userInstall?.enabled ?? false}
+          enabled={plugin.userInstall?.enabled ?? plugin.settingsEnabledScopes?.includes('user') ?? false}
           loading={loadingScopes?.has('user') ?? false}
           disabled={scopeControlsDisabled}
           onToggle={(on) => onToggle(plugin.id, 'user', on)}
@@ -151,7 +154,7 @@ export const PluginCard = React.memo(function PluginCard({
         <ScopeToggle
           label={t('bulk.scopeProject')}
           scope="project"
-          enabled={projectEnabled}
+          enabled={projectEnabled || !!plugin.settingsEnabledScopes?.includes('project')}
           loading={loadingScopes?.has('project') ?? false}
           disabled={scopeControlsDisabled || !hasWorkspace}
           onToggle={(on) => onToggle(plugin.id, 'project', on)}
@@ -159,7 +162,7 @@ export const PluginCard = React.memo(function PluginCard({
         <ScopeToggle
           label={t('bulk.scopeLocal')}
           scope="local"
-          enabled={plugin.localInstall?.enabled ?? false}
+          enabled={plugin.localInstall?.enabled ?? plugin.settingsEnabledScopes?.includes('local') ?? false}
           loading={loadingScopes?.has('local') ?? false}
           disabled={scopeControlsDisabled || !hasWorkspace}
           onToggle={(on) => onToggle(plugin.id, 'local', on)}

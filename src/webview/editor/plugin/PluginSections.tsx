@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { CardSection } from '../../components/CardSection';
 import { PluginCard } from './PluginCard';
@@ -80,6 +80,15 @@ export function PluginSections({
   renameSection,
 }: PluginSectionsProps): React.ReactElement {
   const { t } = useI18n();
+
+  // 全域正在操作的 scope set（跨 plugin，防 concurrent CLI writes）
+  const globalLoadingScopes = useMemo(() => {
+    const scopes = new Set<PluginScope>();
+    for (const scopeSet of loadingPlugins.values()) {
+      for (const s of scopeSet) scopes.add(s);
+    }
+    return scopes;
+  }, [loadingPlugins]);
 
   const [draggedMarketplace, setDraggedMarketplace] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<number | 'new' | null>(null);
@@ -166,6 +175,7 @@ export function PluginSections({
               translations={translations}
               translateStatus={translateStatusMap.get(plugin.id)}
               loadingScopes={loadingPlugins.get(plugin.id)}
+              globalLoadingScopes={globalLoadingScopes}
               hidden={hiddenPlugins.has(plugin.id)}
               onToggle={onToggle}
               onUpdate={onUpdate}

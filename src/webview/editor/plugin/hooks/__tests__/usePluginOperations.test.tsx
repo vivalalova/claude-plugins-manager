@@ -119,6 +119,44 @@ describe('usePluginOperations', () => {
     expect(fetchAll).not.toHaveBeenCalled();
   });
 
+  it('同 scope 下另一個 plugin 正在 toggle → 第二個被擋', async () => {
+    const fetchAll = vi.fn().mockResolvedValue(undefined);
+    const setError = vi.fn();
+    const plugins = [
+      makePlugin('alpha@mp', { userInstall: { ...makeInstall('user', false), id: 'alpha@mp' } }),
+      makePlugin('beta@mp', { userInstall: { ...makeInstall('user', false), id: 'beta@mp' } }),
+    ];
+
+    // alpha enable 卡住不 resolve
+    let resolveAlpha!: () => void;
+    mockSendRequest.mockImplementation(() => new Promise<void>((r) => { resolveAlpha = r; }));
+
+    const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
+
+    // 啟動 alpha enable（不 await，讓它 pending）
+    let alphaPromise: Promise<void>;
+    act(() => {
+      alphaPromise = result.current.handleToggle('alpha@mp', 'user', true);
+    });
+
+    // alpha 應該在 loading
+    expect(result.current.loadingPlugins.get('alpha@mp')?.has('user')).toBe(true);
+
+    // 嘗試同 scope 的 beta enable → 應被擋
+    await act(async () => {
+      await result.current.handleToggle('beta@mp', 'user', true);
+    });
+
+    // beta 沒有進入 loading（被 guard 擋掉）
+    expect(result.current.loadingPlugins.has('beta@mp')).toBe(false);
+    // sendRequest 只被 alpha 呼叫一次
+    expect(mockSendRequest).toHaveBeenCalledTimes(1);
+
+    // 完成 alpha
+    resolveAlpha();
+    await act(async () => { await alphaPromise!; });
+  });
+
   it('Update All 只更新 enabled 且有更新的 scope，錯誤會累積但不中斷', async () => {
     const fetchAll = vi.fn().mockResolvedValue(undefined);
     const setError = vi.fn();

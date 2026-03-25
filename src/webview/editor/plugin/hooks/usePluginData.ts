@@ -3,8 +3,10 @@ import { sendRequest } from '../../../vscode';
 import type {
   InstalledPlugin,
   AvailablePlugin,
+  EnabledPluginsMap,
   MergedPlugin,
   PluginListResponse,
+  PluginScope,
 } from '../../../../shared/types';
 import { usePushSyncedResource } from '../../../hooks/usePushSyncedResource';
 
@@ -36,10 +38,12 @@ export interface UsePluginDataReturn {
  * 合併 installed + available 為統一列表，按名稱字母排序。
  * @param installed - 已安裝的 plugin 清單（可能同 id 多 scope）
  * @param available - marketplace 上可用的 plugin 清單
+ * @param enabledByScope - 各 scope settings.json 的 enabledPlugins（source of truth）
  */
 export function mergePlugins(
   installed: InstalledPlugin[],
   available: AvailablePlugin[],
+  enabledByScope?: Record<PluginScope, EnabledPluginsMap>,
 ): MergedPlugin[] {
   const map = new Map<string, MergedPlugin>();
 
@@ -117,6 +121,18 @@ export function mergePlugins(
     }
   }
 
+  // 從 settings.json enabledPlugins 設定 settingsEnabledScopes（source of truth）
+  // 涵蓋 installed_plugins.json 缺少 entry 的情況（如外部 repo plugin 由 CLI 直接啟用）
+  if (enabledByScope) {
+    const scopes: PluginScope[] = ['user', 'project', 'local'];
+    for (const p of map.values()) {
+      const enabled = scopes.filter((s) => enabledByScope[s]?.[p.id] === true);
+      if (enabled.length > 0) {
+        p.settingsEnabledScopes = enabled;
+      }
+    }
+  }
+
   // 按名稱排序
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -139,7 +155,11 @@ export function usePluginData(): UsePluginDataReturn {
     }
 
     return {
-      plugins: mergePlugins(pluginResult.value.installed, pluginResult.value.available),
+      plugins: mergePlugins(
+        pluginResult.value.installed,
+        pluginResult.value.available,
+        pluginResult.value.enabledByScope,
+      ),
       workspaceFolders: workspaceResult.status === 'fulfilled' ? workspaceResult.value : [],
       marketplaceSources: pluginResult.value.marketplaceSources ?? {},
     };

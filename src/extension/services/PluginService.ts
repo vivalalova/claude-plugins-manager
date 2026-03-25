@@ -90,7 +90,7 @@ export class PluginService {
       this.settings.readMarketplaceSources(),
     ]);
     const installed = await this.buildInstalledList(data, enabledByScope, available);
-    return { installed, available, marketplaceSources };
+    return { installed, available, marketplaceSources, enabledByScope };
   }
 
   /** 從已取得的資料組裝 InstalledPlugin 列表（避免重複 IO） */

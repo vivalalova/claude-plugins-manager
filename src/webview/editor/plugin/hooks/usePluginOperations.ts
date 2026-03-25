@@ -131,7 +131,9 @@ export function usePluginOperations(
     scope: PluginScope,
     enable: boolean,
   ): Promise<void> => {
-    if (loadingPluginsRef.current.get(pluginId)?.has(scope)) return;
+    // 同 scope 下任何 plugin 正在操作 → 擋住（防 CLI concurrent writes 到同一個 settings.json）
+    const anyLoadingInScope = [...loadingPluginsRef.current.values()].some((s) => s.has(scope));
+    if (anyLoadingInScope) return;
     setInstallError(null);
     setPluginLoading(pluginId, scope, true);
     try {

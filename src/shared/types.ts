@@ -127,6 +127,8 @@ export interface PluginListResponse {
   available: AvailablePlugin[];
   /** marketplace name → source URL（repo/path） */
   marketplaceSources: Record<string, string>;
+  /** 各 scope 的 enabledPlugins（settings.json source of truth） */
+  enabledByScope?: Record<PluginScope, EnabledPluginsMap>;
 }
 
 /** MCP Server 連線狀態 */
@@ -337,6 +339,12 @@ export interface MergedPlugin {
   availableLastUpdated?: string;
   /** 所有已安裝 scope 中最新的 lastUpdated（mergePlugins 預計算，PluginCard 直接讀取） */
   lastUpdated?: string;
+  /**
+   * settings.json enabledPlugins 的 source of truth。
+   * 涵蓋 installed_plugins.json 不存在 entry 的情況（如外部 repo plugin 由 CLI 啟用）。
+   * undefined = enabledByScope 未提供（向後相容）。
+   */
+  settingsEnabledScopes?: PluginScope[];
   /** user scope 安裝（null = 未安裝） */
   userInstall: InstalledPlugin | null;
   /** project scope 安裝（可能多個 project） */

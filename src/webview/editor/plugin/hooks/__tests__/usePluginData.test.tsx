@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import type { AvailablePlugin, InstalledPlugin, PluginListResponse } from '../../../../../shared/types';
+import type { AvailablePlugin, EnabledPluginsMap, InstalledPlugin, PluginListResponse, PluginScope } from '../../../../../shared/types';
 
 const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('../../../../vscode', () => ({
   onPushMessage: mockOnPushMessage,
 }));
 
-import { usePluginData } from '../usePluginData';
+import { usePluginData, mergePlugins } from '../usePluginData';
 
 function makeInstalled(name: string, marketplaceName: string, scope: InstalledPlugin['scope']): InstalledPlugin {
   return {
@@ -232,5 +232,88 @@ describe('usePluginData', () => {
     await waitFor(() => {
       expect(result.current.workspaceFolders).toEqual([{ name: 'workspace-a', path: '/workspace/a' }]);
     });
+  });
+});
+
+/* ── mergePlugins with enabledByScope ── */
+
+function makeEnabledByScope(
+  overrides?: Partial<Record<PluginScope, EnabledPluginsMap>>,
+): Record<PluginScope, EnabledPluginsMap> {
+  return { user: {}, project: {}, local: {}, ...overrides };
+}
+
+describe('mergePlugins — enabledByScope', () => {
+  it('enabledPlugins 有 plugin 但 installed 沒有 → settingsEnabledScopes 包含該 scope', () => {
+    const result = mergePlugins(
+      [],
+      [makeAvailable('autofix-bot', 'mp', { sourceUrl: 'https://github.com/org/repo' })],
+      makeEnabledByScope({ user: { 'autofix-bot@mp': true } }),
+    );
+    const plugin = result.find((p) => p.id === 'autofix-bot@mp')!;
+    expect(plugin.settingsEnabledScopes).toContain('user');
+  });
+
+  it('多 scope 啟用 — installed 只有 user，project 靠 enabledByScope 補齊', () => {
+    const result = mergePlugins(
+      [makeInstalled('bot', 'mp', 'user')],
+      [makeAvailable('bot', 'mp')],
+      makeEnabledByScope({
+        user: { 'bot@mp': true },
+        project: { 'bot@mp': true },
+      }),
+    );
+    const plugin = result.find((p) => p.id === 'bot@mp')!;
+    expect(plugin.settingsEnabledScopes).toContain('user');
+    expect(plugin.settingsEnabledScopes).toContain('project');
+    expect(plugin.userInstall?.enabled).toBe(true);
+  });
+
+  it('enabledByScope 未提供 → settingsEnabledScopes 不存在（向後相容）', () => {
+    const result = mergePlugins([], [makeAvailable('alpha', 'mp')]);
+    expect(result[0].settingsEnabledScopes).toBeUndefined();
+  });
+
+  it('plugin 不在 enabledPlugins 中 → settingsEnabledScopes 不存在', () => {
+    const result = mergePlugins(
+      [],
+      [makeAvailable('alpha', 'mp')],
+      makeEnabledByScope(),
+    );
+    expect(result[0].settingsEnabledScopes).toBeUndefined();
+  });
+
+  it('enabledPlugins 有 plugin 但 available/installed 都沒有 → 忽略', () => {
+    const result = mergePlugins(
+      [],
+      [],
+      makeEnabledByScope({ user: { 'ghost@mp': true } }),
+    );
+    expect(result).toHaveLength(0);
+  });
+
+  it('三個 scope 同時啟用', () => {
+    const result = mergePlugins(
+      [],
+      [makeAvailable('triple', 'mp')],
+      makeEnabledByScope({
+        user: { 'triple@mp': true },
+        project: { 'triple@mp': true },
+        local: { 'triple@mp': true },
+      }),
+    );
+    const plugin = result.find((p) => p.id === 'triple@mp')!;
+    expect(plugin.settingsEnabledScopes).toEqual(
+      expect.arrayContaining(['user', 'project', 'local']),
+    );
+  });
+
+  it('enabledPlugins value 為 false → 不列入 settingsEnabledScopes', () => {
+    const result = mergePlugins(
+      [],
+      [makeAvailable('disabled', 'mp')],
+      makeEnabledByScope({ user: { 'disabled@mp': false } }),
+    );
+    expect(result[0].settingsEnabledScopes).toBeUndefined();
   });
 });
