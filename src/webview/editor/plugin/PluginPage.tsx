@@ -154,7 +154,7 @@ export function PluginPage(): React.ReactElement {
       await sendRequest({ type: 'plugin.install', plugin: pluginId, scope: 'user' });
       // install auto-enables → immediately disable（disable 失敗不阻斷，但仍 refresh）
       await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope: 'user' }).catch(() => { /* CLI enable/disable exit 1 on duplicate ops */ });
-      fetchAll();
+      await fetchAll(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
