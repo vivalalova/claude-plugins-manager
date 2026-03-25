@@ -43,7 +43,6 @@ vi.mock('../../marketplace/hooks/useMarketplaceActions', () => ({
     handleUpdate: vi.fn(),
     handleToggleAutoUpdate: vi.fn(),
     handleExport: vi.fn().mockResolvedValue(undefined),
-    handleImport: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 
@@ -919,7 +918,7 @@ describe('PluginPage — 核心流程', () => {
 
       // Update All → 失敗
       await act(async () => {
-        fireEvent.click(screen.getByText('Update All'));
+        fireEvent.click(screen.getByText('Update Plugins'));
       });
 
       await waitFor(() => {
@@ -994,7 +993,7 @@ describe('PluginPage — 核心流程', () => {
   });
 
   describe('Export / Import', () => {
-    it('Export 按鈕有安裝 plugin 時啟用，送出 plugin.export', async () => {
+    it('Export 按鈕有安裝 plugin 時啟用，送出 combined.export', async () => {
       const calls: { type: string }[] = [];
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         calls.push(req);
@@ -1020,7 +1019,7 @@ describe('PluginPage — 核心流程', () => {
         fireEvent.click(exportBtn);
       });
 
-      expect(calls.some((c) => c.type === 'plugin.export')).toBe(true);
+      expect(calls.some((c) => c.type === 'combined.export')).toBe(true);
     });
 
     it('Export 按鈕沒有安裝 plugin 時 disabled', async () => {
@@ -1041,69 +1040,6 @@ describe('PluginPage — 核心流程', () => {
       expect((exportBtn as HTMLButtonElement).disabled).toBe(true);
     });
 
-    it('Import 按鈕送出 plugin.import → 成功後顯示 toast', async () => {
-      const calls: { type: string }[] = [];
-      mockSendRequest.mockImplementation(async (req: { type: string }) => {
-        calls.push(req);
-        if (req.type === 'workspace.getFolders') return [];
-        if (req.type === 'plugin.listAvailable') {
-          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
-        }
-        if (req.type === 'plugin.import') {
-          return ['Installed: alpha@mp1 (user)'];
-        }
-        return undefined;
-      });
-
-      renderPage();
-      await waitFor(() => {
-        expect(screen.queryByText('Loading plugins...')).toBeNull();
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-      });
-
-      expect(calls.some((c) => c.type === 'plugin.import')).toBe(true);
-
-      // Toast 顯示
-      await waitFor(() => {
-        expect(screen.getByText(/Imported 1 plugin/)).toBeTruthy();
-      });
-    });
-
-    it('Import 部分失敗 → 成功 toast + 失敗 ErrorBanner', async () => {
-      mockSendRequest.mockImplementation(async (req: { type: string }) => {
-        if (req.type === 'workspace.getFolders') return [];
-        if (req.type === 'plugin.listAvailable') {
-          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
-        }
-        if (req.type === 'plugin.import') {
-          return [
-            'Installed: alpha@mp1 (user)',
-            'Failed: bad@mp1 (user) — plugin not found',
-          ];
-        }
-        return undefined;
-      });
-
-      renderPage();
-      await waitFor(() => {
-        expect(screen.queryByText('Loading plugins...')).toBeNull();
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/Imported 1 plugin/)).toBeTruthy();
-      });
-      await waitFor(() => {
-        expect(screen.getByText(/Import: 1 failed/)).toBeTruthy();
-      });
-    });
-
     it('Export 失敗 → ErrorBanner 顯示', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
@@ -1113,7 +1049,7 @@ describe('PluginPage — 核心流程', () => {
             [makeAvailable('alpha', 'mp1')],
           );
         }
-        if (req.type === 'plugin.export') throw new Error('No enabled plugins to export.');
+        if (req.type === 'combined.export') throw new Error('No enabled plugins to export.');
         return undefined;
       });
 

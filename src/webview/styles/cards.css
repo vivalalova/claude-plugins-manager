@@ -175,8 +175,9 @@
 .section-header > .section-toggle {
   flex: 1;
   min-width: 0;
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+}
+
+.section-header:has(.section-marketplace-actions) > .section-toggle {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-right: none;
@@ -309,7 +310,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 8px;
+  padding: 0 10px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: var(--vscode-sideBarSectionHeader-background, rgba(128, 128, 128, 0.06));
   white-space: nowrap;
 }
 

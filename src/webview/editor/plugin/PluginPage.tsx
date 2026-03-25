@@ -4,6 +4,7 @@ import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { DialogOverlay } from '../../components/DialogOverlay';
 import { PluginDialogs } from './PluginDialogs';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginSections } from './PluginSections';
@@ -29,7 +30,6 @@ import type { ContentDetail } from '../../components/ContentDetailPanel';
  */
 export function PluginPage(): React.ReactElement {
   const { t } = useI18n();
-
   const {
     plugins,
     loading,
@@ -77,8 +77,6 @@ export function PluginPage(): React.ReactElement {
     handleToggle,
     handleUpdate,
     handleUpdateAll,
-    handleExport,
-    handleImport,
     isUpdatingAll,
     hasInstalledPlugins,
   } = usePluginOperations(plugins, fetchAll, setError);
@@ -137,11 +135,9 @@ export function PluginPage(): React.ReactElement {
     handleRemove,
     handleUpdate: handleMarketplaceUpdate,
     handleToggleAutoUpdate,
-    handleExport: handleMarketplaceExport,
-    handleImport: handleMarketplaceImport,
   } = useMarketplaceActions({ fetchList: fetchAll, setError });
 
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const [contentDetailItem, setContentDetailItem] = useState<PluginContentItem | null>(null);
   const [contentDetail, setContentDetail] = useState<ContentDetail | null>(null);
@@ -199,10 +195,19 @@ export function PluginPage(): React.ReactElement {
         actions={<>
           <button
             className="btn btn-secondary"
-            onClick={() => setShowAddForm((v) => !v)}
+            onClick={() => setShowAddDialog(true)}
           >
             {t('plugin.page.addMarketplace')}
           </button>
+          {marketplaces.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => handleMarketplaceUpdate()}
+              disabled={marketplaceUpdating !== null}
+            >
+              {marketplaceUpdating === '__all__' ? t('marketplace.card.updating') : t('plugin.page.updateAllMarketplaces')}
+            </button>
+          )}
           {hasInstalledPlugins && (
             <button
               className="btn btn-secondary"
@@ -214,15 +219,6 @@ export function PluginPage(): React.ReactElement {
                 : t('plugin.page.updateAll')}
             </button>
           )}
-          {marketplaces.length > 0 && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => handleMarketplaceUpdate()}
-              disabled={marketplaceUpdating !== null}
-            >
-              {marketplaceUpdating === '__all__' ? t('marketplace.card.updating') : t('plugin.page.updateAllMarketplaces')}
-            </button>
-          )}
           <button
             className="btn btn-secondary"
             onClick={() => fetchAll()}
@@ -232,48 +228,13 @@ export function PluginPage(): React.ReactElement {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={async () => { await handleExport(); await handleMarketplaceExport(); }}
+            onClick={() => sendRequest({ type: 'combined.export' }).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))}
             disabled={loading || (!hasInstalledPlugins && marketplaces.length === 0)}
           >
             {t('plugin.page.export')}
           </button>
-          <button
-            className="btn btn-secondary"
-            onClick={async () => { await handleImport(); await handleMarketplaceImport(); }}
-          >
-            {t('plugin.page.import')}
-          </button>
         </>}
       />
-
-      {showAddForm && (
-        <div className="form-inline">
-          <input
-            ref={addInputRef}
-            className="input"
-            placeholder="Git URL, GitHub owner/repo, or local path"
-            value={addSource}
-            onChange={(e) => setAddSource(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !previewing && handleAdd()}
-            disabled={adding || previewing}
-            autoFocus
-          />
-          <button
-            className="btn btn-secondary"
-            onClick={handlePreview}
-            disabled={previewing || adding || !addSource.trim()}
-          >
-            {previewing ? 'Loading...' : 'Preview'}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => handleAdd()}
-            disabled={adding || !addSource.trim()}
-          >
-            {adding ? 'Adding...' : 'Add'}
-          </button>
-        </div>
-      )}
 
       <PluginToolbar
         searchInputRef={searchInputRef}
@@ -378,7 +339,7 @@ export function PluginPage(): React.ReactElement {
             description={t('plugin.page.noPluginsDesc')}
             action={{
               label: t('plugin.page.addMarketplace'),
-              onClick: () => setShowAddForm(true),
+              onClick: () => setShowAddDialog(true),
             }}
           />
         )
@@ -426,6 +387,45 @@ export function PluginPage(): React.ReactElement {
           onClose={() => setContentDetailItem(null)}
           onOpenInEditor={handleOpenContentInEditor}
         />
+      )}
+
+      {showAddDialog && (
+        <DialogOverlay
+          titleId="add-marketplace-title"
+          onClose={() => { setShowAddDialog(false); setAddSource(''); }}
+        >
+          <div className="confirm-dialog-title" id="add-marketplace-title">
+            {t('plugin.page.addMarketplace')}
+          </div>
+          <div className="form-inline" style={{ margin: '12px 0' }}>
+            <input
+              ref={addInputRef}
+              className="input"
+              placeholder="Git URL, GitHub owner/repo, or local path"
+              value={addSource}
+              onChange={(e) => setAddSource(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !previewing && handleAdd()}
+              disabled={adding || previewing}
+              autoFocus
+            />
+          </div>
+          <div className="confirm-dialog-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={handlePreview}
+              disabled={previewing || adding || !addSource.trim()}
+            >
+              {previewing ? 'Loading...' : 'Preview'}
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => handleAdd()}
+              disabled={adding || !addSource.trim()}
+            >
+              {adding ? 'Adding...' : 'Add'}
+            </button>
+          </div>
+        </DialogOverlay>
       )}
 
       {confirmRemove && (
