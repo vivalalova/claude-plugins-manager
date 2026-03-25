@@ -95,6 +95,10 @@ https://code.claude.com/docs/en/settings
 4. **custom 欄位**：`controlType: Object` → Section 內 `renderCustom` switch case 手動渲染；建獨立 sub-editor
 5. **驗證**：`npm run verify`（含 lint + check:schema i18n 驗證 + duplicate key 檢查）
 
+## 修改紀律
+
+- 多步修改被中途糾正 → 先**還原已改錯的部分**，再繼續正確方向；禁帶著錯誤狀態往前推
+
 ## 已知陷阱
 
 - `claude plugin install` 會**自動 enable**，後續再呼叫 `enable` 會 exit 1
