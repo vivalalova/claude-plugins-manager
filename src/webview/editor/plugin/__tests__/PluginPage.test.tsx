@@ -21,6 +21,31 @@ vi.mock('../../../vscode', () => ({
   initGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
+/* ── Mock useMarketplaceActions to prevent it interfering with plugin operations ── */
+vi.mock('../../marketplace/hooks/useMarketplaceActions', () => ({
+  useMarketplaceActions: () => ({
+    addSource: '',
+    setAddSource: vi.fn(),
+    adding: false,
+    updating: null,
+    confirmRemove: null,
+    setConfirmRemove: vi.fn(),
+    retryAction: null,
+    setRetryAction: vi.fn(),
+    previewing: false,
+    previewPlugins: null,
+    handlePreview: vi.fn(),
+    handleClosePreview: vi.fn(),
+    handlePreviewOverlayDismiss: vi.fn(),
+    handleConfirmAdd: vi.fn(),
+    handleAdd: vi.fn(),
+    handleRemove: vi.fn(),
+    handleUpdate: vi.fn(),
+    handleToggleAutoUpdate: vi.fn(),
+    handleExport: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import { PluginPage } from '../PluginPage';
 import { ToastProvider } from '../../../components/Toast';
 import type {
@@ -165,12 +190,13 @@ describe('PluginPage — 核心流程', () => {
       });
     });
 
-    it('空 plugin 列表顯示 EmptyState + "Go to Marketplace" 按鈕觸發導航', async () => {
+    it('空 plugin 列表顯示 EmptyState + "Add Marketplace" 按鈕展開新增表單', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
         if (req.type === 'plugin.listAvailable') {
           return makeResponse([], []);
         }
+        if (req.type === 'marketplace.list') return [];
         return undefined;
       });
 
@@ -182,14 +208,13 @@ describe('PluginPage — 核心流程', () => {
 
       expect(screen.getByText('Add a marketplace first to discover and install plugins.')).toBeTruthy();
 
-      // 監聽 window.postMessage
-      const postMessageSpy = vi.spyOn(window, 'postMessage');
-      fireEvent.click(screen.getByRole('button', { name: 'Go to Marketplace' }));
-      expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'navigate', category: 'marketplace' },
-        '*',
-      );
-      postMessageSpy.mockRestore();
+      // 點擊 EmptyState 中的 "Add Marketplace" 按鈕 → 展開新增表單（input 出現）
+      const addButtons = screen.getAllByRole('button', { name: 'Add Marketplace' });
+      fireEvent.click(addButtons[addButtons.length - 1]);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path')).toBeTruthy();
+      });
     });
 
     it('filter 無符合 → EmptyState + "Clear filters" 重置所有過濾', async () => {
@@ -893,7 +918,7 @@ describe('PluginPage — 核心流程', () => {
 
       // Update All → 失敗
       await act(async () => {
-        fireEvent.click(screen.getByText('Update All'));
+        fireEvent.click(screen.getByText('Update Plugins'));
       });
 
       await waitFor(() => {
@@ -968,7 +993,7 @@ describe('PluginPage — 核心流程', () => {
   });
 
   describe('Export / Import', () => {
-    it('Export 按鈕有安裝 plugin 時啟用，送出 plugin.export', async () => {
+    it('Export 按鈕有安裝 plugin 時啟用，送出 combined.export', async () => {
       const calls: { type: string }[] = [];
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         calls.push(req);
@@ -994,7 +1019,7 @@ describe('PluginPage — 核心流程', () => {
         fireEvent.click(exportBtn);
       });
 
-      expect(calls.some((c) => c.type === 'plugin.export')).toBe(true);
+      expect(calls.some((c) => c.type === 'combined.export')).toBe(true);
     });
 
     it('Export 按鈕沒有安裝 plugin 時 disabled', async () => {
@@ -1015,69 +1040,6 @@ describe('PluginPage — 核心流程', () => {
       expect((exportBtn as HTMLButtonElement).disabled).toBe(true);
     });
 
-    it('Import 按鈕送出 plugin.import → 成功後顯示 toast', async () => {
-      const calls: { type: string }[] = [];
-      mockSendRequest.mockImplementation(async (req: { type: string }) => {
-        calls.push(req);
-        if (req.type === 'workspace.getFolders') return [];
-        if (req.type === 'plugin.listAvailable') {
-          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
-        }
-        if (req.type === 'plugin.import') {
-          return ['Installed: alpha@mp1 (user)'];
-        }
-        return undefined;
-      });
-
-      renderPage();
-      await waitFor(() => {
-        expect(screen.queryByText('Loading plugins...')).toBeNull();
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-      });
-
-      expect(calls.some((c) => c.type === 'plugin.import')).toBe(true);
-
-      // Toast 顯示
-      await waitFor(() => {
-        expect(screen.getByText(/Imported 1 plugin/)).toBeTruthy();
-      });
-    });
-
-    it('Import 部分失敗 → 成功 toast + 失敗 ErrorBanner', async () => {
-      mockSendRequest.mockImplementation(async (req: { type: string }) => {
-        if (req.type === 'workspace.getFolders') return [];
-        if (req.type === 'plugin.listAvailable') {
-          return makeResponse([], [makeAvailable('alpha', 'mp1')]);
-        }
-        if (req.type === 'plugin.import') {
-          return [
-            'Installed: alpha@mp1 (user)',
-            'Failed: bad@mp1 (user) — plugin not found',
-          ];
-        }
-        return undefined;
-      });
-
-      renderPage();
-      await waitFor(() => {
-        expect(screen.queryByText('Loading plugins...')).toBeNull();
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/Imported 1 plugin/)).toBeTruthy();
-      });
-      await waitFor(() => {
-        expect(screen.getByText(/Import: 1 failed/)).toBeTruthy();
-      });
-    });
-
     it('Export 失敗 → ErrorBanner 顯示', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
@@ -1087,7 +1049,7 @@ describe('PluginPage — 核心流程', () => {
             [makeAvailable('alpha', 'mp1')],
           );
         }
-        if (req.type === 'plugin.export') throw new Error('No enabled plugins to export.');
+        if (req.type === 'combined.export') throw new Error('No enabled plugins to export.');
         return undefined;
       });
 

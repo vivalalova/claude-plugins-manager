@@ -39,7 +39,7 @@ export class EditorPanelManager {
         }
       }),
       this.fileWatcherService.onMarketplaceFilesChanged(() => {
-        if (this.panel?.visible && this.currentCategory === 'marketplace') {
+        if (this.panel?.visible && (this.currentCategory === 'marketplace' || this.currentCategory === 'plugin')) {
           this.panel.webview.postMessage({ type: 'marketplace.refresh' });
         }
       }),

@@ -96,7 +96,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     vscode.commands.registerCommand(
       COMMANDS.openMarketplace,
-      () => editorManager.openPanel('marketplace'),
+      () => editorManager.openPanel('plugin'),
     ),
     vscode.commands.registerCommand(
       COMMANDS.openPlugin,

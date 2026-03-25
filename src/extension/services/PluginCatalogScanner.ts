@@ -3,6 +3,7 @@ import { join, resolve } from 'path';
 import type {
   AvailablePlugin,
   MarketplaceManifest,
+  MarketplacePluginEntry,
   PluginContentItem,
   PluginContents,
 } from '../../shared/types';
@@ -41,6 +42,7 @@ export class PluginCatalogScanner {
           return Promise.all(
             (manifest.plugins ?? []).map(async (plugin) => {
               const localSource = typeof plugin.source === 'string' ? plugin.source : null;
+              const declaredSkillPaths = readDeclaredSkillPaths(plugin);
               const sourceUrl = typeof plugin.source === 'object' && plugin.source !== null
                 ? extractSourceUrl(plugin.source as Record<string, unknown>)
                 : undefined;
@@ -60,13 +62,17 @@ export class PluginCatalogScanner {
                 }
               }
               if (pluginDir && dirExists) {
-                [contents, pluginMeta] = await Promise.all([
+                const [scannedContents, scannedMeta] = await Promise.all([
                   this.scanPluginContents(pluginDir),
                   readJsonFile<{ description?: string; version?: string }>(
                     join(pluginDir, '.claude-plugin', 'plugin.json'),
                     {},
                   ).catch(() => ({} as { description?: string; version?: string })),
                 ]);
+                contents = declaredSkillPaths.length > 0
+                  ? { ...scannedContents, skills: await this.scanDeclaredSkills(pluginDir, declaredSkillPaths) }
+                  : scannedContents;
+                pluginMeta = scannedMeta;
                 lastUpdated = await this.readLastUpdated(pluginDir);
               }
 
@@ -238,6 +244,23 @@ export class PluginCatalogScanner {
     return results.filter((result): result is PluginContentItem => result !== null);
   }
 
+  private async scanDeclaredSkills(
+    pluginDir: string,
+    declaredSkillPaths: string[],
+  ): Promise<PluginContentItem[]> {
+    const dedupedPaths = [...new Set(declaredSkillPaths.map(normalizeRelativePath))];
+    const nestedResults = await Promise.all(
+      dedupedPaths.map((skillPath) => this.scanSkillsDir(resolve(pluginDir, skillPath))),
+    );
+    const byPath = new Map<string, PluginContentItem>();
+    for (const items of nestedResults) {
+      for (const item of items) {
+        byPath.set(item.path, item);
+      }
+    }
+    return [...byPath.values()];
+  }
+
   private async parseFrontmatter(
     filePath: string,
   ): Promise<{ name?: string; description?: string }> {
@@ -276,25 +299,64 @@ function unwrapMcpServers(mcp: Record<string, unknown>): Record<string, unknown>
 }
 
 function extractSourceUrl(src: Record<string, unknown>): string | undefined {
-  const rawUrl = typeof src.url === 'string' ? src.url : undefined;
-  if (!rawUrl) {
+  const baseUrl = extractSourceBaseUrl(src);
+  if (!baseUrl) {
     return undefined;
   }
 
-  let baseUrl: string;
-  if (rawUrl.startsWith('https://')) {
-    baseUrl = rawUrl.replace(/\.git$/, '');
-  } else if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
-    baseUrl = `https://github.com/${rawUrl}`;
-  } else {
-    return undefined;
-  }
-
-  const subPath = typeof src.path === 'string' ? src.path : undefined;
+  const subPath = joinSourcePath(
+    typeof src.path === 'string' ? src.path : undefined,
+    undefined,
+  );
   if (subPath) {
     const ref = typeof src.ref === 'string' ? src.ref : 'main';
     return `${baseUrl}/tree/${ref}/${subPath}`;
   }
 
   return baseUrl;
+}
+
+function extractSourceBaseUrl(src: Record<string, unknown>): string | undefined {
+  const rawUrl = typeof src.url === 'string'
+    ? src.url
+    : typeof src.repo === 'string'
+      ? src.repo
+      : undefined;
+  if (!rawUrl) {
+    return undefined;
+  }
+
+  if (rawUrl.startsWith('https://')) {
+    return rawUrl.replace(/\.git$/, '');
+  }
+  if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
+    return `https://github.com/${rawUrl}`;
+  }
+  return undefined;
+}
+
+function readDeclaredSkillPaths(plugin: MarketplacePluginEntry): string[] {
+  const skills = (plugin as { skills?: unknown }).skills;
+  if (!Array.isArray(skills)) {
+    return [];
+  }
+  return skills.filter((path): path is string => typeof path === 'string');
+}
+
+function joinSourcePath(basePath: string | undefined, subPath: string | undefined): string | undefined {
+  if (!basePath) {
+    return subPath;
+  }
+  if (!subPath) {
+    return normalizeRelativePath(basePath);
+  }
+  return normalizeRelativePath(join(normalizeRelativePath(basePath), subPath));
+}
+
+function normalizeRelativePath(relativePath: string): string {
+  const normalized = relativePath
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/+$/, '');
+  return normalized === '' ? '.' : normalized;
 }

@@ -211,66 +211,6 @@ describe('usePluginOperations', () => {
       expect(addToastMock).toHaveBeenCalledWith('Enabled beta@mp');
     });
 
-    it('handleBulkDisable — settings-only plugin 與已安裝 plugin 皆被 disable', async () => {
-      const fetchAll = vi.fn().mockResolvedValue(undefined);
-      const setError = vi.fn();
-      const plugins = [
-        // 已安裝且 enabled 的 plugin
-        makePlugin('alpha@mp', { userInstall: { ...makeInstall('user', true), id: 'alpha@mp' } }),
-        // 僅有 settingsEnabledScopes，無 install entry
-        makePlugin('beta@mp', { settingsEnabledScopes: ['user'] }),
-      ];
-      mockSendRequest.mockResolvedValue(undefined);
-
-      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
-
-      await act(async () => {
-        await result.current.handleBulkDisable('mp', plugins);
-      });
-
-      const disableCalls = mockSendRequest.mock.calls
-        .map(([req]) => req as { type: string; plugin: string; scope: string })
-        .filter((req) => req.type === 'plugin.disable');
-
-      expect(disableCalls).toEqual(
-        expect.arrayContaining([
-          { type: 'plugin.disable', plugin: 'alpha@mp', scope: 'user' },
-          { type: 'plugin.disable', plugin: 'beta@mp', scope: 'user' },
-        ]),
-      );
-      expect(disableCalls).toHaveLength(2);
-      expect(fetchAll).toHaveBeenCalledWith(false);
-    });
-
-    it('handleBulkEnable — settings-only plugin enabled in different scope 仍被納入 bulk', async () => {
-      const fetchAll = vi.fn().mockResolvedValue(undefined);
-      const setError = vi.fn();
-      // gamma 在 user scope 有 settingsEnabledScopes，但 project scope 未啟用
-      const gamma = makePlugin('gamma@mp', {
-        settingsEnabledScopes: ['user'],
-        userInstall: null,
-      });
-      mockSendRequest.mockResolvedValue(undefined);
-
-      const { result } = renderHook(() => usePluginOperations([gamma], fetchAll, setError));
-
-      await act(async () => {
-        await result.current.handleBulkEnable('mp', [gamma], 'project');
-      });
-
-      // isEnabledInScope(gamma, 'project') = false → gamma 應被納入 bulk
-      // isInstalledInScope(gamma, 'project') = false → 送出 plugin.install
-      expect(mockSendRequest).toHaveBeenCalledWith(
-        { type: 'plugin.install', plugin: 'gamma@mp', scope: 'project' },
-        120_000,
-      );
-      expect(mockSendRequest).not.toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'plugin.enable' }),
-        expect.anything(),
-      );
-      expect(fetchAll).toHaveBeenCalledWith(false);
-    });
-
     it('handleUpdateAll — settings-only plugin 無安裝日期，hasPluginUpdate 回傳 false，不進入更新', async () => {
       const fetchAll = vi.fn().mockResolvedValue(undefined);
       const setError = vi.fn();

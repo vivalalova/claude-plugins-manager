@@ -161,6 +161,9 @@ describe('usePluginData', () => {
       if (request.type === 'workspace.getFolders') {
         return Promise.resolve([]);
       }
+      if (request.type === 'marketplace.list') {
+        return Promise.resolve([]);
+      }
       throw new Error(`unexpected request: ${request.type}`);
     });
 

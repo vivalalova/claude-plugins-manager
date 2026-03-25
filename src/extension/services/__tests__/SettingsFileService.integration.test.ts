@@ -495,6 +495,218 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.sourceUrl).toBe('https://github.com/awslabs/agent-plugins/tree/main/plugins/aws-serverless');
     });
 
+    it('source 為 object（git-subdir type, 無 ref）→ sourceUrl 預設使用 main', async () => {
+      const mpName = `scan-mp-git-subdir-default-ref-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'semgrep',
+            description: 'git subdir without ref',
+            source: {
+              source: 'git-subdir',
+              url: 'https://github.com/semgrep/mcp-marketplace.git',
+              path: 'plugin',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `semgrep@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/semgrep/mcp-marketplace/tree/main/plugin');
+    });
+
+    it('source 為 object（git-subdir type）且只宣告單一 skill 時，sourceUrl 仍維持 external plugin root', async () => {
+      const mpName = `scan-mp-git-subdir-single-skill-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'stripe',
+            description: 'git-subdir with single skill',
+            source: {
+              source: 'git-subdir',
+              url: 'stripe/ai',
+              path: 'providers/claude/plugin',
+              ref: 'main',
+            },
+            skills: ['./skills/api'],
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `stripe@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/stripe/ai/tree/main/providers/claude/plugin');
+    });
+
+    it('source 為 object（url type + path）→ sourceUrl 含 path 且預設使用 main', async () => {
+      const mpName = `scan-mp-url-with-path-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'atomic-agents',
+            description: 'url source with path',
+            source: {
+              source: 'url',
+              url: 'https://github.com/BrainBlend-AI/atomic-agents.git',
+              path: 'claude-plugin/atomic-agents',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `atomic-agents@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/BrainBlend-AI/atomic-agents/tree/main/claude-plugin/atomic-agents');
+    });
+
+    it('source 為 object（url type + path）且只宣告單一 skill 時，sourceUrl 仍維持 external plugin root', async () => {
+      const mpName = `scan-mp-url-with-path-single-skill-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'atomic-agents',
+            description: 'url source with path and single skill',
+            source: {
+              source: 'url',
+              url: 'https://github.com/BrainBlend-AI/atomic-agents.git',
+              path: 'claude-plugin/atomic-agents',
+            },
+            skills: ['./skills/architecture-review'],
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `atomic-agents@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/BrainBlend-AI/atomic-agents/tree/main/claude-plugin/atomic-agents');
+    });
+
+    it('source 為 object（github type）→ sourceUrl 為 GitHub repo root', async () => {
+      const mpName = `scan-mp-github-source-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'stagehand',
+            description: 'github shorthand source',
+            source: {
+              source: 'github',
+              repo: 'browserbase/agent-browse',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `stagehand@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/browserbase/agent-browse');
+    });
+
+    it('source 為 object（github type）且只宣告單一 skill 時，sourceUrl 仍維持 plugin root', async () => {
+      const mpName = `scan-mp-github-source-single-skill-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'stagehand',
+            description: 'github shorthand source with single skill',
+            source: {
+              source: 'github',
+              repo: 'browserbase/agent-browse',
+            },
+            skills: ['./.claude/skills/browser-automation'],
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `stagehand@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://github.com/browserbase/agent-browse');
+    });
+
     it('source 為 string（本地路徑）→ sourceUrl undefined', async () => {
       const mpName = `scan-mp-local-src-${testIdx}`;
       const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
@@ -526,6 +738,160 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin).toBeDefined();
       expect(plugin!.sourceUrl).toBeUndefined();
       expect(plugin!.sourceDir).toBe('./plugins/local-plugin');
+    });
+
+    it('source 為 repo root 且 manifest 只宣告單一 skill 時，contents 只列出該 skill，但 sourceDir 保留 plugin root', async () => {
+      const mpName = `scan-mp-single-declared-skill-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const selectedSkillDir = join(mpDir, 'skills', 'claude-api');
+      const otherSkillDir = join(mpDir, 'skills', 'theme-factory');
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(selectedSkillDir, { recursive: true });
+      mkdirSync(otherSkillDir, { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'claude-api',
+            description: 'single declared skill from repo root',
+            source: './',
+            skills: ['./skills/claude-api'],
+          }],
+        }),
+      );
+
+      await writeFile(
+        join(selectedSkillDir, 'SKILL.md'),
+        [
+          '---',
+          'name: claude-api',
+          'description: Claude API docs',
+          '---',
+          '',
+          '# Claude API',
+        ].join('\n'),
+      );
+      await writeFile(
+        join(otherSkillDir, 'SKILL.md'),
+        [
+          '---',
+          'name: theme-factory',
+          'description: Should stay hidden',
+          '---',
+          '',
+          '# Theme Factory',
+        ].join('\n'),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `claude-api@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceDir).toBe('./');
+      expect(plugin!.contents?.skills).toEqual([
+        expect.objectContaining({
+          name: 'claude-api',
+          description: 'Claude API docs',
+          path: expect.stringContaining('/skills/claude-api/SKILL.md'),
+        }),
+      ]);
+    });
+
+    it('source 為 repo root 且 manifest 宣告多個 skills 時，sourceDir 保留 repo root 且 contents 只列出宣告項目', async () => {
+      const mpName = `scan-mp-multi-declared-skills-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(mpDir, 'skills', 'alpha'), { recursive: true });
+      mkdirSync(join(mpDir, 'skills', 'beta'), { recursive: true });
+      mkdirSync(join(mpDir, 'skills', 'gamma'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'bundle',
+            description: 'multiple declared skills',
+            source: './',
+            skills: ['./skills/alpha', './skills/beta'],
+          }],
+        }),
+      );
+
+      for (const [name, description] of [['alpha', 'Alpha'], ['beta', 'Beta'], ['gamma', 'Gamma']] as const) {
+        await writeFile(
+          join(mpDir, 'skills', name, 'SKILL.md'),
+          ['---', `name: ${name}`, `description: ${description}`, '---', '', `# ${name}`].join('\n'),
+        );
+      }
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `bundle@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceDir).toBe('./');
+      expect(plugin!.contents?.skills.map((item) => item.name)).toEqual(['alpha', 'beta']);
+    });
+
+    it('source 為 local plugin dir 且 skills 宣告 "./" 時，sourceDir 保持 plugin dir 且列出 root skill', async () => {
+      const mpName = `scan-mp-local-root-skill-declared-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+      const pluginDir = join(mpDir, 'plugins', 'skills', 'mongo-ts');
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(pluginDir, { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'mongo-ts',
+            description: 'root level skill in plugin dir',
+            source: './plugins/skills/mongo-ts',
+            skills: ['./'],
+          }],
+        }),
+      );
+      await writeFile(
+        join(pluginDir, 'SKILL.md'),
+        ['---', 'name: mongo-ts', 'description: Mongo root skill', '---', '', '# mongo-ts'].join('\n'),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `mongo-ts@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceDir).toBe('./plugins/skills/mongo-ts');
+      expect(plugin!.contents?.skills).toEqual([
+        expect.objectContaining({
+          name: 'mongo-ts',
+          description: 'Mongo root skill',
+          path: expect.stringContaining('/plugins/skills/mongo-ts/SKILL.md'),
+        }),
+      ]);
     });
 
     it('source 為 string 但目錄不存在 → sourceDir undefined、contents undefined', async () => {

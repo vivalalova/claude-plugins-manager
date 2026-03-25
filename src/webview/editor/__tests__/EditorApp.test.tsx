@@ -51,7 +51,7 @@ describe('EditorApp', () => {
 
   it('收到 navigate message 後切換到指定頁面', () => {
     render(<EditorApp mode="marketplace" />);
-    expect(screen.getByText('marketplace-page')).toBeTruthy();
+    expect(screen.getByText('plugin-page')).toBeTruthy();
 
     act(() => {
       window.dispatchEvent(new MessageEvent('message', {

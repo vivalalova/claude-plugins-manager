@@ -1,19 +1,8 @@
 import React from 'react';
 import { KeyboardHelpOverlay } from '../../components/KeyboardHelpOverlay';
-import { BulkEnableScopeDialog } from './BulkEnableScopeDialog';
 import { TranslateDialog } from './TranslateDialog';
-import type { MergedPlugin, PluginScope } from '../../../shared/types';
-import type { WorkspaceFolder } from './hooks/usePluginData';
 
 export interface PluginDialogsProps {
-  // BulkEnableScopeDialog
-  pendingBulkEnable: { marketplace: string; items: MergedPlugin[] } | null;
-  bulkDialogScope: PluginScope;
-  workspaceFolders: WorkspaceFolder[];
-  onBulkDialogScopeChange: (scope: PluginScope) => void;
-  onBulkDialogCancel: () => void;
-  onBulkDialogConfirm: () => void;
-
   // KeyboardHelpOverlay
   showHelp: boolean;
   onHelpClose: () => void;
@@ -31,12 +20,6 @@ export interface PluginDialogsProps {
 }
 
 export function PluginDialogs({
-  pendingBulkEnable,
-  bulkDialogScope,
-  workspaceFolders,
-  onBulkDialogScopeChange,
-  onBulkDialogCancel,
-  onBulkDialogConfirm,
   showHelp,
   onHelpClose,
   dialogOpen,
@@ -51,18 +34,6 @@ export function PluginDialogs({
 }: PluginDialogsProps): React.ReactElement {
   return (
     <>
-      {pendingBulkEnable && (
-        <BulkEnableScopeDialog
-          marketplace={pendingBulkEnable.marketplace}
-          itemCount={pendingBulkEnable.items.length}
-          scope={bulkDialogScope}
-          workspaceFolders={workspaceFolders}
-          onScopeChange={onBulkDialogScopeChange}
-          onCancel={onBulkDialogCancel}
-          onConfirm={onBulkDialogConfirm}
-        />
-      )}
-
       {showHelp && <KeyboardHelpOverlay onClose={onHelpClose} />}
 
       {dialogOpen && (

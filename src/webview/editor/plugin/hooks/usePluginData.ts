@@ -4,6 +4,7 @@ import type {
   InstalledPlugin,
   AvailablePlugin,
   EnabledPluginsMap,
+  Marketplace,
   MergedPlugin,
   PluginListResponse,
   PluginScope,
@@ -30,6 +31,8 @@ export interface UsePluginDataReturn {
   workspaceFolders: WorkspaceFolder[];
   /** marketplace name → source URL 對照表 */
   marketplaceSources: Record<string, string>;
+  /** 完整 marketplace 列表（含 autoUpdate、lastUpdated 等） */
+  marketplaces: Marketplace[];
   /** 重新拉取完整列表。showSpinner=false 靜默刷新 */
   fetchAll: (showSpinner?: boolean) => Promise<void>;
 }
@@ -143,11 +146,12 @@ export function mergePlugins(
  */
 export function usePluginData(): UsePluginDataReturn {
   const loadPluginData = useCallback(async () => {
-    const [pluginResult, workspaceResult] = await Promise.allSettled([
+    const [pluginResult, workspaceResult, marketplaceResult] = await Promise.allSettled([
       sendRequest<PluginListResponse>(
         { type: 'plugin.listAvailable' },
       ),
       sendRequest<WorkspaceFolder[]>({ type: 'workspace.getFolders' }),
+      sendRequest<Marketplace[]>({ type: 'marketplace.list' }),
     ]);
 
     if (pluginResult.status !== 'fulfilled') {
@@ -162,6 +166,7 @@ export function usePluginData(): UsePluginDataReturn {
       ),
       workspaceFolders: workspaceResult.status === 'fulfilled' ? workspaceResult.value : [],
       marketplaceSources: pluginResult.value.marketplaceSources ?? {},
+      marketplaces: marketplaceResult.status === 'fulfilled' ? (marketplaceResult.value ?? []) : [],
     };
   }, []);
   const shouldRefreshPluginData = useCallback(
@@ -179,11 +184,13 @@ export function usePluginData(): UsePluginDataReturn {
     plugins: MergedPlugin[];
     workspaceFolders: WorkspaceFolder[];
     marketplaceSources: Record<string, string>;
+    marketplaces: Marketplace[];
   }>({
     initialData: {
       plugins: [],
       workspaceFolders: [],
       marketplaceSources: {},
+      marketplaces: [],
     },
     load: loadPluginData,
     pushFilter: shouldRefreshPluginData,
@@ -196,6 +203,7 @@ export function usePluginData(): UsePluginDataReturn {
     setError,
     workspaceFolders: data.workspaceFolders,
     marketplaceSources: data.marketplaceSources,
+    marketplaces: data.marketplaces,
     fetchAll,
   };
 }

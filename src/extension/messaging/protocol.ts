@@ -23,6 +23,7 @@ export type RequestMessage =
   | { type: 'plugin.update'; requestId: string; plugin: string; scope?: PluginScope }
   | { type: 'plugin.export'; requestId: string }
   | { type: 'plugin.import'; requestId: string }
+  | { type: 'combined.export'; requestId: string }
   | { type: 'plugin.getContentDetail'; requestId: string; path: string }
   | { type: 'mcp.list'; requestId: string }
   | { type: 'mcp.add'; requestId: string; params: McpAddParams }

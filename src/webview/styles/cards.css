@@ -175,8 +175,9 @@
 .section-header > .section-toggle {
   flex: 1;
   min-width: 0;
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+}
+
+.section-header:has(.section-marketplace-actions) > .section-toggle {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-right: none;
@@ -305,34 +306,27 @@
   background: var(--vscode-list-hoverBackground);
 }
 
-.section-bulk-btn {
+.section-marketplace-actions {
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  gap: 6px;
+  padding: 0 10px;
   border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
   border-left: none;
   border-radius: 0 6px 6px 0;
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  font-size: 11px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
+  background: var(--vscode-sideBarSectionHeader-background, rgba(128, 128, 128, 0.06));
   white-space: nowrap;
-  transition: background-color 0.15s, opacity 0.15s;
 }
 
-.section-bulk-btn:hover:not(:disabled) {
-  background: var(--vscode-button-secondaryHoverBackground);
+.section-marketplace-actions .toggle-label {
+  font-size: 11px;
+  gap: 4px;
+  margin-right: 2px;
 }
 
-.section-bulk-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.section-bulk-btn--expanded {
-  border-bottom-right-radius: 0;
+.section-marketplace-actions .btn-sm {
+  font-size: 11px;
+  padding: 2px 8px;
 }
 
 .section-toggle {

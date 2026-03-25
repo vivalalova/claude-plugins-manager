@@ -30,13 +30,6 @@ export function InfoPage(): React.ReactElement {
     });
   };
 
-  const handleOpenRepo = (): void => {
-    if (!info?.repoUrl) return;
-    sendRequest<void>({ type: 'openExternal', url: info.repoUrl }).catch(() => {
-      addToast(t('info.action.openFailed'), 'error');
-    });
-  };
-
   const handleClearCache = async (): Promise<void> => {
     setShowClearConfirm(false);
     setClearing(true);
@@ -94,27 +87,6 @@ export function InfoPage(): React.ReactElement {
       <PageHeader title={t('info.title')} subtitle={t('info.subtitle')} titleAs="h2" />
 
       <div className="info-sections">
-        {/* Extension section */}
-        <div className="settings-section info-section">
-          <h3 className="settings-section-title">{t('info.section.extension')}</h3>
-          <div className="info-fields">
-            <InfoField label={t('info.extension.name')} value={info.extensionName} />
-            <InfoField label={t('info.extension.version')} value={info.extensionVersion} />
-            <InfoField label={t('info.extension.publisher')} value={info.publisher} />
-            {info.repoUrl && (
-              <div className="info-field">
-                <span className="info-field-label">{t('info.extension.repo')}</span>
-                <button
-                  className="info-link"
-                  onClick={handleOpenRepo}
-                >
-                  {info.repoUrl}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* CLI section */}
         <div className="settings-section info-section">
           <h3 className="settings-section-title">{t('info.section.cli')}</h3>

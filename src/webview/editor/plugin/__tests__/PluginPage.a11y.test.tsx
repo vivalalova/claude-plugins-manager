@@ -20,6 +20,31 @@ vi.mock('../../../vscode', () => ({
   initGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
+/* ── Mock useMarketplaceActions ── */
+vi.mock('../../marketplace/hooks/useMarketplaceActions', () => ({
+  useMarketplaceActions: () => ({
+    addSource: '',
+    setAddSource: vi.fn(),
+    adding: false,
+    updating: null,
+    confirmRemove: null,
+    setConfirmRemove: vi.fn(),
+    retryAction: null,
+    setRetryAction: vi.fn(),
+    previewing: false,
+    previewPlugins: null,
+    handlePreview: vi.fn(),
+    handleClosePreview: vi.fn(),
+    handlePreviewOverlayDismiss: vi.fn(),
+    handleConfirmAdd: vi.fn(),
+    handleAdd: vi.fn(),
+    handleRemove: vi.fn(),
+    handleUpdate: vi.fn(),
+    handleToggleAutoUpdate: vi.fn(),
+    handleExport: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 import { PluginPage } from '../PluginPage';
 import { ToastProvider } from '../../../components/Toast';
 import type { PluginListResponse } from '../../../../shared/types';

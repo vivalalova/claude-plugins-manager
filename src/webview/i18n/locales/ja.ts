@@ -2,8 +2,6 @@ import type { TranslationKey } from './en';
 
 export const ja: Partial<Record<TranslationKey, string>> = {
   // Sidebar
-  'sidebar.marketplace': 'マーケットプレイス',
-  'sidebar.marketplace.desc': 'プラグインソースを管理',
   'sidebar.plugins': 'プラグイン',
   'sidebar.plugins.desc': 'プラグインのインストール・有効化・設定',
   'sidebar.mcp': 'MCPサーバー',
@@ -17,11 +15,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   // PluginPage
   'plugin.page.title': 'プラグインマネージャー',
   'plugin.page.subtitle': 'Claude Code のフックベースプラグインを管理',
-  'plugin.page.updateAll': 'すべて更新',
+  'plugin.page.updateAll': 'プラグインを更新',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '更新',
   'plugin.page.export': 'エクスポート',
-  'plugin.page.import': 'インポート',
   'plugin.page.searchPlaceholder': 'プラグインを検索...',
   'plugin.page.translate': '翻訳',
   'plugin.page.filterEnabled': '有効',
@@ -30,16 +27,13 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.clearFilters': 'フィルターをクリア',
   'plugin.page.noPlugins': 'プラグインが見つかりません',
   'plugin.page.noPluginsDesc': 'まずマーケットプレイスを追加してプラグインを探しましょう。',
-  'plugin.page.goToMarketplace': 'マーケットプレイスへ',
+  'plugin.page.addMarketplace': 'マーケットプレイスを追加',
+  'plugin.page.updateAllMarketplaces': 'マーケットプレイスを更新',
   'plugin.page.clearSearch': '検索をクリア',
   'plugin.page.retry': '再試行',
   'plugin.page.retryTranslation': '翻訳を再試行',
   'plugin.page.quotaExceeded': '翻訳クォータ超過（IP単位の1日制限）。明日再試行するか、別のネットワークをお試しください。',
   // Plugin section
-  'plugin.section.enableAll': 'すべて有効化',
-  'plugin.section.disableAll': 'すべて無効化',
-  'plugin.section.enabling': '有効化中 {current}/{total}...',
-  'plugin.section.disabling': '無効化中 {current}/{total}...',
   'plugin.section.updates': '{count} 件の更新',
   'plugin.section.updatesPlural': '{count} 件の更新',
   'plugin.section.dragHandle': 'このグループを移動',
@@ -71,9 +65,6 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'translate.noTranslation': '原文（翻訳なし）',
   'translate.cancel': 'キャンセル',
   'translate.confirm': 'OK',
-  // MarketplacePage
-  'marketplace.page.title': 'マーケットプレイス管理',
-  'marketplace.page.subtitle': 'プラグインリポジトリソースを管理',
   // McpPage
   'mcp.page.title': 'MCP サーバー管理',
   'mcp.page.subtitle': 'Model Context Protocol サーバー接続を管理',

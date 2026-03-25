@@ -1,7 +1,5 @@
 export const en = {
   // Sidebar
-  'sidebar.marketplace': 'Marketplace',
-  'sidebar.marketplace.desc': 'Manage plugin sources',
   'sidebar.plugins': 'Plugins',
   'sidebar.plugins.desc': 'Install, enable, and configure plugins',
   'sidebar.mcp': 'MCP Servers',
@@ -308,11 +306,10 @@ export const en = {
   // PluginPage
   'plugin.page.title': 'Plugins Manager',
   'plugin.page.subtitle': 'Manage Claude Code hook-based plugins',
-  'plugin.page.updateAll': 'Update All',
+  'plugin.page.updateAll': 'Update Plugins',
   'plugin.page.updating': 'Updating {current}/{total}...',
   'plugin.page.refresh': 'Refresh',
   'plugin.page.export': 'Export',
-  'plugin.page.import': 'Import',
   'plugin.page.searchPlaceholder': 'Search plugins...',
   'plugin.page.clearSearch': 'Clear search',
   'plugin.page.translate': 'Translate',
@@ -320,10 +317,6 @@ export const en = {
   'plugin.page.showHidden': 'Show hidden',
   'plugin.page.noResults': 'No plugins match the current filters.',
   // Plugin section (per-marketplace header)
-  'plugin.section.enableAll': 'Enable All',
-  'plugin.section.disableAll': 'Disable All',
-  'plugin.section.enabling': 'Enabling {current}/{total}...',
-  'plugin.section.disabling': 'Disabling {current}/{total}...',
   'plugin.section.updates': '{count} update',
   'plugin.section.updatesPlural': '{count} updates',
   'plugin.section.dragHandle': 'Drag to move this group',
@@ -334,7 +327,8 @@ export const en = {
   'plugin.page.clearFilters': 'Clear filters',
   'plugin.page.noPlugins': 'No plugins found',
   'plugin.page.noPluginsDesc': 'Add a marketplace first to discover and install plugins.',
-  'plugin.page.goToMarketplace': 'Go to Marketplace',
+  'plugin.page.addMarketplace': 'Add Marketplace',
+  'plugin.page.updateAllMarketplaces': 'Update Marketplaces',
   'plugin.page.retry': 'Retry',
   'plugin.page.retryTranslation': 'Retry Translation',
   'plugin.page.quotaExceeded': 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.',
@@ -362,9 +356,6 @@ export const en = {
   'translate.noTranslation': 'Original (No Translation)',
   'translate.cancel': 'Cancel',
   'translate.confirm': 'OK',
-  // MarketplacePage
-  'marketplace.page.title': 'Marketplaces Manager',
-  'marketplace.page.subtitle': 'Manage plugin repository sources',
   // McpPage
   'mcp.page.title': 'MCP Servers Manager',
   'mcp.page.subtitle': 'Manage Model Context Protocol server connections',
