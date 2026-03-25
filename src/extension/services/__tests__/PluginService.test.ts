@@ -32,6 +32,7 @@ function createMockSettings(): SettingsFileService & Record<string, ReturnType<t
     removeInstallEntry: vi.fn().mockResolvedValue(undefined),
     updateInstallEntryTimestamp: vi.fn().mockResolvedValue(undefined),
     scanAvailablePlugins: vi.fn().mockResolvedValue([]),
+    scanPluginContentsAt: vi.fn().mockResolvedValue({ commands: [], skills: [], agents: [], mcpServers: [], hooks: false }),
     readMarketplaceSources: vi.fn().mockResolvedValue({}),
     clearAllEnabledPlugins: vi.fn().mockResolvedValue(undefined),
   } as unknown as SettingsFileService & Record<string, ReturnType<typeof vi.fn>>;

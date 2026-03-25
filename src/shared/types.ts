@@ -60,6 +60,7 @@ export interface InstalledPlugin {
   projectPath?: string;
   description?: string;
   mcpServers?: Record<string, McpServerConfig>;
+  contents?: PluginContents;
 }
 
 /** Marketplace preview 的 plugin 摘要（加入前預覽） */

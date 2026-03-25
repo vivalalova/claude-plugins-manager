@@ -136,10 +136,13 @@ export class PluginService {
       }
     }
 
-    // 並行讀取所有 mcpServers
-    const mcpServersResults = await Promise.all(
-      entries.map(({ entry }) => this.readMcpServers(entry.installPath)),
-    );
+    // 並行讀取 mcpServers + contents（已安裝 plugin 從 installPath 掃描）
+    const [mcpServersResults, contentsResults] = await Promise.all([
+      Promise.all(entries.map(({ entry }) => this.readMcpServers(entry.installPath))),
+      Promise.all(entries.map(({ entry }) =>
+        this.settings.scanPluginContentsAt(entry.installPath).catch(() => undefined),
+      )),
+    ]);
 
     // 組裝結果
     return entries.map(({ pluginId, entry, scopeEnabled, description }, i) => ({
@@ -153,6 +156,7 @@ export class PluginService {
       projectPath: entry.projectPath,
       description,
       mcpServers: mcpServersResults[i],
+      contents: contentsResults[i],
     }));
   }
 

@@ -8,6 +8,7 @@ import type {
   PluginScope,
   AvailablePlugin,
   PluginInstallEntry,
+  PluginContents,
 } from '../../shared/types';
 import { KeyedWriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
@@ -291,6 +292,11 @@ export class SettingsFileService {
    */
   async readMarketplaceSources(): Promise<Record<string, string>> {
     return this.pluginCatalogScanner.readMarketplaceSources();
+  }
+
+  /** 掃描指定目錄的 plugin contents（commands/skills/agents/mcp/hooks） */
+  async scanPluginContentsAt(dir: string): Promise<PluginContents> {
+    return this.pluginCatalogScanner.scanPluginContents(dir);
   }
 
   /** 取得當前 workspace 根路徑 */

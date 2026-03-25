@@ -56,6 +56,8 @@ export function mergePlugins(
       } else if (inst.scope === 'local') {
         existing.localInstall = inst;
       }
+      // 已安裝的 contents 優先（從 installPath 掃描，比 marketplace 更完整）
+      if (inst.contents && !existing.contents) existing.contents = inst.contents;
     } else {
       map.set(inst.id, {
         id: inst.id,
@@ -63,6 +65,7 @@ export function mergePlugins(
         marketplaceName: marketplace,
         version: inst.version,
         description: inst.description,
+        contents: inst.contents,
         userInstall: inst.scope === 'user' ? inst : null,
         projectInstalls: inst.scope === 'project' ? [inst] : [],
         localInstall: inst.scope === 'local' ? inst : null,
@@ -77,7 +80,7 @@ export function mergePlugins(
 
     if (existing) {
       if (avail.description) existing.description = avail.description;
-      if (avail.contents) existing.contents = avail.contents;
+      if (avail.contents && !existing.contents) existing.contents = avail.contents;
       if (avail.sourceDir) existing.sourceDir = avail.sourceDir;
       if (avail.sourceUrl) existing.sourceUrl = avail.sourceUrl;
       if (!existing.version && avail.version) {
