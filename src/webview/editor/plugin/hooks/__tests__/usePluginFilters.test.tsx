@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import type { MergedPlugin } from '../../../../../shared/types';
+import type { InstalledPlugin, MergedPlugin } from '../../../../../shared/types';
 
 const { mockViewState, mockPersistedState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => {
   const mockViewState: Record<string, unknown> = {};
@@ -122,6 +122,100 @@ describe('usePluginFilters', () => {
       nextId: 2,
       sectionOrder: [],
       sectionNames: undefined,
+    });
+  });
+
+  describe('filterEnabled 包含 settings-only plugin', () => {
+    it('filterEnabled=true → 包含已安裝啟用 + settings-only；排除已安裝停用', async () => {
+      const alpha: MergedPlugin = {
+        ...makePlugin('alpha@mp'),
+        userInstall: {
+          id: 'alpha@mp',
+          version: '1.0.0',
+          scope: 'user',
+          enabled: true,
+          installPath: '/plugins/user',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        },
+      };
+      const beta: MergedPlugin = {
+        ...makePlugin('beta@mp'),
+        userInstall: {
+          id: 'beta@mp',
+          version: '1.0.0',
+          scope: 'user',
+          enabled: false,
+          installPath: '/plugins/user',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        },
+      };
+      const gamma: MergedPlugin = {
+        ...makePlugin('gamma@mp'),
+        settingsEnabledScopes: ['user'],
+      };
+
+      mockViewState['plugin.filter.enabled'] = true;
+
+      const { result } = renderHook(() => usePluginFilters([alpha, beta, gamma]));
+
+      await waitFor(() => {
+        expect(result.current.ready).toBe(true);
+      });
+
+      const allPlugins = [...result.current.groupedSections.flatMap((s) => [...s.groups.values()].flat())];
+      const ids = allPlugins.map((p) => p.id);
+
+      expect(ids).toContain('alpha@mp');
+      expect(ids).toContain('gamma@mp');
+      expect(ids).not.toContain('beta@mp');
+    });
+
+    it('filterEnabled=false → 包含全部三個 plugin', async () => {
+      const alpha: MergedPlugin = {
+        ...makePlugin('alpha@mp'),
+        userInstall: {
+          id: 'alpha@mp',
+          version: '1.0.0',
+          scope: 'user',
+          enabled: true,
+          installPath: '/plugins/user',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        },
+      };
+      const beta: MergedPlugin = {
+        ...makePlugin('beta@mp'),
+        userInstall: {
+          id: 'beta@mp',
+          version: '1.0.0',
+          scope: 'user',
+          enabled: false,
+          installPath: '/plugins/user',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        },
+      };
+      const gamma: MergedPlugin = {
+        ...makePlugin('gamma@mp'),
+        settingsEnabledScopes: ['user'],
+      };
+
+      // filterEnabled 預設為 false（mockViewState 未設定）
+
+      const { result } = renderHook(() => usePluginFilters([alpha, beta, gamma]));
+
+      await waitFor(() => {
+        expect(result.current.ready).toBe(true);
+      });
+
+      const allPlugins = [...result.current.groupedSections.flatMap((s) => [...s.groups.values()].flat())];
+      const ids = allPlugins.map((p) => p.id);
+
+      expect(ids).toContain('alpha@mp');
+      expect(ids).toContain('beta@mp');
+      expect(ids).toContain('gamma@mp');
     });
   });
 
