@@ -49,16 +49,20 @@ describe('InfoPage', () => {
     cleanup();
   });
 
-  it('載入完成後顯示 extension 資訊', async () => {
+  it('載入完成後不顯示 extension 區塊與 repo link', async () => {
     mockSendRequest.mockResolvedValue(makeInfo());
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Claude Plugins Manager')).toBeTruthy();
-      expect(screen.getByText('1.2.3')).toBeTruthy();
-      expect(screen.getByText('vibeai')).toBeTruthy();
+      expect(screen.getByText('/usr/local/bin/claude')).toBeTruthy();
     });
+
+    expect(screen.queryByText('Extension')).toBeNull();
+    expect(screen.queryByText('Claude Plugins Manager')).toBeNull();
+    expect(screen.queryByText('1.2.3')).toBeNull();
+    expect(screen.queryByText('vibeai')).toBeNull();
+    expect(screen.queryByText('https://github.com/vibeai/claude-plugins')).toBeNull();
   });
 
   it('顯示 CLI 路徑與版本', async () => {
@@ -134,27 +138,6 @@ describe('InfoPage', () => {
     });
   });
 
-  it('點擊 repo link → 發送 openExternal', async () => {
-    mockSendRequest.mockImplementation(async (req: { type: string }) => {
-      if (req.type === 'extension.getInfo') return makeInfo();
-      return undefined;
-    });
-
-    renderPage();
-
-    await waitFor(() => screen.getByText('https://github.com/vibeai/claude-plugins'));
-
-    const repoLink = screen.getByText('https://github.com/vibeai/claude-plugins');
-    fireEvent.click(repoLink);
-
-    await waitFor(() => {
-      const externalCall = mockSendRequest.mock.calls.find(
-        ([req]) => (req as { type: string }).type === 'openExternal',
-      );
-      expect(externalCall).toBeTruthy();
-    });
-  });
-
   it('點擊 Clear Cache → 顯示 confirm dialog → 確認 → 發送 extension.clearCache → toast', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'extension.getInfo') return makeInfo();
@@ -221,12 +204,22 @@ describe('InfoPage', () => {
     });
   });
 
+  it('repoUrl 有值時也不顯示 repo link', async () => {
+    mockSendRequest.mockResolvedValue(makeInfo());
+
+    renderPage();
+
+    await waitFor(() => screen.getByText('/usr/local/bin/claude'));
+
+    expect(screen.queryByText('https://github.com/vibeai/claude-plugins')).toBeNull();
+  });
+
   it('repoUrl 為 null 時不顯示 repo link', async () => {
     mockSendRequest.mockResolvedValue(makeInfo({ repoUrl: null }));
 
     renderPage();
 
-    await waitFor(() => screen.getByText('Claude Plugins Manager'));
+    await waitFor(() => screen.getByText('/usr/local/bin/claude'));
 
     expect(screen.queryByText('https://github.com/vibeai/claude-plugins')).toBeNull();
   });

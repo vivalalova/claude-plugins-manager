@@ -83,7 +83,7 @@ export class PluginCatalogScanner {
                 marketplaceName: mpName,
                 version: pluginMeta.version ?? plugin.version,
                 contents,
-                sourceDir: dirExists ? deriveBrowsableSourceDir(localSource, declaredSkillPaths) : undefined,
+                sourceDir: dirExists ? (localSource ?? undefined) : undefined,
                 sourceUrl,
                 lastUpdated,
               } satisfies AvailablePlugin;
@@ -299,27 +299,40 @@ function unwrapMcpServers(mcp: Record<string, unknown>): Record<string, unknown>
 }
 
 function extractSourceUrl(src: Record<string, unknown>): string | undefined {
-  const rawUrl = typeof src.url === 'string' ? src.url : undefined;
-  if (!rawUrl) {
+  const baseUrl = extractSourceBaseUrl(src);
+  if (!baseUrl) {
     return undefined;
   }
 
-  let baseUrl: string;
-  if (rawUrl.startsWith('https://')) {
-    baseUrl = rawUrl.replace(/\.git$/, '');
-  } else if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
-    baseUrl = `https://github.com/${rawUrl}`;
-  } else {
-    return undefined;
-  }
-
-  const subPath = typeof src.path === 'string' ? src.path : undefined;
+  const subPath = joinSourcePath(
+    typeof src.path === 'string' ? src.path : undefined,
+    undefined,
+  );
   if (subPath) {
     const ref = typeof src.ref === 'string' ? src.ref : 'main';
     return `${baseUrl}/tree/${ref}/${subPath}`;
   }
 
   return baseUrl;
+}
+
+function extractSourceBaseUrl(src: Record<string, unknown>): string | undefined {
+  const rawUrl = typeof src.url === 'string'
+    ? src.url
+    : typeof src.repo === 'string'
+      ? src.repo
+      : undefined;
+  if (!rawUrl) {
+    return undefined;
+  }
+
+  if (rawUrl.startsWith('https://')) {
+    return rawUrl.replace(/\.git$/, '');
+  }
+  if (!rawUrl.startsWith('/') && rawUrl.includes('/')) {
+    return `https://github.com/${rawUrl}`;
+  }
+  return undefined;
 }
 
 function readDeclaredSkillPaths(plugin: MarketplacePluginEntry): string[] {
@@ -330,30 +343,14 @@ function readDeclaredSkillPaths(plugin: MarketplacePluginEntry): string[] {
   return skills.filter((path): path is string => typeof path === 'string');
 }
 
-function deriveBrowsableSourceDir(
-  localSource: string | null,
-  declaredSkillPaths: string[],
-): string | undefined {
-  if (!localSource) {
-    return undefined;
+function joinSourcePath(basePath: string | undefined, subPath: string | undefined): string | undefined {
+  if (!basePath) {
+    return subPath;
   }
-
-  const uniqueDeclaredPaths = [...new Set(declaredSkillPaths.map(normalizeRelativePath))];
-  if (uniqueDeclaredPaths.length !== 1) {
-    return localSource;
+  if (!subPath) {
+    return normalizeRelativePath(basePath);
   }
-
-  const onlyDeclaredPath = uniqueDeclaredPaths[0];
-  if (onlyDeclaredPath === '.') {
-    return localSource;
-  }
-
-  const normalizedSource = normalizeRelativePath(localSource);
-  if (normalizedSource === '.') {
-    return `./${onlyDeclaredPath}`;
-  }
-
-  return `./${normalizeRelativePath(join(normalizedSource, onlyDeclaredPath))}`;
+  return normalizeRelativePath(join(normalizeRelativePath(basePath), subPath));
 }
 
 function normalizeRelativePath(relativePath: string): string {
