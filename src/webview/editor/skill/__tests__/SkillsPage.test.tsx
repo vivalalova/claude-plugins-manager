@@ -6,6 +6,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { screen, waitFor, fireEvent, cleanup, act } from '@testing-library/react';
 
+vi.mock('marked', () => ({
+  marked: { parse: (md: string) => `<p>${md}</p>` },
+}));
+
 /* ── Mock vscode bridge ── */
 const { mockSendRequest, mockOnPushMessage, mockGetViewState, mockSetViewState, mockSetGlobalState, mockInitGlobalState } = vi.hoisted(() => ({
   mockSendRequest: vi.fn(),
@@ -843,15 +847,15 @@ describe('SkillsPage', () => {
       fireEvent.click(screen.getByText('View'));
 
       await waitFor(() => {
-        expect(screen.getByText('Configuration')).toBeTruthy();
-        expect(screen.getByText('Content')).toBeTruthy();
+        // description 為副標題
+        expect(screen.getByText('A great skill')).toBeTruthy();
       });
 
-      // frontmatter 欄位
-      expect(screen.getByText('sonnet')).toBeTruthy();
+      // model 以 tag 呈現
+      expect(screen.getByText('model: sonnet')).toBeTruthy();
 
-      // body 內容
-      expect(screen.getByText(/# My Skill/)).toBeTruthy();
+      // body 渲染為 markdown
+      expect(document.querySelector('.skill-detail-markdown')).toBeTruthy();
     });
 
     it('Open in Editor → 呼叫 skill.openFile', async () => {
@@ -895,7 +899,7 @@ describe('SkillsPage', () => {
       fireEvent.click(screen.getByText('Close'));
 
       await waitFor(() => {
-        expect(screen.queryByText('Configuration')).toBeNull();
+        expect(document.querySelector('.skill-detail-dialog')).toBeNull();
       });
     });
   });

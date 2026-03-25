@@ -8,6 +8,12 @@ import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { I18nProvider } from '../../../i18n/I18nContext';
 import { SkillDetailPanel } from '../SkillDetailPanel';
 
+vi.mock('marked', () => ({
+  marked: {
+    parse: (md: string) => `<p>${md}</p>`,
+  },
+}));
+
 describe('SkillDetailPanel', () => {
   const onClose = vi.fn();
   const onOpenInEditor = vi.fn();
@@ -55,7 +61,7 @@ describe('SkillDetailPanel', () => {
     expect(screen.getByText('No content available')).toBeTruthy();
   });
 
-  it('frontmatter 依固定欄位順序顯示，額外欄位排在後面，操作按鈕可用', () => {
+  it('frontmatter 以 tag 呈現，description 為副標題，body 渲染 markdown，按鈕可用', () => {
     const { container } = renderWithI18n(
       <SkillDetailPanel
         skillName="lint"
@@ -76,18 +82,43 @@ describe('SkillDetailPanel', () => {
       />,
     );
 
-    expect(screen.getByText('Configuration')).toBeTruthy();
-    expect(screen.getByText('Content')).toBeTruthy();
-    expect(screen.getByText(/# Lint/)).toBeTruthy();
+    // description 顯示為副標題
+    expect(screen.getByText('Run lint checks')).toBeTruthy();
 
-    const labels = Array.from(container.querySelectorAll('.skill-detail-label')).map((node) => node.textContent);
-    expect(labels).toEqual(['name', 'description', 'model', 'custom']);
+    // model 以 tag 呈現
+    const tags = Array.from(container.querySelectorAll('.skill-detail-tag'));
+    const tagTexts = tags.map((node) => node.textContent);
+    expect(tagTexts).toContain('model: sonnet');
+    expect(tagTexts).toContain('custom: extra');
+
+    // body 渲染為 markdown HTML
+    expect(container.querySelector('.skill-detail-markdown')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open in Editor' }));
     fireEvent.click(screen.getByRole('button', { name: 'Copy Path' }));
 
     expect(onOpenInEditor).toHaveBeenCalledTimes(1);
     expect(onCopyPath).toHaveBeenCalledTimes(1);
+  });
+
+  it('allowed-tools 拆成多個 tag', () => {
+    const { container } = renderWithI18n(
+      <SkillDetailPanel
+        skillName="test"
+        skillPath="/tmp/test/SKILL.md"
+        detail={{
+          frontmatter: { 'allowed-tools': 'Read, Write, Bash' },
+          body: '',
+        }}
+        loading={false}
+        onClose={onClose}
+        onOpenInEditor={onOpenInEditor}
+        onCopyPath={onCopyPath}
+      />,
+    );
+
+    const toolTags = Array.from(container.querySelectorAll('.skill-detail-tag--tool'));
+    expect(toolTags.map((n) => n.textContent)).toEqual(['Read', 'Write', 'Bash']);
   });
 
   it('點 overlay 會關閉，點 dialog 內容不會誤關閉', () => {
