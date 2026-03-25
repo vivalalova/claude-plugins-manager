@@ -49,10 +49,11 @@ describe('SkillSections', () => {
 
     const globalSection = screen.getByText('Global Skills').closest('.plugin-section');
     const globalBody = globalSection?.querySelector('.section-body');
-    expect(globalBody?.className).not.toContain('section-body--collapsed');
+    // 預設收合
+    expect(globalBody?.className).toContain('section-body--collapsed');
 
     fireEvent.click(screen.getByText('Global Skills').closest('button') as HTMLButtonElement);
-    expect(globalBody?.className).toContain('section-body--collapsed');
+    expect(globalBody?.className).not.toContain('section-body--collapsed');
 
     expect(container.querySelectorAll('.plugin-section')).toHaveLength(2);
   });
