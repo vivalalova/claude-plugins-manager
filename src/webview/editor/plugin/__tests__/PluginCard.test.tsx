@@ -529,6 +529,76 @@ describe('PluginCard', () => {
   });
 
 
+  describe('外部 plugin 提示', () => {
+    it('sourceUrl 有值 + 無 contents → 展開顯示外部 repo 提示', () => {
+      const plugin = createPlugin({
+        sourceUrl: 'https://github.com/example/external-plugin',
+      });
+
+      const { container } = renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          marketplaceUrl="https://github.com/example/repo.git"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      // 應該可展開
+      const card = screen.getByRole('group');
+      fireEvent.keyDown(card, { key: 'Enter' });
+
+      expect(container.querySelector('.content-external-hint')).toBeTruthy();
+    });
+
+    it('sourceDir 有值但無 contents → 不展開、不顯示外部提示（本地 plugin 只是沒內容）', () => {
+      const plugin = createPlugin({
+        sourceDir: './plugins/empty-plugin',
+      });
+
+      const { container } = renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          marketplaceUrl="https://github.com/example/repo.git"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      // 不應該可展開
+      expect(container.querySelector('.card--expandable')).toBeNull();
+      expect(container.querySelector('.content-external-hint')).toBeNull();
+    });
+
+    it('sourceUrl 有值 + 有 contents → 顯示 contents 而非外部提示', () => {
+      const plugin = createPlugin({
+        sourceUrl: 'https://github.com/example/external-plugin',
+        contents: {
+          commands: [{ name: 'cmd', description: 'desc', path: '/tmp/cmd.md' }],
+          skills: [],
+          agents: [],
+          mcpServers: [],
+          hooks: false,
+        },
+      });
+
+      const { container } = renderWithI18n(
+        <PluginCard
+          plugin={plugin}
+          marketplaceUrl="https://github.com/example/repo.git"
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+        />,
+      );
+
+      const card = screen.getByRole('group');
+      fireEvent.keyDown(card, { key: 'Enter' });
+
+      expect(container.querySelector('.content-external-hint')).toBeNull();
+      expect(screen.getByText('desc')).toBeTruthy();
+    });
+  });
+
   describe('隱藏按鈕', () => {
     it('onToggleHidden 傳入 → 顯示 Hide 按鈕', () => {
       const plugin = createPlugin();

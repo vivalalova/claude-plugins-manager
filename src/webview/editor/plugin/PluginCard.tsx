@@ -59,7 +59,7 @@ export const PluginCard = React.memo(function PluginCard({
 
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
-  const isExternal = !hasContents && !!pluginUrl;
+  const isExternal = !hasContents && !!plugin.sourceUrl;
   const canExpand = hasContents || isExternal;
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
   const scopeControlsDisabled = !!loadingScopes?.size;

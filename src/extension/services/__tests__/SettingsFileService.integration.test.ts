@@ -528,6 +528,40 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.sourceDir).toBe('./plugins/local-plugin');
     });
 
+    it('source 為 string 但目錄不存在 → sourceDir undefined、contents undefined', async () => {
+      const mpName = `scan-mp-missing-dir-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      // 不建立 ./external_plugins/ghost-plugin 目錄
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'ghost-plugin',
+            description: 'source path does not exist',
+            source: './external_plugins/ghost-plugin',
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `ghost-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceDir).toBeUndefined();
+      expect(plugin!.sourceUrl).toBeUndefined();
+      expect(plugin!.contents).toBeUndefined();
+    });
+
     it('skills 目錄含非目錄檔案（如 dashboard.html）時，不拋錯且正常列出 skill', async () => {
       const mpName = `scan-mp-skills-with-file-${testIdx}`;
       const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);

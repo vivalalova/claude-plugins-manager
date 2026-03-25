@@ -49,7 +49,17 @@ export class PluginCatalogScanner {
               let pluginMeta: { description?: string; version?: string } = {};
               let lastUpdated: string | undefined;
 
+              // localSource 有值但目錄不存在 → 視為外部（不可安裝）
+              let dirExists = false;
               if (pluginDir) {
+                try {
+                  await stat(pluginDir);
+                  dirExists = true;
+                } catch {
+                  // dir doesn't exist
+                }
+              }
+              if (pluginDir && dirExists) {
                 [contents, pluginMeta] = await Promise.all([
                   this.scanPluginContents(pluginDir),
                   readJsonFile<{ description?: string; version?: string }>(
@@ -67,7 +77,7 @@ export class PluginCatalogScanner {
                 marketplaceName: mpName,
                 version: pluginMeta.version ?? plugin.version,
                 contents,
-                sourceDir: localSource ?? undefined,
+                sourceDir: dirExists ? (localSource ?? undefined) : undefined,
                 sourceUrl,
                 lastUpdated,
               } satisfies AvailablePlugin;
