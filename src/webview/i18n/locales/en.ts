@@ -341,6 +341,8 @@ export const en = {
   // PluginCard
   'plugin.card.updateAvailable': 'Update available',
   'plugin.card.github': 'GitHub',
+  'plugin.content.external': 'This plugin is from an external repo. Content is available after installation.',
+  'plugin.content.installOnly': 'Install (without enabling)',
   'plugin.card.hide': 'Hide',
   'plugin.card.unhide': 'Unhide',
   // BulkEnableScopeDialog

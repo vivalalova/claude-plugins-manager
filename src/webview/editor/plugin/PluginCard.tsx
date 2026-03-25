@@ -27,6 +27,10 @@ interface PluginCardProps {
   onToggleHidden?: (pluginId: string) => void;
   /** 點擊 content item 時的回呼（查看詳情） */
   onViewContent?: (item: PluginContentItem) => void;
+  /** 安裝但不啟用（external plugin 用） */
+  onInstallOnly?: (pluginId: string) => void;
+  /** 正在執行 install-only */
+  installOnlyLoading?: boolean;
 }
 
 /**
@@ -46,6 +50,8 @@ export const PluginCard = React.memo(function PluginCard({
   onUpdate,
   onToggleHidden,
   onViewContent,
+  onInstallOnly,
+  installOnlyLoading,
 }: PluginCardProps): React.ReactElement {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -53,6 +59,8 @@ export const PluginCard = React.memo(function PluginCard({
 
   const hasWorkspace = !!workspaceName;
   const hasContents = pluginHasContents(plugin.contents);
+  const isExternal = !hasContents && !!pluginUrl;
+  const canExpand = hasContents || isExternal;
   const hasUpdate = isPluginEnabled(plugin) && hasPluginUpdate(plugin);
   const scopeControlsDisabled = !!loadingScopes?.size;
   const projectEnabled = plugin.projectInstalls.some((install) => install.enabled);
@@ -61,12 +69,12 @@ export const PluginCard = React.memo(function PluginCard({
     // 不攔截互動元素的 click
     const target = e.target as HTMLElement;
     if (target.closest('input, button, label')) return;
-    if (hasContents) setExpanded((v) => !v);
+    if (canExpand) setExpanded((v) => !v);
   };
   const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest('input, button, label')) return;
-    if (!hasContents) return;
+    if (!canExpand) return;
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
     setExpanded((v) => !v);
@@ -74,13 +82,13 @@ export const PluginCard = React.memo(function PluginCard({
 
   return (
     <div
-      className={`card${hasContents ? ' card--expandable' : ''}${hidden ? ' card--hidden' : ''}`}
+      className={`card${canExpand ? ' card--expandable' : ''}${hidden ? ' card--hidden' : ''}`}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       tabIndex={0}
       role="group"
       aria-label={plugin.name}
-      aria-expanded={hasContents ? expanded : undefined}
+      aria-expanded={canExpand ? expanded : undefined}
     >
       <div className="card-header">
         <div>
@@ -124,7 +132,7 @@ export const PluginCard = React.memo(function PluginCard({
       )}
 
       <div className="scope-chips-row">
-        {hasContents
+        {canExpand
           ? <span className={`card-expand-arrow${expanded ? ' card-expand-arrow--open' : ''}`} />
           : <span className="card-expand-arrow-spacer" />}
         <div
@@ -159,10 +167,25 @@ export const PluginCard = React.memo(function PluginCard({
         </div>
       </div>
 
-      {hasContents && (
+      {canExpand && (
         <div className={`plugin-contents${expanded ? '' : ' plugin-contents--collapsed'}`}>
           <div className="section-body-inner">
-            <PluginContentsView contents={plugin.contents!} translations={translations} onViewItem={onViewContent} />
+            {hasContents ? (
+              <PluginContentsView contents={plugin.contents!} translations={translations} onViewItem={onViewContent} />
+            ) : (
+              <div className="content-external-hint">
+                <span>{t('plugin.content.external')}</span>
+                {onInstallOnly && (
+                  <button
+                    className="btn btn-sm"
+                    disabled={installOnlyLoading}
+                    onClick={(e) => { e.stopPropagation(); onInstallOnly(plugin.id); }}
+                  >
+                    {installOnlyLoading ? <span className="scope-spinner" /> : t('plugin.content.installOnly')}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

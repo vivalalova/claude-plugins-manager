@@ -40,6 +40,8 @@ export interface PluginSectionsProps {
   onUpdate: (pluginId: string, scopes: PluginScope[]) => Promise<void>;
   onToggleHidden: (pluginId: string) => void;
   onViewContent?: (item: PluginContentItem) => void;
+  onInstallOnly?: (pluginId: string) => void;
+  installOnlyId?: string | null;
   moveToSection: (marketplace: string, sectionId: number) => void;
   createSection: (marketplace: string) => void;
   reorderSection: (sectionId: number, toIndex: number) => void;
@@ -70,6 +72,8 @@ export function PluginSections({
   onUpdate,
   onToggleHidden,
   onViewContent,
+  onInstallOnly,
+  installOnlyId,
   moveToSection,
   createSection,
   reorderSection,
@@ -167,6 +171,8 @@ export function PluginSections({
               onUpdate={onUpdate}
               onToggleHidden={onToggleHidden}
               onViewContent={onViewContent}
+              onInstallOnly={onInstallOnly}
+              installOnlyLoading={installOnlyId === plugin.id}
             />
           )}
         />

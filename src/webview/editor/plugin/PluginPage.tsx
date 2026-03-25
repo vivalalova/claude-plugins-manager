@@ -146,6 +146,22 @@ export function PluginPage(): React.ReactElement {
     sendRequest({ type: 'hooks.openFile', path: contentDetailItem.path }).catch(() => {});
   };
 
+  const [installOnlyId, setInstallOnlyId] = useState<string | null>(null);
+
+  const handleInstallOnly = async (pluginId: string): Promise<void> => {
+    setInstallOnlyId(pluginId);
+    try {
+      await sendRequest({ type: 'plugin.install', plugin: pluginId, scope: 'user' });
+      // install auto-enables → immediately disable
+      await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope: 'user' }).catch(() => {});
+      fetchAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setInstallOnlyId(null);
+    }
+  };
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { showHelp, setShowHelp } = useKeyboardShortcuts({
     searchInputRef,
@@ -323,6 +339,8 @@ export function PluginPage(): React.ReactElement {
           onUpdate={handleUpdate}
           onToggleHidden={toggleHidden}
           onViewContent={handleViewContent}
+          onInstallOnly={handleInstallOnly}
+          installOnlyId={installOnlyId}
           moveToSection={moveToSection}
           createSection={createSection}
           reorderSection={reorderSection}

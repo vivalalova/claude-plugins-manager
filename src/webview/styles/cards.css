@@ -760,6 +760,19 @@
   white-space: nowrap;
 }
 
+.content-external-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-badge-background) 15%, transparent);
+  border-radius: 4px;
+  border-left: 3px solid var(--vscode-descriptionForeground);
+}
+
 /* ----------------------------------------------------------------
  * Enable/Disable Badge
  * ---------------------------------------------------------------- */

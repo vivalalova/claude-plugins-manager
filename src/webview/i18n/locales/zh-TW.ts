@@ -343,6 +343,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   // PluginCard
   'plugin.card.updateAvailable': '有可用更新',
   'plugin.card.github': 'GitHub',
+  'plugin.content.external': '此 plugin 來自外部 repo，安裝後才能檢視內容',
+  'plugin.content.installOnly': '安裝（不啟用）',
   'plugin.card.hide': '隱藏',
   'plugin.card.unhide': '取消隱藏',
   // BulkEnableScopeDialog
