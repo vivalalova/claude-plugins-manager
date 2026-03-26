@@ -7,6 +7,7 @@ import { getSectionName, getVisibleItems } from './filterUtils';
 import type { ContentTypeFilter } from './filterUtils';
 import type { Marketplace, MergedPlugin, PluginContentItem, PluginScope } from '../../../shared/types';
 import type { WorkspaceFolder } from './hooks/usePluginData';
+import { useSectionDrop } from './hooks/useSectionDrop';
 
 interface SectionStats {
   enabledCount: number;
@@ -49,6 +50,39 @@ export interface PluginSectionsProps {
   onMarketplaceUpdate: (name: string) => void;
   onMarketplaceRemove: (name: string) => void;
   onMarketplaceToggleAutoUpdate: (name: string) => void;
+}
+
+interface SectionDropContainerProps {
+  sectionId: number | 'new';
+  draggedMarketplace: string | null;
+  setDragOverSectionId: React.Dispatch<React.SetStateAction<number | 'new' | null>>;
+  setDraggedMarketplace: React.Dispatch<React.SetStateAction<string | null>>;
+  onDrop: (marketplace: string) => void;
+  className: string;
+  children: React.ReactNode;
+}
+
+function SectionDropContainer({
+  sectionId,
+  draggedMarketplace,
+  setDragOverSectionId,
+  setDraggedMarketplace,
+  onDrop,
+  className,
+  children,
+}: SectionDropContainerProps): React.ReactElement {
+  const handlers = useSectionDrop({
+    sectionId,
+    draggedMarketplace,
+    setDragOverSectionId,
+    setDraggedMarketplace,
+    onDrop,
+  });
+  return (
+    <div className={className} {...handlers}>
+      {children}
+    </div>
+  );
 }
 
 export function PluginSections({
@@ -102,6 +136,22 @@ export function PluginSections({
   const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const editingCommitRef = useRef(false);
+
+  const section0Drop = useSectionDrop({
+    sectionId: 0,
+    draggedMarketplace,
+    setDragOverSectionId,
+    setDraggedMarketplace,
+    onDrop: (mp) => moveToSection(mp, 0),
+  });
+
+  const addZoneDrop = useSectionDrop({
+    sectionId: 'new',
+    draggedMarketplace,
+    setDragOverSectionId,
+    setDraggedMarketplace,
+    onDrop: createSection,
+  });
 
   const startSectionRename = (sectionId: number) => {
     setEditingName(getSectionName(sectionId, sectionNames, t('plugin.section.label', { n: sectionId })));
@@ -211,26 +261,7 @@ export function PluginSections({
       {/* Section 0 — 預設區 */}
       <div
         className={`sections-container${dragOverSectionId === 0 && draggedMarketplace !== null ? ' sections-container--drag-over' : ''}`}
-        onDragOver={(e) => {
-          if (draggedMarketplace) {
-            e.preventDefault();
-            setDragOverSectionId(0);
-          }
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setDragOverSectionId(null);
-          }
-        }}
-        onDrop={(e) => {
-          const mp = e.dataTransfer.getData('text/plain');
-          if (mp) {
-            e.preventDefault();
-            moveToSection(mp, 0);
-          }
-          setDragOverSectionId(null);
-          setDraggedMarketplace(null);
-        }}
+        {...section0Drop}
       >
         {groupedSections[0].groups.size === 0 ? (
           <div className={`sections-drop-zone${dragOverSectionId === 0 ? ' sections-drop-zone--drag-over' : ''}`}>
@@ -318,28 +349,13 @@ export function PluginSections({
             )}
             <span className="section-divider-line" />
           </div>
-          <div
+          <SectionDropContainer
+            sectionId={section.id}
+            draggedMarketplace={draggedMarketplace}
+            setDragOverSectionId={setDragOverSectionId}
+            setDraggedMarketplace={setDraggedMarketplace}
+            onDrop={(mp) => moveToSection(mp, section.id)}
             className={`sections-container${dragOverSectionId === section.id && draggedMarketplace !== null ? ' sections-container--drag-over' : ''}`}
-            onDragOver={(e) => {
-              if (draggedMarketplace) {
-                e.preventDefault();
-                setDragOverSectionId(section.id);
-              }
-            }}
-            onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setDragOverSectionId(null);
-              }
-            }}
-            onDrop={(e) => {
-              const mp = e.dataTransfer.getData('text/plain');
-              if (mp) {
-                e.preventDefault();
-                moveToSection(mp, section.id);
-              }
-              setDragOverSectionId(null);
-              setDraggedMarketplace(null);
-            }}
           >
             {[...section.groups.values()].every((items) => items.length === 0) ? (
               <div className={`sections-drop-zone${dragOverSectionId === section.id ? ' sections-drop-zone--drag-over' : ''}`}>
@@ -350,7 +366,7 @@ export function PluginSections({
                 .filter(([, items]) => items.length > 0)
                 .map(([marketplace, items]) => renderSection(marketplace, items))
             )}
-          </div>
+          </SectionDropContainer>
         </React.Fragment>
       ))}
 
@@ -360,26 +376,7 @@ export function PluginSections({
       </div>
       <div
         className={`sections-add-zone${dragOverSectionId === 'new' ? ' sections-add-zone--drag-over' : ''}`}
-        onDragOver={(e) => {
-          if (draggedMarketplace) {
-            e.preventDefault();
-            setDragOverSectionId('new');
-          }
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setDragOverSectionId(null);
-          }
-        }}
-        onDrop={(e) => {
-          const mp = e.dataTransfer.getData('text/plain');
-          if (mp) {
-            e.preventDefault();
-            createSection(mp);
-          }
-          setDragOverSectionId(null);
-          setDraggedMarketplace(null);
-        }}
+        {...addZoneDrop}
       >
         {t('plugin.section.addHint')}
       </div>
