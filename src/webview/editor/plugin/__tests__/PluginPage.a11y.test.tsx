@@ -41,7 +41,6 @@ vi.mock('../../marketplace/hooks/useMarketplaceActions', () => ({
     handleRemove: vi.fn(),
     handleUpdate: vi.fn(),
     handleToggleAutoUpdate: vi.fn(),
-    handleExport: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 

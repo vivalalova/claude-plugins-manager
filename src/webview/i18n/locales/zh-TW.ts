@@ -311,7 +311,6 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.updateAll': '更新 Plugins',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '重新整理',
-  'plugin.page.export': '匯出',
   'plugin.page.searchPlaceholder': '搜尋外掛...',
   'plugin.page.translate': '翻譯',
   'plugin.page.filterEnabled': '已啟用',

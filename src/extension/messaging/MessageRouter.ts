@@ -13,8 +13,6 @@ import type { HookExplanationService } from '../services/HookExplanationService'
 import type { ExtensionInfoService } from '../services/ExtensionInfoService';
 import type { SkillService } from '../services/SkillService';
 import type { RequestMessage, ResponseMessage } from './protocol';
-import { exportShellScript } from '../utils/scriptIO';
-import { escapeShellArg } from '../utils/workspace';
 import { toErrorMessage } from '../../shared/errorUtils';
 import { expandTildePath } from '../utils/pathUtils';
 
@@ -74,11 +72,6 @@ export class MessageRouter {
         return this.marketplace.update(message.name);
       case 'marketplace.toggleAutoUpdate':
         return this.marketplace.toggleAutoUpdate(message.name);
-      case 'marketplace.export':
-        return this.marketplace.exportScript();
-      case 'marketplace.import':
-        return this.marketplace.importScript();
-
       // Plugin
       case 'plugin.listInstalled':
         return this.plugin.listInstalled();
@@ -96,15 +89,6 @@ export class MessageRouter {
         return this.plugin.disableAll();
       case 'plugin.update':
         return this.plugin.update(message.plugin, message.scope);
-      case 'plugin.export':
-        return this.plugin.exportScript();
-      case 'plugin.import':
-        return this.plugin.importScript();
-
-      // Combined export（marketplace + plugin 合併為單一檔案）
-      case 'combined.export':
-        return this.combinedExport();
-
       case 'plugin.getContentDetail': {
         const resolvedDetail = expandTildePath(message.path);
         this.assertAllowedPath(resolvedDetail);
@@ -276,34 +260,6 @@ export class MessageRouter {
       return;
     }
     throw new Error(`Path not in allowed directories: ${resolved}`);
-  }
-
-  /** 合併匯出 marketplace + plugin 為單一 shell script */
-  private async combinedExport(): Promise<void> {
-    const [marketplaces, installed] = await Promise.all([
-      this.marketplace.list(),
-      this.plugin.listInstalled(),
-    ]);
-
-    const mpLines = marketplaces.flatMap((mp) => {
-      const source = mp.url ?? mp.repo ?? mp.path;
-      return source ? [`claude plugin marketplace add '${escapeShellArg(source)}'`] : [];
-    });
-    const pluginLines = installed
-      .filter((p) => p.enabled)
-      .map((p) => `claude plugin install '${escapeShellArg(p.id)}' --scope ${p.scope}`);
-
-    const lines = [...mpLines, ...(mpLines.length > 0 && pluginLines.length > 0 ? [''] : []), ...pluginLines];
-    if (lines.length === 0) {
-      throw new Error('No marketplaces or plugins to export.');
-    }
-
-    await exportShellScript({
-      defaultFilename: 'claude-setup.sh',
-      header: '# Claude Code Marketplace & Plugin Setup',
-      entityLabel: 'item',
-      lines,
-    });
   }
 
 }

@@ -46,8 +46,6 @@ export interface UsePluginOperationsReturn {
   handleUpdate: (pluginId: string, scopes: PluginScope[]) => Promise<void>;
   /** 批次更新所有已安裝 plugin（傳入可見列表則只更新可見的） */
   handleUpdateAll: (visiblePlugins?: MergedPlugin[]) => Promise<void>;
-  /** 匯出 enabled plugins 為 shell script */
-  handleExport: () => Promise<void>;
   /** 是否正在執行 Update All */
   isUpdatingAll: boolean;
   /** 是否有任何已安裝的 plugin */
@@ -182,15 +180,6 @@ export function usePluginOperations(
     try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }
   };
 
-  const handleExport = async (): Promise<void> => {
-    setError(null);
-    try {
-      await sendRequest({ type: 'plugin.export' });
-    } catch (e) {
-      setError(toErrorMessage(e));
-    }
-  };
-
   const isUpdatingAll = updateAllProgress !== null;
   const hasInstalledPlugins = plugins.some(isPluginInstalled);
 
@@ -204,7 +193,6 @@ export function usePluginOperations(
     handleToggle,
     handleUpdate,
     handleUpdateAll,
-    handleExport,
     isUpdatingAll,
     hasInstalledPlugins,
   };

@@ -18,7 +18,6 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.updateAll': 'プラグインを更新',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '更新',
-  'plugin.page.export': 'エクスポート',
   'plugin.page.searchPlaceholder': 'プラグインを検索...',
   'plugin.page.translate': '翻訳',
   'plugin.page.filterEnabled': '有効',

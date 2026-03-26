@@ -226,13 +226,6 @@ export function PluginPage(): React.ReactElement {
           >
             {t('plugin.page.refresh')}
           </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => sendRequest({ type: 'combined.export' }).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))}
-            disabled={loading || (!hasInstalledPlugins && marketplaces.length === 0)}
-          >
-            {t('plugin.page.export')}
-          </button>
         </>}
       />
 

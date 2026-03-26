@@ -11,8 +11,6 @@ export type RequestMessage =
   | { type: 'marketplace.remove'; requestId: string; name: string }
   | { type: 'marketplace.update'; requestId: string; name?: string }
   | { type: 'marketplace.toggleAutoUpdate'; requestId: string; name: string }
-  | { type: 'marketplace.export'; requestId: string }
-  | { type: 'marketplace.import'; requestId: string }
   | { type: 'plugin.listInstalled'; requestId: string }
   | { type: 'plugin.listAvailable'; requestId: string }
   | { type: 'plugin.install'; requestId: string; plugin: string; scope: PluginScope }
@@ -21,9 +19,6 @@ export type RequestMessage =
   | { type: 'plugin.disable'; requestId: string; plugin: string; scope?: PluginScope }
   | { type: 'plugin.disableAll'; requestId: string }
   | { type: 'plugin.update'; requestId: string; plugin: string; scope?: PluginScope }
-  | { type: 'plugin.export'; requestId: string }
-  | { type: 'plugin.import'; requestId: string }
-  | { type: 'combined.export'; requestId: string }
   | { type: 'plugin.getContentDetail'; requestId: string; path: string }
   | { type: 'mcp.list'; requestId: string }
   | { type: 'mcp.add'; requestId: string; params: McpAddParams }

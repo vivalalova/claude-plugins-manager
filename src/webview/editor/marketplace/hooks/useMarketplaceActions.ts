@@ -42,8 +42,6 @@ export function useMarketplaceActions({
   handleRemove: (name: string) => Promise<void>;
   handleUpdate: (name?: string) => Promise<void>;
   handleToggleAutoUpdate: (name: string) => Promise<void>;
-  handleExport: () => Promise<void>;
-  handleImport: () => Promise<void>;
 } {
   const [addSource, setAddSource] = useState('');
   const [adding, setAdding] = useState(false);
@@ -183,21 +181,6 @@ export function useMarketplaceActions({
     });
   }
 
-  async function handleExport(): Promise<void> {
-    await runRetriableAction({
-      action: () => sendRequest({ type: 'marketplace.export' }),
-      retry: handleExport,
-    });
-  }
-
-  async function handleImport(): Promise<void> {
-    await runRetriableAction({
-      action: () => sendRequest<string[]>({ type: 'marketplace.import' }),
-      retry: handleImport,
-      onSuccess: refreshList,
-    });
-  }
-
   return {
     addSource,
     setAddSource,
@@ -217,7 +200,5 @@ export function useMarketplaceActions({
     handleRemove,
     handleUpdate,
     handleToggleAutoUpdate,
-    handleExport,
-    handleImport,
   };
 }

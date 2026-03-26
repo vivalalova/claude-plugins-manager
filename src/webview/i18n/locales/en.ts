@@ -309,7 +309,6 @@ export const en = {
   'plugin.page.updateAll': 'Update Plugins',
   'plugin.page.updating': 'Updating {current}/{total}...',
   'plugin.page.refresh': 'Refresh',
-  'plugin.page.export': 'Export',
   'plugin.page.searchPlaceholder': 'Search plugins...',
   'plugin.page.clearSearch': 'Clear search',
   'plugin.page.translate': 'Translate',
