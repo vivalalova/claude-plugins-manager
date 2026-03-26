@@ -247,6 +247,35 @@ describe('usePluginOperations', () => {
     });
   });
 
+  it('Update All 跳過 settings-only enabled scope（無 install entry）', async () => {
+    const fetchAll = vi.fn().mockResolvedValue(undefined);
+    const setError = vi.fn();
+    // settingsEnabledScopes 含 local，但 localInstall 為 null → 不該嘗試 local scope update
+    const plugins = [
+      makePlugin('swift-lsp@mp', {
+        projectInstalls: [{ ...makeInstall('project', true, '2026-01-01T00:00:00Z'), id: 'swift-lsp@mp' }],
+        settingsEnabledScopes: ['project', 'local'],
+        availableLastUpdated: '2026-02-01T00:00:00Z',
+      }),
+    ];
+    mockSendRequest.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
+
+    await act(async () => {
+      await result.current.handleUpdateAll();
+    });
+
+    const updateCalls = mockSendRequest.mock.calls
+      .map(([req]) => req as { type: string; plugin: string; scope: string })
+      .filter((req) => req.type === 'plugin.update');
+
+    // 只更新有 install entry 的 project scope，不嘗試 local
+    expect(updateCalls).toEqual([
+      { type: 'plugin.update', plugin: 'swift-lsp@mp', scope: 'project' },
+    ]);
+  });
+
   it('Update All 只更新 enabled 且有更新的 scope，錯誤會累積但不中斷', async () => {
     const fetchAll = vi.fn().mockResolvedValue(undefined);
     const setError = vi.fn();

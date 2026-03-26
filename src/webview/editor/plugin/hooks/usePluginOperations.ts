@@ -6,7 +6,7 @@ import {
   isPluginInstalled,
   isPluginEnabled,
   isInstalledInScope,
-  getEnabledScopes,
+  getInstalledScopes,
   hasPluginUpdate,
 } from '../filterUtils';
 import { useToast } from '../../../components/Toast';
@@ -164,7 +164,7 @@ export function usePluginOperations(
     for (let i = 0; i < updatable.length; i++) {
       setUpdateAllProgress({ current: i + 1, total: updatable.length });
       const p = updatable[i];
-      for (const scope of getEnabledScopes(p)) {
+      for (const scope of getInstalledScopes(p)) {
         try {
           await sendRequest({ type: 'plugin.update', plugin: p.id, scope });
         } catch (e) {
