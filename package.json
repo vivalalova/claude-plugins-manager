@@ -2,7 +2,7 @@
   "name": "claude-plugins-manager",
   "displayName": "Claude Plugins Manager",
   "description": "Manage Claude Code Marketplace, Plugin, and MCP Server",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "lova",
   "license": "MIT",
   "icon": "resources/icon.png",
