@@ -292,6 +292,22 @@ export interface ClaudeSettings {
   prefersReducedMotion?: boolean;
   /** Claude Code 的 UI 呈現模式：auto/in-process/tmux。對應 docs: teammateMode */
   teammateMode?: 'auto' | 'in-process' | 'tmux';
+  /** 排除特定 CLAUDE.md 檔案的 glob patterns（monorepo 用途）。對應 docs: claudeMdExcludes */
+  claudeMdExcludes?: string[];
+  /** 將 Anthropic model ID 對應到 provider-specific ID（Bedrock/Vertex/Foundry）。對應 docs: modelOverrides */
+  modelOverrides?: Record<string, string>;
+  /** Session quality survey 出現機率（0-1）。對應 docs: feedbackSurveyRate */
+  feedbackSurveyRate?: number;
+  /** MCP server 允許清單（企業用途；serverName/serverCommand/serverUrl 三選一）。對應 docs: allowedMcpServers */
+  allowedMcpServers?: Array<{ serverName: string } | { serverCommand: string[] } | { serverUrl: string }>;
+  /** MCP server 封鎖清單（企業用途；格式同 allowedMcpServers）。對應 docs: deniedMcpServers */
+  deniedMcpServers?: Array<{ serverName: string } | { serverCommand: string[] } | { serverUrl: string }>;
+  /** HTTP hook header interpolation 允許的 env var 名稱清單。對應 docs: httpHookAllowedEnvVars */
+  httpHookAllowedEnvVars?: string[];
+  /** HTTP hook 允許的 URL patterns（支援 * wildcard）。對應 docs: allowedHttpHookUrls */
+  allowedHttpHookUrls?: string[];
+  /** Worktree session 設定。對應 docs: worktree */
+  worktree?: { sparsePaths?: string[] };
 }
 
 /** 翻譯目標語言 allowlist（前後端共用） */

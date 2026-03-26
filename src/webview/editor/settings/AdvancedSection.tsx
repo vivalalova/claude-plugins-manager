@@ -41,6 +41,38 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
             return <SandboxEditor sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />;
           case 'companyAnnouncements':
             return <CompanyAnnouncementsEditor scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
+          case 'modelOverrides':
+            return (
+              <TextSetting
+                label={t('settings.advanced.modelOverrides.label')}
+                description={t('settings.advanced.modelOverrides.description')}
+                value={settings.modelOverrides ? JSON.stringify(settings.modelOverrides) : undefined}
+                placeholder={t('settings.advanced.modelOverrides.placeholder')}
+                saveLabel={t('settings.advanced.modelOverrides.save')}
+                clearLabel={t('settings.advanced.modelOverrides.clear')}
+                settingKey="modelOverrides"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('modelOverrides', JSON.parse(value as string))}
+                onDelete={async () => onDelete('modelOverrides')}
+              />
+            );
+          case 'worktree':
+            return (
+              <TextSetting
+                label={t('settings.advanced.worktree.label')}
+                description={t('settings.advanced.worktree.description')}
+                value={settings.worktree ? JSON.stringify(settings.worktree) : undefined}
+                placeholder={t('settings.advanced.worktree.placeholder')}
+                saveLabel={t('settings.advanced.worktree.save')}
+                clearLabel={t('settings.advanced.worktree.clear')}
+                settingKey="worktree"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('worktree', JSON.parse(value as string))}
+                onDelete={async () => onDelete('worktree')}
+              />
+            );
           default:
             return null;
         }

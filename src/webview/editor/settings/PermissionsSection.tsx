@@ -3,7 +3,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { SettingLabelText, TagInput } from './components/SettingControls';
+import { SettingLabelText, TagInput, TextSetting } from './components/SettingControls';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -260,12 +260,14 @@ interface PermissionsSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
 }
 
 export function PermissionsSection({
   scope,
   settings,
   onSave,
+  onDelete,
 }: PermissionsSectionProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
@@ -443,6 +445,34 @@ export function PermissionsSection({
         onSave={async (_key, value) => {
           await onSave('disabledMcpjsonServers', value);
         }}
+      />
+
+      {/* allowedMcpServers */}
+      <TextSetting
+        label={t('settings.permissions.allowedMcpServers.label')}
+        description={t('settings.permissions.allowedMcpServers.description')}
+        value={settings.allowedMcpServers ? JSON.stringify(settings.allowedMcpServers) : undefined}
+        placeholder={t('settings.permissions.allowedMcpServers.placeholder')}
+        saveLabel={t('settings.permissions.allowedMcpServers.save')}
+        clearLabel={t('settings.permissions.allowedMcpServers.clear')}
+        settingKey="allowedMcpServers"
+        scope={scope}
+        onSave={async (_key, value) => onSave('allowedMcpServers', JSON.parse(value as string))}
+        onDelete={async () => onDelete('allowedMcpServers')}
+      />
+
+      {/* deniedMcpServers */}
+      <TextSetting
+        label={t('settings.permissions.deniedMcpServers.label')}
+        description={t('settings.permissions.deniedMcpServers.description')}
+        value={settings.deniedMcpServers ? JSON.stringify(settings.deniedMcpServers) : undefined}
+        placeholder={t('settings.permissions.deniedMcpServers.placeholder')}
+        saveLabel={t('settings.permissions.deniedMcpServers.save')}
+        clearLabel={t('settings.permissions.deniedMcpServers.clear')}
+        settingKey="deniedMcpServers"
+        scope={scope}
+        onSave={async (_key, value) => onSave('deniedMcpServers', JSON.parse(value as string))}
+        onDelete={async () => onDelete('deniedMcpServers')}
       />
 
       {/* bypassPermissions confirm */}

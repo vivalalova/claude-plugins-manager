@@ -83,6 +83,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'auth',
   },
+  HTTP_PROXY: {
+    name: 'HTTP_PROXY',
+    valueType: String,
+    category: 'auth',
+  },
 
   // --- effort ---
   CLAUDE_CODE_EFFORT_LEVEL: {
@@ -177,6 +182,18 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
     default: 'true',
+  },
+
+  USE_BUILTIN_RIPGREP: {
+    name: 'USE_BUILTIN_RIPGREP',
+    valueType: Boolean,
+    category: 'feature',
+    default: '1',
+  },
+  CLAUDE_CODE_GIT_BASH_PATH: {
+    name: 'CLAUDE_CODE_GIT_BASH_PATH',
+    valueType: String,
+    category: 'feature',
   },
 
   // --- telemetry ---

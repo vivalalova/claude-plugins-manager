@@ -88,6 +88,10 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
     { key: 'awsCredentialExport', controlType: String },
     { key: 'awsAuthRefresh', controlType: String },
     { key: 'skipWebFetchPreflight', default: false, controlType: Boolean },
+    { key: 'claudeMdExcludes', controlType: Array },
+    { key: 'modelOverrides', controlType: Object },
+    { key: 'feedbackSurveyRate', controlType: Number, min: 0, max: 1, step: 0.01 },
+    { key: 'worktree', controlType: Object },
   ],
 
   // ── Permissions ──
@@ -95,6 +99,8 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
     { key: 'enabledMcpjsonServers', controlType: Array },
     { key: 'disabledMcpjsonServers', controlType: Array },
     { key: 'permissions', controlType: Object },
+    { key: 'allowedMcpServers', controlType: Object },
+    { key: 'deniedMcpServers', controlType: Object },
   ],
 
   // ── Env ──
@@ -106,6 +112,8 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
   hooks: [
     { key: 'disableAllHooks', default: false, controlType: Boolean },
     { key: 'hooks', controlType: Object },
+    { key: 'httpHookAllowedEnvVars', controlType: Array },
+    { key: 'allowedHttpHookUrls', controlType: Array },
   ],
 };
 

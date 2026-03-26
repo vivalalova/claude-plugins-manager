@@ -335,6 +335,26 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
         </button>
       </div>
 
+      <SchemaFieldRenderer
+        settingKey="httpHookAllowedEnvVars"
+        schema={SETTINGS_FLAT_SCHEMA['httpHookAllowedEnvVars']}
+        value={settings.httpHookAllowedEnvVars}
+        scope={scope}
+        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'httpHookAllowedEnvVars')}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <SchemaFieldRenderer
+        settingKey="allowedHttpHookUrls"
+        schema={SETTINGS_FLAT_SCHEMA['allowedHttpHookUrls']}
+        value={settings.allowedHttpHookUrls}
+        scope={scope}
+        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'allowedHttpHookUrls')}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
       {/* Tree view */}
       {eventTypes.length === 0 ? (
         <div className="hooks-empty">

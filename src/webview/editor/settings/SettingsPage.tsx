@@ -294,6 +294,7 @@ export function SettingsPage(): React.ReactElement {
                   scope={scope}
                   settings={settings}
                   onSave={handleSave}
+                  onDelete={handleDelete}
                 />
               )}
               {activeNav === 'env' && (
