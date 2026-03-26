@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { join } from 'path';
-import { homedir } from 'os';
 import { mkdir, cp, rm, readdir } from 'fs/promises';
+import { PLUGINS_DIR } from './paths';
 import { COMMANDS } from './constants';
 import { CliService } from './services/CliService';
 import { MarketplaceService } from './services/MarketplaceService';
@@ -42,7 +42,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const cacheDir = join(context.globalStorageUri.fsPath, 'cache');
   await mkdir(cacheDir, { recursive: true });
 
-  const oldCacheDir = join(homedir(), '.claude', 'plugins', '.cache');
+  const oldCacheDir = join(PLUGINS_DIR, '.cache');
   await migrateCacheIfNeeded(oldCacheDir, cacheDir);
 
   const cli = new CliService();

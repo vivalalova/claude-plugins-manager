@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import { MCP_POLL_INTERVAL_MS } from '../constants';
+import { CLAUDE_JSON_PATH, INSTALLED_PLUGINS_PATH } from '../paths';
 import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
@@ -14,6 +14,14 @@ import {
   resolvePluginInstall,
   type InstalledPluginEntry,
 } from './mcpPluginSupport';
+
+type ServerMetadataEntry = {
+  scope: McpScope;
+  config?: McpServerConfig;
+  plugin?: McpServer['plugin'];
+};
+
+type ServerMetadataMap = Map<string, ServerMetadataEntry>;
 
 /**
  * MCP Server 管理 + 即時狀態輪詢。
@@ -27,11 +35,7 @@ export class McpService {
   private triggerScheduled = false;
 
   /** buildServerMetadata() 快取，避免每次 poll 都重讀 disk */
-  private metadataCache: Map<string, {
-    scope: McpScope;
-    config?: McpServerConfig;
-    plugin?: McpServer['plugin'];
-  }> | null = null;
+  private metadataCache: ServerMetadataMap | null = null;
   private metadataCacheDirty = true;
 
   /** 狀態變更事件，EditorPanelManager 訂閱後推送給 webview */
@@ -293,12 +297,11 @@ export class McpService {
       throw new Error(`Invalid plugin MCP name: ${fullName}`);
     }
     const [, pluginKey, mcpServerName] = match;
-    const installedPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
     let installed: { plugins: Record<string, unknown> };
     try {
-      installed = JSON.parse(await readFile(installedPath, 'utf-8'));
+      installed = JSON.parse(await readFile(INSTALLED_PLUGINS_PATH, 'utf-8'));
     } catch {
-      throw new Error(`Cannot read installed plugins: ${installedPath}`);
+      throw new Error(`Cannot read installed plugins: ${INSTALLED_PLUGINS_PATH}`);
     }
 
     if (!installed.plugins || !(pluginKey in installed.plugins)) {
@@ -346,38 +349,49 @@ export class McpService {
    * - local scope: ~/.claude.json → projects[workspacePath].mcpServers
    * - project scope: {workspace}/.mcp.json → mcpServers
    */
-  private async buildServerMetadata(): Promise<Map<string, {
-    scope: McpScope;
-    config?: McpServerConfig;
-    plugin?: McpServer['plugin'];
-  }>> {
+  private async buildServerMetadata(): Promise<ServerMetadataMap> {
     if (!this.metadataCacheDirty && this.metadataCache) {
       return this.metadataCache;
     }
 
-    const map = new Map<string, {
-      scope: McpScope;
-      config?: McpServerConfig;
-      plugin?: McpServer['plugin'];
-    }>();
-
     const workspacePath = this.getWorkspaceCwd();
+    const map: ServerMetadataMap = new Map();
 
-    // ~/.claude.json: user scope + local scope
+    // Scope 優先級：project > local > user（later entries override earlier via Map.set）
+    for (const [k, v] of await this.readUserAndLocalServers(workspacePath)) {
+      map.set(k, v);
+    }
+    if (workspacePath) {
+      for (const [k, v] of await this.readProjectServers(workspacePath)) {
+        map.set(k, v);
+      }
+    }
+    for (const [k, v] of await this.readPluginServers(workspacePath)) {
+      map.set(k, v);
+    }
+
+    this.metadataCache = map;
+    this.metadataCacheDirty = false;
+    return map;
+  }
+
+  /** ~/.claude.json → user scope（mcpServers）+ local scope（projects[path].mcpServers） */
+  private async readUserAndLocalServers(
+    workspacePath: string | undefined,
+  ): Promise<ServerMetadataMap> {
+    const map: ServerMetadataMap = new Map();
     try {
-      const raw = await readFile(join(homedir(), '.claude.json'), 'utf-8');
+      const raw = await readFile(CLAUDE_JSON_PATH, 'utf-8');
       const claudeJson = JSON.parse(raw) as {
         mcpServers?: Record<string, McpServerConfig>;
         projects?: Record<string, { mcpServers?: Record<string, McpServerConfig> }>;
       };
 
-      // user scope
       for (const [name, config] of Object.entries(claudeJson.mcpServers ?? {})) {
         map.set(name, { scope: 'user', config });
       }
 
-      // local scope（預設 scope）："/" fallback 先載入，workspace 後載入覆蓋（map.set last-write-wins）
-      // local 覆蓋 user（優先級：project > local > user）
+      // local scope："/" fallback 先載入，workspace 後載入覆蓋（last-write-wins）
       const projectPaths = workspacePath ? ['/', workspacePath] : ['/'];
       for (const pp of projectPaths) {
         const projectData = claudeJson.projects?.[pp];
@@ -386,66 +400,71 @@ export class McpService {
         }
       }
     } catch { /* .claude.json 不存在或格式錯誤 */ }
+    return map;
+  }
 
-    // .mcp.json: project scope
-    if (workspacePath) {
-      try {
-        const raw = await readFile(join(workspacePath, '.mcp.json'), 'utf-8');
-        const mcpJson = JSON.parse(raw) as Record<string, unknown>;
-        const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
-        for (const [name, config] of Object.entries(servers)) {
-          map.set(name, { scope: 'project', config });
-        }
-      } catch { /* no .mcp.json */ }
-    }
+  /** {workspace}/.mcp.json → project scope */
+  private async readProjectServers(workspacePath: string): Promise<ServerMetadataMap> {
+    const map: ServerMetadataMap = new Map();
+    try {
+      const raw = await readFile(join(workspacePath, '.mcp.json'), 'utf-8');
+      const mcpJson = JSON.parse(raw) as Record<string, unknown>;
+      const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
+      for (const [name, config] of Object.entries(servers)) {
+        map.set(name, { scope: 'project', config });
+      }
+    } catch { /* no .mcp.json */ }
+    return map;
+  }
 
-    // Plugin-provided MCP servers: installed_plugins.json → each plugin's .mcp.json
-    const installedPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
-    const installedRaw = await readFile(installedPath, 'utf-8').catch((error) => {
+  /** installed_plugins.json → 各 plugin 的 .mcp.json → plugin-provided MCP servers */
+  private async readPluginServers(
+    workspacePath: string | undefined,
+  ): Promise<ServerMetadataMap> {
+    const map: ServerMetadataMap = new Map();
+    const installedRaw = await readFile(INSTALLED_PLUGINS_PATH, 'utf-8').catch((error) => {
       if (this.isNotFoundError(error)) {
         return null;
       }
       throw error;
     });
 
-    if (installedRaw) {
-      const enabledByScope = await this.readEnabledPluginsByScope();
-      const installed = JSON.parse(installedRaw) as {
-        plugins: Record<string, InstalledPluginEntry[]>;
-      };
+    if (!installedRaw) return map;
 
-      await Promise.all(
-        Object.entries(installed.plugins).map(async ([pluginKey, entries]) => {
-          let resolvedInstall;
-          try {
-            resolvedInstall = resolvePluginInstall(entries, pluginKey, enabledByScope, workspacePath);
-          } catch {
-            return;
-          }
+    const enabledByScope = await this.readEnabledPluginsByScope();
+    const installed = JSON.parse(installedRaw) as {
+      plugins: Record<string, InstalledPluginEntry[]>;
+    };
 
-          try {
-            const mcpRaw = await readFile(join(resolvedInstall.preferredEntry.installPath, '.mcp.json'), 'utf-8');
-            const mcpJson = JSON.parse(mcpRaw) as Record<string, unknown>;
-            const pluginServers = extractPluginServerConfigs(mcpJson);
-            for (const [serverName, config] of Object.entries(pluginServers)) {
-              if (this.isValidMcpServerConfig(config)) {
-                map.set(`plugin:${pluginKey}:${serverName}`, {
-                  scope: resolvedInstall.preferredEntry.scope as McpScope,
-                  config,
-                  plugin: {
-                    id: pluginKey,
-                    enabled: resolvedInstall.enabled,
-                  },
-                });
-              }
+    await Promise.all(
+      Object.entries(installed.plugins).map(async ([pluginKey, entries]) => {
+        let resolvedInstall;
+        try {
+          resolvedInstall = resolvePluginInstall(entries, pluginKey, enabledByScope, workspacePath);
+        } catch {
+          return;
+        }
+
+        try {
+          const mcpRaw = await readFile(join(resolvedInstall.preferredEntry.installPath, '.mcp.json'), 'utf-8');
+          const mcpJson = JSON.parse(mcpRaw) as Record<string, unknown>;
+          const pluginServers = extractPluginServerConfigs(mcpJson);
+          for (const [serverName, config] of Object.entries(pluginServers)) {
+            if (this.isValidMcpServerConfig(config)) {
+              map.set(`plugin:${pluginKey}:${serverName}`, {
+                scope: resolvedInstall.preferredEntry.scope as McpScope,
+                config,
+                plugin: {
+                  id: pluginKey,
+                  enabled: resolvedInstall.enabled,
+                },
+              });
             }
-          } catch { /* plugin has no .mcp.json */ }
-        }),
-      );
-    }
+          }
+        } catch { /* plugin has no .mcp.json */ }
+      }),
+    );
 
-    this.metadataCache = map;
-    this.metadataCacheDirty = false;
     return map;
   }
 

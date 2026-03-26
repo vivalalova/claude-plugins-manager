@@ -1,12 +1,13 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
+import { tmpdir } from 'os';
 import { execFile } from 'child_process';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../../shared/types';
 import type { CliService } from './CliService';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
+import { KNOWN_MARKETPLACES_PATH } from '../paths';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
 const GIT_CLONE_TIMEOUT_MS = 30_000;
@@ -30,13 +31,6 @@ interface RawMarketplaceEntry {
 /** known_marketplaces.json 的完整結構 */
 type RawMarketplaceConfig = Record<string, RawMarketplaceEntry>;
 
-const CONFIG_PATH = path.join(
-  os.homedir(),
-  '.claude',
-  'plugins',
-  'known_marketplaces.json',
-);
-
 /**
  * Marketplace CRUD + autoUpdate toggle。
  * 讀取 known_marketplaces.json 取得完整資訊（含 lastUpdated、autoUpdate）。
@@ -52,7 +46,7 @@ export class MarketplaceService {
    * 直接讀 config file 而非 CLI，因為 CLI 輸出缺少這些欄位。
    */
   async list(): Promise<Marketplace[]> {
-    const config = await readJsonFile<RawMarketplaceConfig>(CONFIG_PATH, {} as RawMarketplaceConfig);
+    const config = await readJsonFile<RawMarketplaceConfig>(KNOWN_MARKETPLACES_PATH, {} as RawMarketplaceConfig);
     if (Object.keys(config).length === 0) return [];
 
     return Object.entries(config).map(([name, entry]) => ({
@@ -70,7 +64,7 @@ export class MarketplaceService {
   /** 新增 marketplace（Git URL / GitHub repo / 本地路徑） */
   async add(source: string): Promise<void> {
     return this.mutationQueue.enqueue(async () => {
-      const beforeConfig = await readJsonFile(CONFIG_PATH, {} as RawMarketplaceConfig);
+      const beforeConfig = await readJsonFile(KNOWN_MARKETPLACES_PATH, {} as RawMarketplaceConfig);
       const beforeNames = new Set(Object.keys(beforeConfig));
 
       await this.cli.exec(
@@ -78,7 +72,7 @@ export class MarketplaceService {
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
 
-      const afterRaw = await fs.readFile(CONFIG_PATH, 'utf-8');
+      const afterRaw = await fs.readFile(KNOWN_MARKETPLACES_PATH, 'utf-8');
       const afterConfig: RawMarketplaceConfig = JSON.parse(afterRaw);
 
       let changed = false;
@@ -90,7 +84,7 @@ export class MarketplaceService {
       }
 
       if (changed) {
-        await fs.writeFile(CONFIG_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
+        await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
       }
     });
   }
@@ -116,7 +110,7 @@ export class MarketplaceService {
   /** 切換 autoUpdate flag，直接寫入 config file */
   async toggleAutoUpdate(name: string): Promise<void> {
     return this.mutationQueue.enqueue(async () => {
-      const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
+      const raw = await fs.readFile(KNOWN_MARKETPLACES_PATH, 'utf-8');
       const config: RawMarketplaceConfig = JSON.parse(raw);
 
       const entry = config[name];
@@ -125,7 +119,7 @@ export class MarketplaceService {
       }
 
       entry.autoUpdate = !entry.autoUpdate;
-      await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
+      await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(config, null, 2) + '\n');
     });
   }
 
@@ -147,7 +141,7 @@ export class MarketplaceService {
       dir = source;
     } else {
       // Shallow clone to temp dir
-      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mp-preview-'));
+      tempDir = await fs.mkdtemp(path.join(tmpdir(), 'mp-preview-'));
       dir = tempDir;
       try {
         await new Promise<void>((resolve, reject) => {

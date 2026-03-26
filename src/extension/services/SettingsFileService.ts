@@ -3,7 +3,6 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { NoWorkspaceError } from '../utils/workspace';
-import { homedir } from 'os';
 import type {
   EnabledPluginsMap,
   InstalledPluginsFile,
@@ -15,13 +14,12 @@ import type {
 import { KeyedWriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
 import { PluginCatalogScanner } from './PluginCatalogScanner';
-
-const CLAUDE_DIR = join(homedir(), '.claude');
-const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
-const INSTALLED_PLUGINS_PATH = join(PLUGINS_DIR, 'installed_plugins.json');
-const MARKETPLACES_DIR = join(PLUGINS_DIR, 'marketplaces');
-const KNOWN_MARKETPLACES_PATH = join(PLUGINS_DIR, 'known_marketplaces.json');
-const USER_SETTINGS_PATH = join(CLAUDE_DIR, 'settings.json');
+import {
+  INSTALLED_PLUGINS_PATH,
+  MARKETPLACES_DIR,
+  KNOWN_MARKETPLACES_PATH,
+  USER_SETTINGS_PATH,
+} from '../paths';
 
 /**
  * 直接讀寫 Claude Code 設定檔的共用 service。

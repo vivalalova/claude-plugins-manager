@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import { homedir } from 'os';
 import type { CliService } from './CliService';
 import type { ExtensionInfo, PathInfo } from '../../shared/types';
+import { PLUGINS_DIR, INSTALLED_PLUGINS_PATH, KNOWN_MARKETPLACES_PATH } from '../paths';
 
 interface PackageJson {
   version: string;
@@ -25,8 +26,6 @@ export class ExtensionInfoService {
 
   async getInfo(): Promise<ExtensionInfo> {
     const cliVersion = await this.getCliVersion();
-    const claudeDir = join(homedir(), '.claude');
-    const pluginsDir = join(claudeDir, 'plugins');
     const toPathInfo = (p: string): PathInfo => ({ path: p, exists: existsSync(p) });
 
     return {
@@ -37,10 +36,10 @@ export class ExtensionInfoService {
       cliPath: this.cli.claudePath,
       cliVersion,
       cacheDirPath: toPathInfo(this.cacheDir),
-      pluginsDirPath: toPathInfo(pluginsDir),
-      dataDirPath: toPathInfo(join(pluginsDir, 'data')),
-      installedPluginsPath: toPathInfo(join(pluginsDir, 'installed_plugins.json')),
-      knownMarketplacesPath: toPathInfo(join(pluginsDir, 'known_marketplaces.json')),
+      pluginsDirPath: toPathInfo(PLUGINS_DIR),
+      dataDirPath: toPathInfo(join(PLUGINS_DIR, 'data')),
+      installedPluginsPath: toPathInfo(INSTALLED_PLUGINS_PATH),
+      knownMarketplacesPath: toPathInfo(KNOWN_MARKETPLACES_PATH),
       extensionPath: toPathInfo(this.extensionPath),
       preferencesPath: { path: 'VSCode globalState', exists: true },
       homeDirPrefix: homedir(),
