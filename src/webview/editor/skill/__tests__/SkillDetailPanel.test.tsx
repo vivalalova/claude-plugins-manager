@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { I18nProvider } from '../../../i18n/I18nContext';
-import { SkillDetailPanel } from '../SkillDetailPanel';
+import { ContentDetailPanel } from '../../../components/ContentDetailPanel';
 
 vi.mock('marked', () => ({
   marked: {
@@ -14,7 +14,7 @@ vi.mock('marked', () => ({
   },
 }));
 
-describe('SkillDetailPanel', () => {
+describe('ContentDetailPanel (skill detail)', () => {
   const onClose = vi.fn();
   const onOpenInEditor = vi.fn();
   const onCopyPath = vi.fn();
@@ -30,9 +30,8 @@ describe('SkillDetailPanel', () => {
   it('loading 與 no-content 狀態各自顯示正確提示', () => {
     const { rerender } = render(
       <I18nProvider locale="en">
-        <SkillDetailPanel
-          skillName="lint"
-          skillPath="/tmp/lint/SKILL.md"
+        <ContentDetailPanel
+          name="lint"
           detail={null}
           loading
           onClose={onClose}
@@ -46,9 +45,8 @@ describe('SkillDetailPanel', () => {
 
     rerender(
       <I18nProvider locale="en">
-        <SkillDetailPanel
-          skillName="lint"
-          skillPath="/tmp/lint/SKILL.md"
+        <ContentDetailPanel
+          name="lint"
           detail={null}
           loading={false}
           onClose={onClose}
@@ -63,9 +61,8 @@ describe('SkillDetailPanel', () => {
 
   it('frontmatter 以 tag 呈現，description 為副標題，body 渲染 markdown，按鈕可用', () => {
     const { container } = renderWithI18n(
-      <SkillDetailPanel
-        skillName="lint"
-        skillPath="/tmp/lint/SKILL.md"
+      <ContentDetailPanel
+        name="lint"
         detail={{
           frontmatter: {
             custom: 'extra',
@@ -92,7 +89,7 @@ describe('SkillDetailPanel', () => {
     expect(tagTexts).toContain('custom: extra');
 
     // body 渲染為 markdown HTML
-    expect(container.querySelector('.skill-detail-markdown')).toBeTruthy();
+    expect(container.querySelector('.detail-markdown')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open in Editor' }));
     fireEvent.click(screen.getByRole('button', { name: 'Copy Path' }));
@@ -103,9 +100,8 @@ describe('SkillDetailPanel', () => {
 
   it('allowed-tools 拆成多個 tag', () => {
     const { container } = renderWithI18n(
-      <SkillDetailPanel
-        skillName="test"
-        skillPath="/tmp/test/SKILL.md"
+      <ContentDetailPanel
+        name="test"
         detail={{
           frontmatter: { 'allowed-tools': 'Read, Write, Bash' },
           body: '',
@@ -123,9 +119,8 @@ describe('SkillDetailPanel', () => {
 
   it('點 overlay 會關閉，點 dialog 內容不會誤關閉', () => {
     const { container } = renderWithI18n(
-      <SkillDetailPanel
-        skillName="lint"
-        skillPath="/tmp/lint/SKILL.md"
+      <ContentDetailPanel
+        name="lint"
         detail={{ frontmatter: {}, body: 'body' }}
         loading={false}
         onClose={onClose}

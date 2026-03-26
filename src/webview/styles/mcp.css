@@ -8,13 +8,13 @@
 
 .mcp-status-summary {
   display: flex;
-  gap: 16px;
+  gap: var(--gap-xl);
   padding: 8px 14px;
   background: var(--vscode-sideBarSectionHeader-background, rgba(128, 128, 128, 0.06));
   border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
 }
 
@@ -36,7 +36,7 @@
   padding: 10px 12px;
   border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
   border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--vscode-sideBarSectionHeader-background, rgba(128, 128, 128, 0.06));
   color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
 }
@@ -44,30 +44,30 @@
 .mcp-section-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-md);
   min-width: 0;
 }
 
 .mcp-section-title {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 600;
 }
 
 .mcp-section-count {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   opacity: 0.6;
 }
 
 .mcp-section > .card-list {
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   border-top: none;
 }
 
 .mcp-status-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--gap-sm);
 }
 
 .mcp-status-item::before {
@@ -97,8 +97,8 @@
   background: var(--vscode-inputValidation-warningBackground, rgba(255, 152, 0, 0.12));
   border: 1px solid var(--vscode-inputValidation-warningBorder, rgba(255, 152, 0, 0.4));
   color: var(--vscode-editorWarning-foreground, var(--vscode-charts-orange, #ff9800));
-  border-radius: 4px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
   margin-bottom: 16px;
   animation: fadeSlideIn 0.2s ease-out;
 }

@@ -126,8 +126,9 @@ export function useTranslation(plugins: MergedPlugin[]): UseTranslationReturn {
           setQueuedTexts(new Set());
           setActiveTexts(new Set());
         }
-      } catch {
-        // 翻譯失敗不影響主流程
+      } catch (error) {
+        if (translateVersionRef.current !== version) return;
+        setTranslateWarning(error instanceof Error ? error.message : 'Translation failed');
       } finally {
         if (!quotaExceeded) {
           setActiveTexts((prev) => {

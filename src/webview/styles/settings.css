@@ -6,11 +6,11 @@
   width: 100%;
   padding: 6px 10px;
   border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   transition: border-color 0.15s;
 }
 
@@ -27,37 +27,37 @@
 .select {
   padding: 4px 8px;
   border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: var(--vscode-dropdown-background);
   color: var(--vscode-dropdown-foreground);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .form-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: center;
   margin-bottom: 10px;
 }
 
 .form-label {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   min-width: 90px;
   color: var(--vscode-foreground);
 }
 
 .form-hint {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--vscode-descriptionForeground);
   flex-basis: 100%;
 }
 
 .form-inline {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
   margin-bottom: 20px;
 }
 
@@ -67,16 +67,16 @@
 
 .scope-checkboxes {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: center;
 }
 
 .scope-checkbox {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--gap-xs);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .scope-checkbox input[type="checkbox"] {
@@ -88,7 +88,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   cursor: pointer;
   color: var(--vscode-descriptionForeground);
 }
@@ -114,7 +114,7 @@
   border: none;
   background: transparent;
   color: var(--vscode-descriptionForeground);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 500;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -160,7 +160,7 @@
 
 .settings-scope-tab {
   padding: 8px 20px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -217,13 +217,13 @@
 
 .settings-nav-item {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   background: none;
   border: none;
   cursor: pointer;
   color: var(--vscode-foreground);
   text-align: left;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   opacity: 0.75;
   transition: opacity 0.15s, background 0.15s;
 }
@@ -253,11 +253,11 @@
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--gap-xl);
 }
 
 .settings-section-title {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--vscode-foreground);
   margin-bottom: 4px;
@@ -266,17 +266,17 @@
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--gap-md);
 }
 
 .settings-subfield {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gap-xs);
 }
 
 .settings-label {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--vscode-foreground);
   opacity: 0.85;
@@ -293,7 +293,7 @@
   font-size: 0.75em;
   padding: 1px 6px;
   margin-left: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background-color: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
   vertical-align: middle;
@@ -302,13 +302,13 @@
 
 .settings-toggle-row {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: center;
 }
 
 .settings-model-row {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: center;
 }
 
@@ -316,8 +316,8 @@
   flex: 1;
   max-width: 320px;
   padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
 }
 
 .settings-model-custom-input {
@@ -326,26 +326,26 @@
 
 .settings-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
 }
 
 .settings-warning {
   padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   background: var(--vscode-inputValidation-warningBackground, rgba(255, 152, 0, 0.12));
   border: 1px solid var(--vscode-inputValidation-warningBorder, rgba(255, 152, 0, 0.4));
   color: var(--vscode-foreground);
 }
 
 .settings-coming-soon {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--vscode-descriptionForeground);
   font-style: italic;
 }
 
 .settings-loading {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--vscode-descriptionForeground);
 }
 
@@ -353,7 +353,7 @@
 
 .perm-defaultmode-row {
   display: flex;
-  gap: 12px;
+  gap: var(--gap-lg);
   align-items: center;
   padding: 8px 0 12px;
 }
@@ -367,7 +367,7 @@
 .perm-rule-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--gap-sm);
   min-height: 32px;
   margin-bottom: 10px;
 }
@@ -375,12 +375,12 @@
 .perm-rule-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--gap-xs);
   padding: 3px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-family: var(--vscode-editor-font-family, monospace);
 }
 
@@ -390,7 +390,7 @@
   cursor: pointer;
   color: inherit;
   opacity: 0.7;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   line-height: 1;
   padding: 0 1px;
 }
@@ -402,7 +402,7 @@
 .perm-add-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: flex-start;
 }
 
@@ -412,12 +412,12 @@
 
 .perm-add-error {
   flex-basis: 100%;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
 }
 
 .perm-empty {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--vscode-descriptionForeground);
   font-style: italic;
 }
@@ -427,13 +427,13 @@
 .env-category-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gap-xs);
   margin-bottom: 16px;
 }
 
 
 .env-category-title {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -446,7 +446,7 @@
 
 .env-sensitive-row {
   display: flex;
-  gap: 6px;
+  gap: var(--gap-sm);
   align-items: center;
 }
 
@@ -456,7 +456,7 @@
 
 .env-custom-row {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: center;
   margin-bottom: 6px;
 }
@@ -476,7 +476,7 @@
 .env-add-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--gap-md);
   align-items: flex-start;
   margin-top: 8px;
 }
@@ -488,7 +488,7 @@
 
 .env-add-error {
   flex-basis: 100%;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
 }
 
@@ -497,7 +497,7 @@
 .hooks-header-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gap-lg);
   padding: 4px 0 12px;
   flex-wrap: wrap;
 }
@@ -505,8 +505,8 @@
 .hooks-toggle-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: var(--gap-sm);
+  font-size: var(--font-size-md);
   font-weight: 600;
   cursor: pointer;
   user-select: none;
@@ -515,18 +515,18 @@
 .hooks-tree {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--gap-base);
   margin-bottom: 12px;
 }
 
 .hooks-event-node {
   border: 1px solid var(--vscode-editorWidget-border, rgba(128,128,128,0.2));
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .hooks-event-title {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   font-family: var(--vscode-editor-font-family, monospace);
   padding: 4px 8px;
@@ -541,7 +541,7 @@
 
 .hooks-matcher-label {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-family: var(--vscode-editor-font-family, monospace);
   color: var(--vscode-descriptionForeground);
   margin-bottom: 4px;
@@ -550,14 +550,14 @@
 .hooks-hook-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap-sm);
   padding-left: 8px;
 }
 
 .hooks-hook-item-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--gap-xs);
 }
 
 .hooks-hook-item-wrapper + .hooks-hook-item-wrapper {
@@ -568,8 +568,8 @@
 .hooks-hook-item {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 12px;
+  gap: var(--gap-sm);
+  font-size: var(--font-size-sm);
 }
 
 .hooks-hook-type {
@@ -580,7 +580,7 @@
   color: var(--vscode-badge-foreground);
   background: var(--vscode-badge-background);
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 .hooks-hook-label {
@@ -594,7 +594,7 @@
 
 .hooks-hook-detail {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--vscode-descriptionForeground);
 }
 
@@ -603,7 +603,7 @@
 }
 
 .hooks-explanation-text {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1.5;
   color: var(--vscode-descriptionForeground);
   opacity: 0.8;
@@ -644,12 +644,12 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--gap-md);
   padding: 8px 0;
 }
 
 .hooks-empty p {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--vscode-descriptionForeground);
   font-style: italic;
   margin: 0;
@@ -660,7 +660,7 @@
 .general-tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--gap-xs);
   margin-bottom: 6px;
   min-height: 24px;
 }
@@ -668,12 +668,12 @@
 .general-tag-add-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-md);
   flex-wrap: wrap;
 }
 
 .settings-field-description {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--vscode-descriptionForeground, #6b7280);
   margin: -2px 0 0;
   line-height: 1.4;

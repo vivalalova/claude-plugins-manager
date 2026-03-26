@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
+import { parseFrontmatter } from '../utils/frontmatter';
+import { NoWorkspaceError } from '../utils/workspace';
 import { homedir } from 'os';
 import type {
   EnabledPluginsMap,
@@ -111,20 +113,7 @@ export class SettingsFileService {
    */
   async getContentDetail(filePath: string): Promise<{ frontmatter: Record<string, string>; body: string }> {
     const content = await readFile(filePath, 'utf-8');
-    const fmRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
-    const match = fmRegex.exec(content);
-    if (!match) return { frontmatter: {}, body: content.trim() };
-    const fmBlock = match[1];
-    const body = match[2].trim();
-    const frontmatter: Record<string, string> = {};
-    for (const line of fmBlock.split('\n')) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx === -1) continue;
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim();
-      if (key) frontmatter[key] = value;
-    }
-    return { frontmatter, body };
+    return parseFrontmatter(content);
   }
 
   /** 讀取指定 settings 檔的 enabledPlugins */
@@ -154,7 +143,7 @@ export class SettingsFileService {
     try {
       return await this.readEnabledPlugins(scope);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('No workspace')) {
+      if (error instanceof NoWorkspaceError) {
         return {};
       }
       throw error;
@@ -303,9 +292,7 @@ export class SettingsFileService {
   private getWorkspacePath(): string {
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (!folder) {
-      throw new Error(
-        'No workspace folder open. Project/local scope requires an open workspace.',
-      );
+      throw new NoWorkspaceError();
     }
     return folder.uri.fsPath;
   }

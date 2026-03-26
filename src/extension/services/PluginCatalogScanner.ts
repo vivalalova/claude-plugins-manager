@@ -284,7 +284,10 @@ export class PluginCatalogScanner {
         }
       }
       return { name: result.name, description: result.description };
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.warn(`Failed to parse frontmatter: ${filePath}`, error);
+      }
       return {};
     }
   }

@@ -7,7 +7,7 @@
 }
 
 .sidebar-header {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -24,11 +24,11 @@
 .sidebar-button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--gap-base);
   width: 100%;
   padding: 8px 10px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--vscode-foreground);
   cursor: pointer;
@@ -59,7 +59,7 @@
 
 .sidebar-button-label {
   font-weight: 500;
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .sidebar-update-badge {
@@ -71,7 +71,7 @@
   padding: 0 5px;
   margin-left: 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   line-height: 1;
   vertical-align: middle;
@@ -80,7 +80,7 @@
 }
 
 .sidebar-button-desc {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--vscode-descriptionForeground);
   white-space: nowrap;
   overflow: hidden;

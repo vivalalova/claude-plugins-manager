@@ -7,6 +7,7 @@ import type { McpAddParams, McpServer, McpServerConfig, McpScope, McpStatus } fr
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { getWorkspacePath } from '../utils/workspace';
+import { stripAnsi } from '../utils/ansi';
 import {
   extractPluginDetailConfig,
   extractPluginServerConfigs,
@@ -474,10 +475,7 @@ export class McpService {
    */
   private parseMcpList(output: string): McpServer[] {
     const servers: McpServer[] = [];
-    // 去除 ANSI escape codes（SGR + cursor + erase + mode sequences）
-    // eslint-disable-next-line no-control-regex -- ANSI escape sequence matcher
-    const cleaned = output.replace(new RegExp('\\u001b\\[[0-9;?]*[A-Za-z]', 'g'), '');
-    const lines = cleaned.split('\n');
+    const lines = stripAnsi(output).split('\n');
 
     for (const line of lines) {
       // 跳過空行和 header

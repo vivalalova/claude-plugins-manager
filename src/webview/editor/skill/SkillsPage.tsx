@@ -9,7 +9,7 @@ import { SkillSections } from './SkillSections';
 import { SkillSearchResultCard } from './SkillSearchResultCard';
 import { RegistrySkillCard } from './RegistrySkillCard';
 import { AddSkillDialog, RemoveConfirmDialog } from './SkillDialogs';
-import { SkillDetailPanel } from './SkillDetailPanel';
+import { ContentDetailPanel } from '../../components/ContentDetailPanel';
 import { PageHeader } from '../../components/PageHeader';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../../shared/types';
 import { useI18n } from '../../i18n/I18nContext';
@@ -284,9 +284,8 @@ export function SkillsPage(): React.ReactElement {
       )}
 
       {detailSkill && (
-        <SkillDetailPanel
-          skillName={detailSkill.name}
-          skillPath={detailSkill.path}
+        <ContentDetailPanel
+          name={detailSkill.name}
           detail={detailData}
           loading={detailLoading}
           onClose={closeDetail}

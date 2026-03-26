@@ -855,7 +855,7 @@ describe('SkillsPage', () => {
       expect(screen.getByText('model: sonnet')).toBeTruthy();
 
       // body 渲染為 markdown
-      expect(document.querySelector('.skill-detail-markdown')).toBeTruthy();
+      expect(document.querySelector('.detail-markdown')).toBeTruthy();
     });
 
     it('Open in Editor → 呼叫 skill.openFile', async () => {

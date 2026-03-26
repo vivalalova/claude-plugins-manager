@@ -143,8 +143,10 @@ describe('CSS Theme Audit', () => {
 
   it('local scope badge 使用較深的 warning 前景色，避免 light theme 過淡', () => {
     const localBadgeRule = extractRuleBody(stripped, '.scope-badge--local');
+    const baseBadgeRule = extractRuleBody(stripped, '.scope-badge');
 
     expect(localBadgeRule).toContain('--vscode-editorWarning-foreground');
-    expect(localBadgeRule).toContain('background: color-mix');
+    // background: color-mix 已移至 .scope-badge base，透過 --scope-badge-color 變數驅動
+    expect(baseBadgeRule).toContain('background: color-mix');
   });
 });

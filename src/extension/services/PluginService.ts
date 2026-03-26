@@ -11,7 +11,7 @@ import type {
 } from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
-import { escapeShellArg, getWorkspacePath } from '../utils/workspace';
+import { escapeShellArg, getWorkspacePath, NoWorkspaceError } from '../utils/workspace';
 import { parseShellToken } from '../utils/shellTokenParser';
 import { createScriptRecipe } from './scriptRecipe';
 
@@ -224,7 +224,7 @@ export class PluginService {
       if (result.status === 'rejected') {
         const error = result.reason;
         // project/local scope 需要 workspace，沒開 workspace 時會拋錯，其他錯誤應拋出
-        if (error instanceof Error && !error.message.includes('No workspace')) {
+        if (!(error instanceof NoWorkspaceError)) {
           throw error;
         }
       }

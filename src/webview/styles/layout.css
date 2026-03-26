@@ -19,7 +19,7 @@
 .page-header-text {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--gap-base);
 }
 
 .page-title {
@@ -29,18 +29,18 @@
 }
 
 .page-subtitle-sep {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--vscode-descriptionForeground);
   opacity: 0.5;
 }
 
 .page-subtitle {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--vscode-descriptionForeground);
   letter-spacing: 0.1px;
 }
 
 .page-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
 }

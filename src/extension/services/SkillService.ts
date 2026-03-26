@@ -7,6 +7,8 @@ import { getWorkspacePath } from '../utils/workspace';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../shared/types';
 import { WriteQueue } from '../utils/WriteQueue';
 import { spawnWithTimeout } from '../utils/spawnRunner';
+import { parseFrontmatter } from '../utils/frontmatter';
+import { stripAnsi } from '../utils/ansi';
 import type { SpawnError } from '../utils/spawnRunner';
 import {
   buildSkillRegistryUrl,
@@ -51,12 +53,6 @@ export class SkillService {
     }
 
     return { args, options };
-  }
-
-  /** 去除 ANSI escape codes（SGR + cursor + erase + mode sequences） */
-  static stripAnsi(text: string): string {
-    // eslint-disable-next-line no-control-regex
-    return text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
   }
 
   // ---------------------------------------------------------------------------
@@ -116,7 +112,7 @@ export class SkillService {
       if (skill.description || !skill.path) return;
       try {
         const content = await readFile(join(skill.path, 'SKILL.md'), 'utf-8');
-        const { frontmatter } = this.parseFrontmatter(content);
+        const { frontmatter } = parseFrontmatter(content);
         if (frontmatter.description) {
           skill.description = frontmatter.description;
         }
@@ -164,7 +160,7 @@ export class SkillService {
   /** 檢查更新 */
   async check(): Promise<string> {
     const stdout = await this.exec(['skills', 'check']);
-    return SkillService.stripAnsi(stdout);
+    return stripAnsi(stdout);
   }
 
   /** 更新所有 skills */
@@ -176,7 +172,7 @@ export class SkillService {
   async getDetail(skillPath: string): Promise<{ frontmatter: Record<string, string>; body: string }> {
     const mdPath = join(skillPath, 'SKILL.md');
     const content = await readFile(mdPath, 'utf-8');
-    return this.parseFrontmatter(content);
+    return parseFrontmatter(content);
   }
 
   /** 從 skills.sh 取得 registry 列表（4 小時 file-based cache） */
@@ -281,7 +277,7 @@ export class SkillService {
 
   /** 解析 npx skills find 的文字輸出 */
   private parseFindOutput(stdout: string): SkillSearchResult[] {
-    const lines = SkillService.stripAnsi(stdout).split('\n');
+    const lines = stripAnsi(stdout).split('\n');
     const results: SkillSearchResult[] = [];
 
     // fullId line pattern: `owner/repo@skill-name  NNK installs`
@@ -321,27 +317,4 @@ export class SkillService {
     this.registryCacheWriteQueue.reset();
   }
 
-  /** 解析 SKILL.md frontmatter */
-  private parseFrontmatter(content: string): { frontmatter: Record<string, string>; body: string } {
-    const fmRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
-    const match = fmRegex.exec(content);
-
-    if (!match) {
-      return { frontmatter: {}, body: content.trim() };
-    }
-
-    const fmBlock = match[1];
-    const body = match[2].trim();
-    const frontmatter: Record<string, string> = {};
-
-    for (const line of fmBlock.split('\n')) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx === -1) continue;
-      const key = line.slice(0, colonIdx).trim();
-      const value = line.slice(colonIdx + 1).trim();
-      if (key) frontmatter[key] = value;
-    }
-
-    return { frontmatter, body };
-  }
 }

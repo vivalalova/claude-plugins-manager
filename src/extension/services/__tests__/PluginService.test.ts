@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { workspace } from 'vscode';
 import { PluginService } from '../PluginService';
+import { NoWorkspaceError } from '../../utils/workspace';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
 import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
@@ -593,8 +594,8 @@ describe('PluginService', () => {
     it('project/local scope 無 workspace → 靜默跳過', async () => {
       settings.clearAllEnabledPlugins
         .mockResolvedValueOnce(undefined)                        // user
-        .mockRejectedValueOnce(new Error('No workspace'))        // project
-        .mockRejectedValueOnce(new Error('No workspace'));       // local
+        .mockRejectedValueOnce(new NoWorkspaceError())             // project
+        .mockRejectedValueOnce(new NoWorkspaceError());          // local
 
       await expect(svc.disableAll()).resolves.toBeUndefined();
     });

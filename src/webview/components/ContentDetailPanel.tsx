@@ -15,6 +15,7 @@ interface ContentDetailPanelProps {
   loading: boolean;
   onClose: () => void;
   onOpenInEditor?: () => void;
+  onCopyPath?: () => void;
 }
 
 /** Frontmatter 中作為 tag 顯示的欄位 */
@@ -42,6 +43,7 @@ export function ContentDetailPanel({
   loading,
   onClose,
   onOpenInEditor,
+  onCopyPath,
 }: ContentDetailPanelProps): React.ReactElement {
   const { t } = useI18n();
   const titleId = useId();
@@ -101,7 +103,7 @@ export function ContentDetailPanel({
           <div className="skill-search-hint">{t('skill.detail.noContent')}</div>
         ) : bodyHtml ? (
           <div
-            className="skill-detail-markdown"
+            className="detail-markdown"
             dangerouslySetInnerHTML={{ __html: bodyHtml }}
           />
         ) : null}
@@ -112,6 +114,11 @@ export function ContentDetailPanel({
         {onOpenInEditor && (
           <button className="btn btn-sm" onClick={onOpenInEditor}>
             {t('skill.detail.openInEditor')}
+          </button>
+        )}
+        {onCopyPath && (
+          <button className="btn btn-sm" onClick={onCopyPath}>
+            {t('skill.detail.copyPath')}
           </button>
         )}
         <button className="btn btn-secondary" onClick={onClose}>

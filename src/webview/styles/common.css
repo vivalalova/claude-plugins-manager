@@ -5,8 +5,8 @@
 .btn {
   padding: 5px 14px;
   border: none;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
@@ -73,7 +73,7 @@
 .preview-plugin-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--gap-md);
   margin: 12px 0;
   max-height: 50vh;
   overflow-y: auto;
@@ -81,26 +81,26 @@
 
 .preview-plugin-item {
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--vscode-foreground) 5%, transparent);
 }
 
 .preview-plugin-name {
   font-weight: 500;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-md);
 }
 
 .preview-plugin-version {
   font-weight: 400;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--vscode-descriptionForeground);
 }
 
 .preview-plugin-desc {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--vscode-descriptionForeground);
   margin-top: 2px;
 }
@@ -115,7 +115,7 @@
   right: 16px;
   display: flex;
   flex-direction: column-reverse; /* 新 toast 在下 */
-  gap: 8px;
+  gap: var(--gap-md);
   z-index: 900;
   pointer-events: none;
 }
@@ -124,10 +124,10 @@
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-md);
   padding: 10px 16px;
-  border-radius: 4px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
   line-height: 1.4;
   max-width: 360px;
   box-shadow: 0 4px 12px color-mix(in srgb, black 15%, transparent);
@@ -143,7 +143,7 @@
 
 .toast-item__icon {
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: var(--font-size-base);
 }
 
 .toast-item--success .toast-item__icon { color: var(--vscode-testing-iconPassed); }
@@ -163,7 +163,7 @@
   cursor: pointer;
   opacity: 0.5;
   padding: 2px 4px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   min-width: 24px;
   min-height: 24px;
   display: flex;
@@ -204,7 +204,7 @@
 
 .skeleton--text,
 .skeleton--rect {
-  border-radius: 4px;
+  border-radius: var(--radius-md);
 }
 
 .skeleton--circle {
@@ -233,11 +233,11 @@
 
 .json-highlight {
   background: var(--vscode-textCodeBlock-background);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   overflow: auto;
   max-height: 60vh;
   font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   margin-bottom: 16px;
   padding: 8px 0;
@@ -310,9 +310,9 @@
 .keyboard-help-key {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   background: var(--vscode-keybindingLabel-background, rgba(128, 128, 128, 0.17));
   border: 1px solid var(--vscode-keybindingLabel-border, rgba(51, 51, 51, 0.6));
   color: var(--vscode-keybindingLabel-foreground, var(--vscode-foreground));
@@ -322,6 +322,160 @@
 
 .keyboard-help-desc {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--vscode-foreground);
+}
+
+/* ----------------------------------------------------------------
+ * Markdown rendered body (detail panels)
+ * ---------------------------------------------------------------- */
+
+.detail-markdown {
+  font-size: var(--font-size-md);
+  line-height: 1.65;
+  color: var(--vscode-foreground);
+  word-break: break-word;
+}
+
+.detail-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.detail-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.detail-markdown h1,
+.detail-markdown h2,
+.detail-markdown h3,
+.detail-markdown h4 {
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  margin: 20px 0 8px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.detail-markdown h1 { font-size: 16px; }
+.detail-markdown h2 { font-size: var(--font-size-base); border-bottom: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, var(--vscode-widget-border)) 50%, transparent); padding-bottom: 4px; }
+.detail-markdown h3 { font-size: var(--font-size-md); }
+.detail-markdown h4 { font-size: var(--font-size-sm); text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); }
+
+/* Paragraphs */
+.detail-markdown p {
+  margin: 0 0 10px;
+}
+
+/* Lists */
+.detail-markdown ul,
+.detail-markdown ol {
+  padding-left: 20px;
+  margin: 0 0 10px;
+}
+
+.detail-markdown li {
+  margin-bottom: 3px;
+}
+
+.detail-markdown li > ul,
+.detail-markdown li > ol {
+  margin-top: 3px;
+  margin-bottom: 0;
+}
+
+/* Checkboxes (GFM task list) */
+.detail-markdown input[type="checkbox"] {
+  margin-right: 4px;
+  vertical-align: -1px;
+  accent-color: var(--vscode-focusBorder, #007fd4);
+}
+
+/* Strong / Emphasis */
+.detail-markdown strong {
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.detail-markdown em {
+  font-style: italic;
+}
+
+/* Inline code */
+.detail-markdown code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--vscode-textCodeBlock-background);
+  border: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, var(--vscode-widget-border)) 40%, transparent);
+}
+
+/* Code blocks */
+.detail-markdown pre {
+  margin: 8px 0 12px;
+  padding: 10px 14px;
+  border-radius: 5px;
+  background: var(--vscode-textCodeBlock-background);
+  border: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, var(--vscode-widget-border)) 50%, transparent);
+  overflow-x: auto;
+}
+
+.detail-markdown pre code {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+/* Blockquote */
+.detail-markdown blockquote {
+  margin: 8px 0 12px;
+  padding: 8px 14px;
+  border-left: 3px solid var(--vscode-focusBorder, #007fd4);
+  background: color-mix(in srgb, var(--vscode-focusBorder, #007fd4) 6%, transparent);
+  border-radius: 0 4px 4px 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.detail-markdown blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Links */
+.detail-markdown a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.detail-markdown a:hover {
+  text-decoration: underline;
+}
+
+/* Tables */
+.detail-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 12px;
+  font-size: var(--font-size-sm);
+}
+
+.detail-markdown th,
+.detail-markdown td {
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--vscode-editorWidget-border, var(--vscode-widget-border)) 60%, transparent);
+  text-align: left;
+}
+
+.detail-markdown th {
+  font-weight: 600;
+  background: color-mix(in srgb, var(--vscode-badge-background) 30%, transparent);
+}
+
+/* Horizontal rule */
+.detail-markdown hr {
+  border: none;
+  border-top: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  margin: 16px 0;
 }

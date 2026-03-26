@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { workspace } from 'vscode';
-import { escapeShellArg, getWorkspacePath } from '../workspace';
+import { escapeShellArg, getWorkspacePath, NoWorkspaceError } from '../workspace';
 
 describe('workspace utils', () => {
   it('getWorkspacePath 回傳第一個 workspace folder 的路徑', () => {
@@ -12,9 +12,10 @@ describe('workspace utils', () => {
     expect(getWorkspacePath()).toBe('/workspace/main');
   });
 
-  it('沒有開啟 workspace 時直接拋錯', () => {
+  it('沒有開啟 workspace 時拋 NoWorkspaceError', () => {
     workspace.workspaceFolders = undefined;
 
+    expect(() => getWorkspacePath()).toThrow(NoWorkspaceError);
     expect(() => getWorkspacePath()).toThrow('No workspace folder open.');
   });
 

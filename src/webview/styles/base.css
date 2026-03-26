@@ -3,6 +3,32 @@
  * 使用 VSCode theme CSS variables，自動適配 light / dark
  * ---------------------------------------------------------------- */
 
+/* ----------------------------------------------------------------
+ * Design Tokens
+ * ---------------------------------------------------------------- */
+
+:root {
+  /* Font sizes */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-base: 14px;
+
+  /* Spacing (for gap properties) */
+  --gap-xs: 4px;
+  --gap-sm: 6px;
+  --gap-md: 8px;
+  --gap-base: 10px;
+  --gap-lg: 12px;
+  --gap-xl: 16px;
+
+  /* Border radius */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-pill: 12px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -50,8 +76,8 @@ body {
   color: var(--vscode-inputValidation-errorForeground);
   border: 1px solid var(--vscode-inputValidation-errorBorder);
   padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
   margin-bottom: 16px;
   display: flex;
   align-items: center;
@@ -76,8 +102,8 @@ body {
   text-align: center;
   padding: 48px 20px;
   color: var(--vscode-descriptionForeground);
-  font-size: 13px;
-  gap: 8px;
+  font-size: var(--font-size-md);
+  gap: var(--gap-md);
 }
 
 .empty-state-icon {
@@ -85,13 +111,13 @@ body {
 }
 
 .empty-state-title {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   font-weight: 500;
   color: var(--vscode-foreground);
 }
 
 .empty-state-description {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   max-width: 320px;
 }
 
@@ -130,7 +156,7 @@ body {
 }
 
 .confirm-dialog-message {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--vscode-descriptionForeground);
   margin-bottom: 20px;
   line-height: 1.5;
@@ -138,7 +164,7 @@ body {
 
 .confirm-dialog-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-md);
   justify-content: flex-end;
 }
 
