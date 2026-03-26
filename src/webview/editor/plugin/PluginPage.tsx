@@ -199,15 +199,6 @@ export function PluginPage(): React.ReactElement {
           >
             {t('plugin.page.addMarketplace')}
           </button>
-          {marketplaces.length > 0 && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => handleMarketplaceUpdate()}
-              disabled={marketplaceUpdating !== null}
-            >
-              {marketplaceUpdating === '__all__' ? t('marketplace.card.updating') : t('plugin.page.updateAllMarketplaces')}
-            </button>
-          )}
           {hasInstalledPlugins && (
             <button
               className="btn btn-secondary"
