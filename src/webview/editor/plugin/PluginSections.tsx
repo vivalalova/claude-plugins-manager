@@ -9,6 +9,11 @@ import type { Marketplace, MergedPlugin, PluginContentItem, PluginScope } from '
 import type { WorkspaceFolder } from './hooks/usePluginData';
 import { useSectionDrop } from './hooks/useSectionDrop';
 
+function formatMarketplaceSource(source: string): string {
+  const match = source.match(/github\.com\/([^/]+\/[^/.]+)/);
+  return match ? match[1] : source;
+}
+
 interface SectionStats {
   enabledCount: number;
   updateCount: number;
@@ -181,7 +186,7 @@ export function PluginSections({
               <span className="section-updates">{t(stats.updateCount > 1 ? 'plugin.section.updatesPlural' : 'plugin.section.updates', { count: stats.updateCount })}</span>
             )}
             {marketplaceSources[marketplace] && (
-              <span className="section-source">{marketplaceSources[marketplace]}</span>
+              <span className="section-source">{formatMarketplaceSource(marketplaceSources[marketplace])}</span>
             )}
           </>
         }
