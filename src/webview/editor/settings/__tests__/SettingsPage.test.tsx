@@ -571,12 +571,12 @@ describe('SettingsPage', () => {
     const selects = screen.getAllByRole('combobox');
     // defaultMode select is the second combobox (first is format selector)
     const defaultModeSelect = selects[0];
-    fireEvent.change(defaultModeSelect, { target: { value: 'ask' } });
+    fireEvent.change(defaultModeSelect, { target: { value: 'dontAsk' } });
 
     await waitFor(() => {
       const setCalls = getCalls('settings.set');
       expect(setCalls.length).toBe(1);
-      expect(setCalls[0][0].value.defaultMode).toBe('ask');
+      expect(setCalls[0][0].value.defaultMode).toBe('dontAsk');
     });
   });
 

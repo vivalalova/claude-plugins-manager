@@ -10,14 +10,12 @@ import { SettingLabelText, TagInput, TextSetting } from './components/SettingCon
 // ---------------------------------------------------------------------------
 
 const KNOWN_DEFAULT_MODES = [
-  'ask',
-  'bypassPermissions',
-  'acceptEdits',
-  'autoEdit',
-  'plan',
-  'delegate',
   'default',
+  'acceptEdits',
+  'plan',
   'dontAsk',
+  'bypassPermissions',
+  'delegate',
 ] as const;
 
 type PermissionsList = 'allow' | 'deny' | 'ask';
