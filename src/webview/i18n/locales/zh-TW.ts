@@ -165,6 +165,9 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.HTTP_PROXY.description': 'HTTP 代理 URL（HTTPS 代理不可用時的備案）',
   'settings.env.knownVars.USE_BUILTIN_RIPGREP.description': '使用內建 ripgrep（設 0 用系統版，Alpine Linux 需要）',
   'settings.env.knownVars.CLAUDE_CODE_GIT_BASH_PATH.description': 'Windows 上的 Git Bash 路徑',
+  'settings.env.knownVars.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.description': '啟用實驗性 Agent Teams 功能',
+  'settings.env.knownVars.DISABLE_PROMPT_CACHING.description': '停用 prompt 快取（用於不支援快取的 Bedrock 區域）',
+  'settings.env.knownVars.CLAUDE_CODE_ENABLE_TELEMETRY.description': '啟用 OpenTelemetry 指標與日誌匯出',
   // Hooks section
   'settings.hooks.disableAllHooks.label': '停用所有 Hooks',
   'settings.hooks.disableAllHooks.description': '全域停用所有已設定的 hooks',

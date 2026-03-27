@@ -163,6 +163,9 @@ export const en = {
   'settings.env.knownVars.HTTP_PROXY.description': 'HTTP proxy URL (fallback when HTTPS proxy unavailable)',
   'settings.env.knownVars.USE_BUILTIN_RIPGREP.description': 'Use bundled ripgrep (set 0 for system ripgrep, needed on Alpine Linux)',
   'settings.env.knownVars.CLAUDE_CODE_GIT_BASH_PATH.description': 'Path to Git Bash on Windows',
+  'settings.env.knownVars.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.description': 'Enable experimental agent teams feature',
+  'settings.env.knownVars.DISABLE_PROMPT_CACHING.description': 'Disable prompt caching (for Bedrock regions without caching support)',
+  'settings.env.knownVars.CLAUDE_CODE_ENABLE_TELEMETRY.description': 'Enable OpenTelemetry metrics and logs export',
   // Hooks section
   'settings.hooks.disableAllHooks.label': 'Disable All Hooks',
   'settings.hooks.disableAllHooks.description': 'Globally disable all configured hooks',

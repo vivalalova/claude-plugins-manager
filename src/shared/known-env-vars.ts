@@ -183,6 +183,18 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'feature',
     default: 'true',
   },
+  CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: {
+    name: 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
+  },
+  DISABLE_PROMPT_CACHING: {
+    name: 'DISABLE_PROMPT_CACHING',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
+  },
 
   USE_BUILTIN_RIPGREP: {
     name: 'USE_BUILTIN_RIPGREP',
@@ -223,6 +235,12 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: {
     name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+    valueType: Boolean,
+    category: 'telemetry',
+    default: '0',
+  },
+  CLAUDE_CODE_ENABLE_TELEMETRY: {
+    name: 'CLAUDE_CODE_ENABLE_TELEMETRY',
     valueType: Boolean,
     category: 'telemetry',
     default: '0',

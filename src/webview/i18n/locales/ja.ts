@@ -382,6 +382,9 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.HTTP_PROXY.description': 'HTTP プロキシ URL（HTTPS プロキシ未使用時のフォールバック）',
   'settings.env.knownVars.USE_BUILTIN_RIPGREP.description': '内蔵 ripgrep を使用（0 でシステム版、Alpine Linux で必要）',
   'settings.env.knownVars.CLAUDE_CODE_GIT_BASH_PATH.description': 'Windows 上の Git Bash パス',
+  'settings.env.knownVars.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.description': '実験的なエージェントチーム機能を有効化',
+  'settings.env.knownVars.DISABLE_PROMPT_CACHING.description': 'プロンプトキャッシュを無効化（キャッシュ非対応の Bedrock リージョン向け）',
+  'settings.env.knownVars.CLAUDE_CODE_ENABLE_TELEMETRY.description': 'OpenTelemetry メトリクスとログのエクスポートを有効化',
   // Hooks section
   'settings.hooks.disableAllHooks.label': 'すべての Hook を無効化',
   'settings.hooks.disableAllHooks.description': 'すべての設定済み Hook をグローバルに無効化',
