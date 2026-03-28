@@ -98,6 +98,7 @@ https://code.claude.com/docs/en/settings
 ## 修改紀律
 
 - 多步修改被中途糾正 → 先**還原已改錯的部分**，再繼續正確方向；禁帶著錯誤狀態往前推
+- `verify` 通過後**必須** `npm run install:ext` 安裝到 VSCode，禁止只驗證不部署
 
 ## 已知陷阱
 

@@ -135,10 +135,31 @@ export class PluginService {
     } else {
       // 尚未安裝：用 CLI 安裝（下載 cache + 寫 installed_plugins.json + enable）
       const cwd = this.getScopedProjectPath(scope);
-      await this.cli.exec(
-        ['plugin', 'install', plugin, '--scope', scope],
-        { timeout: CLI_LONG_TIMEOUT_MS, cwd },
-      );
+      try {
+        await this.cli.exec(
+          ['plugin', 'install', plugin, '--scope', scope],
+          { timeout: CLI_LONG_TIMEOUT_MS, cwd },
+        );
+      } catch (err) {
+        // source path 不存在 → marketplace 可能未同步，先 update 再重試一次
+        if (isSourcePathMissing(err)) {
+          const marketplaceName = plugin.split('@')[1];
+          if (marketplaceName) {
+            await this.cli.exec(
+              ['plugin', 'marketplace', 'update', marketplaceName],
+              { timeout: CLI_LONG_TIMEOUT_MS },
+            );
+            await this.cli.exec(
+              ['plugin', 'install', plugin, '--scope', scope],
+              { timeout: CLI_LONG_TIMEOUT_MS, cwd },
+            );
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
       await this.fixPluginPermissions(plugin);
       return;
     }
@@ -251,4 +272,10 @@ export class PluginService {
     }
   }
 
+}
+
+/** CLI 的 "Source path does not exist" 錯誤 — marketplace 本地檔案未同步 */
+function isSourcePathMissing(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /source path does not exist/i.test(msg);
 }

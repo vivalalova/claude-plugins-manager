@@ -475,6 +475,60 @@ describe('PluginService', () => {
         'CLI install failed',
       );
     });
+
+    it('Source path does not exist → 自動 marketplace update 後重試安裝', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec
+        .mockRejectedValueOnce(new Error('Source path does not exist: /path/to/plugin'))
+        .mockResolvedValueOnce('')  // marketplace update
+        .mockResolvedValueOnce(''); // retry install
+
+      await svc.install('my-plugin@mp', 'user');
+
+      expect(cli.exec).toHaveBeenCalledTimes(3);
+      expect(cli.exec).toHaveBeenNthCalledWith(2,
+        ['plugin', 'marketplace', 'update', 'mp'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+      expect(cli.exec).toHaveBeenNthCalledWith(3,
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+    });
+
+    it('Source path missing + marketplace update 後重試仍失敗 → 拋出重試錯誤', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec
+        .mockRejectedValueOnce(new Error('Source path does not exist: /path'))
+        .mockResolvedValueOnce('')  // marketplace update
+        .mockRejectedValueOnce(new Error('Still not found')); // retry install
+
+      await expect(svc.install('my-plugin@mp', 'user')).rejects.toThrow('Still not found');
+    });
+
+    it('非 source-path 錯誤 → 不重試，直接拋出', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec.mockRejectedValue(new Error('Permission denied'));
+
+      await expect(svc.install('my-plugin@mp', 'user')).rejects.toThrow('Permission denied');
+      expect(cli.exec).toHaveBeenCalledTimes(1);
+    });
+
+    it('Source path missing + project scope → marketplace update 後重試帶 cwd', async () => {
+      workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }] as any;
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec
+        .mockRejectedValueOnce(new Error('Source path does not exist: /path'))
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('');
+
+      await svc.install('my-plugin@mp', 'project');
+
+      expect(cli.exec).toHaveBeenNthCalledWith(3,
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'project'],
+        { timeout: CLI_LONG_TIMEOUT_MS, cwd: '/my/project' },
+      );
+    });
   });
 
   /* ═══════ uninstall ═══════ */
