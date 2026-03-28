@@ -112,7 +112,7 @@ export const PluginCard = React.memo(function PluginCard({
             <button className="btn btn-secondary btn-sm" onClick={() => {
               sendRequest({ type: 'openExternal', url: pluginUrl });
             }}>
-              {t('plugin.card.github')}
+              {getSourceButtonLabel(pluginUrl)}
             </button>
           )}
           {onToggleHidden && (
@@ -289,6 +289,16 @@ function ContentSection({
       ))}
     </div>
   );
+}
+
+/** 根據 URL domain 決定按鈕文字（GitHub / npm / PyPI） */
+export function getSourceButtonLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    if (hostname === 'www.npmjs.com' || hostname === 'npmjs.com') return 'npm';
+    if (hostname === 'pypi.org') return 'PyPI';
+  } catch { /* invalid URL → fallback */ }
+  return 'GitHub';
 }
 
 /**

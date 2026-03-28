@@ -302,6 +302,15 @@ function unwrapMcpServers(mcp: Record<string, unknown>): Record<string, unknown>
 }
 
 function extractSourceUrl(src: Record<string, unknown>): string | undefined {
+  // npm → npmjs.com browsable URL
+  if (src.source === 'npm' && typeof src.package === 'string') {
+    return `https://www.npmjs.com/package/${src.package}`;
+  }
+  // pip → pypi.org browsable URL
+  if (src.source === 'pip' && typeof src.package === 'string') {
+    return `https://pypi.org/project/${src.package}`;
+  }
+
   const baseUrl = extractSourceBaseUrl(src);
   if (!baseUrl) {
     return undefined;

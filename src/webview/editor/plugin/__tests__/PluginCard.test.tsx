@@ -12,7 +12,7 @@ vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
 }));
 
-import { PluginCard, buildPluginGithubUrl } from '../PluginCard';
+import { PluginCard, buildPluginGithubUrl, getSourceButtonLabel } from '../PluginCard';
 import type { MergedPlugin, PluginScope } from '../../../../shared/types';
 
 function createPlugin(overrides: Partial<MergedPlugin> = {}): MergedPlugin {
@@ -76,6 +76,28 @@ describe('buildPluginGithubUrl', () => {
     { label: '純名稱（無斜線）', url: 'some-marketplace', sourceDir: './baz' },
   ])('$label → null', ({ url, sourceDir }) => {
     expect(buildPluginGithubUrl(url, sourceDir)).toBeNull();
+  });
+
+  describe('getSourceButtonLabel — official marketplace URL patterns', () => {
+    it.each([
+      // url type — adspirer-ads-agent
+      { url: 'https://github.com/amekala/adspirer-mcp-plugin', expected: 'GitHub' },
+      // git-subdir — amazon-location-service
+      { url: 'https://github.com/awslabs/agent-plugins/tree/main/plugins/amazon-location-service', expected: 'GitHub' },
+      // git-subdir shorthand — ai-firstify
+      { url: 'https://github.com/techwolf-ai/ai-first-toolkit/tree/main/plugins/ai-firstify', expected: 'GitHub' },
+      // github type — stagehand
+      { url: 'https://github.com/browserbase/agent-browse', expected: 'GitHub' },
+      // npm
+      { url: 'https://www.npmjs.com/package/@anthropic/plugin-example', expected: 'npm' },
+      { url: 'https://npmjs.com/package/pkg', expected: 'npm' },
+      // pip
+      { url: 'https://pypi.org/project/claude-plugin-example', expected: 'PyPI' },
+      // fallback
+      { url: 'https://gitlab.com/foo/bar', expected: 'GitHub' },
+    ])('$url → $expected', ({ url, expected }) => {
+      expect(getSourceButtonLabel(url)).toBe(expected);
+    });
   });
 
   describe('sourceUrl 優先級', () => {
@@ -225,6 +247,32 @@ describe('PluginCard', () => {
       type: 'openExternal',
       url: 'https://github.com/amekala/adspirer-mcp-plugin',
     });
+  });
+
+  it('npm sourceUrl → 按鈕顯示 "npm"', () => {
+    const plugin = createPlugin({
+      sourceUrl: 'https://www.npmjs.com/package/@anthropic/plugin-example',
+    });
+
+    renderWithI18n(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    expect(screen.getByText('npm')).toBeTruthy();
+    expect(screen.queryByText('GitHub')).toBeNull();
+  });
+
+  it('pypi sourceUrl → 按鈕顯示 "PyPI"', () => {
+    const plugin = createPlugin({
+      sourceUrl: 'https://pypi.org/project/my-plugin',
+    });
+
+    renderWithI18n(
+      <PluginCard plugin={plugin} onToggle={onToggle} onUpdate={onUpdate} />,
+    );
+
+    expect(screen.getByText('PyPI')).toBeTruthy();
+    expect(screen.queryByText('GitHub')).toBeNull();
   });
 
   it('本機路徑 marketplaceUrl → 不顯示 GitHub 按鈕', () => {

@@ -143,7 +143,8 @@ export class PluginService {
       } catch (err) {
         // source path 不存在 → marketplace 可能未同步，先 update 再重試一次
         if (isSourcePathMissing(err)) {
-          const marketplaceName = plugin.split('@')[1];
+          const lastAt = plugin.lastIndexOf('@');
+          const marketplaceName = lastAt > 0 ? plugin.slice(lastAt + 1) : undefined;
           if (marketplaceName) {
             await this.cli.exec(
               ['plugin', 'marketplace', 'update', marketplaceName],

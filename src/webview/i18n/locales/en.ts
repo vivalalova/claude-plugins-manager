@@ -388,7 +388,6 @@ export const en = {
   'plugin.page.quotaExceeded': 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.',
   // PluginCard
   'plugin.card.updateAvailable': 'Update available',
-  'plugin.card.github': 'GitHub',
   'plugin.content.external': 'This plugin is from an external repo. Content is available after installation.',
   'plugin.content.installOnly': 'Install (without enabling)',
   'plugin.card.hide': 'Hide',

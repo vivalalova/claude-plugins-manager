@@ -390,7 +390,6 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.section.hiddenCount': '{count} 個隱藏',
   // PluginCard
   'plugin.card.updateAvailable': '有可用更新',
-  'plugin.card.github': 'GitHub',
   'plugin.content.external': '此 plugin 來自外部 repo，安裝後才能檢視內容',
   'plugin.content.installOnly': '安裝（不啟用）',
   'plugin.card.hide': '隱藏',

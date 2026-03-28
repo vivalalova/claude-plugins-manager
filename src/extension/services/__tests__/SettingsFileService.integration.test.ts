@@ -740,6 +740,240 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
       expect(plugin!.sourceDir).toBe('./plugins/local-plugin');
     });
 
+    it('source 為 object（npm type）→ sourceUrl 為 npmjs.com URL', async () => {
+      const mpName = `scan-mp-npm-source-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'npm-plugin',
+            description: 'an npm plugin',
+            source: {
+              source: 'npm',
+              package: '@anthropic/plugin-example',
+              version: '1.0.0',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `npm-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://www.npmjs.com/package/@anthropic/plugin-example');
+      expect(plugin!.sourceDir).toBeUndefined();
+    });
+
+    it('source 為 object（pip type）→ sourceUrl 為 pypi.org URL', async () => {
+      const mpName = `scan-mp-pip-source-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'pip-plugin',
+            description: 'a pip plugin',
+            source: {
+              source: 'pip',
+              package: 'claude-plugin-example',
+              version: '2.0.0',
+            },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `pip-plugin@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe('https://pypi.org/project/claude-plugin-example');
+      expect(plugin!.sourceDir).toBeUndefined();
+    });
+
+    it('source 為 object（npm type）但無 package 欄位 → sourceUrl undefined', async () => {
+      const mpName = `scan-mp-npm-no-pkg-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'broken-npm',
+            description: 'npm without package field',
+            source: { source: 'npm', version: '1.0.0' },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `broken-npm@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBeUndefined();
+    });
+
+    it('source 為 object（pip type）但無 package 欄位 → sourceUrl undefined', async () => {
+      const mpName = `scan-mp-pip-no-pkg-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{
+            name: 'broken-pip',
+            description: 'pip without package field',
+            source: { source: 'pip' },
+          }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `broken-pip@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBeUndefined();
+    });
+
+    // --- 用 anthropics/claude-plugins-official 真實 marketplace 資料驗證所有 source type ---
+    it.each([
+      {
+        label: 'url — adspirer-ads-agent',
+        name: 'adspirer-ads-agent',
+        source: { source: 'url', url: 'https://github.com/amekala/adspirer-mcp-plugin.git', sha: 'aa70dbdbbbb843e94a794c10c2b13f5dd66b5e40' },
+        expectedUrl: 'https://github.com/amekala/adspirer-mcp-plugin',
+      },
+      {
+        label: 'url + path — atomic-agents',
+        name: 'atomic-agents',
+        source: { source: 'url', url: 'https://github.com/BrainBlend-AI/atomic-agents.git', path: 'claude-plugin/atomic-agents' },
+        expectedUrl: 'https://github.com/BrainBlend-AI/atomic-agents/tree/main/claude-plugin/atomic-agents',
+      },
+      {
+        label: 'git-subdir（full URL）— amazon-location-service',
+        name: 'amazon-location-service',
+        source: { source: 'git-subdir', url: 'https://github.com/awslabs/agent-plugins.git', path: 'plugins/amazon-location-service', ref: 'main' },
+        expectedUrl: 'https://github.com/awslabs/agent-plugins/tree/main/plugins/amazon-location-service',
+      },
+      {
+        label: 'git-subdir（shorthand）— ai-firstify',
+        name: 'ai-firstify',
+        source: { source: 'git-subdir', url: 'techwolf-ai/ai-first-toolkit', path: 'plugins/ai-firstify', ref: 'main', sha: '7f18e11d694b9ae62ea3009fbbc175f08ae913df' },
+        expectedUrl: 'https://github.com/techwolf-ai/ai-first-toolkit/tree/main/plugins/ai-firstify',
+      },
+      {
+        label: 'github — stagehand',
+        name: 'stagehand',
+        source: { source: 'github', repo: 'browserbase/agent-browse' },
+        expectedUrl: 'https://github.com/browserbase/agent-browse',
+      },
+      {
+        label: 'npm — @anthropic/plugin-example',
+        name: 'npm-example',
+        source: { source: 'npm', package: '@anthropic/plugin-example', version: '1.0.0' },
+        expectedUrl: 'https://www.npmjs.com/package/@anthropic/plugin-example',
+      },
+      {
+        label: 'pip — claude-plugin-example',
+        name: 'pip-example',
+        source: { source: 'pip', package: 'claude-plugin-example', version: '2.0.0' },
+        expectedUrl: 'https://pypi.org/project/claude-plugin-example',
+      },
+    ])('official marketplace source type: $label → sourceUrl 正確', async ({ name, source, expectedUrl }) => {
+      const mpName = `scan-official-${name}-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{ name, description: `${name} plugin`, source }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `${name}@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBe(expectedUrl);
+    });
+
+    it('official marketplace source type: string — agent-sdk-dev → sourceDir 有值、sourceUrl undefined', async () => {
+      const mpName = `scan-official-string-${testIdx}`;
+      const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);
+
+      mkdirSync(join(mpDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(mpDir, 'plugins', 'agent-sdk-dev'), { recursive: true });
+
+      await writeFile(
+        join(mpDir, '.claude-plugin', 'marketplace.json'),
+        JSON.stringify({
+          name: mpName,
+          plugins: [{ name: 'agent-sdk-dev', description: 'Agent SDK dev tools', source: './plugins/agent-sdk-dev' }],
+        }),
+      );
+
+      const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
+      let known: Record<string, unknown> = {};
+      try { known = JSON.parse(await readFile(knownPath, 'utf-8')); } catch { /* empty */ }
+      known[mpName] = { installLocation: mpDir };
+      await writeFile(knownPath, JSON.stringify(known));
+
+      const result = await svc.scanAvailablePlugins();
+      const plugin = result.find((p) => p.pluginId === `agent-sdk-dev@${mpName}`);
+
+      expect(plugin).toBeDefined();
+      expect(plugin!.sourceUrl).toBeUndefined();
+      expect(plugin!.sourceDir).toBe('./plugins/agent-sdk-dev');
+    });
+
     it('source 為 repo root 且 manifest 只宣告單一 skill 時，contents 只列出該 skill，但 sourceDir 保留 plugin root', async () => {
       const mpName = `scan-mp-single-declared-skill-${testIdx}`;
       const mpDir = join(SUITE_HOME, '.claude', 'plugins', 'marketplaces', mpName);

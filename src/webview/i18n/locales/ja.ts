@@ -42,7 +42,6 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.section.hiddenCount': '{count} 件非表示',
   // PluginCard
   'plugin.card.updateAvailable': 'アップデートあり',
-  'plugin.card.github': 'GitHub',
   'plugin.content.external': 'このプラグインは外部リポジトリです。インストール後にコンテンツを確認できます。',
   'plugin.content.installOnly': 'インストール（有効化せず）',
   'plugin.card.hide': '非表示',
