@@ -177,6 +177,7 @@ export class PluginService {
 
     await this.settings.addInstallEntry(plugin, entry);
     await this.settings.setPluginEnabled(plugin, scope, true);
+    await this.fixPluginPermissions(plugin);
   }
 
   /** 移除 plugin（從 installed_plugins.json 移除 entry + disable） */

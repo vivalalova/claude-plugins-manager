@@ -511,6 +511,67 @@ describe('McpService', () => {
       );
     });
 
+    it('最簡呼叫（無 transport/scope/env/headers/args）只帶 name 和 commandOrUrl', async () => {
+      await svc.add({ name: 'minimal', commandOrUrl: 'npx minimal-mcp' });
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'add', 'minimal', 'npx minimal-mcp'],
+        expect.objectContaining({ cwd: undefined }),
+      );
+    });
+
+    it('stdio transport：帶 --transport stdio', async () => {
+      await svc.add({ name: 'stdio-srv', commandOrUrl: 'node server.js', transport: 'stdio' });
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'add', '--transport', 'stdio', 'stdio-srv', 'node server.js'],
+        expect.anything(),
+      );
+    });
+
+    it('sse transport：帶 --transport sse', async () => {
+      await svc.add({ name: 'sse-srv', commandOrUrl: 'https://example.com/sse', transport: 'sse', scope: 'user' });
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'add', '--transport', 'sse', '--scope', 'user', 'sse-srv', 'https://example.com/sse'],
+        expect.anything(),
+      );
+    });
+
+    it('多組 env vars 各自展開為獨立 -e 參數', async () => {
+      await svc.add({
+        name: 'multi-env',
+        commandOrUrl: 'npx multi',
+        env: { KEY1: 'val1', KEY2: 'val2' },
+      });
+      const [args] = cli.exec.mock.calls[0];
+      expect(args).toContain('-e');
+      expect(args).toContain('KEY1=val1');
+      expect(args).toContain('KEY2=val2');
+      // 每組 env 都有對應的 -e flag
+      const eCount = (args as string[]).filter((a) => a === '-e').length;
+      expect(eCount).toBe(2);
+    });
+
+    it('多個 headers 各自展開為獨立 -H 參數', async () => {
+      await svc.add({
+        name: 'multi-header',
+        commandOrUrl: 'https://example.com',
+        transport: 'http',
+        headers: ['Authorization: Bearer token', 'X-Api-Key: key123'],
+      });
+      const [args] = cli.exec.mock.calls[0];
+      expect(args).toContain('-H');
+      expect(args).toContain('Authorization: Bearer token');
+      expect(args).toContain('X-Api-Key: key123');
+      const hCount = (args as string[]).filter((a) => a === '-H').length;
+      expect(hCount).toBe(2);
+    });
+
+    it('CLI 失敗 → 錯誤向上傳遞', async () => {
+      cli.exec.mockRejectedValue(new Error('mcp add failed'));
+      await expect(
+        svc.add({ name: 'bad', commandOrUrl: 'npx bad' }),
+      ).rejects.toThrow('mcp add failed');
+    });
+
     it('add 後 metadata cache 立即 invalidate（不等 FileWatcher debounce）', async () => {
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) {
@@ -571,6 +632,11 @@ describe('McpService', () => {
         ['mcp', 'remove', 'my-server', '--scope', 'project'],
         expect.objectContaining({ cwd: '/my/project' }),
       );
+    });
+
+    it('CLI 失敗 → 錯誤向上傳遞', async () => {
+      cli.exec.mockRejectedValue(new Error('mcp remove failed'));
+      await expect(svc.remove('target')).rejects.toThrow('mcp remove failed');
     });
 
     it('remove 後 metadata cache 立即 invalidate', async () => {
@@ -825,6 +891,63 @@ describe('McpService', () => {
       expect(detail.env).toEqual({ API_KEY: 'secret' });
     });
 
+    it('server 不在 metadata 也不在快取 → 只回傳 name', async () => {
+      // readFile 全部丟 ENOENT → metadata 空
+      mockReadFile.mockRejectedValue(enoent());
+
+      const detail = JSON.parse(await svc.getDetail('ghost-server'));
+
+      expect(cli.exec).not.toHaveBeenCalled();
+      expect(detail.name).toBe('ghost-server');
+      // 無 scope/command/status
+      expect(detail.scope).toBeUndefined();
+      expect(detail.status).toBeUndefined();
+    });
+
+    it('shortName 解析：帶 scope 前綴的 fullName 也能命中設定檔', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('.claude.json')) {
+          return JSON.stringify({
+            mcpServers: { 'my-srv': { command: 'node', args: ['app.js'] } },
+          });
+        }
+        throw enoent();
+      });
+
+      // fullName 加了 scope prefix，如 "user:my-srv"
+      const detail = JSON.parse(await svc.getDetail('user:my-srv'));
+
+      expect(detail.name).toBe('my-srv');
+      expect(detail.command).toBe('node');
+      expect(detail.args).toEqual(['app.js']);
+    });
+
+    it('plugin：非法 fullName 格式 → throw', async () => {
+      await expect(svc.getDetail('plugin:missingServerPart')).rejects.toThrow(
+        'Invalid plugin MCP name: plugin:missingServerPart',
+      );
+    });
+
+    it('plugin：installed_plugins.json 不存在 → throw', async () => {
+      mockReadFile.mockRejectedValue(enoent());
+      await expect(
+        svc.getDetail('plugin:unknown@market:srv'),
+      ).rejects.toThrow('Cannot read installed plugins');
+    });
+
+    it('plugin：plugin key 不在 installed_plugins 中 → throw', async () => {
+      mockReadFile.mockImplementation(async (path: string) => {
+        if (path.includes('installed_plugins.json')) {
+          return JSON.stringify({ version: 2, plugins: {} });
+        }
+        throw enoent();
+      });
+
+      await expect(
+        svc.getDetail('plugin:not-installed@market:srv'),
+      ).rejects.toThrow('Plugin not found: not-installed@market');
+    });
+
     it('同 base name 不同 marketplace 的 plugin detail 依 canonical fullName 命中正確 plugin', async () => {
       settings.readAllEnabledPlugins = vi.fn().mockResolvedValue({
         user: { 'shared@community': true, 'shared@official': false },
@@ -888,6 +1011,12 @@ describe('McpService', () => {
         ['mcp', 'reset-project-choices'],
         { cwd: '/my/project' },
       );
+    });
+
+    it('CLI 失敗 → 錯誤向上傳遞', async () => {
+      workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }];
+      cli.exec.mockRejectedValue(new Error('reset failed'));
+      await expect(svc.resetProjectChoices()).rejects.toThrow('reset failed');
     });
   });
 

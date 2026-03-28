@@ -13,6 +13,12 @@ vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
 }));
 
+/* ── fixScriptPermissions mock ── */
+const mockFixScriptPermissions = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('../../utils/fixScriptPermissions', () => ({
+  fixScriptPermissions: mockFixScriptPermissions,
+}));
+
 /* ── helpers ── */
 function createMockCli(): CliService & { exec: ReturnType<typeof vi.fn> } {
   return {
@@ -465,6 +471,22 @@ describe('PluginService', () => {
         .rejects.toThrow('EACCES');
       // addInstallEntry 已被呼叫（entry 已寫入）
       expect(settings.addInstallEntry).toHaveBeenCalledTimes(1);
+    });
+
+    it('reuse 路徑 → fixPluginPermissions 修正執行權限', async () => {
+      workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }] as any;
+      // 第一次：install() 開頭讀取現有 entry（觸發 reuse 路徑）
+      settings.readInstalledPlugins.mockResolvedValueOnce(installedWithUser('my-plugin@mp'));
+      // 第二次：fixPluginPermissions 內部讀取 installPath
+      settings.readInstalledPlugins.mockResolvedValueOnce(
+        installedWithUser('my-plugin@mp'),
+      );
+
+      await svc.install('my-plugin@mp', 'project');
+
+      expect(cli.exec).not.toHaveBeenCalled();
+      expect(settings.setPluginEnabled).toHaveBeenCalledWith('my-plugin@mp', 'project', true);
+      expect(mockFixScriptPermissions).toHaveBeenCalledWith('/existing/path');
     });
 
     it('CLI 安裝失敗 → 拋出錯誤', async () => {

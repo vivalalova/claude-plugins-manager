@@ -9,6 +9,7 @@ const mockMkdtemp = vi.hoisted(() => vi.fn());
 const mockRm = vi.hoisted(() => vi.fn());
 const mockAccess = vi.hoisted(() => vi.fn());
 const mockExecFile = vi.hoisted(() => vi.fn());
+const mockFixScriptPermissions = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
@@ -20,6 +21,10 @@ vi.mock('fs/promises', () => ({
 
 vi.mock('child_process', () => ({
   execFile: mockExecFile,
+}));
+
+vi.mock('../../utils/fixScriptPermissions', () => ({
+  fixScriptPermissions: mockFixScriptPermissions,
 }));
 
 function createMockCli(): { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService {
@@ -94,6 +99,12 @@ describe('MarketplaceService', () => {
       );
     });
 
+    it('CLI 失敗 → error 往上拋，不寫 config file', async () => {
+      cli.exec.mockRejectedValue(new Error('CLI add failed'));
+      await expect(svc.add('https://github.com/owner/repo')).rejects.toThrow('CLI add failed');
+      expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+
     it('add 進行中時，toggleAutoUpdate 會等待前一個 mutation 完成', async () => {
       let markAddStarted!: () => void;
       const addStarted = new Promise<void>((resolve) => {
@@ -136,6 +147,11 @@ describe('MarketplaceService', () => {
       await svc.remove('my-marketplace');
       expect(cli.exec).toHaveBeenCalledWith(['plugin', 'marketplace', 'remove', 'my-marketplace']);
     });
+
+    it('CLI 失敗 → error 往上拋', async () => {
+      cli.exec.mockRejectedValue(new Error('CLI remove failed'));
+      await expect(svc.remove('my-marketplace')).rejects.toThrow('CLI remove failed');
+    });
   });
 
   describe('update()', () => {
@@ -154,6 +170,24 @@ describe('MarketplaceService', () => {
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
     });
+
+    it('CLI 失敗 → error 往上拋，不呼叫 fixScriptPermissions', async () => {
+      cli.exec.mockRejectedValue(new Error('CLI update failed'));
+      await expect(svc.update('my-marketplace')).rejects.toThrow('CLI update failed');
+      expect(mockFixScriptPermissions).not.toHaveBeenCalled();
+    });
+
+    it('update 成功 → 呼叫 fixScriptPermissions 修正 installLocation 下的 .sh 權限', async () => {
+      await svc.update('my-marketplace');
+      expect(mockFixScriptPermissions).toHaveBeenCalledWith('/path/to/marketplace');
+    });
+
+    it('update 全部（無 name）→ fixScriptPermissions 對每個 installLocation 各呼叫一次', async () => {
+      await svc.update();
+      expect(mockFixScriptPermissions).toHaveBeenCalledWith('/path/to/marketplace');
+      expect(mockFixScriptPermissions).toHaveBeenCalledWith('/local/path');
+      expect(mockFixScriptPermissions).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('toggleAutoUpdate()', () => {
@@ -168,6 +202,12 @@ describe('MarketplaceService', () => {
     it('不存在的 name 拋錯', async () => {
       await expect(svc.toggleAutoUpdate('nonexistent'))
         .rejects.toThrow('Marketplace "nonexistent" not found');
+    });
+
+    it('readFile 失敗 → error 往上拋，不寫 config file', async () => {
+      mockReadFile.mockRejectedValue(new Error('EACCES: permission denied'));
+      await expect(svc.toggleAutoUpdate('my-marketplace')).rejects.toThrow('EACCES');
+      expect(mockWriteFile).not.toHaveBeenCalled();
     });
   });
 
