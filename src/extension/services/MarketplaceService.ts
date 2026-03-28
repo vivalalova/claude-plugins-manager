@@ -8,6 +8,7 @@ import type { CliService } from './CliService';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
 import { KNOWN_MARKETPLACES_PATH } from '../paths';
+import { fixScriptPermissions } from '../utils/fixScriptPermissions';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
 const GIT_CLONE_TIMEOUT_MS = 30_000;
@@ -86,6 +87,15 @@ export class MarketplaceService {
       if (changed) {
         await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
       }
+
+      // 修正新 marketplace 中 .sh 檔案的執行權限
+      const newNames = Object.keys(afterConfig).filter((n) => !beforeNames.has(n));
+      await Promise.all(
+        newNames
+          .map((n) => afterConfig[n].installLocation)
+          .filter(Boolean)
+          .map((dir) => fixScriptPermissions(dir)),
+      );
     });
   }
 
@@ -104,6 +114,7 @@ export class MarketplaceService {
         args.push(name);
       }
       await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS });
+      await this.fixMarketplacePermissions(name);
     });
   }
 
@@ -121,6 +132,15 @@ export class MarketplaceService {
       entry.autoUpdate = !entry.autoUpdate;
       await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(config, null, 2) + '\n');
     });
+  }
+
+  /** 修正 marketplace installLocation 中 .sh 檔案的執行權限 */
+  private async fixMarketplacePermissions(name?: string): Promise<void> {
+    const config = await readJsonFile<RawMarketplaceConfig>(KNOWN_MARKETPLACES_PATH, {} as RawMarketplaceConfig);
+    const dirs = name
+      ? config[name]?.installLocation ? [config[name].installLocation] : []
+      : Object.values(config).map((e) => e.installLocation).filter(Boolean);
+    await Promise.all(dirs.map((dir) => fixScriptPermissions(dir)));
   }
 
   /**

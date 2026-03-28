@@ -12,6 +12,7 @@ import type {
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { getWorkspacePath, NoWorkspaceError } from '../utils/workspace';
+import { fixScriptPermissions } from '../utils/fixScriptPermissions';
 
 /**
  * Plugin CRUD。
@@ -138,6 +139,7 @@ export class PluginService {
         ['plugin', 'install', plugin, '--scope', scope],
         { timeout: CLI_LONG_TIMEOUT_MS, cwd },
       );
+      await this.fixPluginPermissions(plugin);
       return;
     }
     const projectPath = this.getScopedProjectPath(scope);
@@ -207,7 +209,19 @@ export class PluginService {
       }
       throw error;
     }
-    await this.settings.updateInstallEntryTimestamp(plugin, scope);
+    await Promise.all([
+      this.fixPluginPermissions(plugin),
+      this.settings.updateInstallEntryTimestamp(plugin, scope),
+    ]);
+  }
+
+  /** 修正 plugin cache 目錄中 .sh 檔案的執行權限 */
+  private async fixPluginPermissions(plugin: string): Promise<void> {
+    const data = await this.settings.readInstalledPlugins();
+    const entries = data.plugins[plugin];
+    if (entries?.length) {
+      await fixScriptPermissions(entries[0].installPath);
+    }
   }
 
   /** 讀取 plugin 目錄中的 .mcp.json（如果有） */
