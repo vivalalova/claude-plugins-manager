@@ -9,3 +9,4 @@ package-lock.json
 .claude/settings-lova.json
 .claude/settings.local.json
 claude-code-settings-schema.json
+.agent/looping/.hook-debug.log
