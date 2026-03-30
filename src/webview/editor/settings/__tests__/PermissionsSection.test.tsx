@@ -38,11 +38,6 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('PermissionsSection — 渲染', () => {
-  it('顯示 Permissions section title', async () => {
-    renderSection();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Permissions' })).toBeTruthy());
-  });
-
   it('TagInput 類型欄位顯示 key hint 但不顯示陣列預設值', async () => {
     renderSection();
 

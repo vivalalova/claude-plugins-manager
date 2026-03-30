@@ -122,11 +122,6 @@ export const en = {
   'settings.env.valuePlaceholder': 'value',
   'settings.env.duplicateKey': 'Key already exists',
   'settings.env.invalidKey': 'Key must contain only A-Z, 0-9, _',
-  'settings.env.customCategory': 'Custom',
-  // Env section — valueType group labels
-  'settings.env.group.boolean': 'Toggle',
-  'settings.env.group.number': 'Number',
-  'settings.env.group.string': 'Text',
   // Env section — known var descriptions
   'settings.env.knownVars.ANTHROPIC_MODEL.description': 'Override the default Claude model (alias or full model ID)',
   'settings.env.knownVars.ANTHROPIC_DEFAULT_SONNET_MODEL.description': 'Override "sonnet" alias to specific model ID',

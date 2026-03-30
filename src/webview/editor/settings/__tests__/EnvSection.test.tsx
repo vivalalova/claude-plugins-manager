@@ -75,14 +75,13 @@ describe('EnvSection — 全列表渲染', () => {
     });
   });
 
-  it('顯示 valueType group headers', async () => {
+  it('env-category-group 分組存在但無標題', async () => {
     renderEnvSection({});
 
     await waitFor(() => {
-      expect(screen.getByText('Toggle')).toBeTruthy();
-      expect(screen.getByText('Number')).toBeTruthy();
-      expect(screen.getByText('Text')).toBeTruthy();
-      expect(screen.getByText('Custom')).toBeTruthy();
+      const groups = document.querySelectorAll('.env-category-group');
+      expect(groups.length).toBeGreaterThanOrEqual(3);
+      expect(document.querySelector('.env-category-title')).toBeNull();
     });
   });
 

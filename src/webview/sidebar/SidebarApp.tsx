@@ -36,12 +36,6 @@ export function SidebarApp(): React.ReactElement {
       description: t('sidebar.mcp.desc'),
     },
     {
-      id: 'skill' as CategoryId,
-      label: t('sidebar.skills'),
-      icon: '🧩',
-      description: t('sidebar.skills.desc'),
-    },
-    {
       id: 'settings' as CategoryId,
       label: t('sidebar.settings'),
       icon: '⚙️',

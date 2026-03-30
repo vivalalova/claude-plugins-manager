@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { SettingLabelText, TagInput, TextSetting } from './components/SettingControls';
+import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -334,9 +335,7 @@ export function PermissionsSection({
   ];
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">{t('settings.nav.permissions')}</h3>
-
+    <SettingsSectionWrapper>
       {/* defaultMode */}
       <div className="perm-defaultmode-row">
         <label className="settings-label">
@@ -483,6 +482,6 @@ export function PermissionsSection({
           onCancel={handleBypassCancel}
         />
       )}
-    </div>
+    </SettingsSectionWrapper>
   );
 }

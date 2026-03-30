@@ -16,6 +16,7 @@ import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 import { KNOWN_MODEL_OPTIONS } from '../../../shared/claude-settings-schema';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { useObjectEditorState } from './components/ObjectSetting';
+import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -93,9 +94,7 @@ function ModelSection({ scope: _scope, settings, onSave, onDelete }: ModelSectio
   const dropdownModels = availableModels?.length ? availableModels : [...KNOWN_MODEL_OPTIONS];
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">{t('settings.nav.model')}</h3>
-
+    <SettingsSectionWrapper>
       {outsideWhitelist && (
         <div className="settings-warning">
           ⚠️ {t('settings.model.outsideWhitelist')}
@@ -155,7 +154,7 @@ function ModelSection({ scope: _scope, settings, onSave, onDelete }: ModelSectio
           {t('settings.model.save')}
         </button>
       </div>
-    </div>
+    </SettingsSectionWrapper>
   );
 }
 

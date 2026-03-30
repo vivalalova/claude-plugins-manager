@@ -13,7 +13,6 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
 
   return (
     <SchemaSection
-      titleKey="settings.nav.advanced"
       section="advanced"
       renderCustom={(key, { scope, settings, overriddenScope, onSave, onDelete }) => {
         switch (key) {

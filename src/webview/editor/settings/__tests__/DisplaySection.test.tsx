@@ -46,11 +46,6 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('DisplaySection — 渲染', () => {
-  it('顯示 Display section title', async () => {
-    renderSection();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Display' })).toBeTruthy());
-  });
-
   it('共用欄位與自寫 editor 顯示 key hint，只有可確認 defaultValue 的欄位顯示預設值', async () => {
     renderSection();
 

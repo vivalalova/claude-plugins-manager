@@ -79,19 +79,6 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊 Display nav → 顯示 Display section title', async () => {
-    renderPage();
-
-    await waitFor(() => screen.getByRole('navigation'));
-    const nav = screen.getByRole('navigation');
-    const displayBtn = Array.from(nav.querySelectorAll('button')).find((b) => b.textContent === 'Display')!;
-    fireEvent.click(displayBtn);
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Display' })).toBeTruthy();
-    });
-  });
-
   it('只有右側內容區是 scroll container，scope tabs 與左側 nav 保持固定 shell', async () => {
     const { container } = renderPage();
 
@@ -109,19 +96,6 @@ describe('SettingsPage', () => {
     expect(settingsNav?.classList.contains('settings-nav--fixed')).toBe(true);
     expect(settingsNav?.classList.contains('settings-nav--compact')).toBe(true);
     expect(settingsContent?.classList.contains('settings-content--scrollable')).toBe(true);
-  });
-
-  it('點擊 Advanced nav → 顯示 Advanced section title', async () => {
-    renderPage();
-
-    await waitFor(() => screen.getByRole('navigation'));
-    const nav = screen.getByRole('navigation');
-    const advancedBtn = Array.from(nav.querySelectorAll('button')).find((b) => b.textContent === 'Advanced')!;
-    fireEvent.click(advancedBtn);
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Advanced' })).toBeTruthy();
-    });
   });
 
   it('Display 區塊刪除既有 spinner verb 後，optimistic update 不會清空未送出的草稿', async () => {
@@ -358,7 +332,7 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊 Env nav → 顯示 Env 區塊（valueType group headers + known vars）', async () => {
+  it('點擊 Env nav → 顯示 Env 區塊（known vars）', async () => {
     renderPage();
 
     await waitFor(() => screen.getByText('Env'));
@@ -366,8 +340,6 @@ describe('SettingsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('ANTHROPIC_MODEL')).toBeTruthy();
-      expect(screen.getByText('Toggle')).toBeTruthy();
-      expect(screen.getByText('Custom')).toBeTruthy();
     });
   });
 

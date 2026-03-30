@@ -444,19 +444,6 @@
   margin-bottom: 16px;
 }
 
-
-.env-category-title {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--vscode-descriptionForeground);
-  border-bottom: 1px solid var(--vscode-editorWidget-border, rgba(128,128,128,0.15));
-  padding-bottom: 4px;
-  margin-top: 8px;
-  margin-bottom: 4px;
-}
-
 .env-sensitive-row {
   display: flex;
   gap: var(--gap-sm);

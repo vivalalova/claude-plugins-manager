@@ -1,9 +1,9 @@
 import React from 'react';
-import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { SETTINGS_FLAT_SCHEMA, getSectionFieldOrder, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { getOverriddenScope } from './SettingControls';
+import { SettingsSectionWrapper } from './SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
 // Shared section props (reused by General, Display, Advanced, Hooks)
@@ -22,14 +22,12 @@ export interface SectionProps {
 // ---------------------------------------------------------------------------
 
 interface SchemaSectionProps extends SectionProps {
-  titleKey: string;
   section: SettingsSection;
   renderCustom?: (key: string, props: { scope: PluginScope; settings: ClaudeSettings; overriddenScope?: PluginScope; onSave: SectionProps['onSave']; onDelete: SectionProps['onDelete'] }) => React.ReactNode | null;
   headerContent?: React.ReactNode;
 }
 
 export function SchemaSection({
-  titleKey,
   section,
   scope,
   settings,
@@ -39,12 +37,10 @@ export function SchemaSection({
   renderCustom,
   headerContent,
 }: SchemaSectionProps): React.ReactElement {
-  const { t } = useI18n();
   const fieldOrder = getSectionFieldOrder(section);
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">{t(titleKey as Parameters<typeof t>[0])}</h3>
+    <SettingsSectionWrapper>
       {headerContent}
 
       {fieldOrder.map((key) => {
@@ -72,6 +68,6 @@ export function SchemaSection({
           />
         );
       })}
-    </div>
+    </SettingsSectionWrapper>
   );
 }

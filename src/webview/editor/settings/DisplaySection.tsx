@@ -241,7 +241,6 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 export function DisplaySection(props: SectionProps): React.ReactElement {
   return (
     <SchemaSection
-      titleKey="settings.nav.display"
       section="display"
       renderCustom={(key, { scope, settings, onSave, onDelete }) => {
         switch (key) {

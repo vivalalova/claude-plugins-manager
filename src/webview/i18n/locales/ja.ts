@@ -340,11 +340,6 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.valuePlaceholder': '値',
   'settings.env.duplicateKey': 'キーが既に存在します',
   'settings.env.invalidKey': 'キーは A-Z、0-9、_ のみ使用可能',
-  'settings.env.customCategory': 'カスタム',
-  // Env section — valueType group labels
-  'settings.env.group.boolean': 'トグル',
-  'settings.env.group.number': '数値',
-  'settings.env.group.string': 'テキスト',
   // Env section — known var descriptions
   'settings.env.knownVars.ANTHROPIC_MODEL.description': 'デフォルトの Claude モデルを上書き（エイリアスまたは完全なモデル ID）',
   'settings.env.knownVars.ANTHROPIC_DEFAULT_SONNET_MODEL.description': '「sonnet」エイリアスを特定のモデル ID に上書き',

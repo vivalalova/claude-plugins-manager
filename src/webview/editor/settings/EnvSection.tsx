@@ -5,6 +5,7 @@ import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { getKnownEnvVar, getKnownEnvVarNames, getKnownEnvVarsByValueType } from '../../../shared/known-env-vars';
 import type { KnownEnvVar, EnvVarValueType } from '../../../shared/known-env-vars';
 import { BooleanToggle, TextSetting, NumberSetting } from './components/SettingControls';
+import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -316,11 +317,9 @@ function EnvCustomField({
 // EnvCategoryGroup
 // ---------------------------------------------------------------------------
 
-function EnvCategoryGroup({ groupKey, children }: { groupKey: string; children: React.ReactNode }): React.ReactElement {
-  const { t } = useI18n();
+function EnvCategoryGroup({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <div className="env-category-group">
-      <h4 className="env-category-title">{t(groupKey as Parameters<typeof t>[0])}</h4>
       {children}
     </div>
   );
@@ -541,26 +540,24 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
   };
 
   const typeGroups: [EnvVarValueType, string, (v: KnownEnvVar) => React.ReactElement][] = [
-    [Boolean, 'settings.env.group.boolean', renderBoolean],
-    [Number, 'settings.env.group.number', renderNumber],
-    [String, 'settings.env.group.string', renderString],
+    [Boolean, 'boolean', renderBoolean],
+    [Number, 'number', renderNumber],
+    [String, 'string', renderString],
   ];
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">{t('settings.nav.env')}</h3>
-
+    <SettingsSectionWrapper>
       {typeGroups.map(([vt, groupKey, renderer]) => {
         const vars = knownVarsByType.get(vt);
         if (!vars || vars.length === 0) return null;
         return (
-          <EnvCategoryGroup key={groupKey} groupKey={groupKey}>
+          <EnvCategoryGroup key={groupKey}>
             {vars.map(renderer)}
           </EnvCategoryGroup>
         );
       })}
 
-      <EnvCategoryGroup groupKey="settings.env.customCategory">
+      <EnvCategoryGroup>
         {customEntries.map(([key]) => (
           <EnvCustomField
             key={key}
@@ -579,6 +576,6 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
           disabled={saving}
         />
       </EnvCategoryGroup>
-    </div>
+    </SettingsSectionWrapper>
   );
 }
