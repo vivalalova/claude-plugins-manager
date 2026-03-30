@@ -255,6 +255,12 @@ export function SettingsPage(): React.ReactElement {
             </button>
           );
         })}
+        <span className="settings-scope-docs-hint">
+          {t('settings.general.docsHint')}
+          <a href="https://code.claude.com/docs/en/settings" target="_blank" rel="noreferrer" className="settings-docs-link">
+            {t('settings.general.docsLinkText')}
+          </a>
+        </span>
       </div>
 
       <div className="settings-body settings-body--fixed-shell">
