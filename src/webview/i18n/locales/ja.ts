@@ -408,7 +408,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.allowedHttpHookUrls.duplicate': 'URL は既にリストにあります',
   // General section
   'settings.general.docsHint': 'すべてのパラメータは AI が',
-  'settings.general.docsLinkText': '公式ドキュメント',
+  'settings.general.docsLinkText': 'JSON Schema',
   'settings.general.docsHintSuffix': 'から自動生成',
   'settings.general.effortLevel.label': '思考レベル',
   'settings.general.effortLevel.notSet': '— 未設定 —',
