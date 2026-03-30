@@ -191,8 +191,9 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.allowedHttpHookUrls.empty': '未設定 URL 限制',
   'settings.hooks.allowedHttpHookUrls.duplicate': 'URL 已存在',
   // General section
-  'settings.general.docsHint': '參數說明來源：',
+  'settings.general.docsHint': '所有參數由 AI 讀取',
   'settings.general.docsLinkText': '官方文件',
+  'settings.general.docsHintSuffix': '自動產生',
   'settings.general.effortLevel.label': '思考強度',
   'settings.general.effortLevel.notSet': '— 未設定 —',
   'settings.general.effortLevel.high': '高',

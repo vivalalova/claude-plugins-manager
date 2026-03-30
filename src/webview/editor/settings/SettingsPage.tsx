@@ -260,6 +260,7 @@ export function SettingsPage(): React.ReactElement {
           <a href="https://code.claude.com/docs/en/settings" target="_blank" rel="noreferrer" className="settings-docs-link">
             {t('settings.general.docsLinkText')}
           </a>
+          {t('settings.general.docsHintSuffix') && ` ${t('settings.general.docsHintSuffix')}`}
         </span>
       </div>
 
