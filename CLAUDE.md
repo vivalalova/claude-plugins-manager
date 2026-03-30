@@ -23,6 +23,7 @@ npm run watch              # concurrently watch extension + webview
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
 - **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；巢狀結構 `Record<SettingsSection, SettingFieldEntry[]>`，陣列順序即 UI 渲染順序；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；`String` + `options` = enum dropdown；`SETTINGS_FLAT_SCHEMA` 扁平索引供 key lookup；`getSectionFieldOrder(section)` 取渲染順序；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束
 - **Known Env Vars**：`src/shared/known-env-vars.ts` — 已知 env vars registry；`valueType` 用原生型別（`String`/`Number`/`Boolean`）供 EnvSection autocomplete + inline description（i18n）；`update-settings-options` skill Phase 1c 同步維護
+- **SettingsSectionWrapper**：`src/webview/editor/settings/components/SettingsSectionWrapper.tsx` — 所有 settings section 的共用外層容器（`div.settings-section`）
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
 - **SettingControls**：`src/webview/editor/settings/components/SettingControls.tsx` — UI 控制元件集合（BooleanToggle/EnumDropdown/TextSetting/NumberSetting/TagInput）+ 共用 helper：`getOverriddenScope()`（scope override 判斷）、`shouldShowReset()`（reset default 判斷）、`OverrideBadge`（覆寫指示徽章）
 - **通訊**：Extension ↔ Webview 用 `postMessage`；`protocol.ts` 定義 `RequestMessage`（request+requestId）、`ResponseMessage`（response+requestId）、`PushMessage`（broadcast，無 requestId）
@@ -82,8 +83,8 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 
 ## 設定頁參數參考
 
-實作設定頁新功能前，先查官方文件確認支援的參數：
-https://code.claude.com/docs/en/settings
+實作設定頁新功能前，先查 JSON Schema 確認支援的參數：
+https://json.schemastore.org/claude-code-settings.json
 
 同步 docs 變更回 repo 前，先讀 [.claude/skills/update-settings-options/SKILL.md](/Users/lova/git/vibe/claude-plugins/.claude/skills/update-settings-options/SKILL.md)
 
