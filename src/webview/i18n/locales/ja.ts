@@ -407,9 +407,11 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.allowedHttpHookUrls.empty': 'URL 制限未設定',
   'settings.hooks.allowedHttpHookUrls.duplicate': 'URL は既にリストにあります',
   // General section
-  'settings.general.docsHint': 'すべてのパラメータは AI が',
+  'settings.general.docsHint': 'すべてのパラメータはプロジェクトの ',
+  'settings.general.docsSkillName': 'update-settings-options',
+  'settings.general.docsHintMiddle': ' skill が ',
   'settings.general.docsLinkText': 'JSON Schema',
-  'settings.general.docsHintSuffix': 'から自動生成',
+  'settings.general.docsHintSuffix': ' から自動生成',
   'settings.general.effortLevel.label': '思考レベル',
   'settings.general.effortLevel.notSet': '— 未設定 —',
   'settings.general.effortLevel.high': '高',

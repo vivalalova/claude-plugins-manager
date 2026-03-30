@@ -162,6 +162,11 @@
   padding-bottom: 8px;
 }
 
+.settings-docs-skill-name {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+}
+
 .settings-scope-tabs--fixed {
   flex-shrink: 0;
 }

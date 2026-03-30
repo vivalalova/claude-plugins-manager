@@ -257,10 +257,12 @@ export function SettingsPage(): React.ReactElement {
         })}
         <span className="settings-scope-docs-hint">
           {t('settings.general.docsHint')}
+          <a href="https://github.com/vivalalova/claude-plugins-manager/tree/main/.claude/skills/update-settings-options" target="_blank" rel="noreferrer" className="settings-docs-link settings-docs-skill-name">{t('settings.general.docsSkillName')}</a>
+          {t('settings.general.docsHintMiddle')}
           <a href="https://json.schemastore.org/claude-code-settings.json" target="_blank" rel="noreferrer" className="settings-docs-link">
             {t('settings.general.docsLinkText')}
           </a>
-          {t('settings.general.docsHintSuffix') && ` ${t('settings.general.docsHintSuffix')}`}
+          {t('settings.general.docsHintSuffix')}
         </span>
       </div>
 
