@@ -191,7 +191,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.allowedHttpHookUrls.empty': '未設定 URL 限制',
   'settings.hooks.allowedHttpHookUrls.duplicate': 'URL 已存在',
   // General section
-  'settings.general.docsHint': '所有參數由專案中的 ',
+  'settings.general.docsHint': '參數由專案中的 ',
   'settings.general.docsSkillName': 'update-settings-options',
   'settings.general.docsHintMiddle': ' skill 讀取 ',
   'settings.general.docsLinkText': 'JSON Schema',

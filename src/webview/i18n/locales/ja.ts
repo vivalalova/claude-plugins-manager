@@ -407,7 +407,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.hooks.allowedHttpHookUrls.empty': 'URL 制限未設定',
   'settings.hooks.allowedHttpHookUrls.duplicate': 'URL は既にリストにあります',
   // General section
-  'settings.general.docsHint': 'すべてのパラメータはプロジェクトの ',
+  'settings.general.docsHint': 'パラメータはプロジェクトの ',
   'settings.general.docsSkillName': 'update-settings-options',
   'settings.general.docsHintMiddle': ' skill が ',
   'settings.general.docsLinkText': 'JSON Schema',
