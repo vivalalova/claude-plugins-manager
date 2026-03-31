@@ -121,6 +121,17 @@ export interface AvailablePlugin {
   lastUpdated?: string;
 }
 
+/** installed_plugins.json 中 installPath 不存在的孤立 entry */
+export interface OrphanedPlugin {
+  id: string;
+  scope: PluginScope;
+  installPath: string;
+  version: string;
+  installedAt: string;
+  lastUpdated: string;
+  projectPath?: string;
+}
+
 /** Plugin listAvailable 的回傳結構 */
 export interface PluginListResponse {
   installed: InstalledPlugin[];
@@ -129,6 +140,8 @@ export interface PluginListResponse {
   marketplaceSources: Record<string, string>;
   /** 各 scope 的 enabledPlugins（settings.json source of truth） */
   enabledByScope?: Record<PluginScope, EnabledPluginsMap>;
+  /** installPath 不存在的孤立 entries */
+  orphaned: OrphanedPlugin[];
 }
 
 /** MCP Server 連線狀態 */

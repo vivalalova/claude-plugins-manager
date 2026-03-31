@@ -376,6 +376,12 @@ export const en = {
   'plugin.section.label': 'Section {n}',
   'plugin.section.addHint': 'Drag here to create a new section',
   'plugin.section.hiddenCount': '{count} hidden',
+  // Orphaned plugins
+  'plugin.orphan.title': 'Orphaned Plugins',
+  'plugin.orphan.description': 'Registered in installed_plugins.json but install path no longer exists.',
+  'plugin.orphan.remove': 'Remove',
+  'plugin.orphan.removeAll': 'Remove All',
+  'plugin.orphan.removing': 'Removing...',
   'plugin.page.clearFilters': 'Clear filters',
   'plugin.page.noPlugins': 'No plugins found',
   'plugin.page.noPluginsDesc': 'Add a marketplace first to discover and install plugins.',

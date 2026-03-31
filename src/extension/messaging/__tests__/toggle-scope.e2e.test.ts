@@ -91,6 +91,8 @@ describe('Plugin scope toggle（E2E：MessageRouter → Service → Filesystem�
       installedAt: '2026-01-01T00:00:00Z',
       lastUpdated: '2026-01-01T00:00:00Z',
     }];
+    // 建立 installPath 避免被判定為 orphaned
+    mkdirSync(join(SUITE_TMP, 'cache', pluginId), { recursive: true });
     await writeFile(installedPluginsPath, JSON.stringify(data, null, 2) + '\n');
   }
 

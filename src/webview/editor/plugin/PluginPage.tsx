@@ -8,6 +8,7 @@ import { DialogOverlay } from '../../components/DialogOverlay';
 import { PluginDialogs } from './PluginDialogs';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginSections } from './PluginSections';
+import { OrphanedSection } from './OrphanedSection';
 import { ContentDetailPanel } from '../../components/ContentDetailPanel';
 import type { ContentTypeFilter } from './filterUtils';
 import { usePluginData } from './hooks/usePluginData';
@@ -19,7 +20,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePluginPageViewState } from './hooks/usePluginPageViewState';
 import { useMarketplaceActions } from '../marketplace/hooks/useMarketplaceActions';
 import { sendRequest } from '../../vscode';
-import type { PluginContentItem } from '../../../shared/types';
+import type { PluginContentItem, PluginScope } from '../../../shared/types';
 import type { ContentDetail } from '../../components/ContentDetailPanel';
 
 
@@ -32,6 +33,7 @@ export function PluginPage(): React.ReactElement {
   const { t } = useI18n();
   const {
     plugins,
+    orphaned,
     loading,
     error,
     setError,
@@ -176,6 +178,38 @@ export function PluginPage(): React.ReactElement {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setInstallOnlyId(null);
+    }
+  };
+
+  // Orphaned plugins state
+  const [removingOrphans, setRemovingOrphans] = useState<Set<string>>(new Set());
+
+  const orphanKey = (pluginId: string, scope: PluginScope, projectPath?: string): string =>
+    `${pluginId}:${scope}:${projectPath ?? ''}`;
+
+  const handleRemoveOrphaned = async (pluginId: string, scope: PluginScope, projectPath?: string): Promise<void> => {
+    const key = orphanKey(pluginId, scope, projectPath);
+    setRemovingOrphans((prev) => new Set(prev).add(key));
+    try {
+      await sendRequest({ type: 'plugin.removeOrphaned', plugin: pluginId, scope, projectPath });
+      await fetchAll(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRemovingOrphans((prev) => { const next = new Set(prev); next.delete(key); return next; });
+    }
+  };
+
+  const handleRemoveAllOrphaned = async (): Promise<void> => {
+    const allKeys = new Set(orphaned.map((o) => orphanKey(o.id, o.scope, o.projectPath)));
+    setRemovingOrphans(allKeys);
+    try {
+      await sendRequest({ type: 'plugin.removeAllOrphaned' });
+      await fetchAll(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRemovingOrphans(new Set());
     }
   };
 
@@ -360,6 +394,15 @@ export function PluginPage(): React.ReactElement {
           onMarketplaceUpdate={(name) => handleMarketplaceUpdate(name)}
           onMarketplaceRemove={(name) => setConfirmRemove(name)}
           onMarketplaceToggleAutoUpdate={(name) => handleToggleAutoUpdate(name)}
+        />
+      )}
+
+      {!loading && ready && (
+        <OrphanedSection
+          orphaned={orphaned}
+          removing={removingOrphans}
+          onRemove={handleRemoveOrphaned}
+          onRemoveAll={handleRemoveAllOrphaned}
         />
       )}
 

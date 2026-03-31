@@ -19,6 +19,8 @@ export type RequestMessage =
   | { type: 'plugin.disable'; requestId: string; plugin: string; scope?: PluginScope }
   | { type: 'plugin.disableAll'; requestId: string }
   | { type: 'plugin.update'; requestId: string; plugin: string; scope?: PluginScope }
+  | { type: 'plugin.removeOrphaned'; requestId: string; plugin: string; scope: PluginScope; projectPath?: string }
+  | { type: 'plugin.removeAllOrphaned'; requestId: string }
   | { type: 'plugin.getContentDetail'; requestId: string; path: string }
   | { type: 'mcp.list'; requestId: string }
   | { type: 'mcp.add'; requestId: string; params: McpAddParams }

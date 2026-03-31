@@ -89,6 +89,10 @@ export class MessageRouter {
         return this.plugin.disableAll();
       case 'plugin.update':
         return this.plugin.update(message.plugin, message.scope);
+      case 'plugin.removeOrphaned':
+        return this.plugin.removeOrphaned(message.plugin, message.scope, message.projectPath);
+      case 'plugin.removeAllOrphaned':
+        return this.plugin.removeAllOrphaned();
       case 'plugin.getContentDetail': {
         const resolvedDetail = expandTildePath(message.path);
         this.assertAllowedPath(resolvedDetail);

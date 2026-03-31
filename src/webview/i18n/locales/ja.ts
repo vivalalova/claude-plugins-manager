@@ -40,6 +40,12 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.section.label': 'セクション {n}',
   'plugin.section.addHint': 'ここにドラッグして新しいセクションを作成',
   'plugin.section.hiddenCount': '{count} 件非表示',
+  // Orphaned plugins
+  'plugin.orphan.title': '孤立プラグイン',
+  'plugin.orphan.description': 'installed_plugins.json に登録されていますが、インストールパスが存在しません。',
+  'plugin.orphan.remove': '削除',
+  'plugin.orphan.removeAll': 'すべて削除',
+  'plugin.orphan.removing': '削除中...',
   // PluginCard
   'plugin.card.updateAvailable': 'アップデートあり',
   'plugin.content.external': 'このプラグインは外部リポジトリです。インストール後にコンテンツを確認できます。',
