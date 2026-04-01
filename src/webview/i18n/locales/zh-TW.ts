@@ -386,6 +386,12 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.section.label': '區塊 {n}',
   'plugin.section.addHint': '拖拉至此以新增區塊',
   'plugin.section.hiddenCount': '{count} 個隱藏',
+  // Orphaned plugins
+  'plugin.orphan.title': '孤立的 Plugin',
+  'plugin.orphan.description': '已登錄在 installed_plugins.json 但安裝路徑已不存在。',
+  'plugin.orphan.remove': '移除',
+  'plugin.orphan.removeAll': '全部移除',
+  'plugin.orphan.removing': '移除中...',
   // PluginCard
   'plugin.card.updateAvailable': '有可用更新',
   'plugin.content.external': '此 plugin 來自外部 repo，安裝後才能檢視內容',

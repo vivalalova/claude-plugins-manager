@@ -837,3 +837,55 @@
   outline-offset: -2px;
 }
 
+/* ----------------------------------------------------------------
+ * Orphaned Plugins Section
+ * ---------------------------------------------------------------- */
+
+.orphan-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+
+.orphan-description {
+  font-size: var(--font-size-sm);
+  color: var(--vscode-descriptionForeground);
+  margin: 0;
+}
+
+.orphan-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.orphan-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  box-shadow: inset 3px 0 0 var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.orphan-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+.orphan-card-name {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.orphan-card-path {
+  font-size: var(--font-size-xs);
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family);
+  word-break: break-all;
+}
+
+.orphan-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+

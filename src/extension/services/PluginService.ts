@@ -1,10 +1,11 @@
-import { readFile } from 'fs/promises';
+import { readFile, stat } from 'fs/promises';
 import { join } from 'path';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type {
   AvailablePlugin,
   InstalledPlugin,
   InstalledPluginsFile,
+  OrphanedPlugin,
   PluginListResponse,
   PluginScope,
   PluginInstallEntry,
@@ -49,8 +50,16 @@ export class PluginService {
       this.settings.scanAvailablePlugins(),
       this.settings.readMarketplaceSources(),
     ]);
-    const installed = await this.buildInstalledList(data, enabledByScope, available);
-    return { installed, available, marketplaceSources, enabledByScope };
+    const [allInstalled, orphaned] = await Promise.all([
+      this.buildInstalledList(data, enabledByScope, available),
+      this.detectOrphaned(data),
+    ]);
+    // orphaned entries 不應出現在 installed
+    const orphanKeys = new Set(orphaned.map((o) => `${o.id}:${o.scope}:${o.projectPath ?? ''}`));
+    const installed = allInstalled.filter(
+      (p) => !orphanKeys.has(`${p.id}:${p.scope}:${p.projectPath ?? ''}`),
+    );
+    return { installed, available, marketplaceSources, enabledByScope, orphaned };
   }
 
   /** 從已取得的資料組裝 InstalledPlugin 列表（避免重複 IO） */
@@ -236,6 +245,55 @@ export class PluginService {
       this.fixPluginPermissions(plugin),
       this.settings.updateInstallEntryTimestamp(plugin, scope),
     ]);
+  }
+
+  /** 移除單一 orphaned entry（從 installed_plugins.json） */
+  async removeOrphaned(pluginId: string, scope: PluginScope, projectPath?: string): Promise<void> {
+    await this.settings.removeInstallEntry(pluginId, scope, projectPath);
+    // 同步清除 settings 中的 enabled 狀態
+    await this.settings.setPluginEnabled(pluginId, scope, false);
+  }
+
+  /** 移除所有 orphaned entries */
+  async removeAllOrphaned(): Promise<void> {
+    const data = await this.settings.readInstalledPlugins();
+    const orphaned = await this.detectOrphaned(data);
+    await Promise.all(
+      orphaned.map((o) => this.removeOrphaned(o.id, o.scope, o.projectPath)),
+    );
+  }
+
+  /** 偵測 installPath 不存在的 entries */
+  private async detectOrphaned(data: InstalledPluginsFile): Promise<OrphanedPlugin[]> {
+    const currentWorkspacePath = this.getCurrentWorkspacePath();
+    const checks: Array<{ pluginId: string; entry: PluginInstallEntry }> = [];
+
+    for (const [pluginId, entries] of Object.entries(data.plugins)) {
+      for (const entry of entries) {
+        // 同 buildInstalledList 的 workspace 過濾邏輯
+        if (entry.scope !== 'user') {
+          if (currentWorkspacePath === null) continue;
+          if (entry.projectPath !== currentWorkspacePath) continue;
+        }
+        checks.push({ pluginId, entry });
+      }
+    }
+
+    const existResults = await Promise.all(
+      checks.map(({ entry }) => stat(entry.installPath).then(() => true, () => false)),
+    );
+
+    return checks
+      .filter((_, i) => !existResults[i])
+      .map(({ pluginId, entry }) => ({
+        id: pluginId,
+        scope: entry.scope,
+        installPath: entry.installPath,
+        version: entry.version,
+        installedAt: entry.installedAt,
+        lastUpdated: entry.lastUpdated,
+        projectPath: entry.projectPath,
+      }));
   }
 
   /** 修正 plugin cache 目錄中 .sh 檔案的執行權限 */

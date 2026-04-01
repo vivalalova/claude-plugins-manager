@@ -56,13 +56,16 @@ describe('PluginService（integration / 真實 SettingsFileService + filesystem�
     const data = JSON.parse(
       await import('fs/promises').then((fs) => fs.readFile(installedPluginsPath, 'utf-8')),
     );
+    const installPath = join(SUITE_TMP, 'cache', pluginId);
     data.plugins[pluginId] = [{
       scope: 'user',
-      installPath: join(SUITE_TMP, 'cache', pluginId),
+      installPath,
       version: 'abc123',
       installedAt: '2026-01-01T00:00:00Z',
       lastUpdated: '2026-01-01T00:00:00Z',
     }];
+    // 建立 installPath 避免被判定為 orphaned
+    mkdirSync(installPath, { recursive: true });
     await writeFile(installedPluginsPath, JSON.stringify(data, null, 2) + '\n');
   }
 
@@ -224,6 +227,145 @@ describe('PluginService（integration / 真實 SettingsFileService + filesystem�
       ['plugin', 'install', 'brand-new@mp', '--scope', 'project'],
       expect.objectContaining({ cwd: workspaceDir }),
     );
+  });
+
+  /* ═══════ orphaned plugins（installPath 不存在） ═══════ */
+
+  it('listAvailable 回傳 orphaned — installPath 不存在的 entry', async () => {
+    // 種入一筆指向不存在路徑的 entry
+    await writeFile(installedPluginsPath, JSON.stringify({
+      version: 2,
+      plugins: {
+        'ghost@mp': [{
+          scope: 'user',
+          installPath: join(SUITE_TMP, 'nonexistent', 'ghost'),
+          version: 'v1',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        }],
+      },
+    }) + '\n');
+
+    const result = await svc.listAvailable();
+
+    expect(result.orphaned).toHaveLength(1);
+    expect(result.orphaned[0]).toMatchObject({
+      id: 'ghost@mp',
+      scope: 'user',
+      installPath: join(SUITE_TMP, 'nonexistent', 'ghost'),
+      version: 'v1',
+    });
+    // orphaned 不應出現在 installed
+    expect(result.installed.find((p) => p.id === 'ghost@mp')).toBeUndefined();
+  });
+
+  it('installPath 存在的 entry 不算 orphaned', async () => {
+    // 建立真實的 installPath
+    const realPath = join(SUITE_TMP, 'cache', 'real-plugin');
+    mkdirSync(realPath, { recursive: true });
+    await writeFile(installedPluginsPath, JSON.stringify({
+      version: 2,
+      plugins: {
+        'real@mp': [{
+          scope: 'user',
+          installPath: realPath,
+          version: 'v1',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        }],
+      },
+    }) + '\n');
+
+    const result = await svc.listAvailable();
+
+    expect(result.orphaned).toHaveLength(0);
+    expect(result.installed.find((p) => p.id === 'real@mp')).toBeDefined();
+  });
+
+  it('同 plugin 多 scope — 只有 installPath 不存在的 entry 算 orphaned', async () => {
+    const realPath = join(SUITE_TMP, 'cache', 'mixed');
+    mkdirSync(realPath, { recursive: true });
+    await writeFile(installedPluginsPath, JSON.stringify({
+      version: 2,
+      plugins: {
+        'mixed@mp': [
+          {
+            scope: 'user',
+            installPath: realPath,
+            version: 'v1',
+            installedAt: '2026-01-01T00:00:00Z',
+            lastUpdated: '2026-01-01T00:00:00Z',
+          },
+          {
+            scope: 'project',
+            projectPath: workspaceDir,
+            installPath: join(SUITE_TMP, 'nonexistent', 'mixed'),
+            version: 'v1',
+            installedAt: '2026-01-02T00:00:00Z',
+            lastUpdated: '2026-01-02T00:00:00Z',
+          },
+        ],
+      },
+    }) + '\n');
+
+    const result = await svc.listAvailable();
+
+    expect(result.orphaned).toHaveLength(1);
+    expect(result.orphaned[0].scope).toBe('project');
+    // user scope entry 仍在 installed
+    expect(result.installed.find((p) => p.id === 'mixed@mp' && p.scope === 'user')).toBeDefined();
+  });
+
+  it('removeOrphaned 移除指定的 orphaned entry', async () => {
+    await writeFile(installedPluginsPath, JSON.stringify({
+      version: 2,
+      plugins: {
+        'ghost@mp': [{
+          scope: 'user',
+          installPath: join(SUITE_TMP, 'nonexistent', 'ghost'),
+          version: 'v1',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        }],
+      },
+    }) + '\n');
+
+    await svc.removeOrphaned('ghost@mp', 'user');
+
+    const result = await svc.listAvailable();
+    expect(result.orphaned).toHaveLength(0);
+    // installed_plugins.json 中也應清除
+    const data = JSON.parse(await readFile(installedPluginsPath, 'utf-8'));
+    expect(data.plugins['ghost@mp']).toBeUndefined();
+  });
+
+  it('removeAllOrphaned 一次清除所有 orphaned entries', async () => {
+    await writeFile(installedPluginsPath, JSON.stringify({
+      version: 2,
+      plugins: {
+        'ghost1@mp': [{
+          scope: 'user',
+          installPath: join(SUITE_TMP, 'nope', '1'),
+          version: 'v1',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        }],
+        'ghost2@mp': [{
+          scope: 'user',
+          installPath: join(SUITE_TMP, 'nope', '2'),
+          version: 'v1',
+          installedAt: '2026-01-01T00:00:00Z',
+          lastUpdated: '2026-01-01T00:00:00Z',
+        }],
+      },
+    }) + '\n');
+
+    await svc.removeAllOrphaned();
+
+    const result = await svc.listAvailable();
+    expect(result.orphaned).toHaveLength(0);
+    const data = JSON.parse(await readFile(installedPluginsPath, 'utf-8'));
+    expect(Object.keys(data.plugins)).toHaveLength(0);
   });
 
 });

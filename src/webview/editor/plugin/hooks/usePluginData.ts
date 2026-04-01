@@ -6,6 +6,7 @@ import type {
   EnabledPluginsMap,
   Marketplace,
   MergedPlugin,
+  OrphanedPlugin,
   PluginListResponse,
   PluginScope,
 } from '../../../../shared/types';
@@ -21,6 +22,8 @@ export interface WorkspaceFolder {
 export interface UsePluginDataReturn {
   /** 合併後的 plugin 列表 */
   plugins: MergedPlugin[];
+  /** installPath 不存在的孤立 entries */
+  orphaned: OrphanedPlugin[];
   /** 初始載入中 */
   loading: boolean;
   /** 全域錯誤訊息 */
@@ -164,6 +167,7 @@ export function usePluginData(): UsePluginDataReturn {
         pluginResult.value.available,
         pluginResult.value.enabledByScope,
       ),
+      orphaned: pluginResult.value.orphaned ?? [],
       workspaceFolders: workspaceResult.status === 'fulfilled' ? workspaceResult.value : [],
       marketplaceSources: pluginResult.value.marketplaceSources ?? {},
       marketplaces: marketplaceResult.status === 'fulfilled' ? (marketplaceResult.value ?? []) : [],
@@ -182,12 +186,14 @@ export function usePluginData(): UsePluginDataReturn {
     refresh: fetchAll,
   } = usePushSyncedResource<{
     plugins: MergedPlugin[];
+    orphaned: OrphanedPlugin[];
     workspaceFolders: WorkspaceFolder[];
     marketplaceSources: Record<string, string>;
     marketplaces: Marketplace[];
   }>({
     initialData: {
       plugins: [],
+      orphaned: [],
       workspaceFolders: [],
       marketplaceSources: {},
       marketplaces: [],
@@ -198,6 +204,7 @@ export function usePluginData(): UsePluginDataReturn {
 
   return {
     plugins: data.plugins,
+    orphaned: data.orphaned,
     loading,
     error,
     setError,

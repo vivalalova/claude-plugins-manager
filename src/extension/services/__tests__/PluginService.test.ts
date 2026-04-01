@@ -7,10 +7,12 @@ import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
 
-/* ── fs/promises mock（readMcpServers 內部使用） ── */
+/* ── fs/promises mock（readMcpServers + detectOrphaned 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
+const mockStat = vi.hoisted(() => vi.fn().mockResolvedValue({}));
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
+  stat: mockStat,
 }));
 
 /* ── fixScriptPermissions mock ── */
