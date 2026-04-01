@@ -163,6 +163,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.description': '啟用實驗性 Agent Teams 功能',
   'settings.env.knownVars.DISABLE_PROMPT_CACHING.description': '停用 prompt 快取（用於不支援快取的 Bedrock 區域）',
   'settings.env.knownVars.CLAUDE_CODE_ENABLE_TELEMETRY.description': '啟用 OpenTelemetry 指標與日誌匯出',
+  'settings.env.knownVars.ANTHROPIC_SMALL_FAST_MODEL.description': '覆蓋背景任務使用的小型快速模型',
+  'settings.env.knownVars.ENABLE_TOOL_SEARCH.description': '控制 MCP 工具搜尋：auto、auto:<N>、true、false',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_AUTO_MEMORY.description': '停用自動記憶儲存（設 1 停用）',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS.description': '停用內建 git 工作流程指引（設 1 停用）',
   // Hooks section
   'settings.hooks.disableAllHooks.label': '停用所有 Hooks',
   'settings.hooks.disableAllHooks.description': '全域停用所有已設定的 hooks',

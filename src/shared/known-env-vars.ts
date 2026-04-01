@@ -47,6 +47,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'model',
   },
+  ANTHROPIC_SMALL_FAST_MODEL: {
+    name: 'ANTHROPIC_SMALL_FAST_MODEL',
+    valueType: String,
+    category: 'model',
+  },
 
   // --- auth ---
   ANTHROPIC_API_KEY: {
@@ -206,6 +211,23 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'CLAUDE_CODE_GIT_BASH_PATH',
     valueType: String,
     category: 'feature',
+  },
+  ENABLE_TOOL_SEARCH: {
+    name: 'ENABLE_TOOL_SEARCH',
+    valueType: String,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_AUTO_MEMORY: {
+    name: 'CLAUDE_CODE_DISABLE_AUTO_MEMORY',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
+  },
+  CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: {
+    name: 'CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
   },
 
   // --- telemetry ---

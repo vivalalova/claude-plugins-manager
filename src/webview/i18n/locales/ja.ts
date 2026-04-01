@@ -394,6 +394,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.description': '実験的なエージェントチーム機能を有効化',
   'settings.env.knownVars.DISABLE_PROMPT_CACHING.description': 'プロンプトキャッシュを無効化（キャッシュ非対応の Bedrock リージョン向け）',
   'settings.env.knownVars.CLAUDE_CODE_ENABLE_TELEMETRY.description': 'OpenTelemetry メトリクスとログのエクスポートを有効化',
+  'settings.env.knownVars.ANTHROPIC_SMALL_FAST_MODEL.description': 'バックグラウンドタスク用の小型高速モデルを上書き',
+  'settings.env.knownVars.ENABLE_TOOL_SEARCH.description': 'MCP ツール検索の制御：auto、auto:<N>、true、false',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_AUTO_MEMORY.description': '自動メモリ保存を無効化（1 で無効）',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS.description': '組み込み git ワークフロー指示を無効化（1 で無効）',
   // Hooks section
   'settings.hooks.disableAllHooks.label': 'すべての Hook を無効化',
   'settings.hooks.disableAllHooks.description': 'すべての設定済み Hook をグローバルに無効化',

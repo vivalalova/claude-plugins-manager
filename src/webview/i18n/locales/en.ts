@@ -161,6 +161,10 @@ export const en = {
   'settings.env.knownVars.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS.description': 'Enable experimental agent teams feature',
   'settings.env.knownVars.DISABLE_PROMPT_CACHING.description': 'Disable prompt caching (for Bedrock regions without caching support)',
   'settings.env.knownVars.CLAUDE_CODE_ENABLE_TELEMETRY.description': 'Enable OpenTelemetry metrics and logs export',
+  'settings.env.knownVars.ANTHROPIC_SMALL_FAST_MODEL.description': 'Override the small/fast model used for background tasks',
+  'settings.env.knownVars.ENABLE_TOOL_SEARCH.description': 'Control MCP tool search: auto, auto:<N>, true, false',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_AUTO_MEMORY.description': 'Disable automatic memory saves (set 1 to disable)',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS.description': 'Disable built-in git workflow instructions (set 1 to disable)',
   // Hooks section
   'settings.hooks.disableAllHooks.label': 'Disable All Hooks',
   'settings.hooks.disableAllHooks.description': 'Globally disable all configured hooks',
