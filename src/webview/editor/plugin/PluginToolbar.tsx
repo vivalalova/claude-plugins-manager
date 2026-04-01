@@ -1,10 +1,11 @@
 import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
-import { CONTENT_TYPE_FILTERS } from './filterUtils';
-import type { ContentTypeFilter } from './filterUtils';
+import type { ContentTypeFilter, SourceFormatFilter } from './filterUtils';
 import { TRANSLATE_LANGS } from '../../../shared/types';
 import { SearchInput } from '../../components/SearchInput';
 import { FilterChips } from '../../components/FilterChips';
+import { ContentTypeDropdown } from './ContentTypeDropdown';
+import { SourceFormatDropdown } from './SourceFormatDropdown';
 
 type SortBy = 'name' | 'lastUpdated';
 
@@ -28,6 +29,8 @@ export interface PluginToolbarProps {
   onShowHiddenToggle: () => void;
   contentTypeFilters: Set<ContentTypeFilter>;
   onContentTypeFilterToggle: (type: ContentTypeFilter) => void;
+  sourceFormatFilters: Set<SourceFormatFilter>;
+  onSourceFormatFilterToggle: (type: SourceFormatFilter) => void;
 
   // Sort
   sortBy: SortBy;
@@ -49,22 +52,12 @@ export function PluginToolbar({
   onShowHiddenToggle,
   contentTypeFilters,
   onContentTypeFilterToggle,
+  sourceFormatFilters,
+  onSourceFormatFilterToggle,
   sortBy,
   onSortByChange,
 }: PluginToolbarProps): React.ReactElement {
   const { t } = useI18n();
-
-  const CONTENT_TYPE_LABELS: Record<ContentTypeFilter, string> = {
-    commands: t('filter.commands'),
-    skills: t('filter.skills'),
-    agents: t('filter.agents'),
-    mcp: t('filter.mcp'),
-  };
-
-  const PLUGIN_SORT_OPTIONS = [
-    { value: 'name' as const, label: t('filter.sortName') },
-    { value: 'lastUpdated' as const, label: t('filter.sortLastUpdated') },
-  ];
 
   return (
     <>
@@ -86,27 +79,35 @@ export function PluginToolbar({
         </button>
       </SearchInput>
 
-      <FilterChips
-        groups={[
-          [
-            { key: 'enabled', label: t('plugin.page.filterEnabled'), active: filterEnabled, onSelect: onFilterEnabledToggle },
-            { key: 'hidden', label: t('plugin.page.showHidden'), active: showHidden, onSelect: onShowHiddenToggle },
-            ...CONTENT_TYPE_FILTERS.map((type) => ({
-              key: type,
-              label: CONTENT_TYPE_LABELS[type],
-              active: contentTypeFilters.has(type),
-              onSelect: () => onContentTypeFilterToggle(type),
-            })),
-          ],
-          PLUGIN_SORT_OPTIONS.map((opt) => ({
-            key: opt.value,
-            label: opt.label,
-            active: sortBy === opt.value,
-            ariaPressed: sortBy === opt.value,
-            onSelect: () => onSortByChange(opt.value),
-          })),
-        ]}
-      />
+      <div className="filter-toolbar">
+        <FilterChips
+          groups={[
+            [
+              { key: 'enabled', label: t('plugin.page.filterEnabled'), active: filterEnabled, onSelect: onFilterEnabledToggle },
+              { key: 'hidden', label: t('plugin.page.showHidden'), active: showHidden, onSelect: onShowHiddenToggle },
+            ],
+          ]}
+        />
+        <ContentTypeDropdown
+          contentTypeFilters={contentTypeFilters}
+          onToggle={onContentTypeFilterToggle}
+        />
+        <SourceFormatDropdown
+          sourceFormatFilters={sourceFormatFilters}
+          onToggle={onSourceFormatFilterToggle}
+        />
+        <div className="sort-select-wrapper">
+          <select
+            className="sort-select"
+            value={sortBy}
+            onChange={(e) => onSortByChange(e.target.value as SortBy)}
+            aria-label={t('filter.sortBy')}
+          >
+            <option value="name">{t('filter.sortName')}</option>
+            <option value="lastUpdated">{t('filter.sortLastUpdated')}</option>
+          </select>
+        </div>
+      </div>
     </>
   );
 }

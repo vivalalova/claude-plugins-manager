@@ -4,12 +4,14 @@ import type { MergedPlugin } from '../../../../shared/types';
 import { getViewState, setViewState, setGlobalState, initGlobalState } from '../../../vscode';
 import {
   matchesContentType,
+  matchesSourceFormat,
   matchesSearch,
   isPluginEnabled,
   getPluginComparator,
   PLUGIN_SEARCH_KEY,
   PLUGIN_FILTER_ENABLED_KEY,
   CONTENT_TYPE_STORAGE_KEY,
+  SOURCE_FORMAT_STORAGE_KEY,
   PLUGIN_SORT_KEY,
   PLUGIN_EXPANDED_KEY,
   PLUGIN_SECTIONS_KEY,
@@ -17,6 +19,8 @@ import {
   PLUGIN_SHOW_HIDDEN_KEY,
   readContentTypeFilters,
   writeContentTypeFilters,
+  readSourceFormatFilters,
+  writeSourceFormatFilters,
   readPluginSort,
   writePluginSort,
   readExpandedSections,
@@ -26,6 +30,7 @@ import {
   readHiddenPlugins,
   writeHiddenPlugins,
   type ContentTypeFilter,
+  type SourceFormatFilter,
   type PluginSortBy,
   type SectionAssignments,
 } from '../filterUtils';
@@ -51,6 +56,10 @@ export interface UsePluginFiltersReturn {
   contentTypeFilters: Set<ContentTypeFilter>;
   /** 設定 content type 過濾條件 */
   setContentTypeFilters: React.Dispatch<React.SetStateAction<Set<ContentTypeFilter>>>;
+  /** 選取中的 source format 過濾條件 */
+  sourceFormatFilters: Set<SourceFormatFilter>;
+  /** 設定 source format 過濾條件 */
+  setSourceFormatFilters: React.Dispatch<React.SetStateAction<Set<SourceFormatFilter>>>;
   /** 當前排序方式 */
   sortBy: PluginSortBy;
   /** 設定排序方式 */
@@ -96,6 +105,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     () => getViewState(PLUGIN_FILTER_ENABLED_KEY, false),
   );
   const [contentTypeFilters, setContentTypeFilters] = useState<Set<ContentTypeFilter>>(readContentTypeFilters);
+  const [sourceFormatFilters, setSourceFormatFilters] = useState<Set<SourceFormatFilter>>(readSourceFormatFilters);
   const [sortBy, setSortBy] = useState<PluginSortBy>(readPluginSort);
   const [expanded, setExpanded] = useState<Set<string>>(readExpandedSections);
   const [sectionAssignments, setSectionAssignments] = useState<SectionAssignments>(readSectionAssignments);
@@ -110,6 +120,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     void initGlobalState([
       { key: PLUGIN_FILTER_ENABLED_KEY, fallback: false },
       { key: CONTENT_TYPE_STORAGE_KEY, fallback: [] },
+      { key: SOURCE_FORMAT_STORAGE_KEY, fallback: [] },
       { key: PLUGIN_SORT_KEY, fallback: 'name' },
       { key: PLUGIN_EXPANDED_KEY, fallback: [] },
       { key: PLUGIN_SECTIONS_KEY, fallback: null },
@@ -121,6 +132,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       flushSearch(persistedSearch);
       setFilterEnabled(getViewState(PLUGIN_FILTER_ENABLED_KEY, false));
       setContentTypeFilters(readContentTypeFilters());
+      setSourceFormatFilters(readSourceFormatFilters());
       setSortBy(readPluginSort());
       setExpanded(readExpandedSections());
       setSectionAssignments(readSectionAssignments());
@@ -139,6 +151,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
   useEffect(() => { if (!ready) return; setViewState(PLUGIN_SEARCH_KEY, debouncedSearch); }, [debouncedSearch, ready]);
   useEffect(() => { if (!ready) return; setViewState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); void setGlobalState(PLUGIN_FILTER_ENABLED_KEY, filterEnabled); }, [filterEnabled, ready]);
   useEffect(() => { if (!ready) return; writeContentTypeFilters(contentTypeFilters); }, [contentTypeFilters, ready]);
+  useEffect(() => { if (!ready) return; writeSourceFormatFilters(sourceFormatFilters); }, [sourceFormatFilters, ready]);
   useEffect(() => { if (!ready) return; writePluginSort(sortBy); }, [sortBy, ready]);
   useEffect(() => { if (!ready) return; writeExpandedSections(expanded); }, [expanded, ready]);
   useEffect(() => { if (!ready) return; writeSectionAssignments(sectionAssignments); }, [sectionAssignments, ready]);
@@ -157,6 +170,10 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
 
     if (contentTypeFilters.size > 0) {
       filtered = filtered.filter((p) => matchesContentType(p, contentTypeFilters));
+    }
+
+    if (sourceFormatFilters.size > 0) {
+      filtered = filtered.filter((p) => matchesSourceFormat(p, sourceFormatFilters));
     }
 
     const comparator = getPluginComparator(sortBy);
@@ -244,7 +261,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
         groups: orderedGroups,
       };
     });
-  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters, sortBy, sectionAssignments]);
+  }, [plugins, debouncedSearch, filterEnabled, contentTypeFilters, sourceFormatFilters, sortBy, sectionAssignments]);
 
   const moveToSection = (marketplace: string, sectionId: number) => {
     setSectionAssignments((prev) => {
@@ -333,6 +350,8 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
     setFilterEnabled,
     contentTypeFilters,
     setContentTypeFilters,
+    sourceFormatFilters,
+    setSourceFormatFilters,
     sortBy,
     setSortBy,
     expanded,

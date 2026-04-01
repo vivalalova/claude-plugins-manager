@@ -4,7 +4,7 @@ import { CardSection } from '../../components/CardSection';
 import { PluginCard } from './PluginCard';
 import { VirtualCardList } from './VirtualCardList';
 import { getSectionName, getVisibleItems } from './filterUtils';
-import type { ContentTypeFilter } from './filterUtils';
+import type { ContentTypeFilter, SourceFormatFilter } from './filterUtils';
 import type { Marketplace, MergedPlugin, PluginContentItem, PluginScope } from '../../../shared/types';
 import type { WorkspaceFolder } from './hooks/usePluginData';
 import { useSectionDrop } from './hooks/useSectionDrop';
@@ -30,6 +30,7 @@ export interface PluginSectionsProps {
   filterEnabled: boolean;
   debouncedSearch: string;
   contentTypeFilters: Set<ContentTypeFilter>;
+  sourceFormatFilters: Set<SourceFormatFilter>;
   expanded: Set<string>;
   setExpanded: React.Dispatch<React.SetStateAction<Set<string>>>;
   hiddenPlugins: ReadonlySet<string>;
@@ -98,6 +99,7 @@ export function PluginSections({
   filterEnabled,
   debouncedSearch,
   contentTypeFilters,
+  sourceFormatFilters,
   expanded,
   setExpanded,
   hiddenPlugins,
@@ -165,7 +167,7 @@ export function PluginSections({
 
   const renderSection = (marketplace: string, items: MergedPlugin[]) => {
     const visibleItems = getVisibleItems(items, hiddenPlugins, showHidden);
-    const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && !expanded.has(marketplace);
+    const isCollapsed = !filterEnabled && !debouncedSearch && contentTypeFilters.size === 0 && sourceFormatFilters.size === 0 && !expanded.has(marketplace);
     const stats = sectionStats.get(marketplace) ?? { enabledCount: 0, updateCount: 0, allEnabled: false, hiddenCount: 0, visibleCount: 0 };
     const mpData = marketplaces.find((m) => m.name === marketplace);
     const isUpdating = marketplaceUpdating === marketplace;

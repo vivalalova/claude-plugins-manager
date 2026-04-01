@@ -466,12 +466,21 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'status.pending': '等待中',
   'status.unknown': '未知',
   // filterUtils
+  'filter.contentType.label': '內容類型',
   'filter.commands': '指令',
   'filter.skills': '技能',
   'filter.agents': 'Agent',
   'filter.mcp': 'MCP',
+  'filter.sortBy': '排序方式',
   'filter.sortName': '名稱',
   'filter.sortLastUpdated': '最後更新',
+  'filter.source.label': '來源',
+  'filter.source.localInternal': '本地內部',
+  'filter.source.localExternal': '本地外部',
+  'filter.source.url': 'URL',
+  'filter.source.urlSubdir': 'URL 子目錄',
+  'filter.source.gitSubdir': 'Git 子目錄',
+  'filter.source.github': 'GitHub',
   // Toast / Skeleton / ErrorBanner
   // InfoPage
   'info.title': 'Extension 資訊',

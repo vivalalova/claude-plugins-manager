@@ -1,4 +1,4 @@
-import type { MergedPlugin, PluginScope } from '../../../shared/types';
+import type { MergedPlugin, PluginScope, SourceFormatType } from '../../../shared/types';
 import { getViewState, setViewState, setGlobalState } from '../../vscode';
 
 /** 過濾出可見（非隱藏）的 plugin */
@@ -88,6 +88,19 @@ export const CONTENT_TYPE_FILTERS = ['commands', 'skills', 'agents', 'mcp'] as c
 /** Content type filter 可選值（從常數推導） */
 export type ContentTypeFilter = typeof CONTENT_TYPE_FILTERS[number];
 
+/** 所有可用的 source format filter chips（6 種） */
+export const SOURCE_FORMAT_FILTERS = [
+  'local-internal',
+  'local-external',
+  'url',
+  'url-subdir',
+  'git-subdir',
+  'github',
+] as const;
+
+/** Source format filter 可選值（從常數推導，對應 SourceFormatType） */
+export type SourceFormatFilter = SourceFormatType;
+
 
 /**
  * 判斷 plugin 是否符合 content type filter（OR 邏輯）。
@@ -109,6 +122,20 @@ export function matchesContentType(
     if (type === 'mcp' && plugin.contents.mcpServers.length > 0) return true;
   }
   return false;
+}
+
+/**
+ * 判斷 plugin 是否符合 source format filter（OR 邏輯）。
+ * 有 active filter 時，無 sourceFormat 的 plugin 視為不符合。
+ * filters 為空時回傳 true（不篩選）。
+ */
+export function matchesSourceFormat(
+  plugin: MergedPlugin,
+  filters: ReadonlySet<SourceFormatFilter>,
+): boolean {
+  if (filters.size === 0) return true;
+  if (!plugin.sourceFormat) return false;
+  return filters.has(plugin.sourceFormat);
 }
 
 /**
@@ -164,6 +191,7 @@ export function getPluginComparator(sortBy: PluginSortBy): (a: MergedPlugin, b: 
 }
 
 /** VSCode viewState keys for plugin filter persistence */
+export const SOURCE_FORMAT_STORAGE_KEY = 'plugin.filter.sourceFormats';
 export const PLUGIN_SEARCH_KEY = 'plugin.search';
 export const PLUGIN_FILTER_ENABLED_KEY = 'plugin.filter.enabled';
 export const CONTENT_TYPE_STORAGE_KEY = 'plugin.filter.contentTypes';
@@ -188,6 +216,24 @@ export function writeContentTypeFilters(filters: ReadonlySet<ContentTypeFilter>)
   const value = [...filters];
   setViewState(CONTENT_TYPE_STORAGE_KEY, value);
   void setGlobalState(CONTENT_TYPE_STORAGE_KEY, value);
+}
+
+/**
+ * viewState → Set<SourceFormatFilter>。
+ * 格式不相容時回傳空 Set。
+ */
+export function readSourceFormatFilters(): Set<SourceFormatFilter> {
+  const arr = getViewState<unknown[]>(SOURCE_FORMAT_STORAGE_KEY, []);
+  if (!Array.isArray(arr)) return new Set();
+  const valid = new Set<string>(SOURCE_FORMAT_FILTERS);
+  return new Set(arr.filter((v): v is SourceFormatFilter => valid.has(v as string)));
+}
+
+/** Set<SourceFormatFilter> → viewState + globalState */
+export function writeSourceFormatFilters(filters: ReadonlySet<SourceFormatFilter>): void {
+  const value = [...filters];
+  setViewState(SOURCE_FORMAT_STORAGE_KEY, value);
+  void setGlobalState(SOURCE_FORMAT_STORAGE_KEY, value);
 }
 
 /** viewState → PluginSortBy。無效值 fallback 'name'。 */

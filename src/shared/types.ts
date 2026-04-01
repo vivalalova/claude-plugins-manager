@@ -6,6 +6,15 @@
 /** Marketplace 來源類型 */
 export type MarketplaceSourceType = 'git' | 'github' | 'directory';
 
+/** marketplace.json plugin source 欄位的 6 種格式 */
+export type SourceFormatType =
+  | 'local-internal'
+  | 'local-external'
+  | 'url'
+  | 'url-subdir'
+  | 'git-subdir'
+  | 'github';
+
 /**
  * Marketplace 完整資訊。
  * 資料來源：~/.claude/plugins/known_marketplaces.json
@@ -117,6 +126,8 @@ export interface AvailablePlugin {
   sourceDir?: string;
   /** 外部 plugin 的可瀏覽 GitHub URL（從 object-type source 提取） */
   sourceUrl?: string;
+  /** marketplace.json source 欄位的格式分類（6 種） */
+  sourceFormat?: SourceFormatType;
   /** plugin 來源目錄的最後修改時間（ISO 8601），用於偵測更新 */
   lastUpdated?: string;
 }
@@ -364,6 +375,8 @@ export interface MergedPlugin {
   sourceDir?: string;
   /** 外部 plugin 的可瀏覽 GitHub URL（從 object-type source 提取） */
   sourceUrl?: string;
+  /** marketplace.json source 欄位的格式分類（6 種） */
+  sourceFormat?: SourceFormatType;
   /** marketplace 上可用版本的最後修改時間（ISO 8601），用於偵測更新 */
   availableLastUpdated?: string;
   /** 所有已安裝 scope 中最新的 lastUpdated（mergePlugins 預計算，PluginCard 直接讀取） */

@@ -93,6 +93,7 @@ export function mergePlugins(
       if (avail.contents && !existing.contents) existing.contents = avail.contents;
       if (avail.sourceDir) existing.sourceDir = avail.sourceDir;
       if (avail.sourceUrl) existing.sourceUrl = avail.sourceUrl;
+      if (avail.sourceFormat) existing.sourceFormat = avail.sourceFormat;
       if (!existing.version && avail.version) {
         existing.version = avail.version;
       }
@@ -107,6 +108,7 @@ export function mergePlugins(
         contents: avail.contents,
         sourceDir: avail.sourceDir,
         sourceUrl: avail.sourceUrl,
+        sourceFormat: avail.sourceFormat,
         availableLastUpdated: avail.lastUpdated,
         userInstall: null,
         projectInstalls: [],

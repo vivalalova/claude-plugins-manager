@@ -10,7 +10,7 @@ vi.mock('../../../vscode', () => ({ vscode: { postMessage: vi.fn() } }));
 
 import { PluginToolbar } from '../PluginToolbar';
 import type { PluginToolbarProps } from '../PluginToolbar';
-import type { ContentTypeFilter } from '../filterUtils';
+import type { ContentTypeFilter, SourceFormatFilter } from '../filterUtils';
 import { CONTENT_TYPE_FILTERS } from '../filterUtils';
 
 function buildProps(overrides: Partial<PluginToolbarProps> = {}): PluginToolbarProps {
@@ -29,6 +29,8 @@ function buildProps(overrides: Partial<PluginToolbarProps> = {}): PluginToolbarP
     onShowHiddenToggle: vi.fn(),
     contentTypeFilters: new Set<ContentTypeFilter>(),
     onContentTypeFilterToggle: vi.fn(),
+    sourceFormatFilters: new Set<SourceFormatFilter>(),
+    onSourceFormatFilterToggle: vi.fn(),
     sortBy: 'name',
     onSortByChange: vi.fn(),
     ...overrides,
@@ -133,10 +135,12 @@ describe('PluginToolbar', () => {
     });
   });
 
-  describe('content type filter chips', () => {
-    it('點擊 content type filter chip 觸發 onContentTypeFilterToggle 帶對應 type', () => {
+  describe('content type dropdown', () => {
+    it('點擊 trigger 後點選項觸發 onContentTypeFilterToggle 帶對應 type', () => {
       const onContentTypeFilterToggle = vi.fn();
       renderWithI18n(<PluginToolbar {...buildProps({ onContentTypeFilterToggle })} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Content Type' }));
 
       fireEvent.click(screen.getByText('Commands'));
       expect(onContentTypeFilterToggle).toHaveBeenCalledWith('commands');
@@ -151,48 +155,45 @@ describe('PluginToolbar', () => {
       expect(onContentTypeFilterToggle).toHaveBeenCalledWith('mcp');
     });
 
-    it('active content type chip 有 filter-chip--active class', () => {
+    it('有 active filter 時 trigger label 顯示 (N) 且有 filter-chip--active class', () => {
       const active = new Set<ContentTypeFilter>(CONTENT_TYPE_FILTERS);
       renderWithI18n(<PluginToolbar {...buildProps({ contentTypeFilters: active })} />);
 
-      expect(screen.getByText('Commands').className).toContain('filter-chip--active');
-      expect(screen.getByText('Skills').className).toContain('filter-chip--active');
-      expect(screen.getByText('Agents').className).toContain('filter-chip--active');
-      expect(screen.getByText('MCP').className).toContain('filter-chip--active');
+      const trigger = screen.getByRole('button', { name: 'Content Type (4)' });
+      expect(trigger.className).toContain('filter-chip--active');
     });
 
-    it('inactive content type chip 無 filter-chip--active class', () => {
+    it('無 active filter 時 trigger 無 filter-chip--active class', () => {
       renderWithI18n(<PluginToolbar {...buildProps({ contentTypeFilters: new Set() })} />);
 
-      expect(screen.getByText('Commands').className).not.toContain('filter-chip--active');
-      expect(screen.getByText('Skills').className).not.toContain('filter-chip--active');
+      const trigger = screen.getByRole('button', { name: 'Content Type' });
+      expect(trigger.className).not.toContain('filter-chip--active');
     });
   });
 
-  describe('排序 chip', () => {
-    it('點擊 sort chip 觸發 onSortByChange 帶對應值', () => {
+  describe('排序 select', () => {
+    it('change sort select 觸發 onSortByChange 帶對應值', () => {
       const onSortByChange = vi.fn();
       renderWithI18n(<PluginToolbar {...buildProps({ sortBy: 'name', onSortByChange })} />);
 
-      fireEvent.click(screen.getByText('Last Updated'));
+      const select = screen.getByRole('combobox', { name: 'Sort by' });
+      fireEvent.change(select, { target: { value: 'lastUpdated' } });
       expect(onSortByChange).toHaveBeenCalledWith('lastUpdated');
 
-      fireEvent.click(screen.getByText('Name'));
+      fireEvent.change(select, { target: { value: 'name' } });
       expect(onSortByChange).toHaveBeenCalledWith('name');
     });
 
-    it('active sort chip 有 aria-pressed="true"', () => {
+    it('sortBy=name 時 select value 為 name', () => {
       renderWithI18n(<PluginToolbar {...buildProps({ sortBy: 'name' })} />);
-      const nameChip = screen.getByText('Name');
-      const lastUpdatedChip = screen.getByText('Last Updated');
-      expect(nameChip.getAttribute('aria-pressed')).toBe('true');
-      expect(lastUpdatedChip.getAttribute('aria-pressed')).toBe('false');
+      const select = screen.getByRole('combobox', { name: 'Sort by' }) as HTMLSelectElement;
+      expect(select.value).toBe('name');
     });
 
-    it('sortBy=lastUpdated 時 Last Updated chip aria-pressed="true"', () => {
+    it('sortBy=lastUpdated 時 select value 為 lastUpdated', () => {
       renderWithI18n(<PluginToolbar {...buildProps({ sortBy: 'lastUpdated' })} />);
-      expect(screen.getByText('Last Updated').getAttribute('aria-pressed')).toBe('true');
-      expect(screen.getByText('Name').getAttribute('aria-pressed')).toBe('false');
+      const select = screen.getByRole('combobox', { name: 'Sort by' }) as HTMLSelectElement;
+      expect(select.value).toBe('lastUpdated');
     });
   });
 });

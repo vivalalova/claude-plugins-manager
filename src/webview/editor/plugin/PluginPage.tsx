@@ -52,6 +52,8 @@ export function PluginPage(): React.ReactElement {
     setFilterEnabled,
     contentTypeFilters,
     setContentTypeFilters,
+    sourceFormatFilters,
+    setSourceFormatFilters,
     sortBy,
     setSortBy,
     expanded,
@@ -274,6 +276,13 @@ export function PluginPage(): React.ReactElement {
           else next.add(type);
           return next;
         })}
+        sourceFormatFilters={sourceFormatFilters}
+        onSourceFormatFilterToggle={(type) => setSourceFormatFilters((prev) => {
+          const next = new Set(prev);
+          if (next.has(type)) next.delete(type);
+          else next.add(type);
+          return next;
+        })}
         sortBy={sortBy}
         onSortByChange={setSortBy}
       />
@@ -334,7 +343,7 @@ export function PluginPage(): React.ReactElement {
       {loading || !ready ? (
         <PluginCardSkeleton />
       ) : totalVisiblePlugins === 0 ? (
-        debouncedSearch || filterEnabled || contentTypeFilters.size > 0 || (!showHidden && hiddenPlugins.size > 0) ? (
+        debouncedSearch || filterEnabled || contentTypeFilters.size > 0 || sourceFormatFilters.size > 0 || (!showHidden && hiddenPlugins.size > 0) ? (
           <EmptyState
             icon={<NoResultsIcon />}
             title={t('plugin.page.noResults')}
@@ -346,6 +355,7 @@ export function PluginPage(): React.ReactElement {
                 setFilterEnabled(false);
                 setShowHidden(true);
                 setContentTypeFilters(new Set());
+                setSourceFormatFilters(new Set());
                 setSortBy('name');
               },
             }}
@@ -370,6 +380,7 @@ export function PluginPage(): React.ReactElement {
           filterEnabled={filterEnabled}
           debouncedSearch={debouncedSearch}
           contentTypeFilters={contentTypeFilters}
+          sourceFormatFilters={sourceFormatFilters}
           expanded={expanded}
           setExpanded={setExpanded}
           hiddenPlugins={hiddenPlugins}

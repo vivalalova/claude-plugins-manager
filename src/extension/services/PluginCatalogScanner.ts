@@ -6,6 +6,7 @@ import type {
   MarketplacePluginEntry,
   PluginContentItem,
   PluginContents,
+  SourceFormatType,
 } from '../../shared/types';
 import { readJsonFile } from '../utils/jsonFile';
 
@@ -85,6 +86,7 @@ export class PluginCatalogScanner {
                 contents,
                 sourceDir: dirExists ? (localSource ?? undefined) : undefined,
                 sourceUrl,
+                sourceFormat: getSourceFormat(plugin.source),
                 lastUpdated,
               } satisfies AvailablePlugin;
             }),
@@ -299,6 +301,19 @@ function unwrapMcpServers(mcp: Record<string, unknown>): Record<string, unknown>
     throw new Error('mcpServers must be an object');
   }
   return candidate as Record<string, unknown>;
+}
+
+function getSourceFormat(source: string | Record<string, unknown>): SourceFormatType | undefined {
+  if (typeof source === 'string') {
+    return source.includes('external_plugins') ? 'local-external' : 'local-internal';
+  }
+  if (typeof source === 'object' && source !== null) {
+    const src = source.source;
+    if (src === 'github') return 'github';
+    if (src === 'git-subdir') return 'git-subdir';
+    if (src === 'url') return typeof source.path === 'string' ? 'url-subdir' : 'url';
+  }
+  return undefined;
 }
 
 function extractSourceUrl(src: Record<string, unknown>): string | undefined {

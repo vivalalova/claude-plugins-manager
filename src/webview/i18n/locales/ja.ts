@@ -120,12 +120,21 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'status.pending': '保留中',
   'status.unknown': '不明',
   // filterUtils
+  'filter.contentType.label': 'コンテンツタイプ',
   'filter.commands': 'コマンド',
   'filter.skills': 'スキル',
   'filter.agents': 'エージェント',
   'filter.mcp': 'MCP',
+  'filter.sortBy': '並び順',
   'filter.sortName': '名前',
   'filter.sortLastUpdated': '最終更新',
+  'filter.source.label': 'ソース',
+  'filter.source.localInternal': 'ローカル内部',
+  'filter.source.localExternal': 'ローカル外部',
+  'filter.source.url': 'URL',
+  'filter.source.urlSubdir': 'URL サブディレクトリ',
+  'filter.source.gitSubdir': 'Git サブディレクトリ',
+  'filter.source.github': 'GitHub',
   // Toast / Skeleton / ErrorBanner
   // InfoPage
   'info.title': 'Extension 情報',

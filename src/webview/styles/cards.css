@@ -69,6 +69,130 @@
  * Filter Chips（Content Type 篩選）
  * ---------------------------------------------------------------- */
 
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-sm);
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-toolbar .filter-chips {
+  display: contents;
+}
+
+.sort-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sort-select-wrapper::after {
+  content: '▾';
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.sort-select {
+  padding: 3px 22px 3px 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* ----------------------------------------------------------------
+ * Multi-select dropdown (generic)
+ * ---------------------------------------------------------------- */
+
+.multi-select-dropdown {
+  display: inline-flex;
+}
+
+.multi-select-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.multi-select-dropdown-trigger:hover {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+}
+
+.multi-select-dropdown-trigger.filter-chip--active {
+  background: var(--vscode-button-secondaryBackground);
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+  font-weight: 500;
+}
+
+.multi-select-dropdown-trigger-chevron {
+  font-size: 10px;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.multi-select-dropdown-panel {
+  position: fixed;
+  z-index: 9999;
+  min-width: 160px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.2));
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.multi-select-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: 5px 12px;
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.1s;
+}
+
+.multi-select-dropdown-option:hover,
+.multi-select-dropdown-option[aria-selected="true"]:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.multi-select-dropdown-option input[type="checkbox"] {
+  accent-color: var(--vscode-focusBorder);
+  cursor: pointer;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
 .filter-chips {
   display: flex;
   gap: var(--gap-sm);

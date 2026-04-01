@@ -568,7 +568,8 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Content Type' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Skills' }));
 
       await waitFor(() => {
         expect(screen.queryByRole('group', { name: 'no-skills' })).toBeNull();
@@ -616,7 +617,8 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Content Type' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Skills' }));
 
       await waitFor(() => {
         expect(screen.queryByRole('group', { name: 'aardvark' })).toBeNull();
@@ -670,7 +672,8 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Content Type' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Skills' }));
 
       await waitFor(() => {
         expect(screen.queryByRole('group', { name: 'aardvark' })).toBeNull();
@@ -716,7 +719,8 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Skills' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Content Type' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Skills' }));
 
       await waitFor(() => {
         expect(screen.queryByRole('group', { name: 'aardvark' })).toBeNull();
@@ -823,10 +827,8 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      const nameBtn = screen.getByRole('button', { name: 'Name' });
-      const lastUpdatedBtn = screen.getByRole('button', { name: 'Last Updated' });
-      expect(nameBtn.classList.contains('filter-chip--active')).toBe(true);
-      expect(lastUpdatedBtn.classList.contains('filter-chip--active')).toBe(false);
+      const sortSelect = screen.getByRole('combobox', { name: 'Sort by' });
+      expect((sortSelect as HTMLSelectElement).value).toBe('name');
     });
 
     it('切換 Last Updated → 按日期降序排列，新的在前', async () => {
@@ -859,7 +861,7 @@ describe('PluginPage — 核心流程', () => {
       expect(cards()[1]?.textContent).toBe('beta');
 
       // 切換到 Last Updated
-      fireEvent.click(screen.getByRole('button', { name: 'Last Updated' }));
+      fireEvent.change(screen.getByRole('combobox', { name: 'Sort by' }), { target: { value: 'lastUpdated' } });
 
       // beta (2026-02-20) 在 alpha (2026-01-01) 前面
       expect(cards()[0]?.textContent).toBe('beta');
@@ -881,7 +883,7 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.queryByText('Loading plugins...')).toBeNull();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Last Updated' }));
+      fireEvent.change(screen.getByRole('combobox', { name: 'Sort by' }), { target: { value: 'lastUpdated' } });
 
       expect(mockViewState['plugin.sort']).toBe('lastUpdated');
     });

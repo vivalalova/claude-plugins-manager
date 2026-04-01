@@ -11,10 +11,15 @@ vi.mock('../../../vscode', () => ({
 
 import {
   matchesContentType,
+  matchesSourceFormat,
   matchesSearch,
   readContentTypeFilters,
   writeContentTypeFilters,
+  readSourceFormatFilters,
+  writeSourceFormatFilters,
   CONTENT_TYPE_STORAGE_KEY,
+  SOURCE_FORMAT_STORAGE_KEY,
+  SOURCE_FORMAT_FILTERS,
   hasPluginUpdate,
   isPluginEnabled,
   isEnabledInScope,
@@ -36,20 +41,23 @@ import {
   PLUGIN_SECTIONS_KEY,
   PLUGIN_HIDDEN_KEY,
   type ContentTypeFilter,
+  type SourceFormatFilter,
   type PluginSortBy,
 } from '../filterUtils';
-import type { MergedPlugin, PluginContents, InstalledPlugin, PluginScope } from '../../../../shared/types';
+import type { MergedPlugin, PluginContents, InstalledPlugin, PluginScope, SourceFormatType } from '../../../../shared/types';
 
 /** 建立測試用 MergedPlugin */
 function makeMerged(opts?: {
   name?: string;
   description?: string;
   contents?: Partial<PluginContents>;
+  sourceFormat?: SourceFormatType;
 }): MergedPlugin {
   return {
     id: 'test@mp',
     name: opts?.name ?? 'test',
     description: opts?.description,
+    sourceFormat: opts?.sourceFormat,
     userInstall: null,
     projectInstalls: [],
     localInstall: null,
@@ -753,4 +761,120 @@ describe('readHiddenPlugins / writeHiddenPlugins', () => {
     writeHiddenPlugins(new Set());
     expect(readHiddenPlugins()).toEqual(new Set());
   });
+});
+
+describe('matchesSourceFormat', () => {
+  describe('無 filter 時', () => {
+    it('filters 為空 Set → 所有 plugin 通過', () => {
+      const plugin = makeMerged({ sourceFormat: 'github' });
+      expect(matchesSourceFormat(plugin, new Set())).toBe(true);
+    });
+
+    it('filters 為空 Set 且 plugin 無 sourceFormat → 通過', () => {
+      const plugin = makeMerged();
+      expect(matchesSourceFormat(plugin, new Set())).toBe(true);
+    });
+  });
+
+  describe('有 filter 但 plugin 無 sourceFormat', () => {
+    it('plugin 無 sourceFormat → 不通過', () => {
+      const plugin = makeMerged(); // sourceFormat = undefined
+      expect(matchesSourceFormat(plugin, new Set(['github']))).toBe(false);
+    });
+  });
+
+  describe('單一 filter', () => {
+    it.each<[SourceFormatFilter]>(SOURCE_FORMAT_FILTERS.map((f) => [f]))(
+      '%s filter 命中對應 sourceFormat',
+      (format) => {
+        const plugin = makeMerged({ sourceFormat: format });
+        expect(matchesSourceFormat(plugin, new Set([format]))).toBe(true);
+      },
+    );
+
+    it('github filter 不命中 url sourceFormat', () => {
+      const plugin = makeMerged({ sourceFormat: 'url' });
+      expect(matchesSourceFormat(plugin, new Set(['github']))).toBe(false);
+    });
+
+    it('local-internal filter 不命中 local-external', () => {
+      const plugin = makeMerged({ sourceFormat: 'local-external' });
+      expect(matchesSourceFormat(plugin, new Set(['local-internal']))).toBe(false);
+    });
+
+    it('url filter 不命中 url-subdir', () => {
+      const plugin = makeMerged({ sourceFormat: 'url-subdir' });
+      expect(matchesSourceFormat(plugin, new Set(['url']))).toBe(false);
+    });
+  });
+
+  describe('多選 filter（OR 邏輯）', () => {
+    it('url + github → url plugin 通過', () => {
+      const plugin = makeMerged({ sourceFormat: 'url' });
+      expect(matchesSourceFormat(plugin, new Set(['url', 'github']))).toBe(true);
+    });
+
+    it('url + github → github plugin 通過', () => {
+      const plugin = makeMerged({ sourceFormat: 'github' });
+      expect(matchesSourceFormat(plugin, new Set(['url', 'github']))).toBe(true);
+    });
+
+    it('url + github → git-subdir plugin 不通過', () => {
+      const plugin = makeMerged({ sourceFormat: 'git-subdir' });
+      expect(matchesSourceFormat(plugin, new Set(['url', 'github']))).toBe(false);
+    });
+
+    it('所有 6 種 filter 全選 → 任何 sourceFormat 都通過', () => {
+      const allFilters = new Set<SourceFormatFilter>(SOURCE_FORMAT_FILTERS);
+      for (const format of SOURCE_FORMAT_FILTERS) {
+        const plugin = makeMerged({ sourceFormat: format });
+        expect(matchesSourceFormat(plugin, allFilters)).toBe(true);
+      }
+    });
+  });
+});
+
+describe('readSourceFormatFilters / writeSourceFormatFilters', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(mockViewState)) delete mockViewState[key];
+  });
+
+  it('viewState 無資料 → 空 Set', () => {
+    expect(readSourceFormatFilters()).toEqual(new Set());
+  });
+
+  it('write 後 read round-trip 保持一致', () => {
+    const filters: Set<SourceFormatFilter> = new Set(['github', 'url']);
+    writeSourceFormatFilters(filters);
+    expect(readSourceFormatFilters()).toEqual(filters);
+  });
+
+  it('空 Set → write → read 回空 Set', () => {
+    writeSourceFormatFilters(new Set());
+    expect(readSourceFormatFilters()).toEqual(new Set());
+  });
+
+  it('viewState 含無效值 → 過濾掉，只保留合法 filter', () => {
+    mockViewState[SOURCE_FORMAT_STORAGE_KEY] = ['github', 'invalid-type', 'url'];
+    expect(readSourceFormatFilters()).toEqual(new Set(['github', 'url']));
+  });
+
+  it('viewState 含非陣列 → 回空 Set', () => {
+    mockViewState[SOURCE_FORMAT_STORAGE_KEY] = { a: 1 };
+    expect(readSourceFormatFilters()).toEqual(new Set());
+  });
+
+  it('所有 6 種 filter round-trip', () => {
+    const all = new Set<SourceFormatFilter>(SOURCE_FORMAT_FILTERS);
+    writeSourceFormatFilters(all);
+    expect(readSourceFormatFilters()).toEqual(all);
+  });
+
+  it.each<[SourceFormatFilter]>(SOURCE_FORMAT_FILTERS.map((f) => [f]))(
+    '單一 %s round-trip',
+    (format) => {
+      writeSourceFormatFilters(new Set([format]));
+      expect(readSourceFormatFilters()).toEqual(new Set([format]));
+    },
+  );
 });
