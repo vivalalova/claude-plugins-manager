@@ -324,7 +324,7 @@ describe('PluginPage — 核心流程', () => {
       }, { timeout: 1000 });
     });
 
-    it('搜尋有結果時 section 自動展開（無 collapsed class）', async () => {
+    it('搜尋有結果時 section 維持收合狀態', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
         if (req.type === 'plugin.listAvailable') {
@@ -344,7 +344,8 @@ describe('PluginPage — 核心流程', () => {
 
       await waitFor(() => {
         const sectionBody = document.querySelector('.section-body');
-        expect(sectionBody?.classList.contains('section-body--collapsed')).toBe(false);
+        // 搜尋不會改變 section 展開狀態，預設仍收合
+        expect(sectionBody?.classList.contains('section-body--collapsed')).toBe(true);
       }, { timeout: 1000 });
     });
 
@@ -501,7 +502,7 @@ describe('PluginPage — 核心流程', () => {
       });
     });
 
-    it('Enabled filter 啟用時 section 自動展開', async () => {
+    it('Enabled filter 啟用時 section 維持收合狀態', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];
         if (req.type === 'plugin.listAvailable') {
@@ -525,8 +526,8 @@ describe('PluginPage — 核心流程', () => {
       fireEvent.click(screen.getByText('Enabled'));
 
       await waitFor(() => {
-        // filter 啟用後 section 自動展開
-        expect(document.querySelector('.section-body--collapsed')).toBeNull();
+        // filter 不會改變 section 展開狀態
+        expect(document.querySelector('.section-body--collapsed')).toBeTruthy();
       });
     });
   });

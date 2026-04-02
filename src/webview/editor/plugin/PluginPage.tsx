@@ -377,10 +377,6 @@ export function PluginPage(): React.ReactElement {
           sectionNames={sectionNames}
           sectionStats={sectionStats}
           isUpdatingAll={isUpdatingAll}
-          filterEnabled={filterEnabled}
-          debouncedSearch={debouncedSearch}
-          contentTypeFilters={contentTypeFilters}
-          sourceFormatFilters={sourceFormatFilters}
           expanded={expanded}
           setExpanded={setExpanded}
           hiddenPlugins={hiddenPlugins}
