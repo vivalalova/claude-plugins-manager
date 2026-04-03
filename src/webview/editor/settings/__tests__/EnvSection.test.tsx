@@ -70,7 +70,7 @@ describe('EnvSection — 全列表渲染', () => {
     await waitFor(() => {
       expect(screen.getByText('ANTHROPIC_MODEL')).toBeTruthy();
       expect(screen.getByText('ANTHROPIC_API_KEY')).toBeTruthy();
-      expect(screen.getByText('ENABLE_LSP_TOOL')).toBeTruthy();
+      expect(screen.getByText('DISABLE_TELEMETRY')).toBeTruthy();
       expect(screen.getByText('DISABLE_TELEMETRY')).toBeTruthy();
     });
   });
@@ -132,24 +132,24 @@ describe('EnvSection — Boolean adapter', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderEnvSection({}, onSave);
 
-    await waitFor(() => screen.getByText('ENABLE_LSP_TOOL'));
+    await waitFor(() => screen.getByText('DISABLE_TELEMETRY'));
 
-    const label = screen.getByText('ENABLE_LSP_TOOL');
+    const label = screen.getByText('DISABLE_TELEMETRY');
     const checkbox = label.closest('label')?.querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
 
     fireEvent.click(checkbox);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ ENABLE_LSP_TOOL: '1' }));
+      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ DISABLE_TELEMETRY: '1' }));
     });
   });
 
   it('已設定為 "1" 的 boolean → checkbox checked', async () => {
-    renderEnvSection({ env: { ENABLE_LSP_TOOL: '1' } });
+    renderEnvSection({ env: { DISABLE_TELEMETRY: '1' } });
 
     await waitFor(() => {
-      const label = screen.getByText('ENABLE_LSP_TOOL');
+      const label = screen.getByText('DISABLE_TELEMETRY');
       const checkbox = label.closest('label')?.querySelector('input[type="checkbox"]') as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
     });

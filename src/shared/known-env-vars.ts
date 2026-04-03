@@ -4,7 +4,7 @@
  * 同步維護：update-settings-options skill Phase 1d
  */
 
-export type EnvVarCategory = 'model' | 'auth' | 'effort' | 'timeout' | 'feature' | 'telemetry';
+export type EnvVarCategory = 'model' | 'auth' | 'provider' | 'effort' | 'timeout' | 'limits' | 'feature' | 'ui' | 'shell' | 'telemetry';
 export type EnvVarValueType = StringConstructor | NumberConstructor | BooleanConstructor;
 
 export interface KnownEnvVar {
@@ -13,22 +13,33 @@ export interface KnownEnvVar {
   category: EnvVarCategory;
   default?: string;
   sensitive?: boolean;
+  deprecated?: boolean;
 }
 
 export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   // --- model ---
-  ANTHROPIC_MODEL: {
-    name: 'ANTHROPIC_MODEL',
+  ANTHROPIC_BETAS: {
+    name: 'ANTHROPIC_BETAS',
     valueType: String,
     category: 'model',
   },
-  ANTHROPIC_DEFAULT_SONNET_MODEL: {
-    name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  ANTHROPIC_CUSTOM_HEADERS: {
+    name: 'ANTHROPIC_CUSTOM_HEADERS',
     valueType: String,
     category: 'model',
   },
-  ANTHROPIC_DEFAULT_OPUS_MODEL: {
-    name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  ANTHROPIC_CUSTOM_MODEL_OPTION: {
+    name: 'ANTHROPIC_CUSTOM_MODEL_OPTION',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION: {
+    name: 'ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_CUSTOM_MODEL_OPTION_NAME: {
+    name: 'ANTHROPIC_CUSTOM_MODEL_OPTION_NAME',
     valueType: String,
     category: 'model',
   },
@@ -37,18 +48,34 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'model',
   },
-  CLAUDE_CODE_SUBAGENT_MODEL: {
-    name: 'CLAUDE_CODE_SUBAGENT_MODEL',
+  ANTHROPIC_DEFAULT_OPUS_MODEL: {
+    name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
     valueType: String,
     category: 'model',
+  },
+  ANTHROPIC_DEFAULT_SONNET_MODEL: {
+    name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_MODEL: {
+    name: 'ANTHROPIC_MODEL',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_SMALL_FAST_MODEL: {
+    name: 'ANTHROPIC_SMALL_FAST_MODEL',
+    valueType: String,
+    category: 'model',
+    deprecated: true,
   },
   CLAUDE_CODE_MAX_OUTPUT_TOKENS: {
     name: 'CLAUDE_CODE_MAX_OUTPUT_TOKENS',
     valueType: Number,
     category: 'model',
   },
-  ANTHROPIC_SMALL_FAST_MODEL: {
-    name: 'ANTHROPIC_SMALL_FAST_MODEL',
+  CLAUDE_CODE_SUBAGENT_MODEL: {
+    name: 'CLAUDE_CODE_SUBAGENT_MODEL',
     valueType: String,
     category: 'model',
   },
@@ -78,6 +105,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'auth',
     default: '600000',
   },
+  HTTP_PROXY: {
+    name: 'HTTP_PROXY',
+    valueType: String,
+    category: 'auth',
+  },
   HTTPS_PROXY: {
     name: 'HTTPS_PROXY',
     valueType: String,
@@ -88,29 +120,103 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'auth',
   },
-  HTTP_PROXY: {
-    name: 'HTTP_PROXY',
+
+  // --- provider ---
+  ANTHROPIC_BEDROCK_BASE_URL: {
+    name: 'ANTHROPIC_BEDROCK_BASE_URL',
     valueType: String,
-    category: 'auth',
+    category: 'provider',
+  },
+  ANTHROPIC_FOUNDRY_API_KEY: {
+    name: 'ANTHROPIC_FOUNDRY_API_KEY',
+    valueType: String,
+    category: 'provider',
+    sensitive: true,
+  },
+  ANTHROPIC_FOUNDRY_BASE_URL: {
+    name: 'ANTHROPIC_FOUNDRY_BASE_URL',
+    valueType: String,
+    category: 'provider',
+  },
+  ANTHROPIC_FOUNDRY_RESOURCE: {
+    name: 'ANTHROPIC_FOUNDRY_RESOURCE',
+    valueType: String,
+    category: 'provider',
+  },
+  ANTHROPIC_VERTEX_BASE_URL: {
+    name: 'ANTHROPIC_VERTEX_BASE_URL',
+    valueType: String,
+    category: 'provider',
+  },
+  ANTHROPIC_VERTEX_PROJECT_ID: {
+    name: 'ANTHROPIC_VERTEX_PROJECT_ID',
+    valueType: String,
+    category: 'provider',
+  },
+  AWS_BEARER_TOKEN_BEDROCK: {
+    name: 'AWS_BEARER_TOKEN_BEDROCK',
+    valueType: String,
+    category: 'provider',
+    sensitive: true,
+  },
+  CLAUDE_CODE_SKIP_BEDROCK_AUTH: {
+    name: 'CLAUDE_CODE_SKIP_BEDROCK_AUTH',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_SKIP_FOUNDRY_AUTH: {
+    name: 'CLAUDE_CODE_SKIP_FOUNDRY_AUTH',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_SKIP_VERTEX_AUTH: {
+    name: 'CLAUDE_CODE_SKIP_VERTEX_AUTH',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_USE_BEDROCK: {
+    name: 'CLAUDE_CODE_USE_BEDROCK',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_USE_FOUNDRY: {
+    name: 'CLAUDE_CODE_USE_FOUNDRY',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_USE_VERTEX: {
+    name: 'CLAUDE_CODE_USE_VERTEX',
+    valueType: Boolean,
+    category: 'provider',
   },
 
   // --- effort ---
+  CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING: {
+    name: 'CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING',
+    valueType: Boolean,
+    category: 'effort',
+    default: '0',
+  },
+  CLAUDE_CODE_DISABLE_THINKING: {
+    name: 'CLAUDE_CODE_DISABLE_THINKING',
+    valueType: Boolean,
+    category: 'effort',
+  },
   CLAUDE_CODE_EFFORT_LEVEL: {
     name: 'CLAUDE_CODE_EFFORT_LEVEL',
     valueType: String,
     category: 'effort',
     default: 'high',
   },
+  DISABLE_INTERLEAVED_THINKING: {
+    name: 'DISABLE_INTERLEAVED_THINKING',
+    valueType: Boolean,
+    category: 'effort',
+  },
   MAX_THINKING_TOKENS: {
     name: 'MAX_THINKING_TOKENS',
     valueType: Number,
     category: 'effort',
-  },
-  CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING: {
-    name: 'CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING',
-    valueType: Boolean,
-    category: 'effort',
-    default: '0',
   },
 
   // --- timeout ---
@@ -119,6 +225,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'timeout',
     default: '120000',
+  },
+  BASH_MAX_OUTPUT_LENGTH: {
+    name: 'BASH_MAX_OUTPUT_LENGTH',
+    valueType: Number,
+    category: 'timeout',
   },
   BASH_MAX_TIMEOUT_MS: {
     name: 'BASH_MAX_TIMEOUT_MS',
@@ -145,24 +256,96 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     default: '25000',
   },
 
-  // --- feature ---
-  ENABLE_LSP_TOOL: {
-    name: 'ENABLE_LSP_TOOL',
-    valueType: Boolean,
-    category: 'feature',
-    default: '0',
+  // --- limits ---
+  CLAUDE_CODE_AUTO_COMPACT_WINDOW: {
+    name: 'CLAUDE_CODE_AUTO_COMPACT_WINDOW',
+    valueType: Number,
+    category: 'limits',
   },
+  CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS: {
+    name: 'CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS',
+    valueType: Number,
+    category: 'limits',
+  },
+  CLAUDE_CODE_GLOB_HIDDEN: {
+    name: 'CLAUDE_CODE_GLOB_HIDDEN',
+    valueType: Boolean,
+    category: 'limits',
+  },
+  CLAUDE_CODE_GLOB_NO_IGNORE: {
+    name: 'CLAUDE_CODE_GLOB_NO_IGNORE',
+    valueType: Boolean,
+    category: 'limits',
+  },
+  CLAUDE_CODE_GLOB_TIMEOUT_SECONDS: {
+    name: 'CLAUDE_CODE_GLOB_TIMEOUT_SECONDS',
+    valueType: Number,
+    category: 'limits',
+    default: '20',
+  },
+  CLAUDE_CODE_MAX_RETRIES: {
+    name: 'CLAUDE_CODE_MAX_RETRIES',
+    valueType: Number,
+    category: 'limits',
+    default: '10',
+  },
+  CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY: {
+    name: 'CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY',
+    valueType: Number,
+    category: 'limits',
+    default: '10',
+  },
+  MAX_STRUCTURED_OUTPUT_RETRIES: {
+    name: 'MAX_STRUCTURED_OUTPUT_RETRIES',
+    valueType: Number,
+    category: 'limits',
+    default: '5',
+  },
+  TASK_MAX_OUTPUT_LENGTH: {
+    name: 'TASK_MAX_OUTPUT_LENGTH',
+    valueType: Number,
+    category: 'limits',
+    default: '32000',
+  },
+
+  // --- feature ---
   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: {
     name: 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE',
     valueType: Number,
     category: 'feature',
     default: '90',
   },
+  CLAUDE_AUTO_BACKGROUND_TASKS: {
+    name: 'CLAUDE_AUTO_BACKGROUND_TASKS',
+    valueType: Boolean,
+    category: 'feature',
+  },
   CLAUDE_CODE_DISABLE_1M_CONTEXT: {
     name: 'CLAUDE_CODE_DISABLE_1M_CONTEXT',
     valueType: Boolean,
     category: 'feature',
     default: '0',
+  },
+  CLAUDE_CODE_DISABLE_ATTACHMENTS: {
+    name: 'CLAUDE_CODE_DISABLE_ATTACHMENTS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_AUTO_MEMORY: {
+    name: 'CLAUDE_CODE_DISABLE_AUTO_MEMORY',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
+  },
+  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: {
+    name: 'CLAUDE_CODE_DISABLE_BACKGROUND_TASKS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_CLAUDE_MDS: {
+    name: 'CLAUDE_CODE_DISABLE_CLAUDE_MDS',
+    valueType: Boolean,
+    category: 'feature',
   },
   CLAUDE_CODE_DISABLE_CRON: {
     name: 'CLAUDE_CODE_DISABLE_CRON',
@@ -176,52 +359,20 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'feature',
     default: '0',
   },
-  DISABLE_NON_ESSENTIAL_MODEL_CALLS: {
-    name: 'DISABLE_NON_ESSENTIAL_MODEL_CALLS',
+  CLAUDE_CODE_DISABLE_FAST_MODE: {
+    name: 'CLAUDE_CODE_DISABLE_FAST_MODE',
     valueType: Boolean,
     category: 'feature',
-    default: '0',
   },
-  ENABLE_CLAUDEAI_MCP_SERVERS: {
-    name: 'ENABLE_CLAUDEAI_MCP_SERVERS',
+  CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY: {
+    name: 'CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY',
     valueType: Boolean,
     category: 'feature',
-    default: 'true',
   },
-  CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: {
-    name: 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS',
+  CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING: {
+    name: 'CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING',
     valueType: Boolean,
     category: 'feature',
-    default: '0',
-  },
-  DISABLE_PROMPT_CACHING: {
-    name: 'DISABLE_PROMPT_CACHING',
-    valueType: Boolean,
-    category: 'feature',
-    default: '0',
-  },
-
-  USE_BUILTIN_RIPGREP: {
-    name: 'USE_BUILTIN_RIPGREP',
-    valueType: Boolean,
-    category: 'feature',
-    default: '1',
-  },
-  CLAUDE_CODE_GIT_BASH_PATH: {
-    name: 'CLAUDE_CODE_GIT_BASH_PATH',
-    valueType: String,
-    category: 'feature',
-  },
-  ENABLE_TOOL_SEARCH: {
-    name: 'ENABLE_TOOL_SEARCH',
-    valueType: String,
-    category: 'feature',
-  },
-  CLAUDE_CODE_DISABLE_AUTO_MEMORY: {
-    name: 'CLAUDE_CODE_DISABLE_AUTO_MEMORY',
-    valueType: Boolean,
-    category: 'feature',
-    default: '0',
   },
   CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: {
     name: 'CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS',
@@ -229,16 +380,154 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'feature',
     default: '0',
   },
+  CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: {
+    name: 'CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_TASKS: {
+    name: 'CLAUDE_CODE_ENABLE_TASKS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: {
+    name: 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
+  },
+  CLAUDE_CODE_GIT_BASH_PATH: {
+    name: 'CLAUDE_CODE_GIT_BASH_PATH',
+    valueType: String,
+    category: 'feature',
+  },
+  DISABLE_AUTO_COMPACT: {
+    name: 'DISABLE_AUTO_COMPACT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  DISABLE_COMPACT: {
+    name: 'DISABLE_COMPACT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  DISABLE_COST_WARNINGS: {
+    name: 'DISABLE_COST_WARNINGS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  DISABLE_PROMPT_CACHING: {
+    name: 'DISABLE_PROMPT_CACHING',
+    valueType: Boolean,
+    category: 'feature',
+    default: '0',
+  },
+  DISABLE_PROMPT_CACHING_HAIKU: {
+    name: 'DISABLE_PROMPT_CACHING_HAIKU',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  DISABLE_PROMPT_CACHING_OPUS: {
+    name: 'DISABLE_PROMPT_CACHING_OPUS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  DISABLE_PROMPT_CACHING_SONNET: {
+    name: 'DISABLE_PROMPT_CACHING_SONNET',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  ENABLE_CLAUDEAI_MCP_SERVERS: {
+    name: 'ENABLE_CLAUDEAI_MCP_SERVERS',
+    valueType: Boolean,
+    category: 'feature',
+    default: 'true',
+  },
+  ENABLE_TOOL_SEARCH: {
+    name: 'ENABLE_TOOL_SEARCH',
+    valueType: String,
+    category: 'feature',
+  },
+  FALLBACK_FOR_ALL_PRIMARY_MODELS: {
+    name: 'FALLBACK_FOR_ALL_PRIMARY_MODELS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  USE_BUILTIN_RIPGREP: {
+    name: 'USE_BUILTIN_RIPGREP',
+    valueType: Boolean,
+    category: 'feature',
+    default: '1',
+  },
+
+  // --- ui ---
+  CLAUDE_CODE_ACCESSIBILITY: {
+    name: 'CLAUDE_CODE_ACCESSIBILITY',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_DISABLE_MOUSE: {
+    name: 'CLAUDE_CODE_DISABLE_MOUSE',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_DISABLE_TERMINAL_TITLE: {
+    name: 'CLAUDE_CODE_DISABLE_TERMINAL_TITLE',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_NO_FLICKER: {
+    name: 'CLAUDE_CODE_NO_FLICKER',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_SCROLL_SPEED: {
+    name: 'CLAUDE_CODE_SCROLL_SPEED',
+    valueType: Number,
+    category: 'ui',
+  },
+  CLAUDE_CODE_SYNTAX_HIGHLIGHT: {
+    name: 'CLAUDE_CODE_SYNTAX_HIGHLIGHT',
+    valueType: Boolean,
+    category: 'ui',
+  },
+
+  // --- shell ---
+  CLAUDE_CODE_SHELL: {
+    name: 'CLAUDE_CODE_SHELL',
+    valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_CODE_SHELL_PREFIX: {
+    name: 'CLAUDE_CODE_SHELL_PREFIX',
+    valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: {
+    name: 'CLAUDE_CODE_SUBPROCESS_ENV_SCRUB',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CONFIG_DIR: {
+    name: 'CLAUDE_CONFIG_DIR',
+    valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_ENV_FILE: {
+    name: 'CLAUDE_ENV_FILE',
+    valueType: String,
+    category: 'shell',
+  },
 
   // --- telemetry ---
-  DISABLE_TELEMETRY: {
-    name: 'DISABLE_TELEMETRY',
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: {
+    name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
     valueType: Boolean,
     category: 'telemetry',
     default: '0',
   },
-  DISABLE_ERROR_REPORTING: {
-    name: 'DISABLE_ERROR_REPORTING',
+  CLAUDE_CODE_ENABLE_TELEMETRY: {
+    name: 'CLAUDE_CODE_ENABLE_TELEMETRY',
     valueType: Boolean,
     category: 'telemetry',
     default: '0',
@@ -254,15 +543,22 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'telemetry',
     default: '0',
+    deprecated: true,
   },
-  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: {
-    name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+  DISABLE_ERROR_REPORTING: {
+    name: 'DISABLE_ERROR_REPORTING',
     valueType: Boolean,
     category: 'telemetry',
     default: '0',
   },
-  CLAUDE_CODE_ENABLE_TELEMETRY: {
-    name: 'CLAUDE_CODE_ENABLE_TELEMETRY',
+  DISABLE_FEEDBACK_COMMAND: {
+    name: 'DISABLE_FEEDBACK_COMMAND',
+    valueType: Boolean,
+    category: 'telemetry',
+    default: '0',
+  },
+  DISABLE_TELEMETRY: {
+    name: 'DISABLE_TELEMETRY',
     valueType: Boolean,
     category: 'telemetry',
     default: '0',
@@ -277,7 +573,7 @@ export function getKnownEnvVar(name: string): KnownEnvVar | undefined {
   return KNOWN_ENV_VARS[name];
 }
 
-export const CATEGORY_ORDER: EnvVarCategory[] = ['model', 'auth', 'effort', 'timeout', 'feature', 'telemetry'];
+export const CATEGORY_ORDER: EnvVarCategory[] = ['model', 'auth', 'provider', 'effort', 'timeout', 'limits', 'feature', 'ui', 'shell', 'telemetry'];
 
 export function getKnownEnvVarsByCategory(): Map<EnvVarCategory, KnownEnvVar[]> {
   const map = new Map<EnvVarCategory, KnownEnvVar[]>();

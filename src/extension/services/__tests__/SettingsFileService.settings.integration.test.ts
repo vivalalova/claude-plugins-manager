@@ -195,7 +195,7 @@ describe('SettingsFileService.getSettings / setSetting / deleteSetting（integra
   });
 
   it('setSetting 寫入 env object（Record<string,string>）', async () => {
-    const env = { ENABLE_LSP_TOOL: '1', MY_API: 'https://api.example.com' };
+    const env = { DISABLE_TELEMETRY: '1', MY_API: 'https://api.example.com' };
     await svc.setSetting('user', 'env', env);
 
     const content = await svc.getSettings('user');

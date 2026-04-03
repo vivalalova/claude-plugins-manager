@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   KNOWN_ENV_VARS,
+  CATEGORY_ORDER,
   getKnownEnvVar,
   getKnownEnvVarNames,
   getKnownEnvVarsByCategory,
@@ -8,7 +9,7 @@ import {
   type EnvVarValueType,
 } from '../known-env-vars';
 
-const VALID_CATEGORIES: EnvVarCategory[] = ['model', 'auth', 'effort', 'timeout', 'feature', 'telemetry'];
+const VALID_CATEGORIES: EnvVarCategory[] = CATEGORY_ORDER;
 const VALID_VALUE_TYPES: EnvVarValueType[] = [String, Number, Boolean];
 
 describe('KNOWN_ENV_VARS registry', () => {
