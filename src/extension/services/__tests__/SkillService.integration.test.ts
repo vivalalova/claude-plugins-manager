@@ -383,6 +383,33 @@ describe('SkillService', () => {
         'skills', 'add', 'owner/repo', '--yes', '--all', '--global',
       ]);
     });
+
+    it('skillName 有值 + agents → --skill <skillName>（取代 *）', async () => {
+      mockCliSuccess('');
+      await service.add('vercel-labs/agent-skills', 'global', ['claude-code'], 'find-skills');
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'vercel-labs/agent-skills', '--yes', '--skill', 'find-skills', '--agent', 'claude-code', '--global',
+      ]);
+    });
+
+    it('skillName 有值 + agents 空陣列 → --all（skillName 不作用）', async () => {
+      mockCliSuccess('');
+      await service.add('owner/repo', 'global', [], 'some-skill');
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'owner/repo', '--yes', '--all', '--global',
+      ]);
+    });
+
+    it('skillName 有值 + agents undefined → --all（skillName 不作用）', async () => {
+      mockCliSuccess('');
+      await service.add('owner/repo', 'global', undefined, 'some-skill');
+
+      expect(mockSpawn.mock.calls[0][1]).toEqual([
+        'skills', 'add', 'owner/repo', '--yes', '--all', '--global',
+      ]);
+    });
   });
 
   // -------------------------------------------------------------------------

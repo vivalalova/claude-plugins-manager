@@ -11,6 +11,8 @@ interface UseSkillMutationsOptions {
   persistSelectedAgents: (agents: string[]) => void;
   hasPendingInstall: () => boolean;
   closeAddDialog: () => void;
+  /** Registry 安裝時回傳 skill name（限定安裝該 skill，非整個 repo）；手動安裝時回傳 null */
+  getPendingSkillName?: () => string | null;
 }
 
 export function useSkillMutations({
@@ -19,6 +21,7 @@ export function useSkillMutations({
   persistSelectedAgents,
   hasPendingInstall,
   closeAddDialog,
+  getPendingSkillName,
 }: UseSkillMutationsOptions): {
   addingSkill: boolean;
   checking: boolean;
@@ -43,8 +46,9 @@ export function useSkillMutations({
     setAddingSkill(true);
     persistSelectedAgents(agents);
     const isPending = hasPendingInstall();
+    const skillName = getPendingSkillName?.() ?? undefined;
     await runPageAction({
-      action: () => sendRequest<void>({ type: 'skill.add', source, scope, agents }, 90_000),
+      action: () => sendRequest<void>({ type: 'skill.add', source, scope, agents, skillName }, 90_000),
       onSuccess: async () => {
         closeAddDialog();
         clearRegistryCache();

@@ -377,7 +377,15 @@ describe('MessageRouter', () => {
         { type: 'skill.add', requestId: 's2', source: 'owner/repo', scope: 'global', agents: ['claude-code'] } as RequestMessage,
         post,
       );
-      expect(services.skill.add).toHaveBeenCalledWith('owner/repo', 'global', ['claude-code']);
+      expect(services.skill.add).toHaveBeenCalledWith('owner/repo', 'global', ['claude-code'], undefined);
+    });
+
+    it('skill.add → 帶 skillName → 透傳到 service', async () => {
+      await router.handle(
+        { type: 'skill.add', requestId: 's2b', source: 'vercel-labs/skills', scope: 'global', agents: ['claude-code'], skillName: 'find-skills' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.add).toHaveBeenCalledWith('vercel-labs/skills', 'global', ['claude-code'], 'find-skills');
     });
 
     it('skill.remove → 帶 name 和 scope', async () => {
