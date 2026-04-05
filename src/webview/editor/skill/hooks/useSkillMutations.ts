@@ -6,7 +6,7 @@ import { usePageAction } from '../../../hooks/usePageAction';
 import type { SkillScope } from '../../../../shared/types';
 
 interface UseSkillMutationsOptions {
-  fetchList: () => Promise<unknown>;
+  fetchList: (showSpinner?: boolean) => Promise<unknown>;
   clearRegistryCache: () => void;
   persistSelectedAgents: (agents: string[]) => void;
   hasPendingInstall: () => boolean;
@@ -71,7 +71,7 @@ export function useSkillMutations({
       action: () => sendRequest<void>({ type: 'skill.remove', name, scope }),
       onSuccess: async () => {
         clearRegistryCache();
-        await fetchList();
+        await fetchList(false);
       },
       onError: (message) => {
         addToast(t('skill.error.remove') + ': ' + message, 'error');
