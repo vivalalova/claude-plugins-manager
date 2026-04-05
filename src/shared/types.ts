@@ -285,6 +285,8 @@ export interface ClaudeSettings {
       allowWrite?: string[];
       denyWrite?: string[];
       denyRead?: string[];
+      allowRead?: string[];
+      allowManagedReadPathsOnly?: boolean;
     };
     network?: {
       allowedDomains?: string[];

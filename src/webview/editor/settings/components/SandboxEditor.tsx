@@ -13,7 +13,7 @@ type SandboxBooleanKey =
   | 'enableWeakerNetworkIsolation'
   | 'enableWeakerNestedSandbox'
   | 'allowUnsandboxedCommands';
-type SandboxFilesystemKey = keyof NonNullable<SandboxValue['filesystem']>;
+type SandboxFilesystemArrayKey = 'allowWrite' | 'denyWrite' | 'denyRead' | 'allowRead';
 type SandboxNetworkBooleanKey =
   | 'allowAllUnixSockets'
   | 'allowLocalBinding'
@@ -188,7 +188,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     void saveSandbox({ ...draft, [key]: items });
   };
 
-  const updateFs = (key: keyof NonNullable<SandboxValue['filesystem']>, items: string[]): void => {
+  const updateFs = (key: SandboxFilesystemArrayKey, items: string[]): void => {
     void saveSandbox({ ...draft, filesystem: { ...draft.filesystem, [key]: items } });
   };
 
@@ -204,9 +204,10 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     { key: 'allowUnsandboxedCommands', label: tk('allowUnsandboxed') },
   ];
 
-  const filesystemTagLists: Array<{ key: SandboxFilesystemKey; labelKey: string }> = [
+  const filesystemTagLists: Array<{ key: SandboxFilesystemArrayKey; labelKey: string }> = [
     { key: 'allowWrite', labelKey: 'filesystem.allowWrite' },
     { key: 'denyWrite', labelKey: 'filesystem.denyWrite' },
+    { key: 'allowRead', labelKey: 'filesystem.allowRead' },
     { key: 'denyRead', labelKey: 'filesystem.denyRead' },
   ];
 
@@ -322,6 +323,12 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
               onChange={(items) => updateFs(key, items)}
             />
           ))}
+          <SandboxCheckbox
+            label={tk('filesystem.managedReadPathsOnly')}
+            checked={draft.filesystem?.allowManagedReadPathsOnly ?? false}
+            saving={saving}
+            onChange={(value) => void saveSandbox({ ...draft, filesystem: { ...draft.filesystem, allowManagedReadPathsOnly: value } })}
+          />
 
           {/* Network */}
           <h4 style={{ fontSize: 12, fontWeight: 600, marginTop: 12, marginBottom: 6, borderTop: '1px solid var(--vscode-editorWidget-border)', paddingTop: 8 }}>
