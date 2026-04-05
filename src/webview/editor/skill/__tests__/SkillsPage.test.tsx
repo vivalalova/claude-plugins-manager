@@ -614,7 +614,7 @@ describe('SkillsPage', () => {
       });
     });
 
-    it('已安裝 skill → 顯示 Installed badge', async () => {
+    it('已安裝 global skill → global scope checkbox 勾選', async () => {
       setupRegistryMocks([makeSkill('find-skills', 'global')]);
       renderPage();
 
@@ -623,10 +623,12 @@ describe('SkillsPage', () => {
 
       await waitFor(() => expect(screen.getByText('find-skills')).toBeTruthy(), { timeout: 3000 });
 
-      // find-skills 已安裝 → 顯示 "Installed" badge（注意有多個 "Installed" 文字）
-      const installedBadges = screen.getAllByText('Installed');
-      // 至少 2 個：tab chip + badge
-      expect(installedBadges.length).toBeGreaterThanOrEqual(2);
+      // find-skills 已安裝在 global → global checkbox 勾選
+      // 在 find-skills card 附近找 checkboxes（每張 card 有兩個：global + project）
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      // find-skills 是第一張 card，其 global checkbox（checkboxes[0]）應已勾選
+      expect(checkboxes[0]!.checked).toBe(true);
+      expect(checkboxes[1]!.checked).toBe(false);
     });
 
     it('Registry error → 顯示 error banner', async () => {

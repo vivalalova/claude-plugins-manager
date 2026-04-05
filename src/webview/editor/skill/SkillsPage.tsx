@@ -36,6 +36,8 @@ export function SkillsPage(): React.ReactElement {
 
   // --- Pending install from search/registry (Install 按鈕直接開 dialog) ---
   const [pendingInstall, setPendingInstall] = useState<string | null>(null);
+  const [pendingInstallScope, setPendingInstallScope] = useState<SkillScope>('global');
+  const [pendingInstallSkillName, setPendingInstallSkillName] = useState<string | null>(null);
 
   // --- Agent selection (persisted in viewState + globalState) ---
   const { selectedAgents, persistSelectedAgents } = usePersistedSkillAgents();
@@ -103,6 +105,7 @@ export function SkillsPage(): React.ReactElement {
   const closeAddDialog = useCallback(() => {
     setShowAddDialog(false);
     setPendingInstall(null);
+    setPendingInstallSkillName(null);
   }, []);
   const {
     addingSkill,
@@ -120,6 +123,7 @@ export function SkillsPage(): React.ReactElement {
     persistSelectedAgents,
     hasPendingInstall: () => pendingInstall !== null,
     closeAddDialog,
+    getPendingSkillName: () => pendingInstallSkillName,
   });
   const {
     detailSkill,
@@ -130,8 +134,17 @@ export function SkillsPage(): React.ReactElement {
     closeDetail,
   } = useSkillDetailState();
 
-  // --- Installed skill names (for "Installed" badge in registry) ---
-  const installedSkillNames = useMemo(() => new Set(skills.map((s) => s.name)), [skills]);
+  // --- 依 scope 追蹤已安裝的 skill names（Claude Code agent only） ---
+  const installedSkillsByScope = useMemo(() => {
+    const global = new Set<string>();
+    const project = new Set<string>();
+    for (const s of skills) {
+      if (!s.agents.includes('Claude Code')) continue;
+      if (s.scope === 'global') global.add(s.name);
+      else if (s.scope === 'project') project.add(s.name);
+    }
+    return { global, project };
+  }, [skills]);
 
   // --- Tab switch ---
   const handleTabChange = (tab: PageTab): void => {
@@ -163,9 +176,25 @@ export function SkillsPage(): React.ReactElement {
   const projectSkills = useMemo(() => filtered.filter((s) => s.scope === 'project'), [filtered]);
 
   // --- Handlers ---
-  /** Install 按鈕 → 直接開 AddSkillDialog（source 預填） */
+  /** Online/Search Install 按鈕 → 直接開 AddSkillDialog（source 預填） */
   const handlePendingInstall = (source: string): void => {
     setPendingInstall(source);
+  };
+
+  /** Registry scope checkbox → 勾選開 dialog 安裝；取消勾選開確認 dialog 移除 */
+  const handleRegistryScopeToggle = (
+    repo: string,
+    skillName: string,
+    scope: SkillScope,
+    enable: boolean,
+  ): void => {
+    if (enable) {
+      setPendingInstallScope(scope);
+      setPendingInstall(repo);
+      setPendingInstallSkillName(skillName);
+    } else {
+      setConfirmRemove({ name: skillName, scope });
+    }
   };
 
   const handleViewOnline = (url: string): void => {
@@ -199,17 +228,26 @@ export function SkillsPage(): React.ReactElement {
     if (filteredRegistry.length === 0) return <EmptyState icon={<NoResultsIcon />} title={t('skill.search.noResults').replace('{query}', search.trim())} />;
     return (
       <div className="card-list">
-        {filteredRegistry.map((s) => (
-          <RegistrySkillCard
-            key={`${s.repo}/${s.name}`}
-            skill={s}
-            isInstalled={installedSkillNames.has(s.name)}
-            installing={false}
-            hasWorkspace={hasWorkspace}
-            onInstall={handlePendingInstall}
-            onViewOnline={handleViewOnline}
-          />
-        ))}
+        {filteredRegistry.map((s) => {
+          const loadingScopes = new Set<SkillScope>();
+          if (removingSkills.has(`global:${s.name}`)) loadingScopes.add('global');
+          if (removingSkills.has(`project:${s.name}`)) loadingScopes.add('project');
+          const installedScopes = new Set<SkillScope>();
+          if (installedSkillsByScope.global.has(s.name)) installedScopes.add('global');
+          if (installedSkillsByScope.project.has(s.name)) installedScopes.add('project');
+          return (
+            <RegistrySkillCard
+              key={`${s.repo}/${s.name}`}
+              skill={s}
+              installedScopes={installedScopes}
+              loadingScopes={loadingScopes}
+              installing={addingSkill && pendingInstall === s.repo}
+              hasWorkspace={hasWorkspace}
+              onScopeToggle={handleRegistryScopeToggle}
+              onViewOnline={handleViewOnline}
+            />
+          );
+        })}
       </div>
     );
   };
@@ -267,6 +305,7 @@ export function SkillsPage(): React.ReactElement {
         hasWorkspace={hasWorkspace}
         cachedAgents={selectedAgents}
         initialSource={pendingInstall ?? undefined}
+        initialScope={pendingInstall !== null ? pendingInstallScope : undefined}
         onSubmit={handleAdd}
         onClose={closeAddDialog}
       />

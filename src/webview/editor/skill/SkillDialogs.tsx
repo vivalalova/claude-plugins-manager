@@ -12,6 +12,8 @@ interface AddSkillDialogProps {
   cachedAgents: string[];
   /** 預填 source（來自 search/registry Install 按鈕） */
   initialSource?: string;
+  /** 預選 scope（來自 registry scope checkbox） */
+  initialScope?: SkillScope;
   onSubmit: (source: string, scope: SkillScope, agents: string[]) => void;
   onClose: () => void;
 }
@@ -22,6 +24,7 @@ export function AddSkillDialog({
   hasWorkspace,
   cachedAgents,
   initialSource,
+  initialScope,
   onSubmit,
   onClose,
 }: AddSkillDialogProps): React.ReactElement | null {
@@ -38,14 +41,14 @@ export function AddSkillDialog({
     setAgents(new Set(cachedAgents));
   }, [cachedAgents]);
 
-  // 開啟時重置表單；若有 initialSource 則預填
+  // 開啟時重置表單；若有 initialSource/initialScope 則預填
   useEffect(() => {
     if (open) {
       setSource(initialSource ?? '');
-      setScope('global');
+      setScope(initialScope ?? 'global');
       setValidationError('');
     }
-  }, [open, initialSource]);
+  }, [open, initialSource, initialScope]);
 
   if (!open) return null;
 
