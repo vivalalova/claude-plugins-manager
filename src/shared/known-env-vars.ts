@@ -532,6 +532,47 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'telemetry',
     default: '0',
   },
+  OTEL_METRICS_EXPORTER: {
+    name: 'OTEL_METRICS_EXPORTER',
+    valueType: String,
+    category: 'telemetry',
+    default: 'otlp',
+  },
+  OTEL_LOGS_EXPORTER: {
+    name: 'OTEL_LOGS_EXPORTER',
+    valueType: String,
+    category: 'telemetry',
+    default: 'otlp',
+  },
+  OTEL_EXPORTER_OTLP_PROTOCOL: {
+    name: 'OTEL_EXPORTER_OTLP_PROTOCOL',
+    valueType: String,
+    category: 'telemetry',
+    default: 'grpc',
+  },
+  OTEL_EXPORTER_OTLP_ENDPOINT: {
+    name: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+    valueType: String,
+    category: 'telemetry',
+  },
+  OTEL_EXPORTER_OTLP_HEADERS: {
+    name: 'OTEL_EXPORTER_OTLP_HEADERS',
+    valueType: String,
+    category: 'telemetry',
+    sensitive: true,
+  },
+  OTEL_METRIC_EXPORT_INTERVAL: {
+    name: 'OTEL_METRIC_EXPORT_INTERVAL',
+    valueType: Number,
+    category: 'telemetry',
+    default: '60000',
+  },
+  OTEL_LOGS_EXPORT_INTERVAL: {
+    name: 'OTEL_LOGS_EXPORT_INTERVAL',
+    valueType: Number,
+    category: 'telemetry',
+    default: '5000',
+  },
   DISABLE_AUTOUPDATER: {
     name: 'DISABLE_AUTOUPDATER',
     valueType: Boolean,
