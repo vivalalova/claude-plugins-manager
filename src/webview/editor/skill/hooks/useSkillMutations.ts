@@ -52,7 +52,7 @@ export function useSkillMutations({
       onSuccess: async () => {
         closeAddDialog();
         clearRegistryCache();
-        await fetchList();
+        await fetchList(false);
       },
       onError: (message) => {
         addToast(t('skill.error.add') + ': ' + message, 'error');
@@ -119,7 +119,7 @@ export function useSkillMutations({
       onSuccess: async () => {
         setCheckResult(null);
         clearRegistryCache();
-        await fetchList();
+        await fetchList(false);
       },
       onError: (message) => {
         addToast(t('skill.update.error') + ': ' + message, 'error');
