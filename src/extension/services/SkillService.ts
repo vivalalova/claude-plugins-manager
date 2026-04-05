@@ -125,10 +125,10 @@ export class SkillService {
   }
 
   /** 安裝 skill */
-  async add(source: string, scope: SkillScope, agents?: string[]): Promise<void> {
+  async add(source: string, scope: SkillScope, agents?: string[], skillName?: string): Promise<void> {
     const args = ['skills', 'add', source, '--yes'];
     if (agents && agents.length > 0) {
-      args.push('--skill', '*', '--agent', ...agents);
+      args.push('--skill', skillName ?? '*', '--agent', ...agents);
     } else {
       args.push('--all');
     }
