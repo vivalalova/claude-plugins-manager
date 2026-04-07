@@ -74,7 +74,7 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('String → renders TextSetting with placeholder and save/clear buttons', async () => {
+  it('String → renders TextSetting with placeholder and save/reset buttons', async () => {
     renderField('language', {
       section: 'general',
       controlType: String,
@@ -85,7 +85,7 @@ describe('SchemaFieldRenderer', () => {
       expect(input).toBeTruthy();
       expect(input.getAttribute('placeholder')).toBe('e.g. zh-TW');
       expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
     });
   });
 
@@ -244,7 +244,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     });
   });
 
-  it('enum：value 等於 default → 無 Reset', async () => {
+  it('enum：value 等於 default → 有 Reset（有值即顯示）', async () => {
     renderField('effortLevel', {
       default: 'high',
       section: 'general',
@@ -252,7 +252,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
       options: ['high', 'medium', 'low'] as const,
     }, 'high');
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+      expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
     });
   });
 
@@ -268,13 +268,13 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith('effortLevel'));
   });
 
-  it('String：無 default → 無 Reset', async () => {
+  it('String：無 default → 有 Reset（有值即顯示）', async () => {
     renderField('language', {
       section: 'general',
       controlType: String,
     }, 'zh-TW');
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+      expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
     });
   });
 
@@ -291,14 +291,14 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     });
   });
 
-  it('Boolean：value=false default=false → 無 Reset', async () => {
+  it('Boolean：value=false default=false → 有 Reset（有值即顯示）', async () => {
     renderField('fastMode', {
       default: false,
       section: 'general',
       controlType: Boolean,
     }, false);
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
+      expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
     });
   });
 });

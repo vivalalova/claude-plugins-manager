@@ -243,7 +243,7 @@ describe('AdvancedSection — forceLoginOrgUUID TextSetting', () => {
 
     await waitFor(() => screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'));
     const field = screen.getByPlaceholderText('e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('forceLoginOrgUUID');
@@ -274,7 +274,7 @@ describe('AdvancedSection — TextSetting 互動', () => {
     renderSection({ apiKeyHelper: './scripts/get-api-key.sh' }, vi.fn(), onDelete);
 
     const field = screen.getByPlaceholderText('e.g. ./scripts/get-api-key.sh').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('apiKeyHelper');
@@ -294,10 +294,10 @@ describe('AdvancedSection — TextSetting 互動', () => {
     });
   });
 
-  it('awsCredentialExport 有值時顯示 Clear 按鈕', () => {
+  it('awsCredentialExport 有值時顯示 Reset 按鈕', () => {
     renderSection({ awsCredentialExport: './aws-creds.sh' });
     const field = screen.getByPlaceholderText('e.g. ./scripts/aws-credentials.sh').closest('.settings-field') as HTMLElement;
-    expect(within(field).getByRole('button', { name: 'Clear' })).toBeTruthy();
+    expect(within(field).getByRole('button', { name: /Reset/ })).toBeTruthy();
   });
 
   it('awsAuthRefresh 未設定, 輸入路徑並儲存 → onSave("awsAuthRefresh", ...)', async () => {
@@ -535,10 +535,10 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
     expect(within(field).queryByRole('button', { name: 'Clear' })).toBeNull();
   });
 
-  it('fileSuggestion 有值 → Clear 按鈕顯示', () => {
+  it('fileSuggestion 有值 → Reset 按鈕顯示', () => {
     renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } });
     const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
-    expect(within(field).getByRole('button', { name: 'Clear' })).toBeTruthy();
+    expect(within(field).getByRole('button', { name: /Reset/ })).toBeTruthy();
   });
 
   it('未設定，輸入 command 並儲存 → onSave("fileSuggestion", { type:"command", command:"bash ~/suggest.sh" })', async () => {
@@ -554,13 +554,13 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
     });
   });
 
-  it('有值時點 Clear → onDelete("fileSuggestion")，onSave 不呼叫', async () => {
+  it('有值時點 Reset → onDelete("fileSuggestion")，onSave 不呼叫', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } }, onSave, onDelete);
 
     const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('fileSuggestion');
@@ -659,12 +659,12 @@ describe('AdvancedSection — fileSuggestion 物件編輯器', () => {
     });
   });
 
-  it('有值時連續快速點兩次 Clear → onDelete 只呼叫一次（saving 防護）', async () => {
+  it('有值時連續快速點兩次 Reset → onDelete 只呼叫一次（saving 防護）', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ fileSuggestion: { type: 'command', command: 'bash ~/suggest.sh' } }, vi.fn(), onDelete);
 
     const field = screen.getByPlaceholderText(FILE_SUG_PLACEHOLDER).closest('.settings-field') as HTMLElement;
-    const clearButton = within(field).getByRole('button', { name: 'Clear' });
+    const clearButton = within(field).getByRole('button', { name: /Reset/ });
 
     fireEvent.click(clearButton);
     fireEvent.click(clearButton);

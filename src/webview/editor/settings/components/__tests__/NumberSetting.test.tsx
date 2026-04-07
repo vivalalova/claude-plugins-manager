@@ -88,9 +88,9 @@ describe('NumberSetting — 渲染', () => {
     });
   });
 
-  it('value 有值時顯示 Clear 按鈕', async () => {
+  it('value 有值時顯示 Reset 按鈕', async () => {
     renderNumberSetting({ value: 30 });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy());
   });
 
   it('value=undefined → 不顯示 Clear 按鈕', async () => {
@@ -140,12 +140,12 @@ describe('NumberSetting — 驗收條件', () => {
     });
   });
 
-  it('value=30, 點擊 Clear → 呼叫 onDelete("cleanupPeriodDays")', async () => {
+  it('value=30, 點擊 Reset → 呼叫 onDelete("cleanupPeriodDays")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderNumberSetting({ value: 30, onDelete });
 
-    await waitFor(() => screen.getByRole('button', { name: 'Clear' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => screen.getByRole('button', { name: /Reset/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('cleanupPeriodDays');

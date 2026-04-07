@@ -351,11 +351,11 @@ describe('GeneralSection — BooleanToggle Reset 按鈕', () => {
     });
   });
 
-  it('fastMode=false（等於 default）→ 無 Reset 按鈕', async () => {
+  it('fastMode=false（等於 default）→ 有 Reset 按鈕（有值即顯示）', async () => {
     renderSection({ fastMode: false });
     await waitFor(() => screen.getByRole('checkbox', { name: 'Fast Mode' }));
     const field = screen.getByRole('checkbox', { name: 'Fast Mode' }).closest('.settings-field') as HTMLElement;
-    expect(within(field).queryByRole('button', { name: /Reset/ })).toBeNull();
+    expect(within(field).getByRole('button', { name: /Reset/ })).toBeTruthy();
   });
 });
 
@@ -535,21 +535,21 @@ describe('GeneralSection — TextSetting 互動', () => {
     });
   });
 
-  it('language 已設定時顯示 Clear 按鈕', async () => {
+  it('language 已設定時顯示 Reset 按鈕', async () => {
     renderSection({ language: 'zh-TW' });
     await waitFor(() => {
       const langField = screen.getByPlaceholderText('e.g. zh-TW').closest('.settings-field') as HTMLElement;
-      expect(within(langField).getByRole('button', { name: 'Clear' })).toBeTruthy();
+      expect(within(langField).getByRole('button', { name: /Reset/ })).toBeTruthy();
     });
   });
 
-  it('點擊 Clear → 呼叫 onDelete("language")', async () => {
+  it('點擊 Reset → 呼叫 onDelete("language")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ language: 'zh-TW' }, vi.fn(), onDelete);
 
     await waitFor(() => screen.getByPlaceholderText('e.g. zh-TW'));
     const langField = screen.getByPlaceholderText('e.g. zh-TW').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(langField).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(langField).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('language');
@@ -757,7 +757,7 @@ describe('GeneralSection — NumberSetting 互動', () => {
 
     await waitFor(() => screen.getByPlaceholderText('30'));
     const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(cleanupField).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('cleanupPeriodDays');

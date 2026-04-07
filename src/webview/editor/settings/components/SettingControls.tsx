@@ -21,9 +21,9 @@ export function getOverriddenScope(
 // Reset helper
 // ---------------------------------------------------------------------------
 
-/** 判斷是否應顯示 Reset 按鈕：有 default 且值與 default 不同 */
-export function shouldShowReset(value: unknown, defaultValue: unknown): boolean {
-  return defaultValue !== undefined && value !== undefined && value !== defaultValue;
+/** 判斷是否應顯示 Reset 按鈕：有值即顯示 */
+export function shouldShowReset(value: unknown): boolean {
+  return value !== undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,9 +172,7 @@ function SecondaryActionButton({
 
 interface ResetOrClearButtonProps {
   value: unknown;
-  defaultValue?: unknown;
   resetLabel: string;
-  clearLabel: string;
   label: string;
   disabled: boolean;
   onClick: () => void;
@@ -182,33 +180,19 @@ interface ResetOrClearButtonProps {
 
 function ResetOrClearButton({
   value,
-  defaultValue,
   resetLabel,
-  clearLabel,
   label,
   disabled,
   onClick,
 }: ResetOrClearButtonProps): React.ReactElement | null {
-  if (shouldShowReset(value, defaultValue)) {
-    return (
-      <SecondaryActionButton
-        label={resetLabel}
-        onClick={onClick}
-        disabled={disabled}
-        ariaLabel={`${resetLabel} ${label}`}
-      />
-    );
-  }
-
-  if (!value) {
-    return null;
-  }
+  if (!shouldShowReset(value)) return null;
 
   return (
     <SecondaryActionButton
-      label={clearLabel}
+      label={resetLabel}
       onClick={onClick}
       disabled={disabled}
+      ariaLabel={`${resetLabel} ${label}`}
     />
   );
 }
@@ -304,7 +288,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
           />
           <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
         </label>
-        {shouldShowReset(value, defaultValue) && (
+        {shouldShowReset(value) && (
           <button
             className="btn btn-secondary"
             onClick={() => void handleReset()}
@@ -396,7 +380,7 @@ export function EnumDropdown({
             <option key={v} value={v}>{knownLabels[v] ?? v}</option>
           ))}
         </select>
-        {shouldShowReset(value, defaultValue) && (
+        {shouldShowReset(value) && (
           <button
             className="btn btn-secondary"
             onClick={() => void handleChange('')}
@@ -422,7 +406,7 @@ export interface TextSettingProps {
   value: string | undefined;
   placeholder: string;
   saveLabel: string;
-  clearLabel: string;
+  clearLabel?: string;
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
@@ -437,7 +421,6 @@ export function TextSetting({
   value,
   placeholder,
   saveLabel,
-  clearLabel,
   settingKey,
   defaultValue,
   overriddenScope,
@@ -490,9 +473,7 @@ export function TextSetting({
         />
         <ResetOrClearButton
           value={value}
-          defaultValue={defaultValue}
           resetLabel={resetLabel}
-          clearLabel={clearLabel}
           label={label}
           disabled={saving}
           onClick={() => void handleClear()}
@@ -758,7 +739,7 @@ export interface NumberSettingProps {
   value: number | undefined;
   placeholder: string;
   saveLabel: string;
-  clearLabel: string;
+  clearLabel?: string;
   settingKey: string;
   scope: PluginScope;
   min?: number;
@@ -778,7 +759,6 @@ export function NumberSetting({
   value,
   placeholder,
   saveLabel,
-  clearLabel,
   settingKey,
   scope,
   min,
@@ -853,9 +833,7 @@ export function NumberSetting({
         />
         <ResetOrClearButton
           value={value}
-          defaultValue={defaultValue}
           resetLabel={resetLabel}
-          clearLabel={clearLabel}
           label={label}
           disabled={saving}
           onClick={() => void handleClear()}
