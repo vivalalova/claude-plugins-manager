@@ -13,8 +13,8 @@ interface AttentionCounts {
   mcpIssues: number;
 }
 
-function countMcpIssues(servers: McpServer[]): number {
-  return servers.filter((s) => s.status === 'failed' || s.status === 'needs-auth').length;
+function countMcpIssues(_servers: McpServer[]): number {
+  return 0;
 }
 
 /** Sidebar：分類按鈕，點擊打開對應 Editor 頁面 */

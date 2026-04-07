@@ -229,7 +229,7 @@ describe('SidebarApp attention badges', () => {
   });
 
   describe('MCP issue badge', () => {
-    it('2 個 failed server → 顯示 badge "2"', async () => {
+    it('failed server → 不顯示 badge（MCP 狀態不可操作）', async () => {
       setupMocks({
         mcpServers: [
           ...makeMcpServers(2, 'failed'),
@@ -240,29 +240,11 @@ describe('SidebarApp attention badges', () => {
       renderWithI18n(<SidebarApp />);
 
       await waitFor(() => {
-        const mcpButton = screen.getByText('MCP Servers').closest('.sidebar-button')!;
-        const badge = mcpButton.querySelector('.sidebar-update-badge');
-        expect(badge).toBeTruthy();
-        expect(badge!.textContent).toBe('2');
-      });
-    });
-
-    it('needs-auth server 也計入 badge', async () => {
-      setupMocks({
-        mcpServers: [
-          { name: 's1', fullName: 's1', command: 'cmd', status: 'needs-auth' },
-          { name: 's2', fullName: 's2', command: 'cmd', status: 'failed' },
-          { name: 's3', fullName: 's3', command: 'cmd', status: 'connected' },
-        ],
+        expect(mockSendRequest).toHaveBeenCalledTimes(2);
       });
 
-      renderWithI18n(<SidebarApp />);
-
-      await waitFor(() => {
-        const mcpButton = screen.getByText('MCP Servers').closest('.sidebar-button')!;
-        const badge = mcpButton.querySelector('.sidebar-update-badge');
-        expect(badge!.textContent).toBe('2');
-      });
+      const mcpButton = screen.getByText('MCP Servers').closest('.sidebar-button')!;
+      expect(mcpButton.querySelector('.sidebar-update-badge')).toBeNull();
     });
 
     it('全部 connected → 不顯示 badge', async () => {
@@ -278,73 +260,6 @@ describe('SidebarApp attention badges', () => {
 
       const mcpButton = screen.getByText('MCP Servers').closest('.sidebar-button')!;
       expect(mcpButton.querySelector('.sidebar-update-badge')).toBeNull();
-    });
-
-    it('mcp.statusUpdate push 更新 issue badge', async () => {
-      setupMocks({
-        mcpServers: makeMcpServers(2, 'connected'),
-      });
-
-      let pushHandler: (msg: { type: string; [key: string]: unknown }) => void = () => {};
-      mockOnPushMessage.mockImplementation((handler: typeof pushHandler) => {
-        pushHandler = handler;
-        return () => {};
-      });
-
-      renderWithI18n(<SidebarApp />);
-
-      await waitFor(() => {
-        expect(mockSendRequest).toHaveBeenCalledTimes(2);
-      });
-
-      // 初始無 issue badge
-      expect(document.querySelectorAll('.sidebar-update-badge')).toHaveLength(0);
-
-      // push 2 個 failed server
-      await act(async () => {
-        pushHandler({
-          type: 'mcp.statusUpdate',
-          servers: [
-            { name: 's1', fullName: 's1', command: 'cmd', status: 'failed' },
-            { name: 's2', fullName: 's2', command: 'cmd', status: 'connected' },
-          ],
-        });
-      });
-
-      await waitFor(() => {
-        const mcpButton = screen.getByText('MCP Servers').closest('.sidebar-button')!;
-        const badge = mcpButton.querySelector('.sidebar-update-badge');
-        expect(badge).toBeTruthy();
-        expect(badge!.textContent).toBe('1');
-      });
-    });
-
-    it('mcp.statusUpdate 在初始 fetch 前到達時建立 attention', async () => {
-      mockSendRequest.mockReturnValue(new Promise(() => {}));
-
-      let pushHandler: (msg: { type: string; [key: string]: unknown }) => void = () => {};
-      mockOnPushMessage.mockImplementation((handler: typeof pushHandler) => {
-        pushHandler = handler;
-        return () => {};
-      });
-
-      renderWithI18n(<SidebarApp />);
-
-      await act(async () => {
-        pushHandler({
-          type: 'mcp.statusUpdate',
-          servers: [
-            { name: 's1', fullName: 's1', command: 'cmd', status: 'failed' },
-            { name: 's2', fullName: 's2', command: 'cmd', status: 'failed' },
-          ],
-        });
-      });
-
-      await waitFor(() => {
-        const badges = document.querySelectorAll('.sidebar-update-badge');
-        expect(badges).toHaveLength(1);
-        expect(badges[0].textContent).toBe('2');
-      });
     });
   });
 
@@ -395,7 +310,7 @@ describe('SidebarApp attention badges', () => {
     });
   });
 
-  it('部分 fetch 失敗時仍顯示成功的 badge', async () => {
+  it('部分 fetch 失敗時不顯示任何 badge（MCP badge 已移除）', async () => {
     mockSendRequest.mockImplementation(async (req: { type: string }) => {
       if (req.type === 'plugin.listAvailable') throw new Error('timeout');
       if (req.type === 'mcp.list') return [
@@ -408,10 +323,10 @@ describe('SidebarApp attention badges', () => {
     renderWithI18n(<SidebarApp />);
 
     await waitFor(() => {
-      const badges = document.querySelectorAll('.sidebar-update-badge');
-      expect(badges).toHaveLength(1);
-      expect(badges[0].textContent).toBe('1'); // 1 failed MCP server
+      expect(mockSendRequest).toHaveBeenCalledTimes(2);
     });
+
+    expect(document.querySelectorAll('.sidebar-update-badge')).toHaveLength(0);
   });
 
   it('component unmount 時 unsubscribe push handler', () => {
