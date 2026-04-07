@@ -17,11 +17,12 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skil
 
 ## Source of truth
 
-- **primary**: JSON schema store `https://json.schemastore.org/claude-code-settings.json`（machine-readable，完整 type/enum/default/description）
-- **supplementary**: `context7` `/websites/code_claude`（補充 schema 未涵蓋的描述/context，≤3 queries）
+- **primary**: JSON schema store `https://json.schemastore.org/claude-code-settings.json`（社群維護，machine-readable）
+- **official cross-check**: 官方 docs `code.claude.com/docs/en/settings` + CHANGELOG（每次執行檢查是否有 schema store 遺漏）
+- **supplementary**: `context7` `/websites/code_claude`（補充描述/context，≤3 queries，含 official discovery）
 - **fail-fast**: schema store 失敗 → 直接報錯結束，不 fallback
 - **secondary**: `src/shared/types.ts`、現有 section 實作；只補 literal type、default、shape
-- 衝突優先序：schema store > docs > repo；輸出必列衝突點
+- 衝突優先序：official schema（如有）> schema store > official docs > repo；輸出必列衝突點
 
 ## Key categories
 
@@ -45,15 +46,25 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 
 ### 1a. JSON schema store（primary）
 
-- `curl -s https://json.schemastore.org/claude-code-settings.json`
+- `curl -sL https://json.schemastore.org/claude-code-settings.json`（需 `-L` follow redirect）
 - 解析所有 `properties.*`：key、type、enum、default、description
 - 解析 `$defs.hookCommand.anyOf[*]`：hook command types
 - 解析 `properties.hooks.properties.*`：hook event types
+
+### 1a′. Official source discovery
+
+Schema store 是社群維護（[anthropics/claude-code#11795](https://github.com/anthropics/claude-code/issues/11795)），可能落後官方。此步驟交叉比對官方資訊：
+
+1. **官方 docs 頁面**：透過 `context7` query `code.claude.com/docs/en/settings`（`/websites/code_claude`），抓 "Available settings" 表格中的 key 清單
+2. **CHANGELOG**：`WebSearch` 搜 `site:github.com/anthropics/claude-code CHANGELOG settings` 找最近新增的 settings key
+3. **比對**：官方 docs 出現但 schema store 沒有的 key → 標記 `docs-only`，納入 gap report
+4. **優先序更新**：若找到 Anthropic 官方 hosted schema URL → 升級為 primary，schemastore 降為 fallback
 
 ### 1b. context7 supplementary（≤3 queries）
 
 - resolve library id：`/websites/code_claude`
 - 補充 schema 未涵蓋的 description/context（如新 key 的用途說明）
+- 1a′ 的 docs query 計入 context7 quota
 - context7 API 限制：**每次最多 3 queries**
 
 ### 1c. Env vars registry sync
@@ -99,10 +110,12 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 ### 3d. Gap 表
 
 ```
-| Key | Status | Category | Section | Details |
+| Key | Status | Category | Source | Section | Details |
 ```
 
-### 3d. 確認或 early exit
+Source 欄位：`schema` = schema store、`docs-only` = 官方 docs 有但 schema store 無、`both` = 兩者皆有
+
+### 3e. 確認或 early exit
 
 - 有 user-facing gap：`AskUserQuestion` 讓用戶確認 section assignment
 - **無 user-facing gap → 報告同步完成，END**（skip Phase 4）
@@ -140,4 +153,4 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 
 ## Output contract
 
-最終回報必列：新增 key、刪除 key、修改 key、excluded keys（with category）、hook 覆蓋狀態、受影響 section、驗證結果
+最終回報必列：新增 key、刪除 key、修改 key、excluded keys（with category）、hook 覆蓋狀態、受影響 section、驗證結果、official source discovery 結果（是否找到官方 schema URL、docs-only keys）
