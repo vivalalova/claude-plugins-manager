@@ -349,12 +349,14 @@ export function SettingsPage(): React.ReactElement {
                   onDelete={handleDelete}
                 />
               )}
-              <UnknownSettingsSection
-                scope={scope}
-                settings={settings}
-                onSave={handleSave}
-                onDelete={handleDelete}
-              />
+              {activeNav === 'advanced' && (
+                <UnknownSettingsSection
+                  scope={scope}
+                  settings={settings}
+                  onSave={handleSave}
+                  onDelete={handleDelete}
+                />
+              )}
             </>
           )}
         </div>
