@@ -9,6 +9,13 @@ import { useI18n } from '../../../i18n/I18nContext';
 // UnknownSettingsSection — displays settings keys not in the schema
 // ---------------------------------------------------------------------------
 
+/** 由 extension 內部管理、不需顯示在 UI 的 key */
+const HIDDEN_UNKNOWN_KEYS = new Set([
+  '$schema',
+  'enabledPlugins',
+  'feedbackSurveyState',
+]);
+
 interface UnknownSettingsSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
@@ -39,7 +46,7 @@ export function UnknownSettingsSection({
   const unknownEntries = useMemo(
     () =>
       Object.entries(settings as Record<string, unknown>).filter(
-        ([key, v]) => !(key in SETTINGS_FLAT_SCHEMA) && v !== undefined,
+        ([key, v]) => !(key in SETTINGS_FLAT_SCHEMA) && v !== undefined && !HIDDEN_UNKNOWN_KEYS.has(key),
       ),
     [settings],
   );
