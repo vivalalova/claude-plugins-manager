@@ -17,6 +17,7 @@ import { KNOWN_MODEL_OPTIONS } from '../../../shared/claude-settings-schema';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { useObjectEditorState } from './components/ObjectSetting';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
+import { UnknownSettingsSection } from './components/UnknownSettingsSection';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -348,6 +349,12 @@ export function SettingsPage(): React.ReactElement {
                   onDelete={handleDelete}
                 />
               )}
+              <UnknownSettingsSection
+                scope={scope}
+                settings={settings}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
             </>
           )}
         </div>

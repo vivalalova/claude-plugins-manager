@@ -313,6 +313,9 @@ export const en = {
   'settings.common.minError': 'Must be at least {min}',
   'settings.common.maxError': 'Must be at most {max}',
   'settings.common.overrides': 'Overrides {scope}',
+  // Unknown settings
+  'settings.unknown.title': 'Unrecognized Settings',
+  'settings.unknown.description': 'Keys found in settings.json but not defined in schema',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': 'Force Login Method',
   'settings.advanced.forceLoginMethod.description': 'Force a specific login method for Claude',

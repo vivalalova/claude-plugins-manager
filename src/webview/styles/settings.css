@@ -492,6 +492,22 @@
   color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground));
 }
 
+/* ---- Unknown Settings ---- */
+
+.unknown-settings-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 16px;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.2));
+}
+
+.unknown-settings-description {
+  font-size: var(--font-size-sm);
+  color: var(--vscode-descriptionForeground);
+}
+
 /* ---- Hooks Section ---- */
 
 .hooks-header-row {

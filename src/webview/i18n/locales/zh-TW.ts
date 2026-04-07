@@ -315,6 +315,9 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.common.minError': '不可小於 {min}',
   'settings.common.maxError': '不可大於 {max}',
   'settings.common.overrides': '覆寫 {scope}',
+  // Unknown settings
+  'settings.unknown.title': '未定義的設定',
+  'settings.unknown.description': '存在於 settings.json 但未定義在 schema 中的設定',
   // Advanced section
   'settings.advanced.forceLoginMethod.label': '強制登入方式',
   'settings.advanced.forceLoginMethod.description': '強制 Claude 使用特定登入方式',
