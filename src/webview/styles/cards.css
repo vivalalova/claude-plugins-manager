@@ -140,10 +140,16 @@
 }
 
 .multi-select-dropdown-trigger.filter-chip--active {
-  background: var(--vscode-button-secondaryBackground);
-  border-color: var(--vscode-focusBorder);
-  color: var(--vscode-foreground);
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
   font-weight: 500;
+}
+
+.multi-select-dropdown-trigger.filter-chip--active:hover {
+  background: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-button-hoverBackground);
+  color: var(--vscode-button-foreground);
 }
 
 .multi-select-dropdown-trigger-chevron {
@@ -221,10 +227,16 @@
 }
 
 .filter-chip--active {
-  background: var(--vscode-button-secondaryBackground);
-  border-color: var(--vscode-focusBorder);
-  color: var(--vscode-foreground);
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
   font-weight: 500;
+}
+
+.filter-chip--active:hover {
+  background: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-button-hoverBackground);
+  color: var(--vscode-button-foreground);
 }
 
 .filter-separator {
