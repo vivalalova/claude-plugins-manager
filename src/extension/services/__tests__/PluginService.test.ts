@@ -10,11 +10,9 @@ import type { InstalledPluginsFile } from '../../../shared/types';
 /* ── fs/promises mock（readMcpServers + detectOrphaned + pruneStaleLocalEntries 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockStat = vi.hoisted(() => vi.fn().mockResolvedValue({}));
-const mockRm = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
   stat: mockStat,
-  rm: mockRm,
 }));
 
 /* ── fixScriptPermissions mock ── */
@@ -735,7 +733,7 @@ describe('PluginService', () => {
       };
     }
 
-    it('manifest 可讀但 plugin 不在 available → 自動移除 installed 記錄 + disabled + 清 cache', async () => {
+    it('manifest 可讀但 plugin 不在 available → 自動移除 installed 記錄 + disabled', async () => {
       settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
       settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
       settings.scanAvailablePlugins.mockResolvedValue([]);
@@ -744,7 +742,6 @@ describe('PluginService', () => {
 
       expect(settings.removeInstallEntry).toHaveBeenCalledWith('android@plugins-local', 'user', undefined);
       expect(settings.setPluginEnabled).toHaveBeenCalledWith('android@plugins-local', 'user', false);
-      expect(mockRm).toHaveBeenCalledWith('/cache/plugins-local/android', { recursive: true, force: true });
       expect(result.installed).toEqual([]);
     });
 
@@ -768,7 +765,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).toHaveBeenCalledWith('foo@github-mp', 'user', undefined);
-      expect(mockRm).toHaveBeenCalledWith('/cache/github-mp/foo', { recursive: true, force: true });
     });
 
     it('marketplace manifest 不可讀 → 不清除（可能 cache 損壞）', async () => {
@@ -792,7 +788,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).not.toHaveBeenCalled();
-      expect(mockRm).not.toHaveBeenCalled();
     });
 
     it('plugin 仍在 available → 不清除', async () => {
@@ -808,7 +803,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).not.toHaveBeenCalled();
-      expect(mockRm).not.toHaveBeenCalled();
     });
 
     it('多個 stale entries（多 scope）→ 全部清除', async () => {
@@ -842,8 +836,6 @@ describe('PluginService', () => {
 
       expect(settings.removeInstallEntry).toHaveBeenCalledTimes(2);
       expect(settings.setPluginEnabled).toHaveBeenCalledTimes(2);
-      // 同一 installPath 只清一次
-      expect(mockRm).toHaveBeenCalledTimes(1);
     });
 
     it('無可讀 marketplace → 不執行清除邏輯', async () => {
@@ -854,7 +846,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).not.toHaveBeenCalled();
-      expect(mockRm).not.toHaveBeenCalled();
     });
 
     /* ── 不該刪的絕對不能刪 ── */
@@ -881,7 +872,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).not.toHaveBeenCalled();
-      expect(mockRm).not.toHaveBeenCalled();
     });
 
     it('marketplace 名稱部分匹配但不完全相同 → 不清除不相關的 marketplace', async () => {
@@ -904,7 +894,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).not.toHaveBeenCalled();
-      expect(mockRm).not.toHaveBeenCalled();
     });
 
     it('同一 marketplace 部分 plugin 移除、部分保留 → 只清除不在 available 的', async () => {
@@ -941,8 +930,6 @@ describe('PluginService', () => {
 
       expect(settings.removeInstallEntry).toHaveBeenCalledWith('beta@mp', 'user', undefined);
       expect(settings.removeInstallEntry).not.toHaveBeenCalledWith('alpha@mp', expect.anything(), expect.anything());
-      expect(mockRm).toHaveBeenCalledWith('/cache/mp/beta', { recursive: true, force: true });
-      expect(mockRm).toHaveBeenCalledTimes(1);
       expect(result.installed.map((p) => p.id)).toContain('alpha@mp');
       expect(result.installed.map((p) => p.id)).not.toContain('beta@mp');
     });
@@ -966,71 +953,6 @@ describe('PluginService', () => {
       await svc.listAvailable();
 
       expect(settings.removeInstallEntry).toHaveBeenCalledWith('my-tool@extra@mp', 'user', undefined);
-    });
-
-    /* ── dirname 安全性 ── */
-
-    it('多個 stale plugin 不同 plugin name → cache dirs 各自獨立清除', async () => {
-      settings.readInstalledPlugins.mockResolvedValue({
-        version: 2,
-        plugins: {
-          'alpha@mp': [{
-            scope: 'user',
-            installPath: '/cache/mp/alpha/hash1',
-            version: '1.0.0',
-            installedAt: '2025-01-01',
-            lastUpdated: '2025-01-01',
-          }],
-          'beta@mp': [{
-            scope: 'user',
-            installPath: '/cache/mp/beta/hash2',
-            version: '1.0.0',
-            installedAt: '2025-01-01',
-            lastUpdated: '2025-01-01',
-          }],
-        },
-      });
-      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['mp']));
-      settings.scanAvailablePlugins.mockResolvedValue([]);
-
-      await svc.listAvailable();
-
-      expect(mockRm).toHaveBeenCalledTimes(2);
-      expect(mockRm).toHaveBeenCalledWith('/cache/mp/alpha', { recursive: true, force: true });
-      expect(mockRm).toHaveBeenCalledWith('/cache/mp/beta', { recursive: true, force: true });
-    });
-
-    it('同一 pluginId 不同 scope 有不同 installPath → dirname 各自清除', async () => {
-      settings.readInstalledPlugins.mockResolvedValue({
-        version: 2,
-        plugins: {
-          'android@mp': [
-            {
-              scope: 'user',
-              installPath: '/cacheA/mp/android/hash1',
-              version: '1.0.0',
-              installedAt: '2025-01-01',
-              lastUpdated: '2025-01-01',
-            },
-            {
-              scope: 'project',
-              installPath: '/cacheB/mp/android/hash2',
-              version: '1.0.0',
-              installedAt: '2025-01-01',
-              lastUpdated: '2025-01-01',
-              projectPath: '/my/project',
-            },
-          ],
-        },
-      });
-      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['mp']));
-      settings.scanAvailablePlugins.mockResolvedValue([]);
-
-      await svc.listAvailable();
-
-      expect(mockRm).toHaveBeenCalledTimes(2);
-      expect(mockRm).toHaveBeenCalledWith('/cacheA/mp/android', { recursive: true, force: true });
-      expect(mockRm).toHaveBeenCalledWith('/cacheB/mp/android', { recursive: true, force: true });
     });
 
     /* ── 混合場景 ── */
@@ -1063,8 +985,6 @@ describe('PluginService', () => {
 
       expect(settings.removeInstallEntry).toHaveBeenCalledWith('alpha@readable-mp', 'user', undefined);
       expect(settings.removeInstallEntry).not.toHaveBeenCalledWith('beta@unreadable-mp', expect.anything(), expect.anything());
-      expect(mockRm).toHaveBeenCalledTimes(1);
-      expect(mockRm).toHaveBeenCalledWith('/cache/readable-mp/alpha', { recursive: true, force: true });
     });
 
     /* ── 錯誤處理 ── */
@@ -1087,16 +1007,5 @@ describe('PluginService', () => {
       await expect(svc.listAvailable()).rejects.toThrow('write locked');
     });
 
-    it('rm 失敗 → catch 吞掉，listAvailable 正常回傳', async () => {
-      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
-      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
-      settings.scanAvailablePlugins.mockResolvedValue([]);
-      mockRm.mockRejectedValueOnce(new Error('EPERM'));
-
-      const result = await svc.listAvailable();
-
-      expect(result.installed).toEqual([]);
-      expect(mockRm).toHaveBeenCalled();
-    });
   });
 });

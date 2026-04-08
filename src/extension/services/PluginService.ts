@@ -1,5 +1,5 @@
-import { readFile, rm, stat } from 'fs/promises';
-import { dirname, join } from 'path';
+import { readFile, stat } from 'fs/promises';
+import { join } from 'path';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type {
   AvailablePlugin,
@@ -308,12 +308,6 @@ export class PluginService {
           this.settings.setPluginEnabled(pluginId, entry.scope, false),
         ]),
       ),
-    );
-
-    // installPath 是 cache/{mp}/{plugin}/{hash}，清上層目錄把所有版本 cache 一次清除
-    const uniquePluginCacheDirs = [...new Set(cleanups.map(({ entry }) => dirname(entry.installPath)))];
-    await Promise.all(
-      uniquePluginCacheDirs.map((p) => rm(p, { recursive: true, force: true }).catch(() => {})),
     );
 
     return staleIds;
