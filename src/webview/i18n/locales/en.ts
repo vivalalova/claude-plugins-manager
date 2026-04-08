@@ -442,6 +442,7 @@ export const en = {
   // PluginPage
   'plugin.page.title': 'Plugins Manager',
   'plugin.page.subtitle': 'Manage Claude Code hook-based plugins',
+  'plugin.page.more': 'More',
   'plugin.page.updateAll': 'Update Plugins',
   'plugin.page.updating': 'Updating {current}/{total}...',
   'plugin.page.refresh': 'Refresh',

@@ -12,6 +12,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--gap-md);
+  flex-wrap: wrap;
   margin-bottom: 24px;
   padding-bottom: 16px;
 }
@@ -42,5 +44,16 @@
 
 .page-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--gap-md);
+}
+
+.plugin-page-refresh-button {
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  line-height: 1;
 }

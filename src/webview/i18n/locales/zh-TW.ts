@@ -444,6 +444,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   // PluginPage
   'plugin.page.title': '外掛管理員',
   'plugin.page.subtitle': '管理 Claude Code hook 外掛',
+  'plugin.page.more': '更多',
   'plugin.page.updateAll': '更新 Plugins',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '重新整理',

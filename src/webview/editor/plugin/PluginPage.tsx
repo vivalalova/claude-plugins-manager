@@ -6,6 +6,7 @@ import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptySta
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DialogOverlay } from '../../components/DialogOverlay';
+import { ActionMenu } from '../../components/ActionMenu';
 import { PluginDialogs } from './PluginDialogs';
 import { PluginToolbar } from './PluginToolbar';
 import { PluginSections } from './PluginSections';
@@ -285,6 +286,22 @@ export function PluginPage(): React.ReactElement {
     onSearchClear: () => { setSearch(''); flushSearch(''); },
     cardSelector: '.card[tabindex]',
   });
+  const maintenanceActions = [
+    {
+      key: 'reinstall-all',
+      label: reinstalling ? t('plugin.page.reinstallingAll') : t('plugin.page.reinstallAll'),
+      onSelect: () => setConfirmReinstallAll(true),
+      disabled: loading || reinstalling || isUpdatingAll,
+      tone: 'danger' as const,
+    },
+    {
+      key: 'prune-cache',
+      label: pruningCache ? t('plugin.page.pruningCache') : t('plugin.page.pruneCache'),
+      onSelect: handlePruneCache,
+      disabled: loading || pruningCache,
+    },
+  ];
+  const maintenanceMenuDisabled = maintenanceActions.every((action) => action.disabled);
 
   return (
     <div className="page-container">
@@ -293,7 +310,7 @@ export function PluginPage(): React.ReactElement {
         subtitle={t('plugin.page.subtitle')}
         actions={<>
           <button
-            className="btn btn-secondary"
+            className="btn btn-primary"
             onClick={() => setShowAddDialog(true)}
           >
             {t('plugin.page.addMarketplace')}
@@ -310,26 +327,20 @@ export function PluginPage(): React.ReactElement {
             </button>
           )}
           <button
-            className="btn btn-secondary"
-            onClick={() => setConfirmReinstallAll(true)}
-            disabled={loading || reinstalling || isUpdatingAll}
-          >
-            {reinstalling ? t('plugin.page.reinstallingAll') : t('plugin.page.reinstallAll')}
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={handlePruneCache}
-            disabled={loading || pruningCache}
-          >
-            {pruningCache ? t('plugin.page.pruningCache') : t('plugin.page.pruneCache')}
-          </button>
-          <button
-            className="btn btn-secondary"
+            className="btn btn-icon plugin-page-refresh-button"
             onClick={() => fetchAll()}
             disabled={loading || isUpdatingAll}
+            aria-label={t('plugin.page.refresh')}
+            title={t('plugin.page.refresh')}
           >
-            {t('plugin.page.refresh')}
+            ↻
           </button>
+          <ActionMenu
+            label={t('plugin.page.more')}
+            menuLabel={t('plugin.page.more')}
+            items={maintenanceActions}
+            disabled={maintenanceMenuDisabled}
+          />
         </>}
       />
 

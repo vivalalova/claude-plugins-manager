@@ -15,6 +15,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   // PluginPage
   'plugin.page.title': 'プラグインマネージャー',
   'plugin.page.subtitle': 'Claude Code のフックベースプラグインを管理',
+  'plugin.page.more': 'その他',
   'plugin.page.updateAll': 'プラグインを更新',
   'plugin.page.updating': '更新中 {current}/{total}...',
   'plugin.page.refresh': '更新',

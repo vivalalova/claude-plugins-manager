@@ -233,7 +233,8 @@ describe('PluginPage — 核心流程', () => {
         expect(screen.getByText('alpha')).toBeTruthy();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'Reinstall All' }));
+      fireEvent.click(screen.getByRole('button', { name: 'More' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Reinstall All' }));
 
       expect(screen.getByText('Reinstall All Marketplaces')).toBeTruthy();
       const warning = screen.getByText('Warning: the contents of', { exact: false });
@@ -241,6 +242,37 @@ describe('PluginPage — 核心流程', () => {
       expect(warning.classList.contains('confirm-dialog-warning')).toBe(true);
       expect(within(warning).getByText('plugins/data')).toBeTruthy();
       expect(screen.getByText('will also be deleted.', { exact: false })).toBeTruthy();
+    });
+
+    it('header actions 將低頻維護操作收進 More menu', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse(
+            [makeInstalled('alpha', 'mp1', true)],
+            [makeAvailable('alpha', 'mp1', 'Alpha plugin')],
+          );
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+      });
+
+      expect(screen.getByRole('button', { name: 'Add Marketplace' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Update Plugins' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'More' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Reinstall All' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Clean Cache' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+      expect(screen.getByRole('menuitem', { name: 'Reinstall All' })).toBeTruthy();
+      expect(screen.getByRole('menuitem', { name: 'Clean Cache' })).toBeTruthy();
     });
 
     it('filter 無符合 → EmptyState + "Clear filters" 重置所有過濾', async () => {
