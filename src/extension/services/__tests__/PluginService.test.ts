@@ -7,12 +7,22 @@ import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
 
-/* ── fs/promises mock（readMcpServers + detectOrphaned + pruneStaleLocalEntries 內部使用） ── */
+/* ── fs/promises mock（readMcpServers + detectOrphaned + pruneStaleLocalEntries + pruneUnusedCache 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockStat = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const mockReaddir = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const mockRm = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
   stat: mockStat,
+  readdir: mockReaddir,
+  rm: mockRm,
+}));
+
+/* ── paths mock ── */
+const MOCK_CACHE_DIR = '/mock/plugins/cache';
+vi.mock('../../paths', () => ({
+  PLUGINS_CACHE_DIR: '/mock/plugins/cache',
 }));
 
 /* ── fixScriptPermissions mock ── */
@@ -1007,5 +1017,122 @@ describe('PluginService', () => {
       await expect(svc.listAvailable()).rejects.toThrow('write locked');
     });
 
+  });
+
+  describe('pruneUnusedCache()', () => {
+    function makeDirent(name: string, isDir: boolean): { name: string; isDirectory: () => boolean } {
+      return { name, isDirectory: () => isDir };
+    }
+
+    it('cache 目錄不存在 → 回傳 0', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({ version: 2, plugins: {} });
+      mockReaddir.mockRejectedValueOnce(new Error('ENOENT'));
+
+      const result = await svc.pruneUnusedCache();
+
+      expect(result).toEqual({ removedDirs: 0, freedBytes: 0 });
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('所有 hash dir 都被引用 → 不刪除', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@mp': [{
+            scope: 'user',
+            installPath: `${MOCK_CACHE_DIR}/mp/alpha/hash1`,
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      // Level 1: marketplace dirs
+      mockReaddir.mockResolvedValueOnce([makeDirent('mp', true)]);
+      // Level 2: plugin dirs under mp
+      mockReaddir.mockResolvedValueOnce([makeDirent('alpha', true)]);
+      // Level 3: hash dirs under mp/alpha
+      mockReaddir.mockResolvedValueOnce([makeDirent('hash1', true)]);
+
+      const result = await svc.pruneUnusedCache();
+
+      expect(result).toEqual({ removedDirs: 0, freedBytes: 0 });
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('unreferenced hash dir → 刪除 + 回傳正確 stats', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({ version: 2, plugins: {} });
+      // Level 1: marketplace dirs
+      mockReaddir.mockResolvedValueOnce([makeDirent('mp', true)]);
+      // Level 2: plugin dirs
+      mockReaddir.mockResolvedValueOnce([makeDirent('alpha', true)]);
+      // Level 3: hash dirs
+      mockReaddir.mockResolvedValueOnce([makeDirent('hash1', true)]);
+      // calcDirSize readdir for hash1
+      mockReaddir.mockResolvedValueOnce([makeDirent('file.js', false)]);
+      // stat for file.js
+      mockStat.mockResolvedValueOnce({ size: 4096 });
+      // cleanEmptyParents: readdir cache dir
+      mockReaddir.mockResolvedValueOnce([makeDirent('mp', true)]);
+      // readdir mp
+      mockReaddir.mockResolvedValueOnce([makeDirent('alpha', true)]);
+      // readdir mp/alpha (after removal)
+      mockReaddir.mockResolvedValueOnce([]);
+      // readdir mp (re-check after plugin dir removed)
+      mockReaddir.mockResolvedValueOnce([]);
+
+      const result = await svc.pruneUnusedCache();
+
+      expect(result.removedDirs).toBe(1);
+      expect(result.freedBytes).toBe(4096);
+      expect(mockRm).toHaveBeenCalledWith(
+        `${MOCK_CACHE_DIR}/mp/alpha/hash1`,
+        { recursive: true, force: true },
+      );
+    });
+
+    it('跳過非目錄和 temp_subdir_ 開頭的 entries', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({ version: 2, plugins: {} });
+      mockReaddir.mockResolvedValueOnce([
+        makeDirent('hook-explanations.json', false),
+        makeDirent('temp_subdir_12345.clone', true),
+        makeDirent('mp', true),
+      ]);
+      // mp 下無 plugin dir
+      mockReaddir.mockResolvedValueOnce([]);
+      // cleanEmptyParents
+      mockReaddir.mockResolvedValueOnce([
+        makeDirent('hook-explanations.json', false),
+        makeDirent('temp_subdir_12345.clone', true),
+        makeDirent('mp', true),
+      ]);
+      mockReaddir.mockResolvedValueOnce([]);
+      // mp 空了 → 刪除後 re-check (不會因為跳過 temp 和 file 而出錯)
+
+      const result = await svc.pruneUnusedCache();
+
+      expect(result).toEqual({ removedDirs: 0, freedBytes: 0 });
+    });
+
+    it('多 scope 共用同一 installPath → 不刪除', async () => {
+      const sharedPath = `${MOCK_CACHE_DIR}/mp/alpha/hash1`;
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@mp': [
+            { scope: 'user', installPath: sharedPath, version: '1.0.0', installedAt: '2025-01-01', lastUpdated: '2025-01-01' },
+            { scope: 'project', installPath: sharedPath, version: '1.0.0', installedAt: '2025-01-01', lastUpdated: '2025-01-01', projectPath: '/my/project' },
+          ],
+        },
+      });
+      mockReaddir.mockResolvedValueOnce([makeDirent('mp', true)]);
+      mockReaddir.mockResolvedValueOnce([makeDirent('alpha', true)]);
+      mockReaddir.mockResolvedValueOnce([makeDirent('hash1', true)]);
+
+      const result = await svc.pruneUnusedCache();
+
+      expect(result).toEqual({ removedDirs: 0, freedBytes: 0 });
+      expect(mockRm).not.toHaveBeenCalled();
+    });
   });
 });

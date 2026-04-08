@@ -1,5 +1,6 @@
-import { readFile, stat } from 'fs/promises';
+import { readFile, readdir, rm, stat } from 'fs/promises';
 import { join } from 'path';
+import { PLUGINS_CACHE_DIR } from '../paths';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type {
   AvailablePlugin,
@@ -271,7 +272,116 @@ export class PluginService {
   }
 
   /**
-   * Marketplace manifest 可讀但 plugin 已不在其中 → 移除 installed 記錄 + enabled 狀態 + cache。
+   * 清除 PLUGINS_CACHE_DIR 下未被任何 installed entry 引用的目錄。
+   * 三層結構：marketplace/plugin/hash — 比對所有 installPath，刪除未引用的 hash 目錄，
+   * 再清空變空的 plugin/marketplace 父目錄。
+   */
+  async pruneUnusedCache(): Promise<{ removedDirs: number; freedBytes: number }> {
+    // 收集所有 installPath（跨所有 scope/project）
+    const data = await this.settings.readInstalledPlugins();
+    const referencedPaths = new Set<string>();
+    for (const entries of Object.values(data.plugins)) {
+      for (const entry of entries) {
+        referencedPaths.add(entry.installPath);
+      }
+    }
+
+    // 列舉 cache 下所有 hash-level 目錄
+    let mpDirents: import('fs').Dirent[];
+    try {
+      mpDirents = await readdir(PLUGINS_CACHE_DIR, { withFileTypes: true });
+    } catch {
+      return { removedDirs: 0, freedBytes: 0 };
+    }
+
+    const unreferenced: string[] = [];
+    for (const mpDirent of mpDirents) {
+      if (!mpDirent.isDirectory() || mpDirent.name.startsWith('temp_subdir_')) continue;
+      const mpPath = join(PLUGINS_CACHE_DIR, mpDirent.name);
+
+      let pluginDirents: import('fs').Dirent[];
+      try { pluginDirents = await readdir(mpPath, { withFileTypes: true }); } catch { continue; }
+
+      for (const pluginDirent of pluginDirents) {
+        if (!pluginDirent.isDirectory()) continue;
+        const pluginPath = join(mpPath, pluginDirent.name);
+
+        let hashDirents: import('fs').Dirent[];
+        try { hashDirents = await readdir(pluginPath, { withFileTypes: true }); } catch { continue; }
+
+        for (const hashDirent of hashDirents) {
+          if (!hashDirent.isDirectory()) continue;
+          const hashPath = join(pluginPath, hashDirent.name);
+          if (!referencedPaths.has(hashPath)) {
+            unreferenced.push(hashPath);
+          }
+        }
+      }
+    }
+
+    if (unreferenced.length === 0) return { removedDirs: 0, freedBytes: 0 };
+
+    // 計算大小 + 刪除
+    const sizes = await Promise.all(
+      unreferenced.map((p) => this.calcDirSize(p)),
+    );
+    const freedBytes = sizes.reduce((sum, s) => sum + s, 0);
+
+    await Promise.all(
+      unreferenced.map((p) => rm(p, { recursive: true, force: true })),
+    );
+
+    // 清空變空的父目錄（plugin level → marketplace level）
+    await this.cleanEmptyParents(PLUGINS_CACHE_DIR);
+
+    return { removedDirs: unreferenced.length, freedBytes };
+  }
+
+  /** 遞迴計算目錄大小（bytes） */
+  private async calcDirSize(dirPath: string): Promise<number> {
+    let total = 0;
+    let entries: import('fs').Dirent[];
+    try { entries = await readdir(dirPath, { withFileTypes: true }); } catch { return 0; }
+    for (const entry of entries) {
+      const fullPath = join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        total += await this.calcDirSize(fullPath);
+      } else {
+        try { total += (await stat(fullPath)).size; } catch { /* skip */ }
+      }
+    }
+    return total;
+  }
+
+  /** 清除 cacheDir 下兩層空目錄（plugin dir → marketplace dir） */
+  private async cleanEmptyParents(cacheDir: string): Promise<void> {
+    let mpDirents: import('fs').Dirent[];
+    try { mpDirents = await readdir(cacheDir, { withFileTypes: true }); } catch { return; }
+    for (const mpDirent of mpDirents) {
+      if (!mpDirent.isDirectory()) continue;
+      const mpPath = join(cacheDir, mpDirent.name);
+      let pluginDirents: import('fs').Dirent[];
+      try { pluginDirents = await readdir(mpPath, { withFileTypes: true }); } catch { continue; }
+
+      for (const pluginDirent of pluginDirents) {
+        if (!pluginDirent.isDirectory()) continue;
+        const pluginPath = join(mpPath, pluginDirent.name);
+        const children = await readdir(pluginPath).catch(() => ['_']);
+        if (children.length === 0) {
+          await rm(pluginPath, { recursive: true, force: true }).catch(() => {});
+        }
+      }
+
+      // 重新檢查 marketplace dir 是否也空了
+      const remaining = await readdir(mpPath).catch(() => ['_']);
+      if (remaining.length === 0) {
+        await rm(mpPath, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  }
+
+  /**
+   * Marketplace manifest 可讀但 plugin 已不在其中 → 移除 installed 記錄 + enabled 狀態。
    * 回傳被清除的 pluginId 列表。
    */
   private async pruneStaleEntries(

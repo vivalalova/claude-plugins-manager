@@ -93,6 +93,8 @@ export class MessageRouter {
         return this.plugin.removeOrphaned(message.plugin, message.scope, message.projectPath);
       case 'plugin.removeAllOrphaned':
         return this.plugin.removeAllOrphaned();
+      case 'plugin.pruneUnusedCache':
+        return this.plugin.pruneUnusedCache();
       case 'plugin.getContentDetail': {
         const resolvedDetail = expandTildePath(message.path);
         this.assertAllowedPath(resolvedDetail);

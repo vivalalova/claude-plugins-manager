@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
+import { useToast } from '../../components/Toast';
 import { PluginCardSkeleton } from '../../components/Skeleton';
 import { EmptyState, PluginIcon, NoResultsIcon } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -23,6 +24,13 @@ import { sendRequest } from '../../vscode';
 import type { PluginContentItem, PluginScope } from '../../../shared/types';
 import type { ContentDetail } from '../../components/ContentDetailPanel';
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 
 /**
  * Plugin 管理頁面。
@@ -31,6 +39,7 @@ import type { ContentDetail } from '../../components/ContentDetailPanel';
  */
 export function PluginPage(): React.ReactElement {
   const { t } = useI18n();
+  const { addToast } = useToast();
   const {
     plugins,
     orphaned,
@@ -142,6 +151,29 @@ export function PluginPage(): React.ReactElement {
   } = useMarketplaceActions({ fetchList: fetchAll, setError });
 
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [pruningCache, setPruningCache] = useState(false);
+
+  const handlePruneCache = async (): Promise<void> => {
+    setPruningCache(true);
+    try {
+      const result = await sendRequest<{ removedDirs: number; freedBytes: number }>(
+        { type: 'plugin.pruneUnusedCache' },
+        60_000,
+      );
+      if (result.removedDirs > 0) {
+        addToast(t('plugin.page.pruneCacheSuccess', {
+          dirs: String(result.removedDirs),
+          size: formatBytes(result.freedBytes),
+        }), 'success');
+      } else {
+        addToast(t('plugin.page.pruneCacheNone'), 'info');
+      }
+    } catch {
+      addToast(t('plugin.page.pruneCacheFailed'), 'error');
+    } finally {
+      setPruningCache(false);
+    }
+  };
 
   const [contentDetailItem, setContentDetailItem] = useState<PluginContentItem | null>(null);
   const [contentDetail, setContentDetail] = useState<ContentDetail | null>(null);
@@ -246,6 +278,13 @@ export function PluginPage(): React.ReactElement {
                 : t('plugin.page.updateAll')}
             </button>
           )}
+          <button
+            className="btn btn-secondary"
+            onClick={handlePruneCache}
+            disabled={loading || pruningCache}
+          >
+            {pruningCache ? t('plugin.page.pruningCache') : t('plugin.page.pruneCache')}
+          </button>
           <button
             className="btn btn-secondary"
             onClick={() => fetchAll()}

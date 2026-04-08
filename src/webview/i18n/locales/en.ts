@@ -473,6 +473,11 @@ export const en = {
   'plugin.page.retry': 'Retry',
   'plugin.page.retryTranslation': 'Retry Translation',
   'plugin.page.quotaExceeded': 'Translation quota exceeded (per-IP daily limit). Try again tomorrow, or use a different network.',
+  'plugin.page.pruneCache': 'Clean Cache',
+  'plugin.page.pruningCache': 'Cleaning...',
+  'plugin.page.pruneCacheSuccess': 'Removed {dirs} unused cache directories, freed {size}',
+  'plugin.page.pruneCacheNone': 'No unused cache directories found',
+  'plugin.page.pruneCacheFailed': 'Failed to clean unused cache',
   // PluginCard
   'plugin.card.updateAvailable': 'Update available',
   'plugin.content.external': 'This plugin is from an external repo. Content is available after installation.',

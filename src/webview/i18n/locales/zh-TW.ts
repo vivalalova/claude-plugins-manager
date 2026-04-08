@@ -461,6 +461,11 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.retry': '重試',
   'plugin.page.retryTranslation': '重試翻譯',
   'plugin.page.quotaExceeded': '翻譯配額已用完（每日 IP 限制）。請隔天再試，或換網路。',
+  'plugin.page.pruneCache': '清除快取',
+  'plugin.page.pruningCache': '清除中...',
+  'plugin.page.pruneCacheSuccess': '已移除 {dirs} 個未使用的快取目錄，釋放 {size}',
+  'plugin.page.pruneCacheNone': '未發現未使用的快取目錄',
+  'plugin.page.pruneCacheFailed': '清除未使用快取失敗',
   // Plugin section
   'plugin.section.updates': '{count} 個更新',
   'plugin.section.updatesPlural': '{count} 個更新',

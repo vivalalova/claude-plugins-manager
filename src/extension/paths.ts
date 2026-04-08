@@ -10,6 +10,9 @@ export const CLAUDE_JSON_PATH = join(homedir(), '.claude.json');
 /** ~/.claude/plugins */
 export const PLUGINS_DIR = join(CLAUDE_DIR, 'plugins');
 
+/** ~/.claude/plugins/cache */
+export const PLUGINS_CACHE_DIR = join(PLUGINS_DIR, 'cache');
+
 /** ~/.claude/plugins/installed_plugins.json */
 export const INSTALLED_PLUGINS_PATH = join(PLUGINS_DIR, 'installed_plugins.json');
 

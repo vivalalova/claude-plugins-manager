@@ -32,6 +32,11 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.retry': '再試行',
   'plugin.page.retryTranslation': '翻訳を再試行',
   'plugin.page.quotaExceeded': '翻訳クォータ超過（IP単位の1日制限）。明日再試行するか、別のネットワークをお試しください。',
+  'plugin.page.pruneCache': 'キャッシュをクリーン',
+  'plugin.page.pruningCache': 'クリーン中...',
+  'plugin.page.pruneCacheSuccess': '未使用キャッシュ {dirs} ディレクトリを削除、{size} を解放',
+  'plugin.page.pruneCacheNone': '未使用のキャッシュディレクトリはありません',
+  'plugin.page.pruneCacheFailed': '未使用キャッシュのクリーンに失敗しました',
   // Plugin section
   'plugin.section.updates': '{count} 件の更新',
   'plugin.section.updatesPlural': '{count} 件の更新',
