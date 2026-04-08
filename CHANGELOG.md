@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.2.1
+
+- Active filter now uses the primary color for clearer enabled-state recognition
+- Removed the MCP sidebar badge because the status count was not actionable
+
+## 0.2.0
+
+- Added unknown settings section, limited undefined keys to Advanced, and hid excluded keys like `$schema`, `enabledPlugins`, and `feedbackSurveyState`
+- Registry Skill cards now support per-scope checkbox install/remove, with silent refresh after install, update, and delete
+- Synced official env vars and settings options, including OTEL telemetry vars and sandbox `allowRead` / `allowManagedReadPathsOnly`
+- Plugin page added orphaned plugin detection, multi-select filters for content type and source, and browsable npm/pip source links
+- Restored the Skills sidebar entry and refined settings docs hints, reset behavior, and section layout
+
+## 0.1.8
+
+- Plugin install now auto-updates marketplace and retries when the source path is missing
+- Reapplied hiding Skills and Settings entries from the sidebar
+- Added `.claude/settings.json` to `.gitignore`
+
+## 0.1.7
+
+- Installed plugin and marketplace `.sh` files now get executable permissions automatically
+- Added looping hook debug logs to `.gitignore`
+
+## 0.1.6
+
+- Synced Claude Code settings schema with 8 new settings keys and 3 new env vars
+- Added `EXPERIMENTAL_AGENT_TEAMS`, `DISABLE_PROMPT_CACHING`, and `ENABLE_TELEMETRY` to env var support
+- Reordered `defaultMode` options to match official docs
+- Marketplace sources now show `author/repo` instead of the full GitHub URL
+- Sidebar hides Skills and Settings entries
+
+## 0.1.5
+
+- Added automated `version:bump` release script and backfilled changelog history
+- Merged marketplace management into the Plugin page and moved Add Marketplace into a dialog
+- Added Skill detail markdown panel and an "install without enable" flow for external plugins
+- Extended `settingsEnabledScopes` to cover external plugin enabled state and prevent same-scope concurrent toggle
+- Expanded Env section UX with known env var autocomplete, grouped rendering, and better validation
+- Consolidated shared page, settings editor, and utility infrastructure across the webview
+
 ## 0.1.4
 
 - Preferences persistence refactor: migrate from preferences.json to VSCode globalState (PreferencesService)
