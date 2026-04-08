@@ -478,6 +478,10 @@ export const en = {
   'plugin.page.pruneCacheSuccess': 'Removed {dirs} unused cache directories, freed {size}',
   'plugin.page.pruneCacheNone': 'No unused cache directories found',
   'plugin.page.pruneCacheFailed': 'Failed to clean unused cache',
+  'plugin.page.reinstallAll': 'Reinstall All',
+  'plugin.page.reinstallingAll': 'Reinstalling...',
+  'plugin.page.reinstallAllTitle': 'Reinstall All Marketplaces',
+  'plugin.page.reinstallAllMessage': 'This will clear the plugin cache, remove all marketplaces, and re-add them from their original sources. All plugins will be reinstalled.\n\nDo not close this panel until the operation completes.',
   // PluginCard
   'plugin.card.updateAvailable': 'Update available',
   'plugin.content.external': 'This plugin is from an external repo. Content is available after installation.',

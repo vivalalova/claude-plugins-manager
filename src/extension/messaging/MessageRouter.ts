@@ -72,6 +72,8 @@ export class MessageRouter {
         return this.marketplace.update(message.name);
       case 'marketplace.toggleAutoUpdate':
         return this.marketplace.toggleAutoUpdate(message.name);
+      case 'marketplace.reinstallAll':
+        return this.marketplace.reinstallAll();
       // Plugin
       case 'plugin.listInstalled':
         return this.plugin.listInstalled();

@@ -11,6 +11,7 @@ export type RequestMessage =
   | { type: 'marketplace.remove'; requestId: string; name: string }
   | { type: 'marketplace.update'; requestId: string; name?: string }
   | { type: 'marketplace.toggleAutoUpdate'; requestId: string; name: string }
+  | { type: 'marketplace.reinstallAll'; requestId: string }
   | { type: 'plugin.listInstalled'; requestId: string }
   | { type: 'plugin.listAvailable'; requestId: string }
   | { type: 'plugin.install'; requestId: string; plugin: string; scope: PluginScope }

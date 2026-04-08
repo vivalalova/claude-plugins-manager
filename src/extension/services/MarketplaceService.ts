@@ -7,7 +7,7 @@ import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceMani
 import type { CliService } from './CliService';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
-import { KNOWN_MARKETPLACES_PATH } from '../paths';
+import { KNOWN_MARKETPLACES_PATH, PLUGINS_CACHE_DIR } from '../paths';
 import { fixScriptPermissions } from '../utils/fixScriptPermissions';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
@@ -131,6 +131,55 @@ export class MarketplaceService {
 
       entry.autoUpdate = !entry.autoUpdate;
       await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(config, null, 2) + '\n');
+    });
+  }
+
+  /** 重新安裝所有 marketplace（remove all → re-add each from original source） */
+  async reinstallAll(): Promise<{ total: number; succeeded: number; failed: string[] }> {
+    return this.mutationQueue.enqueue(async () => {
+      const config = await readJsonFile<RawMarketplaceConfig>(KNOWN_MARKETPLACES_PATH, {} as RawMarketplaceConfig);
+      const entries = Object.entries(config)
+        .map(([name, entry]) => ({
+          name,
+          source: entry.source.url ?? entry.source.repo ?? entry.source.path ?? '',
+        }))
+        .filter((e) => e.source !== '');
+
+      const total = entries.length;
+      if (total === 0) return { total: 0, succeeded: 0, failed: [] };
+
+      // Phase 1: Clear plugin cache
+      await fs.rm(PLUGINS_CACHE_DIR, { recursive: true, force: true }).catch(() => {});
+
+      // Phase 2: Remove all
+      for (const { name } of entries) {
+        await this.cli.exec(['plugin', 'marketplace', 'remove', name]);
+      }
+
+      // Phase 3: Re-add each（直接呼叫 CLI，不經 this.add() 避免 enqueue deadlock）
+      const failed: string[] = [];
+      for (const { name, source } of entries) {
+        try {
+          await this.cli.exec(['plugin', 'marketplace', 'add', source], { timeout: CLI_LONG_TIMEOUT_MS });
+        } catch {
+          failed.push(name);
+        }
+      }
+
+      // Phase 4: autoUpdate + permissions
+      const afterConfig = await readJsonFile<RawMarketplaceConfig>(KNOWN_MARKETPLACES_PATH, {} as RawMarketplaceConfig);
+      let changed = false;
+      for (const entry of Object.values(afterConfig)) {
+        if (entry.autoUpdate !== true) { entry.autoUpdate = true; changed = true; }
+      }
+      if (changed) {
+        await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
+      }
+      await Promise.all(
+        Object.values(afterConfig).map((e) => e.installLocation).filter(Boolean).map((dir) => fixScriptPermissions(dir)),
+      );
+
+      return { total, succeeded: total - failed.length, failed };
     });
   }
 

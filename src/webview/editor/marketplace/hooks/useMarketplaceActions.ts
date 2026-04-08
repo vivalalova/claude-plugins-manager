@@ -42,12 +42,15 @@ export function useMarketplaceActions({
   handleRemove: (name: string) => Promise<void>;
   handleUpdate: (name?: string) => Promise<void>;
   handleToggleAutoUpdate: (name: string) => Promise<void>;
+  reinstalling: boolean;
+  handleReinstallAll: () => Promise<void>;
 } {
   const [addSource, setAddSource] = useState('');
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
+  const [reinstalling, setReinstalling] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [previewPlugins, setPreviewPlugins] = useState<PreviewPlugin[] | null>(null);
   const [previewSource, setPreviewSource] = useState('');
@@ -181,6 +184,27 @@ export function useMarketplaceActions({
     });
   }
 
+  async function handleReinstallAll(): Promise<void> {
+    setReinstalling(true);
+    await runRetriableAction({
+      action: () => sendRequest<{ total: number; succeeded: number; failed: string[] }>(
+        { type: 'marketplace.reinstallAll' },
+        120_000,
+      ),
+      retry: handleReinstallAll,
+      onSuccess: async () => {
+        await refreshList();
+      },
+      onFinally: () => setReinstalling(false),
+      successToast: (result) => {
+        if (result.failed.length > 0) {
+          return `Reinstalled ${result.succeeded}/${result.total}, failed: ${result.failed.join(', ')}`;
+        }
+        return `Reinstalled ${result.succeeded} marketplaces`;
+      },
+    });
+  }
+
   return {
     addSource,
     setAddSource,
@@ -200,5 +224,7 @@ export function useMarketplaceActions({
     handleRemove,
     handleUpdate,
     handleToggleAutoUpdate,
+    reinstalling,
+    handleReinstallAll,
   };
 }

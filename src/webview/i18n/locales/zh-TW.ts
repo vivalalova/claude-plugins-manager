@@ -466,6 +466,10 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.pruneCacheSuccess': '已移除 {dirs} 個未使用的快取目錄，釋放 {size}',
   'plugin.page.pruneCacheNone': '未發現未使用的快取目錄',
   'plugin.page.pruneCacheFailed': '清除未使用快取失敗',
+  'plugin.page.reinstallAll': '全部重新安裝',
+  'plugin.page.reinstallingAll': '重新安裝中...',
+  'plugin.page.reinstallAllTitle': '重新安裝所有 Marketplace',
+  'plugin.page.reinstallAllMessage': '將清除所有快取、移除所有 Marketplace 並從原始來源重新安裝，所有 Plugin 都會被重新安裝。\n\n操作完成前請勿關閉此畫面。',
   // Plugin section
   'plugin.section.updates': '{count} 個更新',
   'plugin.section.updatesPlural': '{count} 個更新',

@@ -148,9 +148,12 @@ export function PluginPage(): React.ReactElement {
     handleRemove,
     handleUpdate: handleMarketplaceUpdate,
     handleToggleAutoUpdate,
+    reinstalling,
+    handleReinstallAll,
   } = useMarketplaceActions({ fetchList: fetchAll, setError });
 
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [confirmReinstallAll, setConfirmReinstallAll] = useState(false);
   const [pruningCache, setPruningCache] = useState(false);
 
   const handlePruneCache = async (): Promise<void> => {
@@ -278,6 +281,13 @@ export function PluginPage(): React.ReactElement {
                 : t('plugin.page.updateAll')}
             </button>
           )}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setConfirmReinstallAll(true)}
+            disabled={loading || reinstalling || isUpdatingAll}
+          >
+            {reinstalling ? t('plugin.page.reinstallingAll') : t('plugin.page.reinstallAll')}
+          </button>
           <button
             className="btn btn-secondary"
             onClick={handlePruneCache}
@@ -509,6 +519,17 @@ export function PluginPage(): React.ReactElement {
           danger
           onConfirm={() => handleRemove(confirmRemove)}
           onCancel={() => setConfirmRemove(null)}
+        />
+      )}
+
+      {confirmReinstallAll && (
+        <ConfirmDialog
+          title={t('plugin.page.reinstallAllTitle')}
+          message={t('plugin.page.reinstallAllMessage')}
+          confirmLabel={t('plugin.page.reinstallAll')}
+          danger
+          onConfirm={() => { setConfirmReinstallAll(false); handleReinstallAll(); }}
+          onCancel={() => setConfirmReinstallAll(false)}
         />
       )}
 

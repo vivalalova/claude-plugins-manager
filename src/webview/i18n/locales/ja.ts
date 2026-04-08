@@ -37,6 +37,10 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.pruneCacheSuccess': '未使用キャッシュ {dirs} ディレクトリを削除、{size} を解放',
   'plugin.page.pruneCacheNone': '未使用のキャッシュディレクトリはありません',
   'plugin.page.pruneCacheFailed': '未使用キャッシュのクリーンに失敗しました',
+  'plugin.page.reinstallAll': 'すべて再インストール',
+  'plugin.page.reinstallingAll': '再インストール中...',
+  'plugin.page.reinstallAllTitle': 'すべてのマーケットプレイスを再インストール',
+  'plugin.page.reinstallAllMessage': 'プラグインキャッシュをクリアし、すべてのマーケットプレイスを削除して元のソースから再インストールします。すべてのプラグインが再インストールされます。\n\n操作が完了するまでこのパネルを閉じないでください。',
   // Plugin section
   'plugin.section.updates': '{count} 件の更新',
   'plugin.section.updatesPlural': '{count} 件の更新',
