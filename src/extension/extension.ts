@@ -46,8 +46,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await migrateCacheIfNeeded(oldCacheDir, cacheDir);
 
   const cli = new CliService();
-  const marketplaceService = new MarketplaceService(cli);
   const settingsFileService = new SettingsFileService();
+  const marketplaceService = new MarketplaceService(cli, settingsFileService);
   const pluginService = new PluginService(cli, settingsFileService);
   const mcpService = new McpService(cli, settingsFileService);
   const translationService = new TranslationService(cacheDir);
@@ -79,7 +79,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const workspaceFolderDisposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
     mcpService.invalidateMetadataCache();
   });
-  const editorManager = new EditorPanelManager(context.extensionUri, router, mcpService, fileWatcherService);
+  const editorManager = new EditorPanelManager(context.extensionUri, router, mcpService, marketplaceService, fileWatcherService);
 
   const sidebarProvider = new SidebarViewProvider(
     context.extensionUri,

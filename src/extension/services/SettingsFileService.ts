@@ -13,7 +13,7 @@ import type {
 } from '../../shared/types';
 import { KeyedWriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
-import { PluginCatalogScanner } from './PluginCatalogScanner';
+import { PluginCatalogScanner, type PluginCatalogSnapshot } from './PluginCatalogScanner';
 import {
   INSTALLED_PLUGINS_PATH,
   MARKETPLACES_DIR,
@@ -26,7 +26,7 @@ import {
  * 取代 CLI 呼叫，實現真正的 per-scope enable/disable。
  */
 export class SettingsFileService {
-  private scanInflight: Promise<AvailablePlugin[]> | null = null;
+  private scanInflight: Promise<PluginCatalogSnapshot> | null = null;
   private readonly settingsWriteQueues = new KeyedWriteQueue();
   private readonly pluginCatalogScanner = new PluginCatalogScanner({
     knownMarketplacesPath: KNOWN_MARKETPLACES_PATH,
@@ -156,6 +156,14 @@ export class SettingsFileService {
     });
   }
 
+  /** 以快照完整覆蓋指定 scope 的 enabledPlugins，保留其他 settings 欄位 */
+  async replaceEnabledPlugins(scope: PluginScope, enabledPlugins: EnabledPluginsMap): Promise<void> {
+    return this.updateScopedSettingsFile(scope, (settings) => {
+      settings.enabledPlugins = { ...enabledPlugins };
+      return true;
+    });
+  }
+
   /** 寫入單一 plugin 的 enabled 狀態到指定 scope 的 settings 檔 */
   async setPluginEnabled(
     pluginId: string,
@@ -258,6 +266,12 @@ export class SettingsFileService {
    * 從 known_marketplaces.json 取得 marketplace 清單和實際路徑。
    */
   async scanAvailablePlugins(): Promise<AvailablePlugin[]> {
+    const snapshot = await this.scanPluginCatalog();
+    return snapshot.availablePlugins;
+  }
+
+  /** 實際掃描邏輯（快取同一份 plugin catalog snapshot） */
+  private async scanPluginCatalog(): Promise<PluginCatalogSnapshot> {
     if (this.scanInflight) {
       return this.scanInflight;
     }
@@ -268,14 +282,14 @@ export class SettingsFileService {
     return this.scanInflight;
   }
 
-  /** 實際掃描邏輯（by scanAvailablePlugins 快取驅動） */
-  private async doScan(): Promise<AvailablePlugin[]> {
-    return this.pluginCatalogScanner.scanAvailablePlugins();
+  private async doScan(): Promise<PluginCatalogSnapshot> {
+    return this.pluginCatalogScanner.scanCatalog();
   }
 
   /** 回傳 manifest 可讀的 marketplace 名稱集合（用於 stale entry pruning） */
   async readScannableMarketplaceNames(): Promise<Set<string>> {
-    return this.pluginCatalogScanner.readScannableMarketplaceNames();
+    const snapshot = await this.scanPluginCatalog();
+    return snapshot.scannableMarketplaceNames;
   }
 
   /**

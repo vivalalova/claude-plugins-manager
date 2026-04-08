@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MarketplaceService } from '../MarketplaceService';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
 import type { CliService } from '../CliService';
+import type { SettingsFileService } from '../SettingsFileService';
+import type { InstalledPluginsFile } from '../../../shared/types';
 
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockWriteFile = vi.hoisted(() => vi.fn());
@@ -34,6 +36,14 @@ function createMockCli(): { exec: ReturnType<typeof vi.fn>; execJson: ReturnType
   } as unknown as { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService;
 }
 
+function createMockSettings(): SettingsFileService & Record<string, ReturnType<typeof vi.fn>> {
+  return {
+    readInstalledPlugins: vi.fn().mockResolvedValue({ version: 2, plugins: {} } satisfies InstalledPluginsFile),
+    readAllEnabledPlugins: vi.fn().mockResolvedValue({ user: {}, project: {}, local: {} }),
+    replaceEnabledPlugins: vi.fn().mockResolvedValue(undefined),
+  } as unknown as SettingsFileService & Record<string, ReturnType<typeof vi.fn>>;
+}
+
 const MOCK_CONFIG = {
   'my-marketplace': {
     source: { source: 'github', repo: 'owner/repo' },
@@ -51,14 +61,17 @@ const MOCK_CONFIG = {
 
 describe('MarketplaceService', () => {
   let cli: ReturnType<typeof createMockCli>;
+  let settings: ReturnType<typeof createMockSettings>;
   let svc: MarketplaceService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     cli = createMockCli();
-    svc = new MarketplaceService(cli);
+    settings = createMockSettings();
+    svc = new MarketplaceService(cli, settings);
     mockReadFile.mockResolvedValue(JSON.stringify(MOCK_CONFIG));
     mockWriteFile.mockResolvedValue(undefined);
+    mockRm.mockResolvedValue(undefined);
   });
 
   describe('list()', () => {
@@ -208,6 +221,57 @@ describe('MarketplaceService', () => {
       mockReadFile.mockRejectedValue(new Error('EACCES: permission denied'));
       await expect(svc.toggleAutoUpdate('my-marketplace')).rejects.toThrow('EACCES');
       expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reinstallAll()', () => {
+    it('保留各 scope 的 enabledPlugins 設定', async () => {
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'looping@plugins-local': true },
+        project: { 'stock@plugins-local': true },
+        local: {},
+      });
+
+      await svc.reinstallAll();
+
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledTimes(3);
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('user', { 'looping@plugins-local': true });
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('project', { 'stock@plugins-local': true });
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('local', {});
+    });
+
+    it('重裝前已安裝的 plugins 會依原 scope 重裝回來', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'looping@my-marketplace': [{
+            scope: 'user',
+            installPath: '/cache/my-marketplace/looping/hash',
+            version: '1.0.0',
+            installedAt: '2026-04-08T00:00:00.000Z',
+            lastUpdated: '2026-04-08T00:00:00.000Z',
+          }],
+          'stock@local-plugins': [{
+            scope: 'project',
+            projectPath: '/Users/test/.claude',
+            installPath: '/cache/local-plugins/stock/hash',
+            version: '1.0.0',
+            installedAt: '2026-04-08T00:00:00.000Z',
+            lastUpdated: '2026-04-08T00:00:00.000Z',
+          }],
+        },
+      } satisfies InstalledPluginsFile);
+
+      await svc.reinstallAll();
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['plugin', 'install', 'looping@my-marketplace', '--scope', 'user'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['plugin', 'install', 'stock@local-plugins', '--scope', 'project'],
+        { timeout: CLI_LONG_TIMEOUT_MS, cwd: '/Users/test/.claude' },
+      );
     });
   });
 

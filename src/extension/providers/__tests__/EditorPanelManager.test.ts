@@ -34,6 +34,11 @@ function createManager() {
     onStatusChange: new EventEmitter<unknown[]>(),
     onPollUnavailable: new EventEmitter<void>(),
   };
+  const reinstallProgressEmitter = new EventEmitter<unknown>();
+  const marketplaceService = {
+    onReinstallProgress: reinstallProgressEmitter.event,
+    emitReinstallProgress: (value: unknown) => reinstallProgressEmitter.fire(value),
+  };
   const fileWatcherService = {
     onPluginFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
     onMarketplaceFilesChanged: vi.fn(() => ({ dispose: vi.fn() })),
@@ -48,10 +53,11 @@ function createManager() {
     { fsPath: '/mock-extension' } as any,
     router as any,
     mcpService as any,
+    marketplaceService as any,
     fileWatcherService as any,
   );
 
-  return { manager, mcpService, fileWatcherService, router };
+  return { manager, mcpService, marketplaceService, fileWatcherService, router };
 }
 
 describe('EditorPanelManager', () => {
@@ -173,6 +179,32 @@ describe('EditorPanelManager', () => {
     callback();
 
     expect(panel.webview.postMessage).toHaveBeenCalledWith({ type: 'skill.refresh' });
+  });
+
+  it('reinstall progress + category=plugin → push marketplace.reinstallProgress', () => {
+    const panel = createMockPanel();
+    vi.mocked(window.createWebviewPanel).mockReturnValue(panel as any);
+    const { manager, marketplaceService } = createManager();
+
+    manager.openPanel('plugin');
+
+    Object.defineProperty(panel, 'visible', { value: true });
+    marketplaceService.emitReinstallProgress({
+      phase: 'addingMarketplaces',
+      current: 2,
+      total: 4,
+      detail: 'plugins-local',
+    });
+
+    expect(panel.webview.postMessage).toHaveBeenCalledWith({
+      type: 'marketplace.reinstallProgress',
+      progress: {
+        phase: 'addingMarketplaces',
+        current: 2,
+        total: 4,
+        detail: 'plugins-local',
+      },
+    });
   });
 
   it('skill 檔案變更 + category≠skill → 不 push', () => {

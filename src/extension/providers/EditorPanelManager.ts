@@ -4,6 +4,7 @@ import type { PanelCategory } from '../constants';
 import type { MessageRouter } from '../messaging/MessageRouter';
 import type { RequestMessage } from '../messaging/protocol';
 import type { McpService } from '../services/McpService';
+import type { MarketplaceService } from '../services/MarketplaceService';
 import type { FileWatcherService } from '../services/FileWatcherService';
 import { getWebviewHtml } from './webviewHtml';
 
@@ -20,6 +21,7 @@ export class EditorPanelManager {
     private readonly extensionUri: vscode.Uri,
     private readonly router: MessageRouter,
     private readonly mcpService: McpService,
+    private readonly marketplaceService: MarketplaceService,
     private readonly fileWatcherService: FileWatcherService,
   ) {
     this.pushDisposables.push(
@@ -41,6 +43,11 @@ export class EditorPanelManager {
       this.fileWatcherService.onMarketplaceFilesChanged(() => {
         if (this.panel?.visible && (this.currentCategory === 'marketplace' || this.currentCategory === 'plugin')) {
           this.panel.webview.postMessage({ type: 'marketplace.refresh' });
+        }
+      }),
+      this.marketplaceService.onReinstallProgress((progress) => {
+        if (this.panel?.visible && this.currentCategory === 'plugin') {
+          this.panel.webview.postMessage({ type: 'marketplace.reinstallProgress', progress });
         }
       }),
       this.fileWatcherService.onSkillFilesChanged(() => {

@@ -697,6 +697,43 @@ describe('SettingsFileService', () => {
       expect(kmCalls).toHaveLength(1);
     });
 
+    it('readScannableMarketplaceNames 與 scanAvailablePlugins 共用同一個 snapshot', async () => {
+      let phase: 'before-reinstall' | 'after-reinstall' = 'before-reinstall';
+
+      mockReadFile.mockImplementation((path: string) => {
+        if (path.includes('known_marketplaces.json')) {
+          if (phase === 'before-reinstall') {
+            return Promise.resolve(JSON.stringify({}));
+          }
+          return Promise.resolve(JSON.stringify({
+            'test-mp': { installLocation: '/mp/test-mp' },
+          }));
+        }
+        if (path.includes('marketplace.json')) {
+          return Promise.resolve(JSON.stringify({
+            name: 'test-mp',
+            plugins: [{ name: 'p1', description: 'desc', source: './p1' }],
+          }));
+        }
+        if (path.includes('plugin.json')) return Promise.reject(enoentError());
+        return Promise.reject(enoentError());
+      });
+      mockReaddir.mockRejectedValue(enoentError());
+      mockStat.mockRejectedValue(enoentError());
+
+      const available = await svc.scanAvailablePlugins();
+      phase = 'after-reinstall';
+
+      const scannable = await svc.readScannableMarketplaceNames();
+
+      expect(available).toEqual([]);
+      expect(scannable).toEqual(new Set<string>());
+      const kmCalls = mockReadFile.mock.calls.filter(
+        (c: string[]) => c[0].includes('known_marketplaces.json'),
+      );
+      expect(kmCalls).toHaveLength(1);
+    });
+
     it('.git entry 不影響 lastUpdated 計算', async () => {
       const gitMtime = new Date('2026-03-04T03:35:00Z').getTime();
       const fileMtime = new Date('2026-03-03T03:55:00Z').getTime();

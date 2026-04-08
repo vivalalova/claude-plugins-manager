@@ -15,12 +15,17 @@ interface PluginCatalogScannerOptions {
   marketplacesDir: string;
 }
 
+export interface PluginCatalogSnapshot {
+  availablePlugins: AvailablePlugin[];
+  scannableMarketplaceNames: Set<string>;
+}
+
 export class PluginCatalogScanner {
   constructor(
     private readonly options: PluginCatalogScannerOptions,
   ) {}
 
-  async scanAvailablePlugins(): Promise<AvailablePlugin[]> {
+  async scanCatalog(): Promise<PluginCatalogSnapshot> {
     let knownMarketplaces: Record<string, { installLocation?: string }>;
     try {
       knownMarketplaces = await readJsonFile<Record<string, { installLocation?: string }>>(
@@ -28,7 +33,10 @@ export class PluginCatalogScanner {
         {},
       );
     } catch {
-      return [];
+      return {
+        availablePlugins: [],
+        scannableMarketplaceNames: new Set<string>(),
+      };
     }
 
     const perMarketplace = await Promise.all(
@@ -40,7 +48,7 @@ export class PluginCatalogScanner {
             manifestPath,
             {} as MarketplaceManifest,
           );
-          return Promise.all(
+          const availablePlugins = await Promise.all(
             (manifest.plugins ?? []).map(async (plugin) => {
               const localSource = typeof plugin.source === 'string' ? plugin.source : null;
               const declaredSkillPaths = readDeclaredSkillPaths(plugin);
@@ -91,44 +99,32 @@ export class PluginCatalogScanner {
               } satisfies AvailablePlugin;
             }),
           );
+          return {
+            marketplaceName: mpName,
+            manifestReadable: true,
+            availablePlugins,
+          };
         } catch (scanErr) {
           if ((scanErr as NodeJS.ErrnoException).code !== 'ENOENT') {
             console.warn(`[SettingsFileService] marketplace scan error (${mpName}):`, scanErr);
           }
-          return [] as AvailablePlugin[];
+          return {
+            marketplaceName: mpName,
+            manifestReadable: false,
+            availablePlugins: [] as AvailablePlugin[],
+          };
         }
       }),
     );
 
-    return perMarketplace.flat();
-  }
-
-  /** 回傳 manifest (marketplace.json) 可讀的 marketplace 名稱集合 */
-  async readScannableMarketplaceNames(): Promise<Set<string>> {
-    let knownMarketplaces: Record<string, { installLocation?: string }>;
-    try {
-      knownMarketplaces = await readJsonFile<Record<string, { installLocation?: string }>>(
-        this.options.knownMarketplacesPath,
-        {},
-      );
-    } catch {
-      return new Set();
-    }
-
-    const names = new Set<string>();
-    await Promise.all(
-      Object.entries(knownMarketplaces).map(async ([mpName, mpEntry]) => {
-        const mpDir = mpEntry.installLocation ?? join(this.options.marketplacesDir, mpName);
-        const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
-        try {
-          await readJsonFile<MarketplaceManifest>(manifestPath, null as unknown as MarketplaceManifest);
-          names.add(mpName);
-        } catch {
-          // manifest 不可讀（檔案不存在或損壞）→ 不允許 prune 此 marketplace 的 entries
-        }
-      }),
-    );
-    return names;
+    return {
+      availablePlugins: perMarketplace.flatMap((entry) => entry.availablePlugins),
+      scannableMarketplaceNames: new Set(
+        perMarketplace
+          .filter((entry) => entry.manifestReadable)
+          .map((entry) => entry.marketplaceName),
+      ),
+    };
   }
 
   async readMarketplaceSources(): Promise<Record<string, string>> {

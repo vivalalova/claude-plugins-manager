@@ -42,6 +42,8 @@ vi.mock('../../marketplace/hooks/useMarketplaceActions', () => ({
     handleRemove: vi.fn(),
     handleUpdate: vi.fn(),
     handleToggleAutoUpdate: vi.fn(),
+    reinstalling: false,
+    handleReinstallAll: vi.fn(),
   }),
 }));
 
@@ -1397,10 +1399,10 @@ describe('PluginPage — 核心流程', () => {
 
   describe('push 推送刷新', () => {
     it('收到 plugin.refresh 推送 → 靜默刷新，不顯示 Loading spinner', async () => {
-      let pushCallback: ((msg: { type: string }) => void) | null = null;
+      const pushCallbacks: Array<(msg: { type: string }) => void> = [];
 
       mockOnPushMessage.mockImplementation((cb: (msg: { type: string }) => void) => {
-        pushCallback = cb;
+        pushCallbacks.push(cb);
         return () => {};
       });
 
@@ -1432,7 +1434,7 @@ describe('PluginPage — 核心流程', () => {
 
       // 觸發 push
       await act(async () => {
-        pushCallback?.({ type: 'plugin.refresh' });
+        pushCallbacks.forEach((cb) => cb({ type: 'plugin.refresh' }));
       });
 
       // 刷新後 skeleton 不出現（靜默刷新）
@@ -1445,10 +1447,10 @@ describe('PluginPage — 核心流程', () => {
     });
 
     it('收到 marketplace.refresh 推送 → 靜默刷新，新 marketplace 的 plugins 出現', async () => {
-      let pushCallback: ((msg: { type: string }) => void) | null = null;
+      const pushCallbacks: Array<(msg: { type: string }) => void> = [];
 
       mockOnPushMessage.mockImplementation((cb: (msg: { type: string }) => void) => {
-        pushCallback = cb;
+        pushCallbacks.push(cb);
         return () => {};
       });
 
@@ -1480,7 +1482,7 @@ describe('PluginPage — 核心流程', () => {
 
       // 觸發 marketplace.refresh push
       await act(async () => {
-        pushCallback?.({ type: 'marketplace.refresh' });
+        pushCallbacks.forEach((cb) => cb({ type: 'marketplace.refresh' }));
       });
 
       // 不顯示 spinner（靜默刷新）
@@ -1490,6 +1492,44 @@ describe('PluginPage — 核心流程', () => {
       await waitFor(() => {
         expect(screen.getByText('new-mp-plugin')).toBeTruthy();
       });
+    });
+
+    it('收到 marketplace.reinstallProgress 推送 → 顯示執行階段 dialog', async () => {
+      const pushCallbacks: Array<(msg: { type: string; progress?: Record<string, unknown> }) => void> = [];
+
+      mockOnPushMessage.mockImplementation((cb: (msg: { type: string; progress?: Record<string, unknown> }) => void) => {
+        pushCallbacks.push(cb);
+        return () => {};
+      });
+
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') return makeResponse([], [makeAvailable('alpha', 'mp1')]);
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+      });
+
+      await act(async () => {
+        pushCallbacks.forEach((cb) => cb({
+          type: 'marketplace.reinstallProgress',
+          progress: {
+            phase: 'restoringPlugins',
+            current: 2,
+            total: 5,
+            detail: 'looping@plugins-local (user)',
+          },
+        }));
+      });
+
+      expect(screen.getByText('Reinstall in Progress')).toBeTruthy();
+      expect(screen.getByText('Reinstalling previously installed plugins')).toBeTruthy();
+      expect(screen.getByText('Step progress: 2/5')).toBeTruthy();
+      expect(screen.getByText('Current item: looping@plugins-local (user)')).toBeTruthy();
     });
   });
 

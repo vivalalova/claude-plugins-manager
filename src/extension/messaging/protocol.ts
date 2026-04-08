@@ -1,4 +1,12 @@
-import type { McpAddParams, McpScope, McpServer, PluginScope, RegistrySort, SkillScope } from '../../shared/types';
+import type {
+  MarketplaceReinstallProgress,
+  McpAddParams,
+  McpScope,
+  McpServer,
+  PluginScope,
+  RegistrySort,
+  SkillScope,
+} from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Webview → Extension（Request）
@@ -79,5 +87,6 @@ export type PushMessage =
   | { type: 'mcp.pollUnavailable' }
   | { type: 'plugin.refresh' }
   | { type: 'marketplace.refresh' }
+  | { type: 'marketplace.reinstallProgress'; progress: MarketplaceReinstallProgress }
   | { type: 'settings.refresh' }
   | { type: 'skill.refresh' };

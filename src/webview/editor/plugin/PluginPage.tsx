@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useToast } from '../../components/Toast';
 import { PluginCardSkeleton } from '../../components/Skeleton';
@@ -20,8 +20,13 @@ import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePluginPageViewState } from './hooks/usePluginPageViewState';
 import { useMarketplaceActions } from '../marketplace/hooks/useMarketplaceActions';
-import { sendRequest } from '../../vscode';
-import type { PluginContentItem, PluginScope } from '../../../shared/types';
+import { onPushMessage, sendRequest } from '../../vscode';
+import type {
+  MarketplaceReinstallPhase,
+  MarketplaceReinstallProgress,
+  PluginContentItem,
+  PluginScope,
+} from '../../../shared/types';
 import type { ContentDetail } from '../../components/ContentDetailPanel';
 
 function formatBytes(bytes: number): string {
@@ -29,6 +34,13 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function getReinstallPhaseLabel(
+  t: ReturnType<typeof useI18n>['t'],
+  phase: MarketplaceReinstallPhase,
+): string {
+  return t(`plugin.page.reinstallPhase.${phase}` as Parameters<typeof t>[0]);
 }
 
 
@@ -155,6 +167,22 @@ export function PluginPage(): React.ReactElement {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [confirmReinstallAll, setConfirmReinstallAll] = useState(false);
   const [pruningCache, setPruningCache] = useState(false);
+  const [reinstallProgress, setReinstallProgress] = useState<MarketplaceReinstallProgress | null>(null);
+  const reinstallDialogTitleId = useId();
+
+  useEffect(() => {
+    return onPushMessage((message) => {
+      if (message.type === 'marketplace.reinstallProgress' && message.progress) {
+        setReinstallProgress(message.progress as MarketplaceReinstallProgress);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!reinstalling) {
+      setReinstallProgress(null);
+    }
+  }, [reinstalling]);
 
   const handlePruneCache = async (): Promise<void> => {
     setPruningCache(true);
@@ -528,9 +556,57 @@ export function PluginPage(): React.ReactElement {
           message={t('plugin.page.reinstallAllMessage')}
           confirmLabel={t('plugin.page.reinstallAll')}
           danger
-          onConfirm={() => { setConfirmReinstallAll(false); handleReinstallAll(); }}
+          onConfirm={() => {
+            setConfirmReinstallAll(false);
+            setReinstallProgress({ phase: 'clearingCache', current: 0, total: 1 });
+            void handleReinstallAll();
+          }}
           onCancel={() => setConfirmReinstallAll(false)}
         />
+      )}
+
+      {(reinstalling || reinstallProgress !== null) && (
+        <DialogOverlay titleId={reinstallDialogTitleId} onClose={() => {}} className="reinstall-progress-dialog">
+          <div className="confirm-dialog-title" id={reinstallDialogTitleId}>
+            {t('plugin.page.reinstallProgressTitle')}
+          </div>
+          <div className="confirm-dialog-message">
+            {getReinstallPhaseLabel(t, reinstallProgress?.phase ?? 'clearingCache')}
+          </div>
+          {reinstallProgress && reinstallProgress.total > 0 && (
+            <div className="reinstall-progress-meta">
+              {t('plugin.page.reinstallProgressCount', {
+                current: String(reinstallProgress.current),
+                total: String(reinstallProgress.total),
+              })}
+            </div>
+          )}
+          {reinstallProgress?.detail && (
+            <div className="reinstall-progress-detail">
+              {t('plugin.page.reinstallProgressDetail', { detail: reinstallProgress.detail })}
+            </div>
+          )}
+          <div
+            className="reinstall-progress-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(reinstallProgress?.total ?? 1, 1)}
+            aria-valuenow={Math.min(reinstallProgress?.current ?? 0, reinstallProgress?.total ?? 1)}
+          >
+            <div
+              className="reinstall-progress-bar__fill"
+              style={{
+                width: `${Math.max(
+                  8,
+                  Math.min(
+                    100,
+                    (((reinstallProgress?.current ?? 0) / Math.max(reinstallProgress?.total ?? 1, 1)) * 100),
+                  ),
+                )}%`,
+              }}
+            />
+          </div>
+        </DialogOverlay>
       )}
 
       {previewPlugins && (

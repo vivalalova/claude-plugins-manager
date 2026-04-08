@@ -168,6 +168,38 @@ body {
   justify-content: flex-end;
 }
 
+.reinstall-progress-dialog {
+  max-width: 460px;
+}
+
+.reinstall-progress-meta {
+  margin-bottom: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--vscode-descriptionForeground);
+}
+
+.reinstall-progress-detail {
+  margin-bottom: 16px;
+  font-size: var(--font-size-sm);
+  color: var(--vscode-foreground);
+  word-break: break-word;
+}
+
+.reinstall-progress-bar {
+  height: 10px;
+  width: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
+}
+
+.reinstall-progress-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--vscode-button-background), color-mix(in srgb, var(--vscode-button-background) 65%, white));
+  transition: width 140ms ease-out;
+}
+
 /* ----------------------------------------------------------------
  * Light Theme — depth adjustments
  * ---------------------------------------------------------------- */

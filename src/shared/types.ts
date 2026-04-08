@@ -31,6 +31,21 @@ export interface Marketplace {
   autoUpdate: boolean;
 }
 
+export type MarketplaceReinstallPhase =
+  | 'clearingCache'
+  | 'removingMarketplaces'
+  | 'addingMarketplaces'
+  | 'restoringSettings'
+  | 'restoringPlugins'
+  | 'completed';
+
+export interface MarketplaceReinstallProgress {
+  phase: MarketplaceReinstallPhase;
+  current: number;
+  total: number;
+  detail?: string;
+}
+
 /** Plugin 安裝 scope */
 export type PluginScope = 'user' | 'project' | 'local';
 

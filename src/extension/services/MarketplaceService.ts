@@ -2,9 +2,21 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { tmpdir } from 'os';
 import { execFile } from 'child_process';
+import * as vscode from 'vscode';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
-import type { Marketplace, MarketplaceSourceType, PreviewPlugin, MarketplaceManifest } from '../../shared/types';
+import type {
+  Marketplace,
+  MarketplaceSourceType,
+  PreviewPlugin,
+  MarketplaceManifest,
+  InstalledPluginsFile,
+  PluginScope,
+  EnabledPluginsMap,
+  MarketplaceReinstallProgress,
+  MarketplaceReinstallPhase,
+} from '../../shared/types';
 import type { CliService } from './CliService';
+import type { SettingsFileService } from './SettingsFileService';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
 import { KNOWN_MARKETPLACES_PATH, PLUGINS_CACHE_DIR } from '../paths';
@@ -39,8 +51,13 @@ type RawMarketplaceConfig = Record<string, RawMarketplaceEntry>;
  */
 export class MarketplaceService {
   private readonly mutationQueue = new WriteQueue();
+  private readonly _onReinstallProgress = new vscode.EventEmitter<MarketplaceReinstallProgress>();
+  readonly onReinstallProgress = this._onReinstallProgress.event;
 
-  constructor(private readonly cli: CliService) {}
+  constructor(
+    private readonly cli: CliService,
+    private readonly settings: SettingsFileService,
+  ) {}
 
   /**
    * 列出所有已註冊的 marketplace（含 lastUpdated、autoUpdate）。
@@ -147,18 +164,28 @@ export class MarketplaceService {
 
       const total = entries.length;
       if (total === 0) return { total: 0, succeeded: 0, failed: [] };
+      const marketplaceNames = new Set(entries.map((entry) => entry.name));
+      const [installedSnapshot, enabledSnapshot] = await Promise.all([
+        this.settings.readInstalledPlugins(),
+        this.settings.readAllEnabledPlugins(),
+      ]);
 
       // Phase 1: Clear plugin cache
+      this.emitReinstallProgress('clearingCache', 0, 1);
       await fs.rm(PLUGINS_CACHE_DIR, { recursive: true, force: true }).catch(() => {});
 
       // Phase 2: Remove all
-      for (const { name } of entries) {
+      this.emitReinstallProgress('removingMarketplaces', 0, entries.length);
+      for (const [index, { name }] of entries.entries()) {
+        this.emitReinstallProgress('removingMarketplaces', index + 1, entries.length, name);
         await this.cli.exec(['plugin', 'marketplace', 'remove', name]);
       }
 
       // Phase 3: Re-add each（直接呼叫 CLI，不經 this.add() 避免 enqueue deadlock）
       const failed: string[] = [];
-      for (const { name, source } of entries) {
+      this.emitReinstallProgress('addingMarketplaces', 0, entries.length);
+      for (const [index, { name, source }] of entries.entries()) {
+        this.emitReinstallProgress('addingMarketplaces', index + 1, entries.length, name);
         try {
           await this.cli.exec(['plugin', 'marketplace', 'add', source], { timeout: CLI_LONG_TIMEOUT_MS });
         } catch {
@@ -179,8 +206,67 @@ export class MarketplaceService {
         Object.values(afterConfig).map((e) => e.installLocation).filter(Boolean).map((dir) => fixScriptPermissions(dir)),
       );
 
+      // Phase 5: Restore enabled settings and reinstall previously installed plugins
+      await this.restoreEnabledPlugins(enabledSnapshot);
+      await this.reinstallPlugins(installedSnapshot, marketplaceNames, new Set(failed));
+      this.emitReinstallProgress('completed', 1, 1);
+
       return { total, succeeded: total - failed.length, failed };
     });
+  }
+
+  private async restoreEnabledPlugins(
+    enabledByScope: Record<PluginScope, EnabledPluginsMap>,
+  ): Promise<void> {
+    const scopes: PluginScope[] = ['user', 'project', 'local'];
+    this.emitReinstallProgress('restoringSettings', 0, scopes.length);
+    for (const [index, scope] of scopes.entries()) {
+      this.emitReinstallProgress('restoringSettings', index + 1, scopes.length, scope);
+      await this.settings.replaceEnabledPlugins(scope, enabledByScope[scope] ?? {});
+    }
+  }
+
+  private async reinstallPlugins(
+    installedSnapshot: InstalledPluginsFile,
+    marketplaceNames: Set<string>,
+    failedMarketplaces: Set<string>,
+  ): Promise<void> {
+    const restoreFailures: string[] = [];
+    const reinstallTargets = Object.entries(installedSnapshot.plugins)
+      .filter(([pluginId]) => {
+        const marketplaceName = getMarketplaceName(pluginId);
+        return !!marketplaceName && marketplaceNames.has(marketplaceName) && !failedMarketplaces.has(marketplaceName);
+      })
+      .flatMap(([pluginId, pluginEntries]) => pluginEntries.map((entry) => ({ pluginId, entry })));
+
+    this.emitReinstallProgress('restoringPlugins', 0, reinstallTargets.length);
+
+    for (const [index, { pluginId, entry }] of reinstallTargets.entries()) {
+      const cwd = entry.scope === 'user' ? undefined : entry.projectPath;
+      this.emitReinstallProgress('restoringPlugins', index + 1, reinstallTargets.length, `${pluginId} (${entry.scope})`);
+      try {
+        await this.cli.exec(
+          ['plugin', 'install', pluginId, '--scope', entry.scope],
+          { timeout: CLI_LONG_TIMEOUT_MS, ...(cwd ? { cwd } : {}) },
+        );
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        restoreFailures.push(`${pluginId} (${entry.scope}): ${reason}`);
+      }
+    }
+
+    if (restoreFailures.length > 0) {
+      throw new Error(`Failed to reinstall plugins: ${restoreFailures.join('; ')}`);
+    }
+  }
+
+  private emitReinstallProgress(
+    phase: MarketplaceReinstallPhase,
+    current: number,
+    total: number,
+    detail?: string,
+  ): void {
+    this._onReinstallProgress.fire({ phase, current, total, ...(detail ? { detail } : {}) });
   }
 
   /** 修正 marketplace installLocation 中 .sh 檔案的執行權限 */
@@ -265,4 +351,9 @@ export class MarketplaceService {
     }
   }
 
+}
+
+function getMarketplaceName(pluginId: string): string | null {
+  const lastAt = pluginId.lastIndexOf('@');
+  return lastAt > 0 ? pluginId.slice(lastAt + 1) : null;
 }

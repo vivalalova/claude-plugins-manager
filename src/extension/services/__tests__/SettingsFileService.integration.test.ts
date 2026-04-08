@@ -128,6 +128,29 @@ describe('SettingsFileService（integration / 真實 filesystem）', () => {
     expect(settings.enabledPlugins).toEqual({ 'old@mp': true, 'new@mp': true });
   });
 
+  it('replaceEnabledPlugins：完整還原 enabledPlugins 並保留其他欄位', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({
+      language: '台灣繁體中文',
+      enabledPlugins: { 'old@mp': true },
+      extraKnownMarketplaces: { demo: { source: { source: 'github', repo: 'owner/demo' } } },
+    }, null, 2) + '\n');
+
+    await svc.replaceEnabledPlugins('user', {
+      'looping@plugins-local': true,
+      'plan-first@plugins-local': true,
+    });
+
+    const content = JSON.parse(await readFile(userSettingsPath(), 'utf-8'));
+    expect(content.language).toBe('台灣繁體中文');
+    expect(content.extraKnownMarketplaces).toEqual({
+      demo: { source: { source: 'github', repo: 'owner/demo' } },
+    });
+    expect(content.enabledPlugins).toEqual({
+      'looping@plugins-local': true,
+      'plan-first@plugins-local': true,
+    });
+  });
+
   /* ═══════ addInstallEntry + readInstalledPlugins ═══════ */
 
   it('addInstallEntry → readInstalledPlugins → 正確讀回', async () => {

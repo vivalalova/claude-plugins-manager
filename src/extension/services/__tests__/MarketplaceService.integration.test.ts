@@ -24,6 +24,7 @@ const { SUITE_TMP, SUITE_HOME } = vi.hoisted(() => {
 vi.mock('os', () => ({ homedir: () => SUITE_HOME }));
 
 import { MarketplaceService } from '../MarketplaceService';
+import { SettingsFileService } from '../SettingsFileService';
 import type { CliService } from '../CliService';
 
 afterAll(() => {
@@ -32,6 +33,7 @@ afterAll(() => {
 
 describe('MarketplaceService（integration / 真實 filesystem）', () => {
   let svc: MarketplaceService;
+  let settings: SettingsFileService;
   let cli: { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService;
   const knownPath = join(SUITE_HOME, '.claude', 'plugins', 'known_marketplaces.json');
 
@@ -67,7 +69,8 @@ describe('MarketplaceService（integration / 真實 filesystem）', () => {
       execJson: vi.fn().mockResolvedValue({}),
     } as unknown as { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService;
 
-    svc = new MarketplaceService(cli);
+    settings = new SettingsFileService();
+    svc = new MarketplaceService(cli, settings);
   });
 
   it('新增 marketplace 後，新 entry 預設 autoUpdate=true，既有 entry 保持原值', async () => {
