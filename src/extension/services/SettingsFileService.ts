@@ -273,6 +273,11 @@ export class SettingsFileService {
     return this.pluginCatalogScanner.scanAvailablePlugins();
   }
 
+  /** 回傳 manifest 可讀的 marketplace 名稱集合（用於 stale entry pruning） */
+  async readScannableMarketplaceNames(): Promise<Set<string>> {
+    return this.pluginCatalogScanner.readScannableMarketplaceNames();
+  }
+
   /**
    * 讀取各 marketplace 的 source URL（repo/path）。
    * 回傳 Record<marketplace name, source URL string>。

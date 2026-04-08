@@ -1,5 +1,5 @@
-import { readFile, stat } from 'fs/promises';
-import { join } from 'path';
+import { readFile, rm, stat } from 'fs/promises';
+import { dirname, join } from 'path';
 import { CLI_LONG_TIMEOUT_MS } from '../constants';
 import type {
   AvailablePlugin,
@@ -50,6 +50,13 @@ export class PluginService {
       this.settings.scanAvailablePlugins(),
       this.settings.readMarketplaceSources(),
     ]);
+
+    // Marketplace manifest 可讀但 plugin 已不在其中 → 自動清理 installed 殘留
+    const pruned = await this.pruneStaleEntries(data, available);
+    for (const pluginId of pruned) {
+      delete data.plugins[pluginId];
+    }
+
     const [allInstalled, orphaned] = await Promise.all([
       this.buildInstalledList(data, enabledByScope, available),
       this.detectOrphaned(data),
@@ -261,6 +268,55 @@ export class PluginService {
     await Promise.all(
       orphaned.map((o) => this.removeOrphaned(o.id, o.scope, o.projectPath)),
     );
+  }
+
+  /**
+   * Marketplace manifest 可讀但 plugin 已不在其中 → 移除 installed 記錄 + enabled 狀態 + cache。
+   * 回傳被清除的 pluginId 列表。
+   */
+  private async pruneStaleEntries(
+    data: InstalledPluginsFile,
+    available: AvailablePlugin[],
+  ): Promise<string[]> {
+    const scannableMpNames = await this.settings.readScannableMarketplaceNames();
+    if (scannableMpNames.size === 0) return [];
+
+    const availableIds = new Set(available.map((a) => a.pluginId));
+    const staleIds: string[] = [];
+
+    for (const pluginId of Object.keys(data.plugins)) {
+      const lastAt = pluginId.lastIndexOf('@');
+      const mpName = lastAt > 0 ? pluginId.slice(lastAt + 1) : undefined;
+      if (!mpName || !scannableMpNames.has(mpName)) continue;
+      if (availableIds.has(pluginId)) continue;
+      staleIds.push(pluginId);
+    }
+
+    if (staleIds.length === 0) return [];
+
+    const cleanups: Array<{ pluginId: string; entry: PluginInstallEntry }> = [];
+    for (const pluginId of staleIds) {
+      for (const entry of data.plugins[pluginId] ?? []) {
+        cleanups.push({ pluginId, entry });
+      }
+    }
+
+    await Promise.all(
+      cleanups.map(({ pluginId, entry }) =>
+        Promise.all([
+          this.settings.removeInstallEntry(pluginId, entry.scope, entry.projectPath),
+          this.settings.setPluginEnabled(pluginId, entry.scope, false),
+        ]),
+      ),
+    );
+
+    // installPath 是 cache/{mp}/{plugin}/{hash}，清上層目錄把所有版本 cache 一次清除
+    const uniquePluginCacheDirs = [...new Set(cleanups.map(({ entry }) => dirname(entry.installPath)))];
+    await Promise.all(
+      uniquePluginCacheDirs.map((p) => rm(p, { recursive: true, force: true }).catch(() => {})),
+    );
+
+    return staleIds;
   }
 
   /** 偵測 installPath 不存在的 entries */

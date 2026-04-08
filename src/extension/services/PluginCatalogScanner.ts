@@ -103,6 +103,34 @@ export class PluginCatalogScanner {
     return perMarketplace.flat();
   }
 
+  /** 回傳 manifest (marketplace.json) 可讀的 marketplace 名稱集合 */
+  async readScannableMarketplaceNames(): Promise<Set<string>> {
+    let knownMarketplaces: Record<string, { installLocation?: string }>;
+    try {
+      knownMarketplaces = await readJsonFile<Record<string, { installLocation?: string }>>(
+        this.options.knownMarketplacesPath,
+        {},
+      );
+    } catch {
+      return new Set();
+    }
+
+    const names = new Set<string>();
+    await Promise.all(
+      Object.entries(knownMarketplaces).map(async ([mpName, mpEntry]) => {
+        const mpDir = mpEntry.installLocation ?? join(this.options.marketplacesDir, mpName);
+        const manifestPath = join(mpDir, '.claude-plugin', 'marketplace.json');
+        try {
+          await readJsonFile<MarketplaceManifest>(manifestPath, null as unknown as MarketplaceManifest);
+          names.add(mpName);
+        } catch {
+          // manifest 不可讀（檔案不存在或損壞）→ 不允許 prune 此 marketplace 的 entries
+        }
+      }),
+    );
+    return names;
+  }
+
   async readMarketplaceSources(): Promise<Record<string, string>> {
     const known = await readJsonFile<
       Record<string, { source: { url?: string; repo?: string; path?: string } }>

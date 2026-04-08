@@ -7,12 +7,14 @@ import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
 
-/* ── fs/promises mock（readMcpServers + detectOrphaned 內部使用） ── */
+/* ── fs/promises mock（readMcpServers + detectOrphaned + pruneStaleLocalEntries 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockStat = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const mockRm = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
   stat: mockStat,
+  rm: mockRm,
 }));
 
 /* ── fixScriptPermissions mock ── */
@@ -43,6 +45,7 @@ function createMockSettings(): SettingsFileService & Record<string, ReturnType<t
     scanAvailablePlugins: vi.fn().mockResolvedValue([]),
     scanPluginContentsAt: vi.fn().mockResolvedValue({ commands: [], skills: [], agents: [], mcpServers: [], hooks: false }),
     readMarketplaceSources: vi.fn().mockResolvedValue({}),
+    readScannableMarketplaceNames: vi.fn().mockResolvedValue(new Set<string>()),
     clearAllEnabledPlugins: vi.fn().mockResolvedValue(undefined),
   } as unknown as SettingsFileService & Record<string, ReturnType<typeof vi.fn>>;
 }
@@ -711,6 +714,389 @@ describe('PluginService', () => {
       cli.exec.mockRejectedValueOnce(new Error('already up to date'));
       await expect(svc.update('my-plugin', 'user')).rejects.toThrow('already up to date');
       expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', 'user');
+    });
+  });
+
+  /* ═══════ pruneStaleEntries（via listAvailable） ═══════ */
+  describe('listAvailable() stale entry pruning', () => {
+    /** 每次呼叫回傳新物件，避免 listAvailable 的 `delete data.plugins[id]` mutate 共用 const */
+    function staleInstalled(): InstalledPluginsFile {
+      return {
+        version: 2,
+        plugins: {
+          'android@plugins-local': [{
+            scope: 'user',
+            installPath: '/cache/plugins-local/android/abc123',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      };
+    }
+
+    it('manifest 可讀但 plugin 不在 available → 自動移除 installed 記錄 + disabled + 清 cache', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      const result = await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).toHaveBeenCalledWith('android@plugins-local', 'user', undefined);
+      expect(settings.setPluginEnabled).toHaveBeenCalledWith('android@plugins-local', 'user', false);
+      expect(mockRm).toHaveBeenCalledWith('/cache/plugins-local/android', { recursive: true, force: true });
+      expect(result.installed).toEqual([]);
+    });
+
+    it('遠端 marketplace plugin 不在 available 且 manifest 可讀 → 也清除', async () => {
+      const githubInstalled: InstalledPluginsFile = {
+        version: 2,
+        plugins: {
+          'foo@github-mp': [{
+            scope: 'user',
+            installPath: '/cache/github-mp/foo/abc',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      };
+      settings.readInstalledPlugins.mockResolvedValue(githubInstalled);
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['github-mp']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).toHaveBeenCalledWith('foo@github-mp', 'user', undefined);
+      expect(mockRm).toHaveBeenCalledWith('/cache/github-mp/foo', { recursive: true, force: true });
+    });
+
+    it('marketplace manifest 不可讀 → 不清除（可能 cache 損壞）', async () => {
+      const githubInstalled: InstalledPluginsFile = {
+        version: 2,
+        plugins: {
+          'foo@broken-mp': [{
+            scope: 'user',
+            installPath: '/cache/broken-mp/foo/abc',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      };
+      settings.readInstalledPlugins.mockResolvedValue(githubInstalled);
+      // broken-mp 不在 scannable set → manifest 不可讀
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).not.toHaveBeenCalled();
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('plugin 仍在 available → 不清除', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([{
+        pluginId: 'android@plugins-local',
+        name: 'android',
+        description: '',
+        marketplaceName: 'plugins-local',
+      }]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).not.toHaveBeenCalled();
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('多個 stale entries（多 scope）→ 全部清除', async () => {
+      const multiScope: InstalledPluginsFile = {
+        version: 2,
+        plugins: {
+          'android@plugins-local': [
+            {
+              scope: 'user',
+              installPath: '/cache/plugins-local/android/abc',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+            },
+            {
+              scope: 'project',
+              installPath: '/cache/plugins-local/android/abc',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+              projectPath: '/my/project',
+            },
+          ],
+        },
+      };
+      settings.readInstalledPlugins.mockResolvedValue(multiScope);
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).toHaveBeenCalledTimes(2);
+      expect(settings.setPluginEnabled).toHaveBeenCalledTimes(2);
+      // 同一 installPath 只清一次
+      expect(mockRm).toHaveBeenCalledTimes(1);
+    });
+
+    it('無可讀 marketplace → 不執行清除邏輯', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set());
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).not.toHaveBeenCalled();
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    /* ── 不該刪的絕對不能刪 ── */
+
+    it.each([
+      ['no-at-separator', 'pluginId 沒有 @ 分隔符'],
+      ['@starts-with-at', '@ 在位置 0'],
+    ])('%s → 不清除（%s）', async (pluginId) => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          [pluginId]: [{
+            scope: 'user',
+            installPath: `/cache/${pluginId}/hash`,
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['some-mp', 'starts-with-at']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).not.toHaveBeenCalled();
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('marketplace 名稱部分匹配但不完全相同 → 不清除不相關的 marketplace', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'plugin-x@plugins-local-dev': [{
+            scope: 'user',
+            installPath: '/cache/plugins-local-dev/plugin-x/hash',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      // Set 只有 plugins-local，不含 plugins-local-dev
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).not.toHaveBeenCalled();
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('同一 marketplace 部分 plugin 移除、部分保留 → 只清除不在 available 的', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@mp': [{
+            scope: 'user',
+            installPath: '/cache/mp/alpha/hash1',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+          'beta@mp': [{
+            scope: 'user',
+            installPath: '/cache/mp/beta/hash2',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['mp']));
+      // alpha 還在 available，beta 不在
+      settings.scanAvailablePlugins.mockResolvedValue([{
+        pluginId: 'alpha@mp',
+        name: 'alpha',
+        description: '',
+        marketplaceName: 'mp',
+      }]);
+      mockReadFile.mockRejectedValue(new Error('no .mcp.json'));
+
+      const result = await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).toHaveBeenCalledWith('beta@mp', 'user', undefined);
+      expect(settings.removeInstallEntry).not.toHaveBeenCalledWith('alpha@mp', expect.anything(), expect.anything());
+      expect(mockRm).toHaveBeenCalledWith('/cache/mp/beta', { recursive: true, force: true });
+      expect(mockRm).toHaveBeenCalledTimes(1);
+      expect(result.installed.map((p) => p.id)).toContain('alpha@mp');
+      expect(result.installed.map((p) => p.id)).not.toContain('beta@mp');
+    });
+
+    it('pluginId 含多個 @ → lastIndexOf 正確取最後一段為 marketplace name', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'my-tool@extra@mp': [{
+            scope: 'user',
+            installPath: '/cache/mp/my-tool/hash',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['mp']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).toHaveBeenCalledWith('my-tool@extra@mp', 'user', undefined);
+    });
+
+    /* ── dirname 安全性 ── */
+
+    it('多個 stale plugin 不同 plugin name → cache dirs 各自獨立清除', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@mp': [{
+            scope: 'user',
+            installPath: '/cache/mp/alpha/hash1',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+          'beta@mp': [{
+            scope: 'user',
+            installPath: '/cache/mp/beta/hash2',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['mp']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(mockRm).toHaveBeenCalledTimes(2);
+      expect(mockRm).toHaveBeenCalledWith('/cache/mp/alpha', { recursive: true, force: true });
+      expect(mockRm).toHaveBeenCalledWith('/cache/mp/beta', { recursive: true, force: true });
+    });
+
+    it('同一 pluginId 不同 scope 有不同 installPath → dirname 各自清除', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'android@mp': [
+            {
+              scope: 'user',
+              installPath: '/cacheA/mp/android/hash1',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+            },
+            {
+              scope: 'project',
+              installPath: '/cacheB/mp/android/hash2',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+              projectPath: '/my/project',
+            },
+          ],
+        },
+      });
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['mp']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(mockRm).toHaveBeenCalledTimes(2);
+      expect(mockRm).toHaveBeenCalledWith('/cacheA/mp/android', { recursive: true, force: true });
+      expect(mockRm).toHaveBeenCalledWith('/cacheB/mp/android', { recursive: true, force: true });
+    });
+
+    /* ── 混合場景 ── */
+
+    it('可讀 + 不可讀 marketplace 同時存在 → 只清除可讀 marketplace 的 entries', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'alpha@readable-mp': [{
+            scope: 'user',
+            installPath: '/cache/readable-mp/alpha/hash',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+          'beta@unreadable-mp': [{
+            scope: 'user',
+            installPath: '/cache/unreadable-mp/beta/hash',
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+      // 只有 readable-mp 可讀
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['readable-mp']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+
+      await svc.listAvailable();
+
+      expect(settings.removeInstallEntry).toHaveBeenCalledWith('alpha@readable-mp', 'user', undefined);
+      expect(settings.removeInstallEntry).not.toHaveBeenCalledWith('beta@unreadable-mp', expect.anything(), expect.anything());
+      expect(mockRm).toHaveBeenCalledTimes(1);
+      expect(mockRm).toHaveBeenCalledWith('/cache/readable-mp/alpha', { recursive: true, force: true });
+    });
+
+    /* ── 錯誤處理 ── */
+
+    it('removeInstallEntry 失敗 → listAvailable 拋出錯誤', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+      settings.removeInstallEntry.mockRejectedValueOnce(new Error('EACCES'));
+
+      await expect(svc.listAvailable()).rejects.toThrow('EACCES');
+    });
+
+    it('setPluginEnabled 失敗 → listAvailable 拋出錯誤', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+      settings.setPluginEnabled.mockRejectedValueOnce(new Error('write locked'));
+
+      await expect(svc.listAvailable()).rejects.toThrow('write locked');
+    });
+
+    it('rm 失敗 → catch 吞掉，listAvailable 正常回傳', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(staleInstalled());
+      settings.readScannableMarketplaceNames.mockResolvedValue(new Set(['plugins-local']));
+      settings.scanAvailablePlugins.mockResolvedValue([]);
+      mockRm.mockRejectedValueOnce(new Error('EPERM'));
+
+      const result = await svc.listAvailable();
+
+      expect(result.installed).toEqual([]);
+      expect(mockRm).toHaveBeenCalled();
     });
   });
 });
