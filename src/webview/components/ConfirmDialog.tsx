@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/I18nContext';
 interface ConfirmDialogProps {
   title: string;
   message: string;
+  messageDetail?: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
@@ -16,6 +17,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
+  messageDetail,
   confirmLabel,
   cancelLabel,
   danger = false,
@@ -29,6 +31,7 @@ export function ConfirmDialog({
     <DialogOverlay titleId={titleId} onClose={onCancel}>
       <div className="confirm-dialog-title" id={titleId}>{title}</div>
       <div className="confirm-dialog-message">{message}</div>
+      {messageDetail && <div className="confirm-dialog-detail">{messageDetail}</div>}
       <div className="confirm-dialog-actions">
         <button className="btn btn-secondary" onClick={onCancel}>
           {cancelLabel ?? t('confirm.default.cancel')}

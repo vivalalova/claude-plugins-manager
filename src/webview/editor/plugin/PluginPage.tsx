@@ -554,6 +554,13 @@ export function PluginPage(): React.ReactElement {
         <ConfirmDialog
           title={t('plugin.page.reinstallAllTitle')}
           message={t('plugin.page.reinstallAllMessage')}
+          messageDetail={
+            <p className="confirm-dialog-warning">
+              {t('plugin.page.reinstallAllWarning.before')}
+              <code>plugins/data</code>
+              {t('plugin.page.reinstallAllWarning.after')}
+            </p>
+          }
           confirmLabel={t('plugin.page.reinstallAll')}
           danger
           onConfirm={() => {

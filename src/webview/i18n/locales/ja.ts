@@ -41,6 +41,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.reinstallingAll': '再インストール中...',
   'plugin.page.reinstallAllTitle': 'すべてのマーケットプレイスを再インストール',
   'plugin.page.reinstallAllMessage': 'プラグインキャッシュをクリアし、すべてのマーケットプレイスを削除して元のソースから再インストールします。すべてのプラグインが再インストールされます。\n\n操作が完了するまでこのパネルを閉じないでください。',
+  'plugin.page.reinstallAllWarning.before': '警告: ',
+  'plugin.page.reinstallAllWarning.after': ' の内容も削除されます。',
   'plugin.page.reinstallProgressTitle': '再インストール中',
   'plugin.page.reinstallProgressCount': '進捗: {current}/{total}',
   'plugin.page.reinstallProgressDetail': '現在の項目: {detail}',

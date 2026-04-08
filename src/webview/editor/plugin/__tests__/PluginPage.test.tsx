@@ -218,6 +218,31 @@ describe('PluginPage — 核心流程', () => {
       });
     });
 
+    it('重新安裝確認對話框顯示 plugins/data 會被刪除的紅字警告', async () => {
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('alpha', 'mp1', 'Alpha plugin')]);
+        }
+        return undefined;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('alpha')).toBeTruthy();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reinstall All' }));
+
+      expect(screen.getByText('Reinstall All Marketplaces')).toBeTruthy();
+      const warning = screen.getByText('Warning: the contents of', { exact: false });
+      expect(warning).toBeTruthy();
+      expect(warning.classList.contains('confirm-dialog-warning')).toBe(true);
+      expect(within(warning).getByText('plugins/data')).toBeTruthy();
+      expect(screen.getByText('will also be deleted.', { exact: false })).toBeTruthy();
+    });
+
     it('filter 無符合 → EmptyState + "Clear filters" 重置所有過濾', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string }) => {
         if (req.type === 'workspace.getFolders') return [];

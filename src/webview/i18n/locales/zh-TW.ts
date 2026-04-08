@@ -470,6 +470,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.reinstallingAll': '重新安裝中...',
   'plugin.page.reinstallAllTitle': '重新安裝所有 Marketplace',
   'plugin.page.reinstallAllMessage': '將清除所有快取、移除所有 Marketplace 並從原始來源重新安裝，所有 Plugin 都會被重新安裝。\n\n操作完成前請勿關閉此畫面。',
+  'plugin.page.reinstallAllWarning.before': '警告：',
+  'plugin.page.reinstallAllWarning.after': ' 的內容也會被清除。',
   'plugin.page.reinstallProgressTitle': '重新安裝進行中',
   'plugin.page.reinstallProgressCount': '目前進度：{current}/{total}',
   'plugin.page.reinstallProgressDetail': '當前項目：{detail}',

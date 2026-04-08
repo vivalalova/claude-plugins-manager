@@ -162,6 +162,21 @@ body {
   line-height: 1.5;
 }
 
+.confirm-dialog-detail {
+  margin-bottom: 20px;
+}
+
+.confirm-dialog-warning {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-errorForeground, #f44336));
+}
+
+.confirm-dialog-warning code {
+  color: inherit;
+}
+
 .confirm-dialog-actions {
   display: flex;
   gap: var(--gap-md);

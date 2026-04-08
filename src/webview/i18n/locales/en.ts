@@ -482,6 +482,8 @@ export const en = {
   'plugin.page.reinstallingAll': 'Reinstalling...',
   'plugin.page.reinstallAllTitle': 'Reinstall All Marketplaces',
   'plugin.page.reinstallAllMessage': 'This will clear the plugin cache, remove all marketplaces, and re-add them from their original sources. All plugins will be reinstalled.\n\nDo not close this panel until the operation completes.',
+  'plugin.page.reinstallAllWarning.before': 'Warning: the contents of ',
+  'plugin.page.reinstallAllWarning.after': ' will also be deleted.',
   'plugin.page.reinstallProgressTitle': 'Reinstall in Progress',
   'plugin.page.reinstallProgressCount': 'Step progress: {current}/{total}',
   'plugin.page.reinstallProgressDetail': 'Current item: {detail}',
