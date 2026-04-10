@@ -470,6 +470,8 @@ export const en = {
   'plugin.page.noPlugins': 'No plugins found',
   'plugin.page.noPluginsDesc': 'Add a marketplace first to discover and install plugins.',
   'plugin.page.addMarketplace': 'Add Marketplace',
+  'plugin.page.addMarketplacePlaceholder': 'Git URL, GitHub owner/repo, or local path',
+  'plugin.page.addMarketplaceHint': 'Private repos can use SSH URLs directly, for example git@github.com:owner/repo.git.',
   'plugin.page.updateAllMarketplaces': 'Update Marketplaces',
   'plugin.page.retry': 'Retry',
   'plugin.page.retryTranslation': 'Retry Translation',

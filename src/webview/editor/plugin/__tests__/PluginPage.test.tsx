@@ -216,6 +216,14 @@ describe('PluginPage — 核心流程', () => {
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path')).toBeTruthy();
       });
+
+      const input = screen.getByPlaceholderText('Git URL, GitHub owner/repo, or local path');
+      const hintId = input.getAttribute('aria-describedby');
+      expect(hintId).toBeTruthy();
+
+      const hint = document.getElementById(hintId!);
+      expect(hint).toBeTruthy();
+      expect(hint?.textContent).toContain('Private repos can use SSH URLs directly');
     });
 
     it('重新安裝確認對話框顯示 plugins/data 會被刪除的紅字警告', async () => {

@@ -12,7 +12,7 @@ npm run install:ext        # pnpm install → build → package VSIX → code --
 npm run watch              # concurrently watch extension + webview
 ```
 
-驗證順序：`npm run verify`（= typecheck → lint → check:schema → test → build）；部署前加 `install:ext`
+驗證/部署順序：有程式碼改動先 `npm run verify`（= typecheck → lint → check:schema → test → build），程式碼改動完成後一律 `npm run install:ext`
 
 ## 架構
 
@@ -99,7 +99,7 @@ https://json.schemastore.org/claude-code-settings.json
 ## 修改紀律
 
 - 多步修改被中途糾正 → 先**還原已改錯的部分**，再繼續正確方向；禁帶著錯誤狀態往前推
-- `verify` 通過後**必須** `npm run install:ext` 安裝到 VSCode，禁止只驗證不部署
+- 程式碼改動完成後**必須** `npm run install:ext` 安裝到 VSCode，禁止只驗證不部署
 
 ## 已知陷阱
 

@@ -28,6 +28,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'plugin.page.noPlugins': 'プラグインが見つかりません',
   'plugin.page.noPluginsDesc': 'まずマーケットプレイスを追加してプラグインを探しましょう。',
   'plugin.page.addMarketplace': 'マーケットプレイスを追加',
+  'plugin.page.addMarketplacePlaceholder': 'Git URL、GitHub owner/repo、またはローカルパス',
+  'plugin.page.addMarketplaceHint': 'プライベートリポジトリは SSH URL を直接使えます。例: git@github.com:owner/repo.git。',
   'plugin.page.updateAllMarketplaces': 'マーケットプレイスを更新',
   'plugin.page.clearSearch': '検索をクリア',
   'plugin.page.retry': '再試行',

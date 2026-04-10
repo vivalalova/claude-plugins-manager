@@ -53,6 +53,7 @@ function getReinstallPhaseLabel(
 export function PluginPage(): React.ReactElement {
   const { t } = useI18n();
   const { addToast } = useToast();
+  const addMarketplaceHintId = useId();
   const {
     plugins,
     orphaned,
@@ -523,14 +524,18 @@ export function PluginPage(): React.ReactElement {
             <input
               ref={addInputRef}
               className="input"
-              placeholder="Git URL, GitHub owner/repo, or local path"
+              placeholder={t('plugin.page.addMarketplacePlaceholder')}
               value={addSource}
               onChange={(e) => setAddSource(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !previewing && handleAdd()}
               disabled={adding || previewing}
+              aria-describedby={addMarketplaceHintId}
               autoFocus
             />
           </div>
+          <p className="settings-field-description" id={addMarketplaceHintId}>
+            {t('plugin.page.addMarketplaceHint')}
+          </p>
           <div className="confirm-dialog-actions">
             <button
               className="btn btn-secondary"

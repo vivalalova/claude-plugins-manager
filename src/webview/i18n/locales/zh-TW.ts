@@ -457,6 +457,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'plugin.page.noPlugins': '未找到外掛',
   'plugin.page.noPluginsDesc': '請先新增 Marketplace 以探索並安裝外掛。',
   'plugin.page.addMarketplace': '新增 Marketplace',
+  'plugin.page.addMarketplacePlaceholder': 'Git URL、GitHub owner/repo 或本機路徑',
+  'plugin.page.addMarketplaceHint': 'Private repo 可直接使用 SSH 連結，例如 git@github.com:owner/repo.git。',
   'plugin.page.updateAllMarketplaces': '更新 Marketplaces',
   'plugin.page.clearSearch': '清除搜尋',
   'plugin.page.retry': '重試',
