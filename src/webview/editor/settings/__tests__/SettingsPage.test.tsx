@@ -488,8 +488,8 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getByText('Add Rule'));
 
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[0], { target: { value: 'WebFetch' } });
+    const ruleInput = screen.getByPlaceholderText('e.g. WebFetch');
+    fireEvent.change(ruleInput, { target: { value: 'WebFetch' } });
     fireEvent.click(screen.getByText('Add Rule'));
 
     await waitFor(() => {
@@ -515,8 +515,8 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getByText('Add Rule'));
 
-    const inputs = screen.getAllByRole('textbox');
-    fireEvent.change(inputs[0], { target: { value: 'WebSearch' } });
+    const ruleInput = screen.getByPlaceholderText('e.g. WebFetch');
+    fireEvent.change(ruleInput, { target: { value: 'WebSearch' } });
     fireEvent.click(screen.getByText('Add Rule'));
 
     await waitFor(() => {

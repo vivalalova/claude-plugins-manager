@@ -579,3 +579,122 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
     </SettingsSectionWrapper>
   );
 }
+
+// ---------------------------------------------------------------------------
+// EnvFieldRenderer — for use in search results
+// ---------------------------------------------------------------------------
+
+export interface EnvFieldRendererProps {
+  envKey: string;
+  currentEnv: Record<string, string>;
+  scope: PluginScope;
+  onEnvChange: (updatedEnv: Record<string, string>) => void;
+  saving?: boolean;
+}
+
+export function EnvFieldRenderer({
+  envKey,
+  currentEnv,
+  scope,
+  onEnvChange,
+  saving = false,
+}: EnvFieldRendererProps): React.ReactElement | null {
+  const { t } = useI18n();
+  const knownVar = getKnownEnvVar(envKey);
+
+  const envOnSave = async (key: string, value: unknown): Promise<void> => {
+    const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
+    onEnvChange({ ...currentEnv, [key]: strVal });
+  };
+
+  const envOnDelete = async (key: string): Promise<void> => {
+    const { [key]: _, ...rest } = currentEnv;
+    onEnvChange(rest);
+  };
+
+  const getDescription = (key: string): string | null => {
+    const known = getKnownEnvVar(key);
+    if (!known) return null;
+    const i18nKey = `settings.env.knownVars.${key}.description` as Parameters<typeof t>[0];
+    const localized = t(i18nKey);
+    return localized !== i18nKey ? localized : null;
+  };
+
+  if (!knownVar) {
+    // Custom env var - shouldn't happen in search since we only index known vars
+    return null;
+  }
+
+  const envVal = currentEnv[envKey];
+  const desc = getDescription(envKey);
+
+  if (knownVar.valueType === Boolean) {
+    const boolVal = envVal !== undefined ? (envVal === '1' || envVal === 'true') : undefined;
+    const defaultBool = knownVar.default !== undefined
+      ? (knownVar.default === '1' || knownVar.default === 'true')
+      : undefined;
+    return (
+      <BooleanToggle
+        label={envKey}
+        description={desc ?? undefined}
+        value={boolVal}
+        settingKey={envKey}
+        defaultValue={defaultBool}
+        onSave={envOnSave}
+        onDelete={envOnDelete}
+      />
+    );
+  }
+
+  if (knownVar.valueType === Number) {
+    const numVal = envVal !== undefined ? Number(envVal) : undefined;
+    const defaultNum = knownVar.default !== undefined ? Number(knownVar.default) : undefined;
+    return (
+      <NumberSetting
+        label={envKey}
+        description={desc ?? undefined}
+        value={numVal}
+        placeholder={t('settings.env.valuePlaceholder')}
+        saveLabel={t('settings.common.save')}
+        clearLabel={t('settings.common.clear')}
+        settingKey={envKey}
+        scope={scope}
+        defaultValue={defaultNum}
+        onSave={envOnSave}
+        onDelete={envOnDelete}
+      />
+    );
+  }
+
+  // String type
+  const sensitive = knownVar.sensitive ?? isSensitiveKey(envKey);
+  if (sensitive) {
+    return (
+      <EnvSensitiveField
+        envKey={envKey}
+        knownVar={knownVar}
+        value={envVal}
+        scope={scope}
+        onSave={envOnSave}
+        onDelete={envOnDelete}
+        disabled={saving}
+      />
+    );
+  }
+
+  return (
+    <TextSetting
+      label={envKey}
+      description={desc ?? undefined}
+      value={envVal}
+      placeholder={t('settings.env.valuePlaceholder')}
+      saveLabel={t('settings.common.save')}
+      clearLabel={t('settings.common.clear')}
+      settingKey={envKey}
+      scope={scope}
+      defaultValue={knownVar.default}
+      onSave={envOnSave}
+      onDelete={envOnDelete}
+    />
+  );
+}
