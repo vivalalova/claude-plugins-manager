@@ -11,3 +11,4 @@ package-lock.json
 claude-code-settings-schema.json
 .agent/looping/.hook-debug.log
 .claude/settings.json
+.agents/session-learning/.hook-debug.log
