@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- Added automatic cleanup for removed marketplace plugins and stale installed-plugin records
+- Added one-click cleanup for unused cache directories from the Plugin page
+- Added "Reinstall All" for marketplaces, plus progress dialog and plugins data warning
+- Simplified the Plugin page action bar
+- Add Marketplace dialog now explains that private repos can use SSH URLs directly
+
 ## 0.2.1
 
 - Active filter now uses the primary color for clearer enabled-state recognition
