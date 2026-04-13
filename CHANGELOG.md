@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- Fixed dependency vulnerabilities and added XSS protection with DOMPurify sanitization
+
 ## 0.2.3
 
 - Added search functionality to Settings page
