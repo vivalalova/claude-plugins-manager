@@ -1,5 +1,6 @@
 import React, { useId, useMemo } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { DialogOverlay } from './DialogOverlay';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -27,9 +28,10 @@ const MULTI_TAG_FIELDS = new Set(['allowed-tools', 'agents']);
 /** Frontmatter 顯示順序（name/description 特殊處理，不在此列） */
 const META_FIELDS = ['model', 'context', 'allowed-tools', 'agents'];
 
-/** 將 markdown body 轉為 HTML */
+/** 將 markdown body 轉為 HTML（經 DOMPurify sanitize 防 XSS） */
 function renderMarkdown(md: string): string {
-  return marked.parse(md, { async: false, gfm: true, breaks: true }) as string;
+  const raw = marked.parse(md, { async: false, gfm: true, breaks: true }) as string;
+  return DOMPurify.sanitize(raw);
 }
 
 /**
