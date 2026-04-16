@@ -32,7 +32,7 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 | Category | Keys | 原因 |
 |----------|------|------|
-| managed-only | `allowManagedHooksOnly`、`allowManagedPermissionRulesOnly`、`allowManagedMcpServersOnly`、`strictKnownMarketplaces`、`blockedMarketplaces`、`pluginTrustMessage` | 企業管理員專用，一般使用者無法設定 |
+| managed-only | `allowManagedHooksOnly`、`allowManagedPermissionRulesOnly`、`allowManagedMcpServersOnly`、`allowedChannelPlugins`、`channelsEnabled`、`forceRemoteSettingsRefresh`、`strictKnownMarketplaces`、`blockedMarketplaces`、`pluginTrustMessage` | 企業管理員專用，一般使用者無法設定 |
 | plugin-internal | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` | 由 extension plugin/marketplace UI 管理 |
 | deprecated | `includeCoAuthoredBy` | 已被 `attribution` 取代 |
 | meta | `$schema` | JSON schema 參照，非設定值 |

@@ -31,7 +31,7 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 |----------|------|------|
 | user-facing | **同步**（按 surface-map 分 section） | 所有非下列類別的 key |
 | anti-direction | **同步到 AdvancedSection** | 啟用後違反使用者優化方向（低成本/高效率/高精度）的 key。目前：`alwaysThinkingEnabled`。判定準則見 `.claude/skills/update-settings-options/references/surface-map.md` |
-| managed-only | skip | `allowManagedHooksOnly`、`allowManagedPermissionRulesOnly`、`allowManagedMcpServersOnly`、`strictKnownMarketplaces`、`blockedMarketplaces`、`pluginTrustMessage` |
+| managed-only | skip | `allowManagedHooksOnly`、`allowManagedPermissionRulesOnly`、`allowManagedMcpServersOnly`、`allowedChannelPlugins`、`channelsEnabled`、`forceRemoteSettingsRefresh`、`strictKnownMarketplaces`、`blockedMarketplaces`、`pluginTrustMessage` |
 | plugin-internal | skip | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` |
 | deprecated | skip | `includeCoAuthoredBy`（replaced by `attribution`） |
 | meta | skip | `$schema` |
