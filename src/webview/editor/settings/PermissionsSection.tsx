@@ -15,6 +15,7 @@ const KNOWN_DEFAULT_MODES = [
   'acceptEdits',
   'plan',
   'dontAsk',
+  'auto',
   'bypassPermissions',
   'delegate',
 ] as const;
