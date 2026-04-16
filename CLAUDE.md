@@ -74,10 +74,10 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 
 | Section | 渲染模式 | 涵蓋欄位 |
 | --- | --- | --- |
-| GeneralSection | **全 schema-driven**（`getSectionFieldOrder('general')` loop） | effortLevel、language、availableModels、enableAllProjectMcpServers、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、alwaysThinkingEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
+| GeneralSection | **全 schema-driven**（`getSectionFieldOrder('general')` loop） | effortLevel、language、availableModels、includeGitInstructions、respectGitignore、fastMode、fastModePerSessionOptIn、autoMemoryEnabled、outputStyle、autoUpdatesChannel、cleanupPeriodDays |
 | DisplaySection | **schema-driven**（`getSectionFieldOrder('display')` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
-| AdvancedSection | **schema-driven**（`getSectionFieldOrder('advanced')` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements/modelOverrides/worktree 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight、claudeMdExcludes、modelOverrides、feedbackSurveyRate、worktree |
-| PermissionsSection | 手動（custom）；allowedMcpServers/deniedMcpServers 為 JSON TextSetting | permissions（allow/deny/ask/defaultMode/additionalDirectories）、enabledMcpjsonServers、disabledMcpjsonServers、allowedMcpServers、deniedMcpServers |
+| AdvancedSection | **schema-driven**（`getSectionFieldOrder('advanced')` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements/modelOverrides/worktree 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight、alwaysThinkingEnabled、claudeMdExcludes、modelOverrides、feedbackSurveyRate、worktree、autoMode、defaultShell |
+| PermissionsSection | 手動（custom）；allowedMcpServers/deniedMcpServers 為 JSON TextSetting | permissions（allow/deny/ask/defaultMode/additionalDirectories）、enableAllProjectMcpServers、enabledMcpjsonServers、disabledMcpjsonServers、allowedMcpServers、deniedMcpServers |
 | EnvSection | 手動（custom） | env（key-value map） |
 | HooksSection | **混合**：disableAllHooks/httpHookAllowedEnvVars/allowedHttpHookUrls 用 SchemaFieldRenderer；hooks 本體手動 | hooks（四種 type）、disableAllHooks、httpHookAllowedEnvVars、allowedHttpHookUrls |
 

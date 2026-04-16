@@ -3,7 +3,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { SettingLabelText, TagInput, TextSetting } from './components/SettingControls';
+import { BooleanToggle, SettingLabelText, TagInput, TextSetting } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
@@ -411,6 +411,17 @@ export function PermissionsSection({
         onSave={async (_key, value) => {
           updatePermissions({ ...perms, additionalDirectories: value as string[] });
         }}
+      />
+
+      {/* enableAllProjectMcpServers */}
+      <BooleanToggle
+        label={t('settings.permissions.enableAllProjectMcpServers.label')}
+        description={t('settings.permissions.enableAllProjectMcpServers.description')}
+        value={settings.enableAllProjectMcpServers}
+        settingKey="enableAllProjectMcpServers"
+        defaultValue={false}
+        onSave={onSave}
+        onDelete={onDelete}
       />
 
       {/* enabledMcpjsonServers */}

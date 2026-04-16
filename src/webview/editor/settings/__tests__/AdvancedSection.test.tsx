@@ -172,6 +172,48 @@ describe('AdvancedSection — skipWebFetchPreflight toggle', () => {
 });
 
 // ---------------------------------------------------------------------------
+// BooleanToggle — alwaysThinkingEnabled
+// ---------------------------------------------------------------------------
+
+describe('AdvancedSection — alwaysThinkingEnabled toggle', () => {
+  it('alwaysThinkingEnabled 未設定 → checkbox 未勾選', () => {
+    renderSection({});
+    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
+    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('alwaysThinkingEnabled=true → checkbox 勾選', () => {
+    renderSection({ alwaysThinkingEnabled: true });
+    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
+    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it('alwaysThinkingEnabled 未設定, toggle on → onSave("alwaysThinkingEnabled", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', true);
+    });
+  });
+
+  it('alwaysThinkingEnabled=true, toggle off → 值等於 default，呼叫 onDelete', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ alwaysThinkingEnabled: true }, onSave, onDelete);
+    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('alwaysThinkingEnabled');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // EnumDropdown 互動 — forceLoginMethod
 // ---------------------------------------------------------------------------
 

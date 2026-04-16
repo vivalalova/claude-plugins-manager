@@ -50,13 +50,11 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
     { key: 'effortLevel', default: 'high', controlType: String, options: ['high', 'medium', 'low'] as const },
     { key: 'language', controlType: String },
     { key: 'availableModels', controlType: Array },
-    { key: 'enableAllProjectMcpServers', default: false, controlType: Boolean },
     { key: 'includeGitInstructions', default: true, controlType: Boolean },
     { key: 'respectGitignore', default: true, controlType: Boolean },
     { key: 'fastMode', default: false, controlType: Boolean },
     { key: 'fastModePerSessionOptIn', default: false, controlType: Boolean },
     { key: 'autoMemoryEnabled', default: true, controlType: Boolean },
-    { key: 'alwaysThinkingEnabled', default: false, controlType: Boolean },
     { key: 'outputStyle', controlType: String },
     { key: 'autoUpdatesChannel', default: 'latest', controlType: String, options: ['stable', 'latest'] as const },
     { key: 'cleanupPeriodDays', default: 30, controlType: Number, min: 0, step: 1 },
@@ -88,6 +86,7 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
     { key: 'awsCredentialExport', controlType: String },
     { key: 'awsAuthRefresh', controlType: String },
     { key: 'skipWebFetchPreflight', default: false, controlType: Boolean },
+    { key: 'alwaysThinkingEnabled', default: false, controlType: Boolean },
     { key: 'claudeMdExcludes', controlType: Array },
     { key: 'modelOverrides', controlType: Object },
     { key: 'feedbackSurveyRate', controlType: Number, min: 0, max: 1, step: 0.01 },
@@ -98,6 +97,7 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
 
   // ── Permissions ──
   permissions: [
+    { key: 'enableAllProjectMcpServers', default: false, controlType: Boolean },
     { key: 'enabledMcpjsonServers', controlType: Array },
     { key: 'disabledMcpjsonServers', controlType: Array },
     { key: 'permissions', controlType: Object },

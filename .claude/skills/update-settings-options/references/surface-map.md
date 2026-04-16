@@ -4,10 +4,27 @@
 
 - `env` → `EnvSection`
 - `hooks`、`disableAllHooks` → `HooksSection`
-- `permissions`、`defaultMode`、`additionalDirectories`、`enabledMcpjsonServers`、`disabledMcpjsonServers` → `PermissionsSection`
+- `permissions`、`defaultMode`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers` → `PermissionsSection`
 - spinner、teammate、turn duration、progress bar、reduced motion → `DisplaySection`
 - model、effort、language、availableModels、updates、memory、cleanup、git-related behavior → `GeneralSection`
-- 其餘 key → `AdvancedSection`
+- anti-direction key（見下方）→ `AdvancedSection`
+- 其餘 key / 未定義歸屬 → `AdvancedSection`
+
+## Anti-direction 分類
+
+使用者優化方向：**低成本、高效率、高精度**。Anti-direction key 是啟用後違反上述方向的選項，一律放 `AdvancedSection`，使用者日常不需查看。
+
+### 判定準則
+
+1. **Anti-cost**：啟用後顯著增加 token 消耗 / API 費用（如強制 extended thinking）
+2. **Anti-efficiency**：增加不必要的操作摩擦或等待
+3. **Anti-user**：主要受益方為平台/廠商而非使用者
+
+### 目前 anti-direction keys
+
+| Key | 原 Section | Anti 原因 |
+|-----|-----------|-----------|
+| `alwaysThinkingEnabled` | general → advanced | Anti-cost：強制 extended thinking，token 消耗倍增 |
 
 ## Excluded categories
 

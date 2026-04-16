@@ -20,11 +20,12 @@ vi.mock('../../../vscode', () => ({
 const renderSection = (
   settings: Record<string, unknown> = {},
   onSave = vi.fn().mockResolvedValue(undefined),
+  onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <PermissionsSection scope={scope} settings={settings as any} onSave={onSave} />
+      <PermissionsSection scope={scope} settings={settings as any} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -43,10 +44,16 @@ describe('PermissionsSection — 渲染', () => {
 
     await waitFor(() => {
       expect(screen.getByText('(defaultMode)')).toBeTruthy();
+      expect(screen.getByText('(enableAllProjectMcpServers: false)')).toBeTruthy();
       expect(screen.getByText('(additionalDirectories)')).toBeTruthy();
       expect(screen.getByText('(enabledMcpjsonServers)')).toBeTruthy();
       expect(screen.getByText('(disabledMcpjsonServers)')).toBeTruthy();
     });
+  });
+
+  it('顯示 Enable All Project MCP Servers toggle', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Enable All Project MCP Servers')).toBeTruthy());
   });
 
   it('顯示 Additional Directories label', async () => {
@@ -352,6 +359,55 @@ describe('PermissionsSection — rule form 互動', () => {
 
     await waitFor(() => {
       expect(within(form).getByText('Rule already exists')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enableAllProjectMcpServers 互動
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — enableAllProjectMcpServers 互動', () => {
+  it('enableAllProjectMcpServers 未設定 → checkbox unchecked', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' }) as HTMLInputElement;
+      expect(cb.checked).toBe(false);
+    });
+  });
+
+  it('enableAllProjectMcpServers: true → checkbox checked', async () => {
+    renderSection({ enableAllProjectMcpServers: true });
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('toggle off→on → onSave("enableAllProjectMcpServers", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('enableAllProjectMcpServers', true);
+    });
+  });
+
+  it('toggle on→off → 值等於 default，呼叫 onDelete("enableAllProjectMcpServers")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enableAllProjectMcpServers: true }, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('enableAllProjectMcpServers');
       expect(onSave).not.toHaveBeenCalled();
     });
   });

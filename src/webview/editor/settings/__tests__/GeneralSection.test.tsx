@@ -96,9 +96,7 @@ describe('GeneralSection — 渲染', () => {
   it('所有必要 boolean toggle 都有 checkbox（語義斷言）', async () => {
     renderSection();
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'Enable All Project MCP Servers' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: 'Fast Mode' })).toBeTruthy();
-      expect(screen.getByRole('checkbox', { name: 'Always Thinking Enabled' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: 'Auto Memory' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' })).toBeTruthy();
     });
@@ -257,18 +255,6 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     });
 
     resolveToggle();
-  });
-
-  it('alwaysThinkingEnabled toggle off→on → 呼叫 onSave("alwaysThinkingEnabled", true)', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave);
-
-    await waitFor(() => screen.getByRole('checkbox', { name: 'Always Thinking Enabled' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Always Thinking Enabled' }));
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', true);
-    });
   });
 
   it('autoMemoryEnabled=true, toggle off → onSave("autoMemoryEnabled", false)', async () => {

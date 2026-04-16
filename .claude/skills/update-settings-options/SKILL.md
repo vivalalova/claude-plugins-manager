@@ -30,7 +30,8 @@ Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI：
 
 | Category | 處理 | Keys |
 |----------|------|------|
-| user-facing | **同步** | 所有非下列類別的 key |
+| user-facing | **同步**（按 surface-map 分 section） | 所有非下列類別的 key |
+| anti-direction | **同步到 AdvancedSection** | 啟用後違反使用者優化方向（低成本/高效率/高精度）的 key。目前：`alwaysThinkingEnabled`。判定準則見 `references/surface-map.md` |
 | managed-only | skip | `allowManagedHooksOnly`、`allowManagedPermissionRulesOnly`、`allowManagedMcpServersOnly`、`strictKnownMarketplaces`、`blockedMarketplaces`、`pluginTrustMessage` |
 | plugin-internal | skip | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` |
 | deprecated | skip | `includeCoAuthoredBy`（replaced by `attribution`） |
@@ -95,7 +96,9 @@ Schema store 是社群維護（[anthropics/claude-code#11795](https://github.com
 
 ### 3a. Key 分類
 
-每個 diff key 標記 category（參照上方 Key categories 表）。僅 `user-facing` 進入 Phase 4。
+每個 diff key 標記 category（參照上方 Key categories 表）。`user-facing` 與 `anti-direction` 進入 Phase 4。
+
+Anti-direction 判定：新 key 先評估是否符合 `references/surface-map.md` 的 anti-direction 準則（anti-cost / anti-efficiency / anti-user）。符合 → 標記 `anti-direction`，固定放 `AdvancedSection`。
 
 ### 3b. Hook 覆蓋檢查
 
