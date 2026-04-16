@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 import type { FlatFieldSchema } from '../../../../shared/claude-settings-schema';
-import { getSchemaDefault, getSchemaEnumOptions } from '../../../../shared/claude-settings-schema';
+import { getSchemaDefault, getSchemaEnumOptions, getValueSchemaEnumOptions, getValueSchemaNumberMeta } from '../../../../shared/claude-settings-schema';
 import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './SettingControls';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 
@@ -41,7 +41,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
       );
 
     case String: {
-      if (schema.options) {
+      if (getValueSchemaEnumOptions(schema.valueSchema)) {
         const options = getSchemaEnumOptions(settingKey);
         const hasDangerValues = schema.dangerValues && schema.dangerValues.length > 0;
         const enumOnSave = hasDangerValues
@@ -103,7 +103,8 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
       );
     }
 
-    case Number:
+    case Number: {
+      const numberMeta = getValueSchemaNumberMeta(schema.valueSchema);
       return (
         <NumberSetting
           label={tk('label')}
@@ -116,15 +117,16 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           defaultValue={getSchemaDefault<number>(settingKey)}
           overriddenScope={overriddenScope}
           scope={scope}
-          min={schema.min}
-          max={schema.max}
-          step={schema.step}
-          minError={schema.min !== undefined ? tc('minError', { min: schema.min }) : undefined}
-          maxError={schema.max !== undefined ? tc('maxError', { max: schema.max }) : undefined}
+          min={numberMeta?.min}
+          max={numberMeta?.max}
+          step={numberMeta?.step}
+          minError={numberMeta?.min !== undefined ? tc('minError', { min: numberMeta.min }) : undefined}
+          maxError={numberMeta?.max !== undefined ? tc('maxError', { max: numberMeta.max }) : undefined}
           onSave={onSave}
           onDelete={onDelete}
         />
       );
+    }
 
     case Array:
       return (

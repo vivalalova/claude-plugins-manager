@@ -51,20 +51,27 @@ describe('DisplaySection — 渲染', () => {
 
     await waitFor(() => {
       expect(screen.getByText('(teammateMode: auto)')).toBeTruthy();
+      expect(screen.getByText('(viewMode)')).toBeTruthy();
       expect(screen.getByText('(showTurnDuration: true)')).toBeTruthy();
+      expect(screen.getByText('(showThinkingSummaries: false)')).toBeTruthy();
+      expect(screen.getByText('(showClearContextOnPlanAccept: false)')).toBeTruthy();
       expect(screen.getByText('(spinnerTipsEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(terminalProgressBarEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
+      expect(screen.getByText('(voiceEnabled: false)')).toBeTruthy();
+      expect(screen.getByText('(editorMode: normal)')).toBeTruthy();
+      expect(screen.getByText('(autoConnectIde: false)')).toBeTruthy();
+      expect(screen.getByText('(autoInstallIdeExtension: true)')).toBeTruthy();
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
-  it('顯示 5 個 checkbox（4 boolean toggle + excludeDefault）', async () => {
+  it('顯示 10 個 checkbox（9 boolean toggle + excludeDefault）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(5);
+      expect(checkboxes.length).toBe(10);
     });
   });
 
@@ -88,6 +95,14 @@ describe('DisplaySection — 渲染', () => {
     await waitFor(() => expect(screen.getByText('Reduce Motion')).toBeTruthy());
   });
 
+  it('顯示 View Mode 與 Editor Mode dropdown', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText('View Mode')).toBeTruthy();
+      expect(screen.getByText('Editor Mode')).toBeTruthy();
+    });
+  });
+
   it('欄位按 schema 陣列順序渲染', async () => {
     const { container } = renderSection();
     await waitFor(() => {
@@ -106,6 +121,26 @@ describe('DisplaySection — 渲染', () => {
 // ---------------------------------------------------------------------------
 
 describe('DisplaySection — 驗收條件', () => {
+  it('showThinkingSummaries 未設定, 點擊 → onSave("showThinkingSummaries", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Show Thinking Summaries' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show Thinking Summaries' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('showThinkingSummaries', true);
+    });
+  });
+
+  it('autoInstallIdeExtension 未設定 → checkbox checked（反映預設值 true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Auto Install IDE Extension' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
   it('showTurnDuration 未設定 → checkbox checked（反映預設值 true）', async () => {
     renderSection({});
     await waitFor(() => {
@@ -218,6 +253,30 @@ describe('DisplaySection — 驗收條件', () => {
 // ---------------------------------------------------------------------------
 
 describe('DisplaySection — teammateMode dropdown', () => {
+  it('viewMode 未設定, 選擇 verbose → onSave("viewMode", "verbose")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'View Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'View Mode' }), { target: { value: 'verbose' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('viewMode', 'verbose');
+    });
+  });
+
+  it('editorMode="vim", 選擇空值 → onDelete("editorMode")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ editorMode: 'vim' }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Editor Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Editor Mode' }), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('editorMode');
+    });
+  });
+
   it('顯示 Teammate Mode dropdown', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText('Teammate Mode')).toBeTruthy());

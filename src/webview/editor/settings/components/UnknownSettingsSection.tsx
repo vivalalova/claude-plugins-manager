@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
-import { SETTINGS_FLAT_SCHEMA } from '../../../../shared/claude-settings-schema';
+import { getFlatFieldSchema } from '../../../../shared/claude-settings-schema';
 import { TextSetting } from './SettingControls';
 import { SettingsSectionWrapper } from './SettingsSectionWrapper';
 import { useI18n } from '../../../i18n/I18nContext';
@@ -46,7 +46,7 @@ export function UnknownSettingsSection({
   const unknownEntries = useMemo(
     () =>
       Object.entries(settings as Record<string, unknown>).filter(
-        ([key, v]) => !(key in SETTINGS_FLAT_SCHEMA) && v !== undefined && !HIDDEN_UNKNOWN_KEYS.has(key),
+        ([key, v]) => getFlatFieldSchema(key) === undefined && v !== undefined && !HIDDEN_UNKNOWN_KEYS.has(key),
       ),
     [settings],
   );

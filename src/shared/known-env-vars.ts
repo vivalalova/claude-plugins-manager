@@ -322,6 +322,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'limits',
     default: '32000',
   },
+  CLAUDE_CODE_MAX_CONTEXT_TOKENS: {
+    name: 'CLAUDE_CODE_MAX_CONTEXT_TOKENS',
+    valueType: Number,
+    category: 'limits',
+  },
 
   // --- feature ---
   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: {
@@ -484,10 +489,25 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDE_CODE_SKIP_PROMPT_HISTORY: {
+    name: 'CLAUDE_CODE_SKIP_PROMPT_HISTORY',
+    valueType: Boolean,
+    category: 'feature',
+  },
 
   // --- ui ---
+  CLAUDE_CODE_AUTO_CONNECT_IDE: {
+    name: 'CLAUDE_CODE_AUTO_CONNECT_IDE',
+    valueType: Boolean,
+    category: 'ui',
+  },
   CLAUDE_CODE_ACCESSIBILITY: {
     name: 'CLAUDE_CODE_ACCESSIBILITY',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_DISABLE_VIRTUAL_SCROLL: {
+    name: 'CLAUDE_CODE_DISABLE_VIRTUAL_SCROLL',
     valueType: Boolean,
     category: 'ui',
   },
@@ -516,11 +536,21 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'ui',
   },
+  CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL: {
+    name: 'CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL',
+    valueType: Boolean,
+    category: 'ui',
+  },
 
   // --- shell ---
   CLAUDE_CODE_SHELL: {
     name: 'CLAUDE_CODE_SHELL',
     valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_CODE_USE_POWERSHELL_TOOL: {
+    name: 'CLAUDE_CODE_USE_POWERSHELL_TOOL',
+    valueType: Boolean,
     category: 'shell',
   },
   CLAUDE_CODE_SHELL_PREFIX: {

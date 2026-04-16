@@ -46,6 +46,7 @@ afterEach(() => {
 describe('SchemaFieldRenderer', () => {
   it('boolean → renders BooleanToggle with label', async () => {
     renderField('fastMode', {
+      valueSchema: { kind: 'boolean' },
       default: false,
       section: 'general',
       controlType: Boolean,
@@ -58,10 +59,10 @@ describe('SchemaFieldRenderer', () => {
 
   it('String + options → renders EnumDropdown with options and notSet label', async () => {
     renderField('effortLevel', {
+      valueSchema: { kind: 'string', enum: ['high', 'medium', 'low'] as const },
       default: 'high',
       section: 'general',
       controlType: String,
-      options: ['high', 'medium', 'low'] as const,
     });
     await waitFor(() => {
       expect(screen.getByText('Effort Level')).toBeTruthy();
@@ -76,6 +77,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('String → renders TextSetting with placeholder and save/reset buttons', async () => {
     renderField('language', {
+      valueSchema: { kind: 'string' },
       section: 'general',
       controlType: String,
     }, 'zh-TW');
@@ -92,12 +94,10 @@ describe('SchemaFieldRenderer', () => {
 
   it('Number → renders NumberSetting with min/max/step', async () => {
     renderField('cleanupPeriodDays', {
+      valueSchema: { kind: 'number', min: 0, max: 365, step: 1 },
       default: 30,
       section: 'general',
       controlType: Number,
-      min: 0,
-      max: 365,
-      step: 1,
     });
     await waitFor(() => {
       expect(screen.getByText('Cleanup Period Days')).toBeTruthy();
@@ -111,6 +111,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('Array → renders TagInput with add button', async () => {
     renderField('availableModels', {
+      valueSchema: { kind: 'array', item: { kind: 'string' } },
       section: 'general',
       controlType: Array,
     }, []);
@@ -122,6 +123,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('Object → returns null', () => {
     const { container } = renderField('hooks', {
+      valueSchema: { kind: 'object', properties: {} },
       section: 'hooks',
       controlType: Object,
     });
@@ -131,6 +133,7 @@ describe('SchemaFieldRenderer', () => {
   it('boolean → onSave called on checkbox change', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderField('fastMode', {
+      valueSchema: { kind: 'boolean' },
       default: false,
       section: 'general',
       controlType: Boolean,
@@ -141,6 +144,7 @@ describe('SchemaFieldRenderer', () => {
 
   it('i18n key convention: settings.{section}.{key}.label', async () => {
     renderField('includeGitInstructions', {
+      valueSchema: { kind: 'boolean' },
       default: true,
       section: 'general',
       controlType: Boolean,
@@ -153,6 +157,7 @@ describe('SchemaFieldRenderer', () => {
   it('boolean → onDelete called on reset', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderField('fastMode', {
+      valueSchema: { kind: 'boolean' },
       default: false,
       section: 'general',
       controlType: Boolean,
@@ -185,6 +190,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
 
   it('overriddenScope=user → override badge 顯示', async () => {
     renderFieldWithOverride('fastMode', {
+      valueSchema: { kind: 'boolean' },
       default: false,
       section: 'general',
       controlType: Boolean,
@@ -197,6 +203,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
 
   it('overriddenScope=undefined → 無 override badge', async () => {
     renderFieldWithOverride('fastMode', {
+      valueSchema: { kind: 'boolean' },
       default: false,
       section: 'general',
       controlType: Boolean,
@@ -209,10 +216,10 @@ describe('SchemaFieldRenderer — override indicator', () => {
 
   it('enum + overriddenScope=user → override badge 顯示', async () => {
     renderFieldWithOverride('effortLevel', {
+      valueSchema: { kind: 'string', enum: ['high', 'medium', 'low'] as const },
       default: 'high',
       section: 'general',
       controlType: String,
-      options: ['high', 'medium', 'low'] as const,
     }, 'low', 'user');
     await waitFor(() => {
       expect(screen.getByText(/Overrides/i)).toBeTruthy();
@@ -223,10 +230,10 @@ describe('SchemaFieldRenderer — override indicator', () => {
 describe('SchemaFieldRenderer — Reset 按鈕', () => {
   it('enum：value 與 default 不同 → Reset 按鈕顯示', async () => {
     renderField('effortLevel', {
+      valueSchema: { kind: 'string', enum: ['high', 'medium', 'low'] as const },
       default: 'high',
       section: 'general',
       controlType: String,
-      options: ['high', 'medium', 'low'] as const,
     }, 'low');
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
@@ -235,10 +242,10 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('enum：value 未設定 → 無 Reset', async () => {
     renderField('effortLevel', {
+      valueSchema: { kind: 'string', enum: ['high', 'medium', 'low'] as const },
       default: 'high',
       section: 'general',
       controlType: String,
-      options: ['high', 'medium', 'low'] as const,
     }, undefined);
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /Reset/ })).toBeNull();
@@ -247,10 +254,10 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('enum：value 等於 default → 有 Reset（有值即顯示）', async () => {
     renderField('effortLevel', {
+      valueSchema: { kind: 'string', enum: ['high', 'medium', 'low'] as const },
       default: 'high',
       section: 'general',
       controlType: String,
-      options: ['high', 'medium', 'low'] as const,
     }, 'high');
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
@@ -260,10 +267,10 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
   it('enum：點擊 Reset → onDelete 被呼叫', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderField('effortLevel', {
+      valueSchema: { kind: 'string', enum: ['high', 'medium', 'low'] as const },
       default: 'high',
       section: 'general',
       controlType: String,
-      options: ['high', 'medium', 'low'] as const,
     }, 'low', vi.fn().mockResolvedValue(undefined), onDelete);
     fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith('effortLevel'));
@@ -271,6 +278,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('String：無 default → 有 Reset（有值即顯示）', async () => {
     renderField('language', {
+      valueSchema: { kind: 'string' },
       section: 'general',
       controlType: String,
     }, 'zh-TW');
@@ -281,11 +289,10 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('Number：value 與 default 不同 → Reset 顯示', async () => {
     renderField('cleanupPeriodDays', {
+      valueSchema: { kind: 'number', min: 0, step: 1 },
       default: 30,
       section: 'general',
       controlType: Number,
-      min: 0,
-      step: 1,
     }, 60);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
@@ -294,6 +301,7 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 
   it('Boolean：value=false default=false → 有 Reset（有值即顯示）', async () => {
     renderField('fastMode', {
+      valueSchema: { kind: 'boolean' },
       default: false,
       section: 'general',
       controlType: Boolean,
@@ -307,9 +315,9 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
 describe('SchemaFieldRenderer — dangerValues', () => {
   it('選 dangerValues 中的值 → 顯示 ConfirmDialog（含標題 Bypass Permissions）', async () => {
     renderField('defaultMode', {
+      valueSchema: { kind: 'string', enum: ['plan', 'bypassPermissions'] as const },
       section: 'general',
       controlType: String,
-      options: ['plan', 'bypassPermissions'] as const,
       dangerValues: ['bypassPermissions'] as const,
     });
     await waitFor(() => screen.getByRole('combobox'));
@@ -322,9 +330,9 @@ describe('SchemaFieldRenderer — dangerValues', () => {
   it('ConfirmDialog cancel → onSave 不被呼叫，dialog 關閉', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderField('defaultMode', {
+      valueSchema: { kind: 'string', enum: ['plan', 'bypassPermissions'] as const },
       section: 'general',
       controlType: String,
-      options: ['plan', 'bypassPermissions'] as const,
       dangerValues: ['bypassPermissions'] as const,
     }, undefined, onSave);
     await waitFor(() => screen.getByRole('combobox'));
@@ -340,9 +348,9 @@ describe('SchemaFieldRenderer — dangerValues', () => {
   it('ConfirmDialog confirm → onSave("defaultMode", "bypassPermissions") 被呼叫', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderField('defaultMode', {
+      valueSchema: { kind: 'string', enum: ['plan', 'bypassPermissions'] as const },
       section: 'general',
       controlType: String,
-      options: ['plan', 'bypassPermissions'] as const,
       dangerValues: ['bypassPermissions'] as const,
     }, undefined, onSave);
     await waitFor(() => screen.getByRole('combobox'));
@@ -357,9 +365,9 @@ describe('SchemaFieldRenderer — dangerValues', () => {
   it('非 dangerValues 的選項 → 直接呼叫 onSave，不出現 ConfirmDialog', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderField('defaultMode', {
+      valueSchema: { kind: 'string', enum: ['plan', 'bypassPermissions'] as const },
       section: 'general',
       controlType: String,
-      options: ['plan', 'bypassPermissions'] as const,
       dangerValues: ['bypassPermissions'] as const,
     }, undefined, onSave);
     await waitFor(() => screen.getByRole('combobox'));

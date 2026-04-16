@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
-import { SETTINGS_FLAT_SCHEMA, getSectionFieldOrder, type SettingsSection } from '../../../../shared/claude-settings-schema';
+import { getFlatFieldSchema, getSectionFieldOrder, type FlatFieldSchema, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { getOverriddenScope } from './SettingControls';
 import { SettingsSectionWrapper } from './SettingsSectionWrapper';
@@ -28,7 +28,7 @@ interface SchemaSectionProps extends SectionProps {
 }
 
 interface ResolvedSchemaFieldBindings {
-  schema: NonNullable<typeof SETTINGS_FLAT_SCHEMA[string]>;
+  schema: FlatFieldSchema;
   value: unknown;
   onSave: SectionProps['onSave'];
   onDelete: SectionProps['onDelete'];
@@ -45,7 +45,7 @@ export function getSchemaFieldBindings(
     onDelete,
   }: Pick<SectionProps, 'scope' | 'settings' | 'userSettings' | 'onSave' | 'onDelete'>,
 ): ResolvedSchemaFieldBindings | null {
-  const schema = SETTINGS_FLAT_SCHEMA[key];
+  const schema = getFlatFieldSchema(key) as FlatFieldSchema | undefined;
   if (!schema) return null;
 
   if (schema.nestedUnder) {
@@ -65,7 +65,7 @@ export function getSchemaFieldBindings(
         await onSave(parentKey, updated);
       },
       overriddenScope: getOverriddenScope(scope, parentUserSettings, key),
-    };
+    } as ResolvedSchemaFieldBindings;
   }
 
   return {
@@ -74,7 +74,7 @@ export function getSchemaFieldBindings(
     onSave,
     onDelete,
     overriddenScope: getOverriddenScope(scope, userSettings as Record<string, unknown>, key),
-  };
+  } as ResolvedSchemaFieldBindings;
 }
 
 export function SchemaSection({

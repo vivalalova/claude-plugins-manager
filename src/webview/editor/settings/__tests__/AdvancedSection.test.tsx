@@ -48,6 +48,8 @@ describe('AdvancedSection — 渲染', () => {
     'Force Login Method',
     'Force Login Org UUID',
     'Skip WebFetch Preflight',
+    'Disable Deep Link Registration',
+    'Disable Skill Shell Execution',
     'Attribution',
     'Status Line',
     'File Suggestion Command',
@@ -76,6 +78,8 @@ describe('AdvancedSection — 渲染', () => {
       expect(screen.getByText('(plansDirectory: ~/.claude/plans)')).toBeTruthy();
       expect(screen.getByText('(apiKeyHelper)')).toBeTruthy();
       expect(screen.getByText('(skipWebFetchPreflight: false)')).toBeTruthy();
+      expect(screen.getByText('(disableDeepLinkRegistration)')).toBeTruthy();
+      expect(screen.getByText('(disableSkillShellExecution: false)')).toBeTruthy();
     });
   });
 
@@ -167,6 +171,59 @@ describe('AdvancedSection — skipWebFetchPreflight toggle', () => {
     fireEvent.click(resetBtn);
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('skipWebFetchPreflight');
+    });
+  });
+});
+
+describe('AdvancedSection — new settings 互動', () => {
+  it('disableDeepLinkRegistration 未設定, 選擇 disable → onSave("disableDeepLinkRegistration", "disable")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Deep Link Registration' }), { target: { value: 'disable' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('disableDeepLinkRegistration', 'disable');
+    });
+  });
+
+  it('disableDeepLinkRegistration="disable", 選擇空值 → onDelete("disableDeepLinkRegistration")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ disableDeepLinkRegistration: 'disable' }, vi.fn(), onDelete);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Deep Link Registration' }), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('disableDeepLinkRegistration');
+    });
+  });
+
+  it('disableSkillShellExecution 未設定 → checkbox 未勾選', () => {
+    renderSection({});
+    const field = screen.getByText('Disable Skill Shell Execution').closest('.settings-field') as HTMLElement;
+    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it('disableSkillShellExecution 未設定, toggle on → onSave("disableSkillShellExecution", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    const field = screen.getByText('Disable Skill Shell Execution').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('disableSkillShellExecution', true);
+    });
+  });
+
+  it('disableSkillShellExecution=true, toggle off → onDelete("disableSkillShellExecution")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ disableSkillShellExecution: true }, vi.fn(), onDelete);
+    const field = screen.getByText('Disable Skill Shell Execution').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('disableSkillShellExecution');
     });
   });
 });

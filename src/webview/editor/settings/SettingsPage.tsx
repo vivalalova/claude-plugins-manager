@@ -10,7 +10,7 @@ import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
-import { SETTINGS_NAV_SECTIONS, CLAUDE_SETTINGS_SCHEMA, type SettingsSection } from '../../../shared/claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, type SettingsSection } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
@@ -23,6 +23,7 @@ import { getSchemaFieldBindings } from './components/SchemaSection';
 // ---------------------------------------------------------------------------
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
+const SETTINGS_NAV_SECTIONS = getSettingsSections();
 
 type SettingsNavItem = SettingsSection;
 
@@ -45,12 +46,14 @@ function buildSearchableFields(t: (key: Parameters<ReturnType<typeof useI18n>['t
   // Schema-driven fields
   for (const section of SETTINGS_NAV_SECTIONS) {
     for (const entry of CLAUDE_SETTINGS_SCHEMA[section]) {
+      const flatField = getFlatFieldSchema(entry.key);
       const labelKey = `settings.${section}.${entry.key}.label` as Parameters<typeof t>[0];
       const descKey = `settings.${section}.${entry.key}.description` as Parameters<typeof t>[0];
       const label = t(labelKey) ?? '';
       const description = t(descKey) ?? '';
-      const optionLabels: string[] | undefined = entry.options
-        ? (entry.options as readonly string[]).map(opt => {
+      const enumOptions = flatField ? getValueSchemaEnumOptions(flatField.valueSchema) : undefined;
+      const optionLabels: string[] | undefined = enumOptions
+        ? enumOptions.map(opt => {
             const optKey = `settings.${section}.${entry.key}.${opt}` as Parameters<typeof t>[0];
             return t(optKey) ?? opt;
           })

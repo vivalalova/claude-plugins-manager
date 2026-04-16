@@ -16,8 +16,11 @@ npm run watch
 
 ## 專案不變量
 
-- `src/shared/types.ts` 是 `ClaudeSettings` 與共用型別唯一來源，禁止在其他檔案重複定義。
-- `src/shared/claude-settings-schema.ts` 是 settings metadata 唯一來源。section 陣列順序就是 UI 渲染順序，enum 用 `String + options`，不要再加 `hidden` 逃生門。
+- `src/shared/types.ts` 放非 settings 共用型別；`ClaudeSettings` / `HookCommand` 只從 generated 檔轉匯出，禁止再手寫平行 interface。
+- `src/shared/claude-settings-schema.ts` 是 settings value shape + UI metadata 唯一來源。section 陣列順序就是 UI 渲染順序，enum 用 schema value + `String` control，不要再加 `hidden` 逃生門。
+- `controlType` 預設由 `valueSchema` 推導；只有 mixed union 或刻意走 custom editor 的欄位才顯式 override。
+- `options/min/max/step` 也是由 `valueSchema` 即時推導，不要在 schema entry 或 flat schema 手寫平行資料。
+- `src/shared/claude-settings-types.generated.ts` 是 schema 衍生物；build/typecheck/test/lint 會自動重生，禁止手改 generated 檔。
 - Settings UI 以 schema-driven 為主；`PermissionsSection` 與 object 型欄位 editor 保持手動實作，其餘優先走 `SchemaFieldRenderer`。
 - 已知 env vars 一律維護在 `src/shared/known-env-vars.ts`，不要在 UI 或 service 內各自維護清單。
 - Extension 和 Webview 的通訊契約只走 `protocol.ts` 定義的 request/response/push message。
@@ -25,11 +28,13 @@ npm run watch
 
 ## 設定頁開發
 
-- 新增 setting 時，同步更新 schema、`ClaudeSettings`、i18n，缺一不可。
+- 新增 setting 時，同步更新 schema、對應 editor/i18n，然後重生 settings generated types；不要再手動補 `ClaudeSettings` / `HookCommand`。
 - 沒有自然落點的 user-facing key 直接放 `advanced`。
 - `controlType: Object` 的欄位在對應 section 內手動渲染，不要硬塞進通用 renderer。
 - 實作設定頁新功能前，先查 JSON Schema：
   [claude-code-settings.json](https://json.schemastore.org/claude-code-settings.json)
+- SchemaStore 可能落後官方 docs；同步 settings 時一定要再交叉比對
+  [code.claude.com/docs/en/settings](https://code.claude.com/docs/en/settings)
 - 同步 Claude settings docs 變更回 repo 前，先讀
   [.claude/skills/update-settings-options/SKILL.md](/Users/lova/git/extensions/claude-plugins/.claude/skills/update-settings-options/SKILL.md)
 

@@ -20,7 +20,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 - **official cross-check**: 官方 docs `code.claude.com/docs/en/settings` + CHANGELOG（每次執行檢查是否有 schema store 遺漏）
 - **supplementary**: `context7` `/websites/code_claude`（補充描述/context，≤3 queries，含 official discovery）
 - **fail-fast**: schema store 失敗 → 直接報錯結束，不 fallback
-- **secondary**: `src/shared/types.ts`、現有 section 實作；只補 literal type、default、shape
+- **secondary**: 現有 section 實作、`src/shared/known-env-vars.ts`、i18n/tests；repo 僅用來比對 render path / 文案 / env registry drift
 - 衝突優先序：official schema（如有）> schema store > official docs > repo；輸出必列衝突點
 
 ## Key categories
@@ -83,9 +83,9 @@ Schema store 是社群維護（[anthropics/claude-code#11795](https:/用 github 
 
 單一 Explore agent 掃描 repo 現狀：
 
-- `src/shared/types.ts` — ClaudeSettings interface 所有欄位
-- `src/shared/claude-settings-schema.ts` — schema definitions（controlType 用原生型別 + options/default）
+- `src/shared/claude-settings-schema.ts` — settings single source（完整 value shape + controlType/default/enum/section；controlType、options、number meta 先自動推導，必要時才 override）
 - `src/shared/claude-settings-schema.ts` 的陣列順序 — UI 渲染順序；沒有 `hidden` 逃生門，沒有自然落點的 user-facing key 直接放 `advanced`
+- `src/shared/claude-settings-types.generated.ts` — schema 衍生型別；build/typecheck/test/lint 會自動重生，只驗證 drift，禁止手改
 - `src/shared/known-env-vars.ts` — KNOWN_ENV_VARS registry（valueType 用原生型別）
 - `src/webview/i18n/locales/en.ts` — i18n key 完整性
 
@@ -102,7 +102,7 @@ Anti-direction 判定：新 key 先評估是否符合 `.claude/skills/update-set
 ### 3b. Hook 覆蓋檢查
 
 - hook event types：比對 schema `hooks.properties.*` vs repo HooksSection 支援（動態 `Object.keys()` 則自動相容）
-- hook command types：比對 schema `$defs.hookCommand` vs repo `HookCommand` type union
+- hook command types：比對 schema `$defs.hookCommand` vs repo schema-derived `HookCommand` type union
 
 ### 3c. Env vars registry gap
 
@@ -126,12 +126,12 @@ Source 欄位：`schema` = schema store、`docs-only` = 官方 docs 有但 schem
 
 依序執行（參照 `references/` 決策）：
 
-1. `src/shared/types.ts` — 增刪改 ClaudeSettings 欄位
-2. `src/shared/claude-settings-schema.ts` — 增刪改 schema entry
+1. `src/shared/claude-settings-schema.ts` — 增刪改 schema entry / value shape
+2. `npm run generate:settings-types` — 顯式重生 `src/shared/claude-settings-types.generated.ts`（CI / 本機 build/typecheck/test/lint 也會自動跑）
 3. `src/shared/claude-settings-schema.ts` — 新 key 加入對應 section 陣列（位置即渲染順序；沒有自然落點就放 `advanced`）
 4. Section 元件 — 依 `.claude/skills/update-settings-options/references/surface-map.md` 分配，依 `.claude/skills/update-settings-options/references/editor-patterns.md` 選 control
 5. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys
-6. Tests — 對應 section test 檔
+6. Tests — 對應 section test 檔 + schema drift / inference tests
 7. `CLAUDE.md` — settings 分區表 + 陷阱
 8. `src/shared/known-env-vars.ts` — 增刪改 env var entries
 9. i18n — 增刪 `settings.env.knownVars.*` + `settings.env.category.*` keys
@@ -139,12 +139,13 @@ Source 欄位：`schema` = schema store、`docs-only` = 官方 docs 有但 schem
 
 ## Hard checklist
 
-- 新增 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
+- 新增 key：schema 陣列正確位置 + value shape + render path + save/delete/toggle regression test
 - docs 有 default：補 key hint / default hint
 - 刪除 key：移除 first-party support，不清使用者 settings 檔
-- object shape 不明：放 AdvancedSection，保守 type
+- object shape 不明：放 AdvancedSection，保守 schema
 - 不新開 section
-- hook 變更：確認 HookCommand type union + hook event types 對齊
+- hook 變更：確認 schema-derived `HookCommand` type union + hook event types 對齊
+- generated types drift：`npm run check:schema` 必須過
 
 ## Verification
 

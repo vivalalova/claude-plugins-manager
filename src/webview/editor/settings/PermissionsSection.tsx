@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, TagInput, TextSetting } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, TagInput, TextSetting } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
@@ -355,6 +355,39 @@ export function PermissionsSection({
         value={settings.enableAllProjectMcpServers}
         settingKey="enableAllProjectMcpServers"
         defaultValue={false}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <EnumDropdown
+        label={t('settings.permissions.disableAutoMode.label')}
+        description={t('settings.permissions.disableAutoMode.description')}
+        value={settings.disableAutoMode}
+        knownValues={['disable']}
+        knownLabels={{ disable: t('settings.permissions.disableAutoMode.disable') }}
+        notSetLabel={t('settings.permissions.disableAutoMode.notSet')}
+        unknownTemplate={t('settings.permissions.disableAutoMode.unknown')}
+        settingKey="disableAutoMode"
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <BooleanToggle
+        label={t('settings.permissions.skipDangerousModePermissionPrompt.label')}
+        description={t('settings.permissions.skipDangerousModePermissionPrompt.description')}
+        value={settings.skipDangerousModePermissionPrompt}
+        settingKey="skipDangerousModePermissionPrompt"
+        defaultValue={false}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+
+      <BooleanToggle
+        label={t('settings.permissions.useAutoModeDuringPlan.label')}
+        description={t('settings.permissions.useAutoModeDuringPlan.description')}
+        value={settings.useAutoModeDuringPlan}
+        settingKey="useAutoModeDuringPlan"
+        defaultValue={true}
         onSave={onSave}
         onDelete={onDelete}
       />

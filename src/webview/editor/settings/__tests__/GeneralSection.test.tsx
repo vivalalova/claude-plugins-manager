@@ -58,13 +58,16 @@ describe('GeneralSection — 渲染', () => {
 
     await waitFor(() => {
       expect(screen.getByText('(model)')).toBeTruthy();
+      expect(screen.getByText('(agent)')).toBeTruthy();
       expect(screen.getByText('(effortLevel: high)')).toBeTruthy();
       expect(screen.getByText('(language)')).toBeTruthy();
       expect(screen.getByText('(availableModels)')).toBeTruthy();
       expect(screen.getByText('(includeGitInstructions: true)')).toBeTruthy();
       expect(screen.getByText('(fastMode: false)')).toBeTruthy();
+      expect(screen.getByText('(autoMemoryDirectory)')).toBeTruthy();
       expect(screen.getByText('(cleanupPeriodDays: 30)')).toBeTruthy();
       expect(screen.getByText('(autoUpdatesChannel: latest)')).toBeTruthy();
+      expect(screen.getByText('(minimumVersion)')).toBeTruthy();
     });
   });
 
@@ -91,6 +94,15 @@ describe('GeneralSection — 渲染', () => {
   it('顯示 Output Style 欄位', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText('Output Style')).toBeTruthy());
+  });
+
+  it('顯示 Agent、Auto Memory Directory、Minimum Version 欄位', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText('Agent')).toBeTruthy();
+      expect(screen.getByText('Auto Memory Directory')).toBeTruthy();
+      expect(screen.getByText('Minimum Version')).toBeTruthy();
+    });
   });
 
   it('availableModels 為空 → 顯示 empty placeholder', async () => {
@@ -127,6 +139,9 @@ describe('GeneralSection — 渲染', () => {
       expect(screen.getByText(/Restrict available models/i)).toBeTruthy();
       // fastMode description
       expect(screen.getByText(/Faster output speed/i)).toBeTruthy();
+      expect(screen.getByText(/named subagent/i)).toBeTruthy();
+      expect(screen.getByText(/auto memory storage/i)).toBeTruthy();
+      expect(screen.getByText(/downgrading below this version/i)).toBeTruthy();
     });
   });
 
@@ -596,6 +611,47 @@ describe('GeneralSection — TextSetting 互動', () => {
     await waitFor(() => {
       const input = screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement;
       expect(input.value).toBe('ja');
+    });
+  });
+
+  it('agent 未設定, 輸入值後點擊 Save → 呼叫 onSave("agent", trimmed)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. code-reviewer'));
+    const field = screen.getByPlaceholderText('e.g. code-reviewer').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. code-reviewer'), { target: { value: '  code-reviewer  ' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('agent', 'code-reviewer');
+    });
+  });
+
+  it('autoMemoryDirectory 已設定時點擊 Reset → 呼叫 onDelete("autoMemoryDirectory")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ autoMemoryDirectory: '~/memory' }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. ~/my-memory-dir'));
+    const field = screen.getByPlaceholderText('e.g. ~/my-memory-dir').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('autoMemoryDirectory');
+    });
+  });
+
+  it('minimumVersion 未設定, 輸入值後點擊 Save → 呼叫 onSave("minimumVersion", trimmed)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. 2.1.85'));
+    const field = screen.getByPlaceholderText('e.g. 2.1.85').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. 2.1.85'), { target: { value: ' 2.1.85 ' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('minimumVersion', '2.1.85');
     });
   });
 });
