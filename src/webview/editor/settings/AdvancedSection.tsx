@@ -72,6 +72,22 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 onDelete={async () => onDelete('worktree')}
               />
             );
+          case 'autoMode':
+            return (
+              <TextSetting
+                label={t('settings.advanced.autoMode.label')}
+                description={t('settings.advanced.autoMode.description')}
+                value={settings.autoMode ? JSON.stringify(settings.autoMode) : undefined}
+                placeholder={t('settings.advanced.autoMode.placeholder')}
+                saveLabel={t('settings.advanced.autoMode.save')}
+                clearLabel={t('settings.advanced.autoMode.clear')}
+                settingKey="autoMode"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('autoMode', JSON.parse(value as string))}
+                onDelete={async () => onDelete('autoMode')}
+              />
+            );
           default:
             return null;
         }

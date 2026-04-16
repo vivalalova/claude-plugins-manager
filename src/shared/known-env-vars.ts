@@ -93,6 +93,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'auth',
     sensitive: true,
   },
+  CLAUDE_CODE_CERT_STORE: {
+    name: 'CLAUDE_CODE_CERT_STORE',
+    valueType: String,
+    category: 'auth',
+  },
   ANTHROPIC_BASE_URL: {
     name: 'ANTHROPIC_BASE_URL',
     valueType: String,
@@ -186,6 +191,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_USE_VERTEX: {
     name: 'CLAUDE_CODE_USE_VERTEX',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_USE_MANTLE: {
+    name: 'CLAUDE_CODE_USE_MANTLE',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_SKIP_MANTLE_AUTH: {
+    name: 'CLAUDE_CODE_SKIP_MANTLE_AUTH',
     valueType: Boolean,
     category: 'provider',
   },
@@ -458,6 +473,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
     default: '1',
+  },
+  CLAUDE_CODE_SIMPLE: {
+    name: 'CLAUDE_CODE_SIMPLE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_PERFORCE_MODE: {
+    name: 'CLAUDE_CODE_PERFORCE_MODE',
+    valueType: Boolean,
+    category: 'feature',
   },
 
   // --- ui ---

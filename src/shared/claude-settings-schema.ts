@@ -92,6 +92,8 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
     { key: 'modelOverrides', controlType: Object },
     { key: 'feedbackSurveyRate', controlType: Number, min: 0, max: 1, step: 0.01 },
     { key: 'worktree', controlType: Object },
+    { key: 'autoMode', controlType: Object },
+    { key: 'defaultShell', controlType: String, options: ['bash', 'powershell'] as const },
   ],
 
   // ── Permissions ──

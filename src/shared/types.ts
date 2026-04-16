@@ -349,6 +349,10 @@ export interface ClaudeSettings {
   allowedHttpHookUrls?: string[];
   /** Worktree session 設定。對應 docs: worktree */
   worktree?: { sparsePaths?: string[] };
+  /** Auto mode classifier 規則：自訂 environment/allow/soft_deny。對應 docs: autoMode */
+  autoMode?: { environment?: string[]; allow?: string[]; soft_deny?: string[] };
+  /** `!` 指令預設 shell（"bash" 或 "powershell"）。對應 docs: defaultShell */
+  defaultShell?: string;
 }
 
 /** 翻譯目標語言 allowlist（前後端共用） */
