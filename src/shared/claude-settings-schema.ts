@@ -30,6 +30,10 @@ export interface SettingFieldSchema {
   step?: number;
   /** true = 不渲染於 schema-driven loop（CLI 管理或手動渲染） */
   hidden?: boolean;
+  /** 巢狀欄位：該 key 實際位於 settings[nestedUnder][key]（例：defaultMode 在 permissions.defaultMode） */
+  nestedUnder?: string;
+  /** 需要確認對話框的危險值（選擇這些值前需使用者確認） */
+  dangerValues?: readonly string[];
 }
 
 /** Schema 陣列元素 — SettingFieldSchema + key 識別 */
@@ -47,6 +51,9 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
   // ── General ──
   general: [
     { key: 'model', controlType: String, hidden: true },  // CLI 管理，UI 不暴露
+    { key: 'defaultMode', controlType: String, nestedUnder: 'permissions',
+      options: ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const,
+      dangerValues: ['bypassPermissions'] as const },
     { key: 'effortLevel', default: 'high', controlType: String, options: ['high', 'medium', 'low'] as const },
     { key: 'language', controlType: String },
     { key: 'availableModels', controlType: Array },

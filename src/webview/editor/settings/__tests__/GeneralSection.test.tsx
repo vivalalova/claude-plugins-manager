@@ -125,7 +125,7 @@ describe('GeneralSection — 渲染', () => {
     });
   });
 
-  it('欄位按 schema 陣列順序渲染', async () => {
+  it('欄位按 schema 陣列順序渲染（含 defaultMode）', async () => {
     const { container } = renderSection();
     await waitFor(() => {
       const hints = container.querySelectorAll('.settings-key-hint');
@@ -133,7 +133,8 @@ describe('GeneralSection — 渲染', () => {
         const match = el.textContent?.match(/^\((\w+)/);
         return match?.[1] ?? '';
       }).filter(Boolean);
-      expect(keys).toEqual([...getSectionFieldOrder('general')]);
+      // defaultMode 已是 general section schema 第一個非 hidden 欄位
+      expect(keys).toEqual(getSectionFieldOrder('general'));
     });
   });
 
@@ -353,8 +354,9 @@ describe('GeneralSection — EnumDropdown 互動', () => {
   it('effortLevel 未設定 → select value 為空', async () => {
     renderSection({});
     await waitFor(() => {
+      // selects[0] = defaultMode, selects[1] = effortLevel
       const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      expect(selects[0].value).toBe('');
+      expect(selects[1].value).toBe('');
     });
   });
 
@@ -362,7 +364,7 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     renderSection({ effortLevel: 'high' });
     await waitFor(() => {
       const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      expect(selects[0].value).toBe('high');
+      expect(selects[1].value).toBe('high');
     });
   });
 
@@ -371,7 +373,7 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     renderSection({}, onSave);
 
     await waitFor(() => screen.getAllByRole('combobox'));
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'medium' } });
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'medium' } });
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('effortLevel', 'medium');
@@ -383,7 +385,7 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     renderSection({ effortLevel: 'high' }, vi.fn(), onDelete);
 
     await waitFor(() => screen.getAllByRole('combobox'));
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '' } });
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '' } });
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('effortLevel');
@@ -776,6 +778,80 @@ describe('GeneralSection — NumberSetting 互動', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('cleanupPeriodDays', 0);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// defaultMode（nested under permissions）互動
+// ---------------------------------------------------------------------------
+
+describe('GeneralSection — defaultMode（nested under permissions）', () => {
+  it('顯示 Default Mode 欄位', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Default Mode')).toBeTruthy());
+  });
+
+  it('settings.permissions.defaultMode = "plan" → select 顯示 plan', async () => {
+    renderSection({ permissions: { defaultMode: 'plan' } });
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Default Mode' }) as HTMLSelectElement;
+      expect(select.value).toBe('plan');
+    });
+  });
+
+  it('選 "auto" → onSave("permissions", { defaultMode: "auto" })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'auto' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { defaultMode: 'auto' });
+    });
+  });
+
+  it('現有 permissions 有 allow → 選 "plan" → merge 不破壞其他欄位', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { allow: ['Bash'], defaultMode: 'default' } }, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'plan' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash'], defaultMode: 'plan' });
+    });
+  });
+
+  it('選 "not set"（""）→ onSave("permissions", { ...perms, 不含 defaultMode })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { defaultMode: 'plan', allow: ['Bash'] } }, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: '' } });
+    await waitFor(() => {
+      const [key, value] = onSave.mock.calls[0] as [string, Record<string, unknown>];
+      expect(key).toBe('permissions');
+      expect(value).not.toHaveProperty('defaultMode');
+      expect(value).toHaveProperty('allow', ['Bash']);
+    });
+  });
+
+  it('選 bypassPermissions → 顯示 ConfirmDialog，取消不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'bypassPermissions' } });
+    await waitFor(() => screen.getByText('Bypass Permissions'));
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(onSave).not.toHaveBeenCalled());
+  });
+
+  it('選 bypassPermissions → 確認後 onSave("permissions", { defaultMode: "bypassPermissions" })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'bypassPermissions' } });
+    await waitFor(() => screen.getByText('Bypass Permissions'));
+    fireEvent.click(screen.getByText('Confirm'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { defaultMode: 'bypassPermissions' });
     });
   });
 });

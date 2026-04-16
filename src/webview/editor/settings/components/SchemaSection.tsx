@@ -46,10 +46,36 @@ export function SchemaSection({
       {fieldOrder.map((key) => {
         const schema = SETTINGS_FLAT_SCHEMA[key];
         if (!schema) return null;
-        const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
+
+        // 處理巢狀欄位（nestedUnder）：從父物件讀取，寫入時 merge 回父物件
+        let value: unknown;
+        let fieldOnSave: SectionProps['onSave'];
+        let fieldOnDelete: SectionProps['onDelete'];
+        let overriddenScope: PluginScope | undefined;
+
+        if (schema.nestedUnder) {
+          const parentKey = schema.nestedUnder;
+          const parent = ((settings as Record<string, unknown>)[parentKey] ?? {}) as Record<string, unknown>;
+          value = parent[key];
+          fieldOnSave = async (_k: string, newValue: unknown) => {
+            await onSave(parentKey, { ...parent, [key]: newValue });
+          };
+          fieldOnDelete = async (_k: string) => {
+            const updated = { ...parent };
+            delete updated[key];
+            await onSave(parentKey, updated);
+          };
+          const parentUserSettings = ((userSettings as Record<string, unknown> | undefined)?.[parentKey] ?? {}) as Record<string, unknown>;
+          overriddenScope = getOverriddenScope(scope, parentUserSettings, key);
+        } else {
+          value = (settings as Record<string, unknown>)[key];
+          fieldOnSave = onSave;
+          fieldOnDelete = onDelete;
+          overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
+        }
 
         if (schema.controlType === Object) {
-          const custom = renderCustom?.(key, { scope, settings, overriddenScope, onSave, onDelete });
+          const custom = renderCustom?.(key, { scope, settings, overriddenScope, onSave: fieldOnSave, onDelete: fieldOnDelete });
           if (custom !== undefined) return <React.Fragment key={key}>{custom}</React.Fragment>;
           console.warn(`[SchemaSection] Unhandled custom key: ${key}`);
           return null;
@@ -60,11 +86,11 @@ export function SchemaSection({
             key={key}
             settingKey={key}
             schema={schema}
-            value={(settings as Record<string, unknown>)[key]}
+            value={value}
             scope={scope}
             overriddenScope={overriddenScope}
-            onSave={onSave}
-            onDelete={onDelete}
+            onSave={fieldOnSave}
+            onDelete={fieldOnDelete}
           />
         );
       })}

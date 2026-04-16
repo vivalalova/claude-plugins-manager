@@ -29,8 +29,9 @@ describe('claude-settings-schema', () => {
     expect(missing).toEqual([]);
   });
 
-  it('schema 不含 ClaudeSettings 以外的多餘欄位', () => {
-    const extra = [...schemaKeys].filter((k) => !typesKeys.has(k));
+  it('schema 不含 ClaudeSettings 以外的多餘欄位（nestedUnder 欄位除外）', () => {
+    // nestedUnder 欄位（如 defaultMode）位於父物件內，不是頂層 ClaudeSettings key
+    const extra = [...schemaKeys].filter((k) => !typesKeys.has(k) && !SETTINGS_FLAT_SCHEMA[k]?.nestedUnder);
     expect(extra).toEqual([]);
   });
 
@@ -40,10 +41,10 @@ describe('claude-settings-schema', () => {
     }
   });
 
-  it('schema 新增 key → 測試偵測到 drift', () => {
+  it('schema 新增 key → 測試偵測到 drift（nestedUnder 欄位除外）', () => {
     const extendedFlat = { ...SETTINGS_FLAT_SCHEMA, testKey: { section: 'general' as const, controlType: String } };
     const extendedKeys = new Set(Object.keys(extendedFlat));
-    const extra = [...extendedKeys].filter((k) => !typesKeys.has(k));
+    const extra = [...extendedKeys].filter((k) => !typesKeys.has(k) && !extendedFlat[k]?.nestedUnder);
     expect(extra).toEqual(['testKey']);
   });
 

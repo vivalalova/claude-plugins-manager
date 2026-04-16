@@ -39,6 +39,7 @@ interface SearchableField {
   label: string;
   description: string;
   isEnvVar?: boolean;
+  optionLabels?: string[];
 }
 
 function buildSearchableFields(t: (key: Parameters<ReturnType<typeof useI18n>['t']>[0]) => string): SearchableField[] {
@@ -53,11 +54,18 @@ function buildSearchableFields(t: (key: Parameters<ReturnType<typeof useI18n>['t
       const descKey = `settings.${section}.${entry.key}.description` as Parameters<typeof t>[0];
       const label = t(labelKey) ?? '';
       const description = t(descKey) ?? '';
+      const optionLabels: string[] | undefined = entry.options
+        ? (entry.options as readonly string[]).map(opt => {
+            const optKey = `settings.${section}.${entry.key}.${opt}` as Parameters<typeof t>[0];
+            return t(optKey) ?? opt;
+          })
+        : undefined;
       fields.push({
         key: entry.key,
         section,
         label,
         description,
+        optionLabels,
       });
     }
   }
@@ -83,7 +91,8 @@ function matchesSearch(field: SearchableField, query: string): boolean {
   return (
     field.key.toLowerCase().includes(q) ||
     (field.label?.toLowerCase().includes(q) ?? false) ||
-    (field.description?.toLowerCase().includes(q) ?? false)
+    (field.description?.toLowerCase().includes(q) ?? false) ||
+    (field.optionLabels?.some(l => l.toLowerCase().includes(q)) ?? false)
   );
 }
 
@@ -414,7 +423,28 @@ export function SettingsPage(): React.ReactElement {
 
                     // Schema field
                     const schema = SETTINGS_FLAT_SCHEMA[field.key];
-                    if (!schema || schema.controlType === Object) return null;
+                    if (!schema) return null;
+
+                    // Object type (custom control) — show navigate-to-section card
+                    if (schema.controlType === Object) {
+                      const sectionLabel = t(`settings.nav.${field.section}` as Parameters<typeof t>[0]);
+                      return (
+                        <div key={field.key} className="settings-search-result">
+                          <span className="settings-search-result-section">{sectionLabel}</span>
+                          <div className="settings-field">
+                            <label className="settings-label">{field.label || field.key}</label>
+                            {field.description && <p className="settings-field-description">{field.description}</p>}
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => { setSearchQuery(''); setActiveNav(field.section as SettingsNavItem); }}
+                            >
+                              {sectionLabel} →
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, field.key);
                     return (
                       <div key={field.key} className="settings-search-result">

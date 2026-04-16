@@ -67,9 +67,9 @@ describe('SchemaFieldRenderer', () => {
       expect(screen.getByText('Effort Level')).toBeTruthy();
       const select = screen.getByRole('combobox');
       expect(select).toBeTruthy();
-      expect(screen.getByText('High')).toBeTruthy();
-      expect(screen.getByText('Medium')).toBeTruthy();
-      expect(screen.getByText('Low')).toBeTruthy();
+      expect(screen.getByText('high')).toBeTruthy();
+      expect(screen.getByText('medium')).toBeTruthy();
+      expect(screen.getByText('low')).toBeTruthy();
       expect(screen.getByText('— not set —')).toBeTruthy();
     });
   });
@@ -300,5 +300,72 @@ describe('SchemaFieldRenderer — Reset 按鈕', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();
     });
+  });
+});
+
+describe('SchemaFieldRenderer — dangerValues', () => {
+  it('選 dangerValues 中的值 → 顯示 ConfirmDialog（含標題 Bypass Permissions）', async () => {
+    renderField('defaultMode', {
+      section: 'general',
+      controlType: String,
+      options: ['plan', 'bypassPermissions'] as const,
+      dangerValues: ['bypassPermissions'] as const,
+    });
+    await waitFor(() => screen.getByRole('combobox'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bypassPermissions' } });
+    await waitFor(() => {
+      expect(screen.getByText('Bypass Permissions')).toBeTruthy();
+    });
+  });
+
+  it('ConfirmDialog cancel → onSave 不被呼叫，dialog 關閉', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderField('defaultMode', {
+      section: 'general',
+      controlType: String,
+      options: ['plan', 'bypassPermissions'] as const,
+      dangerValues: ['bypassPermissions'] as const,
+    }, undefined, onSave);
+    await waitFor(() => screen.getByRole('combobox'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bypassPermissions' } });
+    await waitFor(() => screen.getByText('Bypass Permissions'));
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+      expect(screen.queryByText('Bypass Permissions')).toBeNull();
+    });
+  });
+
+  it('ConfirmDialog confirm → onSave("defaultMode", "bypassPermissions") 被呼叫', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderField('defaultMode', {
+      section: 'general',
+      controlType: String,
+      options: ['plan', 'bypassPermissions'] as const,
+      dangerValues: ['bypassPermissions'] as const,
+    }, undefined, onSave);
+    await waitFor(() => screen.getByRole('combobox'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bypassPermissions' } });
+    await waitFor(() => screen.getByText('Bypass Permissions'));
+    fireEvent.click(screen.getByText('Confirm'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('defaultMode', 'bypassPermissions');
+    });
+  });
+
+  it('非 dangerValues 的選項 → 直接呼叫 onSave，不出現 ConfirmDialog', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderField('defaultMode', {
+      section: 'general',
+      controlType: String,
+      options: ['plan', 'bypassPermissions'] as const,
+      dangerValues: ['bypassPermissions'] as const,
+    }, undefined, onSave);
+    await waitFor(() => screen.getByRole('combobox'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'plan' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('defaultMode', 'plan');
+    });
+    expect(screen.queryByText('Bypass Permissions')).toBeNull();
   });
 });

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 import type { FlatFieldSchema } from '../../../../shared/claude-settings-schema';
 import { getSchemaDefault, getSchemaEnumOptions } from '../../../../shared/claude-settings-schema';
 import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './SettingControls';
+import { ConfirmDialog } from '../../../components/ConfirmDialog';
 
 export interface SchemaFieldRendererProps {
   settingKey: string;
@@ -21,6 +22,8 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
     t(`settings.${schema.section}.${settingKey}.${suffix}` as Parameters<typeof t>[0]);
   const tc = (suffix: string, vars?: Record<string, string | number>): string =>
     t(`settings.common.${suffix}` as Parameters<typeof t>[0], vars);
+
+  const [pendingDangerValue, setPendingDangerValue] = useState<string | null>(null);
 
   switch (schema.controlType) {
     case Boolean:
@@ -40,25 +43,46 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
     case String: {
       if (schema.options) {
         const options = getSchemaEnumOptions(settingKey);
-        const knownLabels: Record<string, string> = {};
-        for (const opt of options) {
-          knownLabels[opt] = tk(opt);
-        }
+        const hasDangerValues = schema.dangerValues && schema.dangerValues.length > 0;
+        const enumOnSave = hasDangerValues
+          ? async (k: string, val: unknown) => {
+              if (schema.dangerValues!.includes(val as string)) {
+                setPendingDangerValue(val as string);
+              } else {
+                await onSave(k, val);
+              }
+            }
+          : onSave;
         return (
-          <EnumDropdown
-            label={tk('label')}
-            description={tk('description')}
-            value={value as string | undefined}
-            knownValues={options}
-            knownLabels={knownLabels}
-            notSetLabel={tk('notSet')}
-            unknownTemplate={tk('unknown')}
-            settingKey={settingKey}
-            defaultValue={getSchemaDefault<string>(settingKey)}
-            overriddenScope={overriddenScope}
-            onSave={onSave}
-            onDelete={onDelete}
-          />
+          <>
+            {pendingDangerValue && (
+              <ConfirmDialog
+                title={tk('dangerConfirm.title')}
+                message={tk('dangerConfirm.message')}
+                danger
+                onConfirm={() => {
+                  const val = pendingDangerValue;
+                  setPendingDangerValue(null);
+                  void onSave(settingKey, val);
+                }}
+                onCancel={() => setPendingDangerValue(null)}
+              />
+            )}
+            <EnumDropdown
+              label={tk('label')}
+              description={tk('description')}
+              value={value as string | undefined}
+              knownValues={options}
+              knownLabels={{}}
+              notSetLabel={tk('notSet')}
+              unknownTemplate={tk('unknown')}
+              settingKey={settingKey}
+              defaultValue={getSchemaDefault<string>(settingKey)}
+              overriddenScope={overriddenScope}
+              onSave={enumOnSave}
+              onDelete={onDelete}
+            />
+          </>
         );
       }
       return (

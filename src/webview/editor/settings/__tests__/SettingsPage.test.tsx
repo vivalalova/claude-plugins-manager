@@ -535,13 +535,11 @@ describe('SettingsPage', () => {
 
     renderPage();
 
-    await waitFor(() => screen.getByText('Permissions'));
-    fireEvent.click(screen.getByText('Permissions').closest('button')!);
-
+    // defaultMode 已移至 General section（預設 nav），不需切換
     await waitFor(() => screen.getByText('Default Mode'));
 
     const selects = screen.getAllByRole('combobox');
-    // defaultMode select is the second combobox (first is format selector)
+    // selects[0] = defaultMode（General section，schema-driven，第一個 combobox）
     const defaultModeSelect = selects[0];
     fireEvent.change(defaultModeSelect, { target: { value: 'dontAsk' } });
 
@@ -561,9 +559,6 @@ describe('SettingsPage', () => {
     });
 
     renderPage();
-
-    await waitFor(() => screen.getByText('Permissions'));
-    fireEvent.click(screen.getByText('Permissions').closest('button')!);
 
     await waitFor(() => screen.getByText('Default Mode'));
 
@@ -592,8 +587,6 @@ describe('SettingsPage', () => {
 
     renderPage();
 
-    await waitFor(() => screen.getByText('Permissions'));
-    fireEvent.click(screen.getByText('Permissions').closest('button')!);
     await waitFor(() => screen.getByText('Default Mode'));
 
     const selects = screen.getAllByRole('combobox');
@@ -621,8 +614,6 @@ describe('SettingsPage', () => {
 
     renderPage();
 
-    await waitFor(() => screen.getByText('Permissions'));
-    fireEvent.click(screen.getByText('Permissions').closest('button')!);
     await waitFor(() => screen.getByText('Default Mode'));
 
     const selects = screen.getAllByRole('combobox');
@@ -645,9 +636,6 @@ describe('SettingsPage', () => {
     });
 
     renderPage();
-
-    await waitFor(() => screen.getByText('Permissions'));
-    fireEvent.click(screen.getByText('Permissions').closest('button')!);
 
     await waitFor(() => {
       expect(screen.getByText('Current value: strict ⚠️')).toBeTruthy();

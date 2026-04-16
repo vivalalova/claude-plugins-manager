@@ -1,24 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, SettingLabelText, TagInput, TextSetting } from './components/SettingControls';
+import { BooleanToggle, TagInput, TextSetting } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Constants（internal only — defaultMode 已移至 schema general section）
 // ---------------------------------------------------------------------------
-
-const KNOWN_DEFAULT_MODES = [
-  'default',
-  'acceptEdits',
-  'plan',
-  'dontAsk',
-  'auto',
-  'bypassPermissions',
-  'delegate',
-] as const;
 
 type PermissionsList = 'allow' | 'deny' | 'ask';
 type RuleFormat = 'toolName' | 'toolNameArg' | 'mcp';
@@ -273,8 +262,6 @@ export function PermissionsSection({
   const { saving, withSave } = useSettingSave();
 
   const [activeList, setActiveList] = useState<PermissionsList>('allow');
-  const [pendingBypassMode, setPendingBypassMode] = useState(false);
-
   // Reset sub-tab when scope changes
   useEffect(() => {
     setActiveList('allow');
@@ -284,9 +271,6 @@ export function PermissionsSection({
   const additionalDirs: string[] = perms.additionalDirectories ?? [];
   const enabledMcpjsonServers: string[] = settings.enabledMcpjsonServers ?? [];
   const disabledMcpjsonServers: string[] = settings.disabledMcpjsonServers ?? [];
-  const currentMode = perms.defaultMode ?? '';
-  const isUnknownMode = currentMode !== '' && !KNOWN_DEFAULT_MODES.includes(currentMode as typeof KNOWN_DEFAULT_MODES[number]);
-
   const listRules: string[] = (perms[activeList] ?? []) as string[];
 
   const updatePermissions = (updatedPerms: ClaudeSettings['permissions']): void => {
@@ -303,32 +287,6 @@ export function PermissionsSection({
     updatePermissions(updated);
   };
 
-  const handleDefaultModeChange = (mode: string): void => {
-    if (mode === '__unknown__') return;
-    if (mode === 'bypassPermissions') {
-      setPendingBypassMode(true);
-      return;
-    }
-    if (mode === '') {
-      // Remove the key entirely instead of writing empty string
-      const rest = Object.fromEntries(
-        Object.entries(perms).filter(([k]) => k !== 'defaultMode')
-      ) as typeof perms;
-      void updatePermissions(rest);
-      return;
-    }
-    void updatePermissions({ ...perms, defaultMode: mode });
-  };
-
-  const handleBypassConfirm = (): void => {
-    setPendingBypassMode(false);
-    updatePermissions({ ...perms, defaultMode: 'bypassPermissions' });
-  };
-
-  const handleBypassCancel = (): void => {
-    setPendingBypassMode(false);
-  };
-
   const listTabs: { id: PermissionsList; label: string }[] = [
     { id: 'allow', label: t('settings.permissions.allow') },
     { id: 'deny', label: t('settings.permissions.deny') },
@@ -337,29 +295,6 @@ export function PermissionsSection({
 
   return (
     <SettingsSectionWrapper>
-      {/* defaultMode */}
-      <div className="perm-defaultmode-row">
-        <label className="settings-label">
-          <SettingLabelText label={t('settings.permissions.defaultMode')} settingKey="defaultMode" />
-        </label>
-        <select
-          className="select"
-          value={isUnknownMode ? '__unknown__' : currentMode}
-          onChange={(e) => handleDefaultModeChange(e.target.value)}
-          disabled={saving}
-        >
-          <option value="">— not set —</option>
-          {isUnknownMode && (
-            <option value="__unknown__" disabled>
-              {t('settings.permissions.unknownMode').replace('{value}', currentMode)}
-            </option>
-          )}
-          {KNOWN_DEFAULT_MODES.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-      </div>
-
       {/* Sub-tabs: Allow / Deny / Ask */}
       <div className="perm-sub-tabs">
         {listTabs.map((tab) => (
@@ -484,16 +419,6 @@ export function PermissionsSection({
         onDelete={async () => onDelete('deniedMcpServers')}
       />
 
-      {/* bypassPermissions confirm */}
-      {pendingBypassMode && (
-        <ConfirmDialog
-          title={t('settings.permissions.bypassConfirmTitle')}
-          message={t('settings.permissions.bypassConfirmMessage')}
-          danger
-          onConfirm={() => void handleBypassConfirm()}
-          onCancel={handleBypassCancel}
-        />
-      )}
     </SettingsSectionWrapper>
   );
 }

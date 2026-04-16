@@ -4,9 +4,9 @@
 
 - `env` → `EnvSection`
 - `hooks`、`disableAllHooks` → `HooksSection`
-- `permissions`、`defaultMode`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers` → `PermissionsSection`
+- `permissions`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers` → `PermissionsSection`
 - spinner、teammate、turn duration、progress bar、reduced motion → `DisplaySection`
-- model、effort、language、availableModels、updates、memory、cleanup、git-related behavior → `GeneralSection`
+- model、effort、language、availableModels、updates、memory、cleanup、git-related behavior、`defaultMode`（schema-driven，nestedUnder permissions） → `GeneralSection`
 - anti-direction key（見下方）→ `AdvancedSection`
 - 其餘 key / 未定義歸屬 → `AdvancedSection`
 

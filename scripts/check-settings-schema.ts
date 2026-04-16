@@ -137,7 +137,8 @@ function main(): void {
   const schemaKeys = new Set(Object.keys(SETTINGS_FLAT_SCHEMA));
 
   const inTypesOnly = [...typesKeys].filter((k) => !schemaKeys.has(k)).sort();
-  const inSchemaOnly = [...schemaKeys].filter((k) => !typesKeys.has(k)).sort();
+  // nestedUnder 欄位（如 defaultMode）實際位於父物件，不是頂層 ClaudeSettings key，豁免
+  const inSchemaOnly = [...schemaKeys].filter((k) => !typesKeys.has(k) && !SETTINGS_FLAT_SCHEMA[k]?.nestedUnder).sort();
 
   for (const k of inTypesOnly) errors.push(`Key in ClaudeSettings but missing from schema: ${k}`);
   for (const k of inSchemaOnly) errors.push(`Key in schema but missing from ClaudeSettings: ${k}`);

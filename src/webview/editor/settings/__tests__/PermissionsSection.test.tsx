@@ -43,7 +43,6 @@ describe('PermissionsSection — 渲染', () => {
     renderSection();
 
     await waitFor(() => {
-      expect(screen.getByText('(defaultMode)')).toBeTruthy();
       expect(screen.getByText('(enableAllProjectMcpServers: false)')).toBeTruthy();
       expect(screen.getByText('(additionalDirectories)')).toBeTruthy();
       expect(screen.getByText('(enabledMcpjsonServers)')).toBeTruthy();
