@@ -91,7 +91,7 @@ https://json.schemastore.org/claude-code-settings.json
 
 ## 新增 Setting Checklist
 
-1. **Schema**：`claude-settings-schema.ts` 所屬 section 陣列加 `{ key, controlType, ... }`（陣列位置即渲染順序）；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；enum 用 `String` + `options`；number 加 `min`/`max`/`step`；有預設加 `default`；不渲染的 key 加 `hidden: true`
+1. **Schema**：`claude-settings-schema.ts` 所屬 section 陣列加 `{ key, controlType, ... }`（陣列位置即渲染順序）；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；enum 用 `String` + `options`；number 加 `min`/`max`/`step`；有預設加 `default`；沒有自然落點的 user-facing key 直接放 `advanced`，不要再加 `hidden`
 2. **Interface**：`shared/types.ts` 的 `ClaudeSettings` 加對應欄位（`npm run check:schema` 驗證一致性）
 3. **i18n**：`i18n/locales/` 三語言加 `settings.{section}.{key}.label`/`.description`（enum 加各選項 label + notSet + unknown；text/number 加 `placeholder`）（`check:schema` 自動驗證 en.ts key 完整性）
 4. **custom 欄位**：`controlType: Object` → Section 內 `renderCustom` switch case 手動渲染；建獨立 sub-editor

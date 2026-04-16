@@ -83,6 +83,7 @@ describe('SchemaFieldRenderer', () => {
       expect(screen.getByText('Language')).toBeTruthy();
       const input = screen.getByRole('textbox');
       expect(input).toBeTruthy();
+      expect(input.className).toContain('settings-text-input');
       expect(input.getAttribute('placeholder')).toBe('e.g. zh-TW');
       expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
       expect(screen.getByRole('button', { name: /Reset/ })).toBeTruthy();

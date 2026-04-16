@@ -28,8 +28,6 @@ export interface SettingFieldSchema {
   max?: number;
   /** number 欄位步進值 */
   step?: number;
-  /** true = 不渲染於 schema-driven loop（CLI 管理或手動渲染） */
-  hidden?: boolean;
   /** 巢狀欄位：該 key 實際位於 settings[nestedUnder][key]（例：defaultMode 在 permissions.defaultMode） */
   nestedUnder?: string;
   /** 需要確認對話框的危險值（選擇這些值前需使用者確認） */
@@ -45,7 +43,7 @@ export type FlatFieldSchema = SettingFieldSchema & { readonly section: SettingsS
 /**
  * Settings schema — 巢狀結構，section 分群。
  * 陣列順序即 UI 渲染順序。
- * hidden 的 entry 不參與 schema-driven loop。
+ * 沒有 hidden 逃生門；user-facing key 要嘛落在對應 section，要嘛直接放 advanced。
  */
 export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]> = {
   // ── General ──
@@ -158,13 +156,11 @@ export const SETTINGS_FLAT_SCHEMA: Record<string, FlatFieldSchema> = buildFlatSc
 // ---------------------------------------------------------------------------
 
 /**
- * 取得 section 內的 UI 渲染順序（排除 hidden）。
+ * 取得 section 內的 UI 渲染順序。
  * 順序即 CLAUDE_SETTINGS_SCHEMA 陣列中的宣告順序。
  */
 export function getSectionFieldOrder(section: SettingsSection): string[] {
-  return CLAUDE_SETTINGS_SCHEMA[section]
-    .filter(f => !f.hidden)
-    .map(f => f.key);
+  return CLAUDE_SETTINGS_SCHEMA[section].map(f => f.key);
 }
 
 /**

@@ -147,7 +147,7 @@ describe('GeneralSection — 渲染', () => {
         const match = el.textContent?.match(/^\((\w+)/);
         return match?.[1] ?? '';
       }).filter(Boolean);
-      // defaultMode 已是 general section schema 第一個非 hidden 欄位
+      // defaultMode 已是 general section schema 第一個欄位之一，順序直接由 schema 決定
       expect(keys).toEqual(getSectionFieldOrder('general'));
     });
   });

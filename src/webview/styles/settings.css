@@ -400,8 +400,15 @@
 
 .settings-model-row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--gap-md);
   align-items: center;
+}
+
+.settings-text-input {
+  flex: 1 1 28rem;
+  width: min(100%, 36rem);
+  max-width: 36rem;
 }
 
 .settings-actions {

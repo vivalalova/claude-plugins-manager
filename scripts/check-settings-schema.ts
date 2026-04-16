@@ -102,8 +102,6 @@ export function validateI18nKeys(schema: Record<string, FlatFieldSchema>, locale
     // Skip manually-rendered sections, custom controls, and excluded keys
     if (['permissions', 'env', 'hooks'].includes(field.section)) continue;
     if (field.controlType === Object) continue;
-    if (field.hidden) continue;
-
     const prefix = `settings.${field.section}.${key}`;
     if (!localeKeys.has(`${prefix}.label`)) {
       errors.push(`i18n missing: ${prefix}.label`);

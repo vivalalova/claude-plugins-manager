@@ -86,7 +86,7 @@ Schema store 是社群維護（[anthropics/claude-code#11795](https://github.com
 
 - `src/shared/types.ts` — ClaudeSettings interface 所有欄位
 - `src/shared/claude-settings-schema.ts` — schema definitions（controlType 用原生型別 + options/default）
-- `src/shared/claude-settings-schema.ts` 的陣列順序 — UI 渲染順序（`hidden: true` = 不渲染）
+- `src/shared/claude-settings-schema.ts` 的陣列順序 — UI 渲染順序；沒有 `hidden` 逃生門，沒有自然落點的 user-facing key 直接放 `advanced`
 - `src/shared/known-env-vars.ts` — KNOWN_ENV_VARS registry（valueType 用原生型別）
 - `src/webview/i18n/locales/en.ts` — i18n key 完整性
 
@@ -129,7 +129,7 @@ Source 欄位：`schema` = schema store、`docs-only` = 官方 docs 有但 schem
 
 1. `src/shared/types.ts` — 增刪改 ClaudeSettings 欄位
 2. `src/shared/claude-settings-schema.ts` — 增刪改 schema entry
-3. `src/shared/claude-settings-schema.ts` — 新 key 加入對應 section 陣列（位置即渲染順序；不渲染加 `hidden: true`）
+3. `src/shared/claude-settings-schema.ts` — 新 key 加入對應 section 陣列（位置即渲染順序；沒有自然落點就放 `advanced`）
 4. Section 元件 — 依 `references/surface-map.md` 分配，依 `references/editor-patterns.md` 選 control
 5. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys
 6. Tests — 對應 section test 檔

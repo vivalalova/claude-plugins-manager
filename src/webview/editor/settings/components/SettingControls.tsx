@@ -464,7 +464,7 @@ export function TextSetting({
       <div className="settings-model-row">
         <input
           id={settingKey}
-          className="input"
+          className="input settings-text-input"
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

@@ -39,7 +39,7 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 ## Rules
 
-- 新 key 無自然落點：放 `AdvancedSection`
+- 新 key 無自然落點：放 `AdvancedSection`，不要再用 `hidden`
 - 不新開 section
 - 平行 render path 一起查；不能只補單一路徑
 - settings key hint / default hint 規則跟現有 controls 對齊

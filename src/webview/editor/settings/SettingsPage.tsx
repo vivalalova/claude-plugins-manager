@@ -45,7 +45,6 @@ function buildSearchableFields(t: (key: Parameters<ReturnType<typeof useI18n>['t
   // Schema-driven fields
   for (const section of SETTINGS_NAV_SECTIONS) {
     for (const entry of CLAUDE_SETTINGS_SCHEMA[section]) {
-      if (entry.hidden) continue;
       const labelKey = `settings.${section}.${entry.key}.label` as Parameters<typeof t>[0];
       const descKey = `settings.${section}.${entry.key}.description` as Parameters<typeof t>[0];
       const label = t(labelKey) ?? '';
