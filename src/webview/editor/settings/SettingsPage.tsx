@@ -2,24 +2,21 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PageHeader } from '../../components/PageHeader';
-import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
-import { useSettingSave } from './hooks/useSettingSave';
 import { PermissionsSection } from './PermissionsSection';
 import { EnvSection, EnvFieldRenderer } from './EnvSection';
 import { HooksSection } from './HooksSection';
 import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
-import { SettingLabelText, getOverriddenScope } from './components/SettingControls';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
-import { KNOWN_MODEL_OPTIONS, CLAUDE_SETTINGS_SCHEMA, SETTINGS_FLAT_SCHEMA, type SettingsSection } from '../../../shared/claude-settings-schema';
+import { SETTINGS_NAV_SECTIONS, CLAUDE_SETTINGS_SCHEMA, type SettingsSection } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
-import { useObjectEditorState } from './components/ObjectSetting';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
+import { getSchemaFieldBindings } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -27,7 +24,7 @@ import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 
-type SettingsNavItem = 'model' | 'permissions' | 'env' | 'hooks' | 'general' | 'display' | 'advanced';
+type SettingsNavItem = SettingsSection;
 
 // ---------------------------------------------------------------------------
 // Search types & helpers
@@ -44,10 +41,9 @@ interface SearchableField {
 
 function buildSearchableFields(t: (key: Parameters<ReturnType<typeof useI18n>['t']>[0]) => string): SearchableField[] {
   const fields: SearchableField[] = [];
-  const sections: SettingsSection[] = ['general', 'display', 'advanced', 'permissions', 'hooks'];
 
   // Schema-driven fields
-  for (const section of sections) {
+  for (const section of SETTINGS_NAV_SECTIONS) {
     for (const entry of CLAUDE_SETTINGS_SCHEMA[section]) {
       if (entry.hidden) continue;
       const labelKey = `settings.${section}.${entry.key}.label` as Parameters<typeof t>[0];
@@ -97,138 +93,6 @@ function matchesSearch(field: SearchableField, query: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function isModelInWhitelist(model: string, availableModels: string[] | undefined): boolean {
-  if (!availableModels?.length) return true;
-  return availableModels.includes(model);
-}
-
-// ---------------------------------------------------------------------------
-// ModelSection
-// ---------------------------------------------------------------------------
-
-interface ModelSectionProps {
-  scope: PluginScope;
-  settings: ClaudeSettings;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
-
-function ModelSection({ scope: _scope, settings, onSave, onDelete }: ModelSectionProps): React.ReactElement {
-  const { t } = useI18n();
-  const { addToast } = useToast();
-  const { saving, withSave } = useSettingSave();
-
-  const currentModel = settings.model ?? '';
-  const availableModels = settings.availableModels;
-  const createDraft = useCallback(() => {
-    const model = settings.model ?? '';
-    if (model && !KNOWN_MODEL_OPTIONS.includes(model as typeof KNOWN_MODEL_OPTIONS[number])) {
-      return { selectValue: 'custom', customInput: model, showCustom: true };
-    }
-    return { selectValue: model, customInput: '', showCustom: false };
-  }, [settings.model]);
-  const [draft, setDraft] = useObjectEditorState(createDraft);
-
-  const handleSelectChange = (val: string): void => {
-    if (val === 'custom') {
-      setDraft({ selectValue: 'custom', customInput: '', showCustom: true });
-    } else {
-      setDraft((prev) => ({ ...prev, selectValue: val, showCustom: false }));
-    }
-  };
-
-  const handleSave = (): void => {
-    const modelToSave = draft.showCustom ? draft.customInput.trim() : draft.selectValue;
-    void withSave(async () => {
-      if (!modelToSave) {
-        await onDelete('model');
-        addToast(t('settings.model.cleared'), 'success');
-      } else {
-        await onSave('model', modelToSave);
-        addToast(t('settings.model.saved'), 'success');
-      }
-    });
-  };
-
-  const handleClear = (): void => {
-    void withSave(async () => {
-      await onDelete('model');
-      addToast(t('settings.model.cleared'), 'success');
-    });
-  };
-
-  const outsideWhitelist = currentModel && !isModelInWhitelist(currentModel, availableModels);
-  const dropdownModels = availableModels?.length ? availableModels : [...KNOWN_MODEL_OPTIONS];
-
-  return (
-    <SettingsSectionWrapper>
-      {outsideWhitelist && (
-        <div className="settings-warning">
-          ⚠️ {t('settings.model.outsideWhitelist')}
-        </div>
-      )}
-
-      <div className="settings-field">
-        <label className="settings-label">
-          <SettingLabelText label={t('settings.model.label')} settingKey="model" />
-        </label>
-        <div className="settings-model-row">
-          <select
-            className="select settings-model-select"
-            value={draft.selectValue}
-            onChange={(e) => handleSelectChange(e.target.value)}
-            disabled={saving}
-          >
-            <option value="">{t('settings.model.placeholder')}</option>
-            {dropdownModels.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-            {outsideWhitelist && currentModel && !dropdownModels.includes(currentModel) && (
-              <option value={currentModel}>{currentModel} ⚠️</option>
-            )}
-            <option value="custom">{t('settings.model.custom')}</option>
-          </select>
-
-          {currentModel && (
-            <button
-              className="btn btn-secondary"
-              onClick={handleClear}
-              disabled={saving}
-            >
-              {t('settings.model.clear')}
-            </button>
-          )}
-        </div>
-
-        {draft.showCustom && (
-          <input
-            className="input settings-model-custom-input"
-            type="text"
-            value={draft.customInput}
-            onChange={(e) => setDraft((prev) => ({ ...prev, customInput: e.target.value }))}
-            placeholder="e.g. claude-opus-4-6"
-            disabled={saving}
-          />
-        )}
-      </div>
-
-      <div className="settings-actions">
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={saving || (!draft.selectValue && !draft.customInput.trim() && !currentModel)}
-        >
-          {t('settings.model.save')}
-        </button>
-      </div>
-    </SettingsSectionWrapper>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // SettingsPage
 // ---------------------------------------------------------------------------
 
@@ -236,7 +100,7 @@ export function SettingsPage(): React.ReactElement {
   const { t } = useI18n();
 
   const [scope, setScope] = useState<PluginScope>('user');
-  const [activeNav, setActiveNav] = useState<SettingsNavItem>('general');
+  const [activeNav, setActiveNav] = useState<SettingsNavItem>(SETTINGS_NAV_SECTIONS[0] ?? 'general');
   const [hasWorkspace, setHasWorkspace] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -306,15 +170,10 @@ export function SettingsPage(): React.ReactElement {
     setScope(s);
   };
 
-  const navItems: { id: SettingsNavItem; label: string }[] = [
-    { id: 'general', label: t('settings.nav.general') },
-    { id: 'display', label: t('settings.nav.display') },
-    { id: 'model', label: t('settings.nav.model') },
-    { id: 'permissions', label: t('settings.nav.permissions') },
-    { id: 'env', label: t('settings.nav.env') },
-    { id: 'hooks', label: t('settings.nav.hooks') },
-    { id: 'advanced', label: t('settings.nav.advanced') },
-  ];
+  const navItems: { id: SettingsNavItem; label: string }[] = SETTINGS_NAV_SECTIONS.map((section) => ({
+    id: section,
+    label: t(`settings.nav.${section}` as Parameters<typeof t>[0]),
+  }));
 
   return (
     <div className="page-container settings-page settings-page--fixed-shell">
@@ -422,8 +281,15 @@ export function SettingsPage(): React.ReactElement {
                     }
 
                     // Schema field
-                    const schema = SETTINGS_FLAT_SCHEMA[field.key];
-                    if (!schema) return null;
+                    const fieldBindings = getSchemaFieldBindings(field.key, {
+                      scope,
+                      settings,
+                      userSettings,
+                      onSave: handleSave,
+                      onDelete: handleDelete,
+                    });
+                    if (!fieldBindings) return null;
+                    const { schema, value, onSave, onDelete, overriddenScope } = fieldBindings;
 
                     // Object type (custom control) — show navigate-to-section card
                     if (schema.controlType === Object) {
@@ -444,19 +310,17 @@ export function SettingsPage(): React.ReactElement {
                         </div>
                       );
                     }
-
-                    const overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, field.key);
                     return (
                       <div key={field.key} className="settings-search-result">
                         <span className="settings-search-result-section">{t(`settings.nav.${field.section}` as Parameters<typeof t>[0])}</span>
                         <SchemaFieldRenderer
                           settingKey={field.key}
                           schema={schema}
-                          value={(settings as Record<string, unknown>)[field.key]}
+                          value={value}
                           scope={scope}
                           overriddenScope={overriddenScope}
-                          onSave={handleSave}
-                          onDelete={handleDelete}
+                          onSave={onSave}
+                          onDelete={onDelete}
                         />
                       </div>
                     );
@@ -467,14 +331,6 @@ export function SettingsPage(): React.ReactElement {
           )}
           {!loading && !error && !isSearching && (
             <>
-              {activeNav === 'model' && (
-                <ModelSection
-                  scope={scope}
-                  settings={settings}
-                  onSave={handleSave}
-                  onDelete={handleDelete}
-                />
-              )}
               {activeNav === 'permissions' && (
                 <PermissionsSection
                   scope={scope}
@@ -487,7 +343,9 @@ export function SettingsPage(): React.ReactElement {
                 <EnvSection
                   scope={scope}
                   settings={settings}
+                  userSettings={userSettings}
                   onSave={handleSave}
+                  onDelete={handleDelete}
                 />
               )}
               {activeNav === 'hooks' && (

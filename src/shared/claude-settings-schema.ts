@@ -50,7 +50,7 @@ export type FlatFieldSchema = SettingFieldSchema & { readonly section: SettingsS
 export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]> = {
   // ── General ──
   general: [
-    { key: 'model', controlType: String, hidden: true },  // CLI 管理，UI 不暴露
+    { key: 'model', controlType: String },
     { key: 'defaultMode', controlType: String, nestedUnder: 'permissions',
       options: ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const,
       dangerValues: ['bypassPermissions'] as const },
@@ -126,6 +126,16 @@ export const CLAUDE_SETTINGS_SCHEMA: Record<SettingsSection, SettingFieldEntry[]
   ],
 };
 
+/** Settings 頁面可見 section 順序。由 schema 檔集中定義，避免 SettingsPage 自己寫死。 */
+export const SETTINGS_NAV_SECTIONS: SettingsSection[] = [
+  'general',
+  'display',
+  'permissions',
+  'env',
+  'hooks',
+  'advanced',
+];
+
 // ---------------------------------------------------------------------------
 // Flat schema — 衍生的扁平索引，含 section 欄位
 // ---------------------------------------------------------------------------
@@ -156,16 +166,6 @@ export function getSectionFieldOrder(section: SettingsSection): string[] {
     .filter(f => !f.hidden)
     .map(f => f.key);
 }
-
-/**
- * Model dropdown 的 fallback 選項。
- * 當 availableModels 未設定時，UI 使用此清單作為建議值。
- */
-export const KNOWN_MODEL_OPTIONS = [
-  'claude-opus-4-6',
-  'claude-sonnet-4-6',
-  'claude-haiku-4-5-20251001',
-] as const;
 
 /**
  * 從 schema 取得欄位的預設值。

@@ -6,6 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { HooksSection } from '../HooksSection';
+import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
 import { ToastProvider } from '../../../components/Toast';
 
 const { mockSendRequest } = vi.hoisted(() => ({
@@ -58,6 +59,20 @@ describe('HooksSection — 渲染', () => {
       const hint = container.querySelector('.settings-key-hint');
       expect(hint).toBeTruthy();
       expect(hint!.textContent).toContain('disableAllHooks');
+    });
+  });
+
+  it('schema 內欄位按 hooks section 順序顯示 key hint', async () => {
+    const { container } = renderSection({});
+    const schemaKeys = new Set(getSectionFieldOrder('hooks'));
+
+    await waitFor(() => {
+      const hints = container.querySelectorAll('.settings-key-hint');
+      const keys = Array.from(hints).map((el) => {
+        const match = el.textContent?.match(/^\((\w+)/);
+        return match?.[1] ?? '';
+      }).filter((key) => schemaKeys.has(key));
+      expect(keys).toEqual(getSectionFieldOrder('hooks'));
     });
   });
 

@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 
 /* ── Mock vscode bridge ── */
@@ -55,27 +55,30 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('渲染左側 nav：Model / Permissions / Env / Hooks / General', async () => {
+  it('渲染左側 nav：General / Display / Permissions / Env / Hooks / Advanced', async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Model')).toBeTruthy();
-      expect(screen.getByText('Permissions')).toBeTruthy();
-      expect(screen.getByText('Env')).toBeTruthy();
-      expect(screen.getByText('Hooks')).toBeTruthy();
-      expect(screen.getByText('General')).toBeTruthy();
+      const nav = screen.getByRole('navigation');
+      expect(within(nav).getByText('General')).toBeTruthy();
+      expect(within(nav).getByText('Display')).toBeTruthy();
+      expect(within(nav).getByText('Permissions')).toBeTruthy();
+      expect(within(nav).getByText('Env')).toBeTruthy();
+      expect(within(nav).getByText('Hooks')).toBeTruthy();
+      expect(within(nav).getByText('Advanced')).toBeTruthy();
+      expect(within(nav).queryByText('Model')).toBeNull();
     });
   });
 
-  it('左側 nav 恰好 7 個 items，順序為 General, Display, Model, Permissions, Env, Hooks, Advanced', async () => {
+  it('左側 nav 恰好 6 個 items，順序為 General, Display, Permissions, Env, Hooks, Advanced', async () => {
     renderPage();
 
     await waitFor(() => {
       const nav = screen.getByRole('navigation');
       const navButtons = nav.querySelectorAll('button');
-      expect(navButtons.length).toBe(7);
+      expect(navButtons.length).toBe(6);
       const labels = Array.from(navButtons).map((b) => b.textContent);
-      expect(labels).toEqual(['General', 'Display', 'Model', 'Permissions', 'Env', 'Hooks', 'Advanced']);
+      expect(labels).toEqual(['General', 'Display', 'Permissions', 'Env', 'Hooks', 'Advanced']);
     });
   });
 
@@ -166,33 +169,35 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('model 已設定時，Select 顯示對應值', async () => {
+  it('搜尋 Default Mode 時，會讀取 nested permissions 值並寫回父 key', async () => {
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
-      if (msg.type === 'settings.get') return Promise.resolve({ model: 'claude-opus-4-6' });
+      if (msg.type === 'settings.get') return Promise.resolve({ permissions: { defaultMode: 'plan' } });
+      if (msg.type === 'settings.set') return Promise.resolve(undefined);
       return Promise.resolve(null);
     });
 
     renderPage();
 
-    await waitFor(() => screen.getByText('Model'));
-    fireEvent.click(screen.getByText('Model').closest('button')!);
+    await waitFor(() => screen.getByText('Default Mode'));
+    fireEvent.change(screen.getByPlaceholderText('Search settings...'), { target: { value: 'Default Mode' } });
 
     await waitFor(() => {
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'));
-      expect(modelSelect?.value).toBe('claude-opus-4-6');
+      const defaultModeSelect = screen.getByRole('combobox', { name: 'Default Mode' }) as HTMLSelectElement;
+      expect(defaultModeSelect.value).toBe('plan');
     });
-  });
 
-  it('Model 區塊顯示 setting key hint', async () => {
-    renderPage();
-
-    await waitFor(() => screen.getByText('Model'));
-    fireEvent.click(screen.getByText('Model').closest('button')!);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'dontAsk' } });
 
     await waitFor(() => {
-      expect(screen.getByText('(model)')).toBeTruthy();
+      const setCalls = getCalls('settings.set');
+      expect(setCalls).toHaveLength(1);
+      expect(setCalls[0][0]).toMatchObject({
+        type: 'settings.set',
+        scope: 'user',
+        key: 'permissions',
+        value: { defaultMode: 'dontAsk' },
+      });
     });
   });
 
@@ -210,20 +215,17 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('選擇 model 並點擊 Save → sendRequest settings.set，不觸發 settings.get', async () => {
+  it('編輯 schema-driven 文字欄位並儲存 → sendRequest settings.set，不觸發 settings.get', async () => {
     renderPage();
 
-    await waitFor(() => screen.getByText('Model'));
-    fireEvent.click(screen.getByText('Model').closest('button')!);
-
-    await waitFor(() => screen.getAllByRole('combobox'));
+    await waitFor(() => screen.getByText('Language'));
 
     const getCountBefore = getCalls('settings.get').length;
 
-    const modelSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
-      .find((s) => s.className.includes('settings-model-select'))!;
-    fireEvent.change(modelSelect, { target: { value: 'claude-sonnet-4-6' } });
-    fireEvent.click(screen.getByText('Save'));
+    const languageInput = screen.getByPlaceholderText('e.g. zh-TW');
+    const languageField = languageInput.closest('.settings-field') as HTMLElement;
+    fireEvent.change(languageInput, { target: { value: 'ja' } });
+    fireEvent.click(within(languageField).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       const setCalls = getCalls('settings.set');
@@ -231,8 +233,8 @@ describe('SettingsPage', () => {
       expect(setCalls[0][0]).toMatchObject({
         type: 'settings.set',
         scope: 'user',
-        key: 'model',
-        value: 'claude-sonnet-4-6',
+        key: 'language',
+        value: 'ja',
       });
     });
 
@@ -241,62 +243,22 @@ describe('SettingsPage', () => {
     expect(getCountAfter).toBe(getCountBefore);
   });
 
-  it('model 已設定時顯示 Clear 按鈕，點擊後 sendRequest settings.delete，不觸發 settings.get', async () => {
-    mockSendRequest.mockImplementation((msg: { type: string }) => {
-      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
-      if (msg.type === 'settings.get') return Promise.resolve({ model: 'claude-sonnet-4-6' });
-      if (msg.type === 'settings.delete') return Promise.resolve(undefined);
-      if (msg.type === 'settings.set') return Promise.resolve(undefined);
-      return Promise.resolve(null);
-    });
-
-    renderPage();
-
-    await waitFor(() => screen.getByText('Model'));
-    fireEvent.click(screen.getByText('Model').closest('button')!);
-
-    await waitFor(() => screen.getByText('Clear'));
-
-    const getCountBefore = getCalls('settings.get').length;
-
-    fireEvent.click(screen.getByText('Clear'));
-
-    await waitFor(() => {
-      const deleteCalls = getCalls('settings.delete');
-      expect(deleteCalls.length).toBe(1);
-      expect(deleteCalls[0][0]).toMatchObject({
-        type: 'settings.delete',
-        scope: 'user',
-        key: 'model',
-      });
-    });
-
-    // optimistic update：delete 後不觸發 settings.get
-    const getCountAfter = getCalls('settings.get').length;
-    expect(getCountAfter).toBe(getCountBefore);
-  });
-
   it('handleSave optimistic update：save 後 UI 立即反映新值，settings.get mock 回舊值也不影響', async () => {
-    // settings.get 永遠回傳 {} (model 未設定)，但 save 後 UI 應顯示 optimistic value
+    // settings.get 永遠回傳 {} (language 未設定)，但 save 後 UI 應顯示 optimistic value
     renderPage();
 
-    await waitFor(() => screen.getByText('Model'));
-    fireEvent.click(screen.getByText('Model').closest('button')!);
-
-    await waitFor(() => screen.getAllByRole('combobox'));
-    const modelSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
-      .find((s) => s.className.includes('settings-model-select'))!;
-    fireEvent.change(modelSelect, { target: { value: 'claude-sonnet-4-6' } });
-    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => screen.getByText('Language'));
+    const languageInput = screen.getByPlaceholderText('e.g. zh-TW');
+    const languageField = languageInput.closest('.settings-field') as HTMLElement;
+    fireEvent.change(languageInput, { target: { value: 'ja' } });
+    fireEvent.click(within(languageField).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(getCalls('settings.set').length).toBe(1);
     });
 
-    // optimistic update 後 select 應保持 claude-sonnet-4-6（不被 mock 的 {} 覆蓋）
-    const updatedSelect = (screen.getAllByRole('combobox') as HTMLSelectElement[])
-      .find((s) => s.className.includes('settings-model-select'))!;
-    expect(updatedSelect.value).toBe('claude-sonnet-4-6');
+    // optimistic update 後 input 應保持 ja（不被 mock 的 {} 覆蓋）
+    expect((screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement).value).toBe('ja');
   });
 
   it('預設顯示 General 區塊（Effort Level / Language / Fast Mode）', async () => {
@@ -649,19 +611,15 @@ describe('SettingsPage', () => {
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project') return projectFetchPromise;
-      if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({ model: 'claude-opus-4-6' });
+      if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({ language: 'ja' });
       return Promise.resolve({});
     });
 
     renderPage();
 
-    // user scope 有 model 設定
-    await waitFor(() => screen.getByText('Model'));
-    fireEvent.click(screen.getByText('Model').closest('button')!);
+    // user scope 有 language 設定
     await waitFor(() => {
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
-      expect(modelSelect.value).toBe('claude-opus-4-6');
+      expect((screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement).value).toBe('ja');
     });
 
     // 切到 Project scope，project fetch 卡住
@@ -672,16 +630,14 @@ describe('SettingsPage', () => {
       expect(screen.getByText('Loading settings...')).toBeTruthy();
     });
 
-    // project fetch 完成（model 未設定）
+    // project fetch 完成（language 未設定）
     resolveProject({});
     await waitFor(() => {
       expect(screen.queryByText('Loading settings...')).toBeNull();
     });
 
-    // fetch 完成後 model select 應為空（project scope 無 model 設定）
-    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-    const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
-    expect(modelSelect.value).toBe('');
+    // fetch 完成後 language input 應為空（project scope 無 language 設定）
+    expect((screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement).value).toBe('');
   });
 
   it('settings.refresh push message → 重新 fetch', async () => {
@@ -729,22 +685,17 @@ describe('SettingsPage', () => {
       expect(screen.getByText('Local')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText('Model').closest('button')!);
     fireEvent.click(screen.getByText('Project').closest('button')!);
     fireEvent.click(screen.getByText('Local').closest('button')!);
 
-    resolveLocal({ model: 'claude-sonnet-4-6' });
+    resolveLocal({ language: 'fr' });
     await waitFor(() => {
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
-      expect(modelSelect.value).toBe('claude-sonnet-4-6');
+      expect((screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement).value).toBe('fr');
     });
 
     resolveProject({});
     await waitFor(() => {
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      const modelSelect = selects.find((s) => s.className.includes('settings-model-select'))!;
-      expect(modelSelect.value).toBe('claude-sonnet-4-6');
+      expect((screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement).value).toBe('fr');
     });
   });
 });

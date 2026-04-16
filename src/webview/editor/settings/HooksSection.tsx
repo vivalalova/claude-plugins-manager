@@ -4,11 +4,8 @@ import { toErrorMessage } from '../../../shared/errorUtils';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../i18n/I18nContext';
 import type { HookCommand } from '../../../shared/types';
-import type { SectionProps } from './components/SchemaSection';
-import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
-import { SETTINGS_FLAT_SCHEMA } from '../../../shared/claude-settings-schema';
-import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
-import { getOverriddenScope } from './components/SettingControls';
+import { ObjectSetting } from './components/ObjectSetting';
+import { SchemaSection, type SectionProps } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -177,6 +174,108 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
 // HooksSection
 // ---------------------------------------------------------------------------
 
+interface HooksObjectEditorProps {
+  scope: SectionProps['scope'];
+  hooksData: NonNullable<SectionProps['settings']['hooks']>;
+  locale: string;
+  opening: boolean;
+  openingPath: string | null;
+  explanations: Map<string, string>;
+  explaining: ReadonlySet<string>;
+  existingPaths: ReadonlySet<string>;
+  onOpenInEditor: () => Promise<void>;
+  onOpenFile: (path: string) => Promise<void>;
+  onExplain: (hookContent: string, eventType: string, filePath: string | null) => Promise<void>;
+}
+
+function HooksObjectEditor({
+  hooksData,
+  locale,
+  opening,
+  openingPath,
+  explanations,
+  explaining,
+  existingPaths,
+  onOpenInEditor,
+  onOpenFile,
+  onExplain,
+}: HooksObjectEditorProps): React.ReactElement {
+  const { t } = useI18n();
+  const eventTypes = Object.keys(hooksData);
+
+  return (
+    <ObjectSetting
+      label={t('settings.hooks.hooks.label')}
+      description={t('settings.hooks.hooks.description')}
+      settingKey="hooks"
+      actions={(
+        <button
+          className="btn btn-secondary"
+          onClick={() => void onOpenInEditor()}
+          disabled={opening}
+          type="button"
+        >
+          {t('settings.hooks.openInEditor')}
+        </button>
+      )}
+    >
+      {eventTypes.length === 0 ? (
+        <div className="hooks-empty">
+          <p>{t('settings.hooks.empty')}</p>
+          <button
+            className="btn btn-secondary"
+            onClick={() => void onOpenInEditor()}
+            disabled={opening}
+            type="button"
+          >
+            {t('settings.hooks.emptyAction')}
+          </button>
+        </div>
+      ) : (
+        <div className="hooks-tree">
+          {eventTypes.map((eventType) => {
+            const matchers = hooksData[eventType] ?? [];
+            return (
+              <div key={eventType} className="hooks-event-node">
+                <div className="hooks-event-title">{eventType}</div>
+                {matchers.map((matcherGroup, mIdx) => (
+                  <div key={mIdx} className="hooks-matcher-node">
+                    <span className="hooks-matcher-label">
+                      {matcherGroup.matcher || '*'}
+                    </span>
+                    <div className="hooks-hook-list">
+                      {matcherGroup.hooks.map((hook, hIdx) => {
+                        const fp = hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null;
+                        const uiKey = `${fp ?? getHookContent(hook)}:${locale}`;
+                        return (
+                          <HookItem
+                            key={hIdx}
+                            hook={hook}
+                            eventType={eventType}
+                            filePath={fp}
+                            onOpenFile={onOpenFile}
+                            openingPath={openingPath}
+                            explainLabel={t('settings.hooks.explain')}
+                            explainingLabel={t('settings.hooks.explaining')}
+                            explainTooltip={t('settings.hooks.explainTooltip')}
+                            onExplain={onExplain}
+                            explanation={explanations.get(uiKey) ?? null}
+                            isExplaining={explaining.has(uiKey)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </ObjectSetting>
+  );
+}
+
 export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: SectionProps): React.ReactElement {
   const { t, locale } = useI18n();
   const { addToast } = useToast();
@@ -187,8 +286,6 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
   const [explaining, setExplaining] = useState<ReadonlySet<string>>(new Set());
 
   const hooksData = useMemo(() => settings.hooks ?? {}, [settings.hooks]);
-  const eventTypes = Object.keys(hooksData);
-
   // Fingerprint for deep-equality effect triggering (avoids re-fire on reference-only changes)
   const hooksFingerprint = useMemo(() => {
     const keys = Object.keys(hooksData).sort();
@@ -312,102 +409,31 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
   };
 
   return (
-    <SettingsSectionWrapper>
-      <SchemaFieldRenderer
-        settingKey="disableAllHooks"
-        schema={SETTINGS_FLAT_SCHEMA['disableAllHooks']}
-        value={settings.disableAllHooks}
-        scope={scope}
-        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'disableAllHooks')}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <div className="hooks-header-row">
-        <button
-          className="btn btn-secondary"
-          onClick={() => void handleOpenInEditor()}
-          disabled={opening}
-          type="button"
-        >
-          {t('settings.hooks.openInEditor')}
-        </button>
-      </div>
-
-      <SchemaFieldRenderer
-        settingKey="httpHookAllowedEnvVars"
-        schema={SETTINGS_FLAT_SCHEMA['httpHookAllowedEnvVars']}
-        value={settings.httpHookAllowedEnvVars}
-        scope={scope}
-        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'httpHookAllowedEnvVars')}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <SchemaFieldRenderer
-        settingKey="allowedHttpHookUrls"
-        schema={SETTINGS_FLAT_SCHEMA['allowedHttpHookUrls']}
-        value={settings.allowedHttpHookUrls}
-        scope={scope}
-        overriddenScope={getOverriddenScope(scope, userSettings as Record<string, unknown>, 'allowedHttpHookUrls')}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      {/* Tree view */}
-      {eventTypes.length === 0 ? (
-        <div className="hooks-empty">
-          <p>{t('settings.hooks.empty')}</p>
-          <button
-            className="btn btn-secondary"
-            onClick={() => void handleOpenInEditor()}
-            disabled={opening}
-            type="button"
-          >
-            {t('settings.hooks.emptyAction')}
-          </button>
-        </div>
-      ) : (
-        <div className="hooks-tree">
-          {eventTypes.map((eventType) => {
-            const matchers = hooksData[eventType] ?? [];
-            return (
-              <div key={eventType} className="hooks-event-node">
-                <div className="hooks-event-title">{eventType}</div>
-                {matchers.map((matcherGroup, mIdx) => (
-                  <div key={mIdx} className="hooks-matcher-node">
-                    <span className="hooks-matcher-label">
-                      {matcherGroup.matcher || '*'}
-                    </span>
-                    <div className="hooks-hook-list">
-                      {matcherGroup.hooks.map((hook, hIdx) => {
-                        const fp = hook.type === 'command' && existingPaths.has(extractFilePath(hook.command) ?? '') ? extractFilePath(hook.command) : null;
-                        const uiKey = `${fp ?? getHookContent(hook)}:${locale}`;
-                        return (
-                          <HookItem
-                            key={hIdx}
-                            hook={hook}
-                            eventType={eventType}
-                            filePath={fp}
-                            onOpenFile={handleOpenFile}
-                            openingPath={openingPath}
-                            explainLabel={t('settings.hooks.explain')}
-                            explainingLabel={t('settings.hooks.explaining')}
-                            explainTooltip={t('settings.hooks.explainTooltip')}
-                            onExplain={handleExplain}
-                            explanation={explanations.get(uiKey) ?? null}
-                            isExplaining={explaining.has(uiKey)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </SettingsSectionWrapper>
+    <SchemaSection
+      section="hooks"
+      scope={scope}
+      settings={settings}
+      userSettings={userSettings}
+      onSave={onSave}
+      onDelete={onDelete}
+      renderCustom={(key) => {
+        if (key !== 'hooks') return null;
+        return (
+          <HooksObjectEditor
+            scope={scope}
+            hooksData={hooksData}
+            locale={locale}
+            opening={opening}
+            openingPath={openingPath}
+            explanations={explanations}
+            explaining={explaining}
+            existingPaths={existingPaths}
+            onOpenInEditor={handleOpenInEditor}
+            onOpenFile={handleOpenFile}
+            onExplain={handleExplain}
+          />
+        );
+      }}
+    />
   );
 }

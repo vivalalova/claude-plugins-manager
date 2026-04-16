@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
-import type { ClaudeSettings, PluginScope } from '../../../shared/types';
+import type { PluginScope } from '../../../shared/types';
 import { getKnownEnvVar, getKnownEnvVarNames, getKnownEnvVarsByValueType } from '../../../shared/known-env-vars';
 import type { KnownEnvVar, EnvVarValueType } from '../../../shared/known-env-vars';
 import { BooleanToggle, TextSetting, NumberSetting } from './components/SettingControls';
-import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
+import { ObjectSetting } from './components/ObjectSetting';
+import { SchemaSection, type SectionProps } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -407,21 +408,15 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 // EnvSection
 // ---------------------------------------------------------------------------
 
-interface EnvSectionProps {
+interface EnvObjectEditorProps {
   scope: PluginScope;
-  settings: ClaudeSettings;
-  onSave: (key: string, value: unknown) => Promise<void>;
+  currentEnv: Record<string, string>;
+  onSaveEnv: (updatedEnv: Record<string, string>) => void;
 }
 
-export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.ReactElement {
+function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
-
-  const currentEnv = useMemo<Record<string, string>>(
-    () => (settings.env as Record<string, string>) ?? {},
-    [settings.env],
-  );
-
   const knownVarsByType = useMemo(() => getKnownEnvVarsByValueType(), []);
   const knownNames = useMemo(() => new Set(getKnownEnvVarNames()), []);
 
@@ -431,7 +426,9 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
   );
 
   const updateEnv = (updatedEnv: Record<string, string>): void => {
-    void withSave(() => onSave('env', updatedEnv));
+    void withSave(async () => {
+      onSaveEnv(updatedEnv);
+    });
   };
 
   // Adapter: bridge per-key save/delete to whole-env-object update
@@ -546,7 +543,11 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
   ];
 
   return (
-    <SettingsSectionWrapper>
+    <ObjectSetting
+      label={t('settings.env.env.label')}
+      description={t('settings.env.env.description')}
+      settingKey="env"
+    >
       {typeGroups.map(([vt, groupKey, renderer]) => {
         const vars = knownVarsByType.get(vt);
         if (!vars || vars.length === 0) return null;
@@ -576,7 +577,36 @@ export function EnvSection({ scope, settings, onSave }: EnvSectionProps): React.
           disabled={saving}
         />
       </EnvCategoryGroup>
-    </SettingsSectionWrapper>
+    </ObjectSetting>
+  );
+}
+
+export function EnvSection({ scope, settings, onSave, onDelete }: SectionProps): React.ReactElement {
+  const currentEnv = useMemo<Record<string, string>>(
+    () => (settings.env as Record<string, string>) ?? {},
+    [settings.env],
+  );
+
+  return (
+    <SchemaSection
+      section="env"
+      scope={scope}
+      settings={settings}
+      onSave={onSave}
+      onDelete={onDelete}
+      renderCustom={(key) => {
+        if (key !== 'env') return null;
+        return (
+          <EnvObjectEditor
+            scope={scope}
+            currentEnv={currentEnv}
+            onSaveEnv={(updatedEnv) => {
+              void onSave('env', updatedEnv);
+            }}
+          />
+        );
+      }}
+    />
   );
 }
 

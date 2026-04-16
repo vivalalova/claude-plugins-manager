@@ -32,6 +32,12 @@ const renderSection = (
     </ToastProvider>,
   );
 
+const getAvailableModelsField = () =>
+  screen.getByText('Available Models Whitelist').closest('.settings-field') as HTMLElement;
+
+const getAvailableModelsInput = () =>
+  within(getAvailableModelsField()).getByPlaceholderText('e.g. claude-sonnet-4-6');
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -51,6 +57,7 @@ describe('GeneralSection — 渲染', () => {
     renderSection();
 
     await waitFor(() => {
+      expect(screen.getByText('(model)')).toBeTruthy();
       expect(screen.getByText('(effortLevel: high)')).toBeTruthy();
       expect(screen.getByText('(language)')).toBeTruthy();
       expect(screen.getByText('(availableModels)')).toBeTruthy();
@@ -64,6 +71,11 @@ describe('GeneralSection — 渲染', () => {
   it('顯示 Language 欄位', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText('Language')).toBeTruthy());
+  });
+
+  it('顯示 Model 欄位', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Model')).toBeTruthy());
   });
 
   it('顯示 Available Models Whitelist 欄位', async () => {
@@ -107,6 +119,8 @@ describe('GeneralSection — 渲染', () => {
     await waitFor(() => {
       // effortLevel description
       expect(screen.getByText(/Adaptive reasoning level/i)).toBeTruthy();
+      // model description
+      expect(screen.getByText(/Default model alias or full model ID/i)).toBeTruthy();
       // language description
       expect(screen.getByText(/language preference/i)).toBeTruthy();
       // availableModels description
@@ -602,9 +616,9 @@ describe('GeneralSection — TagInput 互動', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. claude-sonnet-4-6'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. claude-sonnet-4-6'), { target: { value: 'claude-opus-4-6' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => getAvailableModelsInput());
+    fireEvent.change(getAvailableModelsInput(), { target: { value: 'claude-opus-4-6' } });
+    fireEvent.click(within(getAvailableModelsField()).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('availableModels', ['claude-opus-4-6']);
@@ -615,9 +629,9 @@ describe('GeneralSection — TagInput 互動', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ availableModels: ['claude-sonnet-4-6'] }, onSave);
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. claude-sonnet-4-6'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. claude-sonnet-4-6'), { target: { value: 'claude-opus-4-6' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => getAvailableModelsInput());
+    fireEvent.change(getAvailableModelsInput(), { target: { value: 'claude-opus-4-6' } });
+    fireEvent.click(within(getAvailableModelsField()).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('availableModels', ['claude-sonnet-4-6', 'claude-opus-4-6']);
@@ -654,9 +668,9 @@ describe('GeneralSection — TagInput 互動', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ availableModels: ['claude-sonnet-4-6'] }, onSave);
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. claude-sonnet-4-6'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. claude-sonnet-4-6'), { target: { value: 'claude-sonnet-4-6' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => getAvailableModelsInput());
+    fireEvent.change(getAvailableModelsInput(), { target: { value: 'claude-sonnet-4-6' } });
+    fireEvent.click(within(getAvailableModelsField()).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
       expect(screen.getByText('Model already in list')).toBeTruthy();
@@ -667,10 +681,10 @@ describe('GeneralSection — TagInput 互動', () => {
   it('scope 切換 → inputValue 和 error 清空', async () => {
     const { rerender } = renderSection({});
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. claude-sonnet-4-6'));
-    fireEvent.change(screen.getByPlaceholderText('e.g. claude-sonnet-4-6'), { target: { value: 'claude-opus-4-6' } });
+    await waitFor(() => getAvailableModelsInput());
+    fireEvent.change(getAvailableModelsInput(), { target: { value: 'claude-opus-4-6' } });
 
-    const input = screen.getByPlaceholderText('e.g. claude-sonnet-4-6') as HTMLInputElement;
+    const input = getAvailableModelsInput() as HTMLInputElement;
     expect(input.value).toBe('claude-opus-4-6');
 
     rerender(
@@ -687,7 +701,7 @@ describe('GeneralSection — TagInput 互動', () => {
     );
 
     await waitFor(() => {
-      const resetInput = screen.getByPlaceholderText('e.g. claude-sonnet-4-6') as HTMLInputElement;
+      const resetInput = getAvailableModelsInput() as HTMLInputElement;
       expect(resetInput.value).toBe('');
     });
   });
@@ -696,8 +710,8 @@ describe('GeneralSection — TagInput 互動', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. claude-sonnet-4-6'));
-    const input = screen.getByPlaceholderText('e.g. claude-sonnet-4-6');
+    await waitFor(() => getAvailableModelsInput());
+    const input = getAvailableModelsInput();
     fireEvent.change(input, { target: { value: 'claude-haiku-4-5-20251001' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

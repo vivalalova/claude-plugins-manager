@@ -404,18 +404,6 @@
   align-items: center;
 }
 
-.settings-model-select {
-  flex: 1;
-  max-width: 320px;
-  padding: 6px 10px;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
-}
-
-.settings-model-custom-input {
-  max-width: 320px;
-}
-
 .settings-actions {
   display: flex;
   gap: var(--gap-md);

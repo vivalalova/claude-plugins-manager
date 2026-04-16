@@ -27,6 +27,56 @@ interface SchemaSectionProps extends SectionProps {
   headerContent?: React.ReactNode;
 }
 
+interface ResolvedSchemaFieldBindings {
+  schema: NonNullable<typeof SETTINGS_FLAT_SCHEMA[string]>;
+  value: unknown;
+  onSave: SectionProps['onSave'];
+  onDelete: SectionProps['onDelete'];
+  overriddenScope?: PluginScope;
+}
+
+export function getSchemaFieldBindings(
+  key: string,
+  {
+    scope,
+    settings,
+    userSettings,
+    onSave,
+    onDelete,
+  }: Pick<SectionProps, 'scope' | 'settings' | 'userSettings' | 'onSave' | 'onDelete'>,
+): ResolvedSchemaFieldBindings | null {
+  const schema = SETTINGS_FLAT_SCHEMA[key];
+  if (!schema) return null;
+
+  if (schema.nestedUnder) {
+    const parentKey = schema.nestedUnder;
+    const parent = ((settings as Record<string, unknown>)[parentKey] ?? {}) as Record<string, unknown>;
+    const parentUserSettings = ((userSettings as Record<string, unknown> | undefined)?.[parentKey] ?? {}) as Record<string, unknown>;
+
+    return {
+      schema,
+      value: parent[key],
+      onSave: async (_k: string, newValue: unknown) => {
+        await onSave(parentKey, { ...parent, [key]: newValue });
+      },
+      onDelete: async (_k: string) => {
+        const updated = { ...parent };
+        delete updated[key];
+        await onSave(parentKey, updated);
+      },
+      overriddenScope: getOverriddenScope(scope, parentUserSettings, key),
+    };
+  }
+
+  return {
+    schema,
+    value: (settings as Record<string, unknown>)[key],
+    onSave,
+    onDelete,
+    overriddenScope: getOverriddenScope(scope, userSettings as Record<string, unknown>, key),
+  };
+}
+
 export function SchemaSection({
   section,
   scope,
@@ -44,35 +94,9 @@ export function SchemaSection({
       {headerContent}
 
       {fieldOrder.map((key) => {
-        const schema = SETTINGS_FLAT_SCHEMA[key];
-        if (!schema) return null;
-
-        // 處理巢狀欄位（nestedUnder）：從父物件讀取，寫入時 merge 回父物件
-        let value: unknown;
-        let fieldOnSave: SectionProps['onSave'];
-        let fieldOnDelete: SectionProps['onDelete'];
-        let overriddenScope: PluginScope | undefined;
-
-        if (schema.nestedUnder) {
-          const parentKey = schema.nestedUnder;
-          const parent = ((settings as Record<string, unknown>)[parentKey] ?? {}) as Record<string, unknown>;
-          value = parent[key];
-          fieldOnSave = async (_k: string, newValue: unknown) => {
-            await onSave(parentKey, { ...parent, [key]: newValue });
-          };
-          fieldOnDelete = async (_k: string) => {
-            const updated = { ...parent };
-            delete updated[key];
-            await onSave(parentKey, updated);
-          };
-          const parentUserSettings = ((userSettings as Record<string, unknown> | undefined)?.[parentKey] ?? {}) as Record<string, unknown>;
-          overriddenScope = getOverriddenScope(scope, parentUserSettings, key);
-        } else {
-          value = (settings as Record<string, unknown>)[key];
-          fieldOnSave = onSave;
-          fieldOnDelete = onDelete;
-          overriddenScope = getOverriddenScope(scope, userSettings as Record<string, unknown>, key);
-        }
+        const field = getSchemaFieldBindings(key, { scope, settings, userSettings, onSave, onDelete });
+        if (!field) return null;
+        const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = field;
 
         if (schema.controlType === Object) {
           const custom = renderCustom?.(key, { scope, settings, overriddenScope, onSave: fieldOnSave, onDelete: fieldOnDelete });

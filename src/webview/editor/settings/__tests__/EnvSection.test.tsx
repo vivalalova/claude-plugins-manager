@@ -8,6 +8,7 @@ import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { isSensitiveKey, EnvSection } from '../EnvSection';
 import { ToastProvider } from '../../../components/Toast';
 import { KNOWN_ENV_VARS } from '../../../../shared/known-env-vars';
+import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
 
 vi.mock('../../../vscode', () => ({
   sendRequest: vi.fn(),
@@ -64,6 +65,20 @@ describe('isSensitiveKey', () => {
 // ---------------------------------------------------------------------------
 
 describe('EnvSection — 全列表渲染', () => {
+  it('schema 內欄位按 env section 順序顯示 key hint', async () => {
+    const { container } = renderEnvSection({});
+    const schemaKeys = new Set(getSectionFieldOrder('env'));
+
+    await waitFor(() => {
+      const hints = container.querySelectorAll('.settings-key-hint');
+      const keys = Array.from(hints).map((el) => {
+        const match = el.textContent?.match(/^\((\w+)/);
+        return match?.[1] ?? '';
+      }).filter((key) => schemaKeys.has(key));
+      expect(keys).toEqual(getSectionFieldOrder('env'));
+    });
+  });
+
   it('即使 env 為空，也顯示所有已知 env vars', async () => {
     renderEnvSection({});
 

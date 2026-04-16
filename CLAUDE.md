@@ -21,7 +21,7 @@ npm run watch              # concurrently watch extension + webview
 - **Webview UI**（React 19）：`src/webview/` — 單一 bundle，`data-mode` 切換 sidebar / editor
 - **CSS 模組化**：`src/webview/styles.css` 為 `@import` 彙總檔，實際樣式在 `src/webview/styles/`（base.css / sidebar.css / layout.css / cards.css / mcp.css / skills.css / settings.css / common.css）
 - **共用型別**：`src/shared/types.ts` — 唯一型別來源，禁止在其他檔案重複定義
-- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；巢狀結構 `Record<SettingsSection, SettingFieldEntry[]>`，陣列順序即 UI 渲染順序；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；`String` + `options` = enum dropdown；`SETTINGS_FLAT_SCHEMA` 扁平索引供 key lookup；`getSectionFieldOrder(section)` 取渲染順序；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options、`KNOWN_MODEL_OPTIONS` model dropdown fallback 清單；`npm run check:schema` 驗證一致性 + 邏輯約束
+- **Settings Schema**：`src/shared/claude-settings-schema.ts` — settings key metadata 單一來源；巢狀結構 `Record<SettingsSection, SettingFieldEntry[]>`，陣列順序即 UI 渲染順序；`controlType` 用原生型別（`String`/`Number`/`Boolean`/`Array`/`Object`）；`String` + `options` = enum dropdown；`SETTINGS_FLAT_SCHEMA` 扁平索引供 key lookup；`SETTINGS_NAV_SECTIONS` 集中定義 SettingsPage 分區順序；`getSectionFieldOrder(section)` 取渲染順序；`getSchemaDefault()` 取 default 值、`getSchemaEnumOptions()` 取 enum options；`npm run check:schema` 驗證一致性 + 邏輯約束
 - **Known Env Vars**：`src/shared/known-env-vars.ts` — 已知 env vars registry；`valueType` 用原生型別（`String`/`Number`/`Boolean`）供 EnvSection autocomplete + inline description（i18n）；`update-settings-options` skill Phase 1c 同步維護
 - **SettingsSectionWrapper**：`src/webview/editor/settings/components/SettingsSectionWrapper.tsx` — 所有 settings section 的共用外層容器（`div.settings-section`）
 - **SchemaFieldRenderer**：`src/webview/editor/settings/components/SchemaFieldRenderer.tsx` — 依 schema `controlType` 自動渲染控制元件（boolean/enum/text/number/tagInput）；`custom` 回傳 null，由 Section 手動處理
@@ -78,8 +78,9 @@ EditorPanelManager → McpService.startPolling()/stopPolling()（panel category 
 | DisplaySection | **schema-driven**（`getSectionFieldOrder('display')` loop）；spinnerVerbs/spinnerTipsOverride 為 custom 手動渲染 | teammateMode、showTurnDuration、spinnerTipsEnabled、terminalProgressBarEnabled、prefersReducedMotion、spinnerVerbs、spinnerTipsOverride |
 | AdvancedSection | **schema-driven**（`getSectionFieldOrder('advanced')` loop）；attribution/statusLine/fileSuggestion/sandbox/companyAnnouncements/modelOverrides/worktree 為 custom 手動渲染；sandbox 支援結構化 + JSON 雙模式 | forceLoginMethod、attribution、statusLine、fileSuggestion、sandbox、companyAnnouncements、forceLoginOrgUUID、plansDirectory、apiKeyHelper、otelHeadersHelper、awsCredentialExport、awsAuthRefresh、skipWebFetchPreflight、alwaysThinkingEnabled、claudeMdExcludes、modelOverrides、feedbackSurveyRate、worktree、autoMode、defaultShell |
 | PermissionsSection | 手動（custom）；allowedMcpServers/deniedMcpServers 為 JSON TextSetting | permissions（allow/deny/ask/additionalDirectories）、enableAllProjectMcpServers、enabledMcpjsonServers、disabledMcpjsonServers、allowedMcpServers、deniedMcpServers |
-| EnvSection | 手動（custom） | env（key-value map） |
-| HooksSection | **混合**：disableAllHooks/httpHookAllowedEnvVars/allowedHttpHookUrls 用 SchemaFieldRenderer；hooks 本體手動 | hooks（四種 type）、disableAllHooks、httpHookAllowedEnvVars、allowedHttpHookUrls |
+| EnvSection | **schema-driven**（`getSectionFieldOrder('env')` loop）；`env` object 由 custom editor 渲染內容 | env（key-value map） |
+| HooksSection | **schema-driven**（`getSectionFieldOrder('hooks')` loop）；`hooks` object 本體手動，其他 key 走 schema renderer | hooks（四種 type）、disableAllHooks、httpHookAllowedEnvVars、allowedHttpHookUrls |
+| SettingsPage | nav/search 跟 schema 綁定；例外只保留 Permissions 手寫頁與 Unknown 區塊 | `SETTINGS_NAV_SECTIONS`、`getSchemaFieldBindings()`、`UnknownSettingsSection` |
 
 ## 設定頁參數參考
 
