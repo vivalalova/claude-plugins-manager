@@ -32,7 +32,7 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 | Category | Keys | 原因 |
 |----------|------|------|
-| managed-only | `allowManagedHooksOnly`、`allowManagedPermissionRulesOnly`、`allowManagedMcpServersOnly`、`allowedChannelPlugins`、`channelsEnabled`、`forceRemoteSettingsRefresh`、`strictKnownMarketplaces`、`blockedMarketplaces`、`pluginTrustMessage` | 企業管理員專用，一般使用者無法設定 |
+| managed-only | `allowManagedHooksOnly`、`allowManagedMcpServersOnly`、`allowManagedPermissionRulesOnly`、`blockedMarketplaces`、`pluginTrustMessage`、`strictKnownMarketplaces` | 企業管理員專用，一般使用者無法設定 |
 | plugin-internal | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` | 由 extension plugin/marketplace UI 管理 |
 | deprecated | `includeCoAuthoredBy` | 已被 `attribution` 取代 |
 | meta | `$schema` | JSON schema 參照，非設定值 |
@@ -46,9 +46,8 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 ## Repo surface
 
-- type：`src/shared/types.ts`
-- schema：`src/shared/claude-settings-schema.ts`
-- schema（含渲染順序）：`src/shared/claude-settings-schema.ts`
+- schema 單一來源（含 section 陣列 = UI 渲染順序）：`src/shared/claude-settings-schema.ts`
+- 由 schema 自動重生（禁手改）：`src/shared/claude-settings-types.generated.ts`
 - UI：`src/webview/editor/settings/`
 - i18n：`src/webview/i18n/locales/en.ts`、`ja.ts`、`zh-TW.ts`
 - tests：section tests、shared controls tests

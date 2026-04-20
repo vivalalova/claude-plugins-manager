@@ -386,8 +386,8 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     allowUnixSockets: optional(STRING_ARRAY_SCHEMA),
     allowAllUnixSockets: optional(booleanValue()),
     allowLocalBinding: optional(booleanValue()),
-    httpProxyPort: optional(numberValue()),
-    socksProxyPort: optional(numberValue()),
+    httpProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
+    socksProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     allowManagedDomainsOnly: optional(booleanValue()),
   })),
 });
@@ -483,7 +483,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
   ],
 
   env: [
-    recordField('env', STRING_SCHEMA),
+    recordField('env', STRING_SCHEMA, { default: {} }),
   ],
 
   hooks: [

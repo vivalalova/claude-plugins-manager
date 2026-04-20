@@ -37,9 +37,12 @@ Or trigger with natural language: "sync settings from docs", "update settings op
 | Category | Action | Example keys |
 |----------|--------|-------------|
 | user-facing | Sync to UI | Most settings keys |
+| anti-direction | Pin to AdvancedSection | `alwaysThinkingEnabled` |
 | managed-only | Skip | `allowManagedHooksOnly`, `allowManagedPermissionRulesOnly` |
 | plugin-internal | Skip | `enabledPlugins`, `extraKnownMarketplaces` |
 | deprecated | Skip | `includeCoAuthoredBy` |
+| repo-only | Report for user confirmation | `agent`, `autoConnectIde` |
+| meta | Skip | `$schema` |
 
 ## References
 
