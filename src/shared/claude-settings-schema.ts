@@ -502,6 +502,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('forceLoginOrgUUID', FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA, { controlTypeOverride: String }),
     stringField('plansDirectory', { default: '~/.claude/plans' }),
+    stringField('advisorModel'),
     stringField('apiKeyHelper'),
     stringField('otelHeadersHelper'),
     stringField('awsCredentialExport'),

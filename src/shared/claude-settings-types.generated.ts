@@ -169,6 +169,7 @@ export interface ClaudeSettings {
   companyAnnouncements?: string[];
   forceLoginOrgUUID?: string | string[];
   plansDirectory?: string;
+  advisorModel?: string;
   apiKeyHelper?: string;
   otelHeadersHelper?: string;
   awsCredentialExport?: string;
