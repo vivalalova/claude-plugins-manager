@@ -277,7 +277,7 @@ function recordField<
 }
 
 const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const;
-const EFFORT_LEVEL_OPTIONS = ['high', 'medium', 'low'] as const;
+const EFFORT_LEVEL_OPTIONS = ['xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
@@ -433,6 +433,7 @@ const HOOKS_VALUE_SCHEMA = recordValue(arrayValue(objectValue({
 export const CLAUDE_SETTINGS_SCHEMA = {
   general: [
     stringField('model'),
+    stringField('advisorModel'),
     stringField('agent'),
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
@@ -502,7 +503,6 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('forceLoginOrgUUID', FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA, { controlTypeOverride: String }),
     stringField('plansDirectory', { default: '~/.claude/plans' }),
-    stringField('advisorModel'),
     stringField('apiKeyHelper'),
     stringField('otelHeadersHelper'),
     stringField('awsCredentialExport'),

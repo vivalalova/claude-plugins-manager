@@ -147,7 +147,7 @@ describe('claude-settings-schema', () => {
 
 describe('getSchemaEnumOptions', () => {
   it('回傳已知 enum key 的 options', () => {
-    expect(getSchemaEnumOptions('effortLevel')).toEqual(['high', 'medium', 'low']);
+    expect(getSchemaEnumOptions('effortLevel')).toEqual(['xhigh', 'high', 'medium', 'low']);
     expect(getSchemaEnumOptions('autoUpdatesChannel')).toEqual(['stable', 'latest']);
     expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux']);
     expect(getSchemaEnumOptions('forceLoginMethod')).toEqual(['claudeai', 'console']);

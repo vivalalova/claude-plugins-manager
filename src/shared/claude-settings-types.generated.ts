@@ -32,8 +32,9 @@ export type HookCommand = {
 
 export interface ClaudeSettings {
   model?: string;
+  advisorModel?: string;
   agent?: string;
-  effortLevel?: "high" | "medium" | "low";
+  effortLevel?: "xhigh" | "high" | "medium" | "low";
   language?: string;
   availableModels?: string[];
   includeGitInstructions?: boolean;
@@ -169,7 +170,6 @@ export interface ClaudeSettings {
   companyAnnouncements?: string[];
   forceLoginOrgUUID?: string | string[];
   plansDirectory?: string;
-  advisorModel?: string;
   apiKeyHelper?: string;
   otelHeadersHelper?: string;
   awsCredentialExport?: string;
