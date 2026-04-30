@@ -42,9 +42,13 @@ function formatExplainError(baseMessage: string, error: unknown): string {
 }
 
 function getHookContent(hook: HookCommand): string {
-  return hook.type === 'command' ? hook.command :
-         hook.type === 'http'    ? hook.url :
-         (hook as { prompt: string }).prompt;
+  switch (hook.type) {
+    case 'command':  return hook.command;
+    case 'http':     return hook.url;
+    case 'prompt':   return hook.prompt;
+    case 'agent':    return hook.prompt;
+    case 'mcp_tool': return `${hook.server}/${hook.tool}`;
+  }
 }
 
 function extractFilePath(command: string): string | null {
@@ -55,10 +59,11 @@ function extractFilePath(command: string): string | null {
 
 function getHookLabel(hook: HookCommand): string {
   switch (hook.type) {
-    case 'command': return truncate(hook.command);
-    case 'prompt':  return truncate(hook.prompt);
-    case 'agent':   return truncate(hook.prompt);
-    case 'http':    return truncate(hook.url);
+    case 'command':  return truncate(hook.command);
+    case 'prompt':   return truncate(hook.prompt);
+    case 'agent':    return truncate(hook.prompt);
+    case 'http':     return truncate(hook.url);
+    case 'mcp_tool': return truncate(`${hook.server}/${hook.tool}`);
   }
 }
 

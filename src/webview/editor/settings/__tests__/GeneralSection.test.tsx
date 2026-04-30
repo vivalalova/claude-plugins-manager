@@ -422,9 +422,9 @@ describe('GeneralSection — EnumDropdown 互動', () => {
   });
 
   it('未知 effortLevel → 顯示 __unknown__ disabled option（含 ⚠️）', async () => {
-    renderSection({ effortLevel: 'max' as any });
+    renderSection({ effortLevel: 'ultra' as any });
     await waitFor(() => {
-      expect(screen.getByText(/Current value: max/)).toBeTruthy();
+      expect(screen.getByText(/Current value: ultra/)).toBeTruthy();
     });
   });
 
@@ -822,32 +822,15 @@ describe('GeneralSection — NumberSetting 互動', () => {
     });
   });
 
-  it('cleanupPeriodDays < 0 → save 按鈕 disabled', async () => {
+  it('cleanupPeriodDays < 1 → save 按鈕 disabled', async () => {
     renderSection({});
 
     await waitFor(() => screen.getByPlaceholderText('30'));
     const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
-    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '0' } });
 
     await waitFor(() => {
       expect((within(cleanupField).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
-    });
-  });
-
-  it('cleanupPeriodDays=0（停用清理）→ input 顯示 0，onSave("cleanupPeriodDays", 0)', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({ cleanupPeriodDays: 0 }, onSave);
-
-    await waitFor(() => {
-      const input = screen.getByPlaceholderText('30') as HTMLInputElement;
-      expect(input.value).toBe('0');
-    });
-
-    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('cleanupPeriodDays', 0);
     });
   });
 });

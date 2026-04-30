@@ -8,33 +8,47 @@ export type HookCommand = {
   command: string;
   timeout?: number;
   async?: boolean;
+  asyncRewake?: boolean;
+  shell?: "bash" | "powershell";
+  if?: string;
   statusMessage?: string;
 } | {
   type: "prompt";
   prompt: string;
   model?: string;
   timeout?: number;
+  if?: string;
   statusMessage?: string;
 } | {
   type: "agent";
   prompt: string;
   model?: string;
   timeout?: number;
+  if?: string;
   statusMessage?: string;
 } | {
   type: "http";
   url: string;
   headers?: Record<string, string>;
   timeout?: number;
+  if?: string;
   statusMessage?: string;
   allowedEnvVars?: string[];
+} | {
+  type: "mcp_tool";
+  server: string;
+  tool: string;
+  input?: Record<string, string>;
+  timeout?: number;
+  if?: string;
+  statusMessage?: string;
 };
 
 export interface ClaudeSettings {
   model?: string;
   advisorModel?: string;
   agent?: string;
-  effortLevel?: "xhigh" | "high" | "medium" | "low";
+  effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   language?: string;
   availableModels?: string[];
   includeGitInstructions?: boolean;
@@ -49,6 +63,7 @@ export interface ClaudeSettings {
   cleanupPeriodDays?: number;
   teammateMode?: "auto" | "in-process" | "tmux";
   viewMode?: "default" | "verbose" | "focus";
+  tui?: "fullscreen" | "default";
   showTurnDuration?: boolean;
   showThinkingSummaries?: boolean;
   showClearContextOnPlanAccept?: boolean;
@@ -79,6 +94,7 @@ export interface ClaudeSettings {
     ask?: string[];
     defaultMode?: "default" | "acceptEdits" | "plan" | "dontAsk" | "auto" | "bypassPermissions" | "delegate";
     disableBypassPermissionsMode?: "disable";
+    disableAutoMode?: "disable";
     additionalDirectories?: string[];
   };
   allowedMcpServers?: ({
@@ -104,26 +120,40 @@ export interface ClaudeSettings {
       command: string;
       timeout?: number;
       async?: boolean;
+      asyncRewake?: boolean;
+      shell?: "bash" | "powershell";
+      if?: string;
       statusMessage?: string;
     } | {
       type: "prompt";
       prompt: string;
       model?: string;
       timeout?: number;
+      if?: string;
       statusMessage?: string;
     } | {
       type: "agent";
       prompt: string;
       model?: string;
       timeout?: number;
+      if?: string;
       statusMessage?: string;
     } | {
       type: "http";
       url: string;
       headers?: Record<string, string>;
       timeout?: number;
+      if?: string;
       statusMessage?: string;
       allowedEnvVars?: string[];
+    } | {
+      type: "mcp_tool";
+      server: string;
+      tool: string;
+      input?: Record<string, string>;
+      timeout?: number;
+      if?: string;
+      statusMessage?: string;
     })[];
   }[]>;
   httpHookAllowedEnvVars?: string[];
@@ -137,6 +167,7 @@ export interface ClaudeSettings {
     type: "command";
     command: string;
     padding?: number;
+    refreshInterval?: number;
   };
   fileSuggestion?: {
     type: "command";
@@ -150,6 +181,10 @@ export interface ClaudeSettings {
     enableWeakerNestedSandbox?: boolean;
     allowUnsandboxedCommands?: boolean;
     ignoreViolations?: Record<string, string[]>;
+    ripgrep?: {
+      command: string;
+      args?: string[];
+    };
     filesystem?: {
       allowWrite?: string[];
       denyWrite?: string[];
@@ -159,12 +194,14 @@ export interface ClaudeSettings {
     };
     network?: {
       allowedDomains?: string[];
+      deniedDomains?: string[];
       allowUnixSockets?: string[];
       allowAllUnixSockets?: boolean;
       allowLocalBinding?: boolean;
       httpProxyPort?: number;
       socksProxyPort?: number;
       allowManagedDomainsOnly?: boolean;
+      allowMachLookup?: string[];
     };
   };
   companyAnnouncements?: string[];
@@ -191,4 +228,6 @@ export interface ClaudeSettings {
     soft_deny?: string[];
   };
   defaultShell?: "bash" | "powershell";
+  prUrlTemplate?: string;
+  channelsEnabled?: boolean;
 }

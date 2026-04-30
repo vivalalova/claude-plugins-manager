@@ -277,15 +277,17 @@ function recordField<
 }
 
 const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const;
-const EFFORT_LEVEL_OPTIONS = ['xhigh', 'high', 'medium', 'low'] as const;
+const EFFORT_LEVEL_OPTIONS = ['max', 'xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
 const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
+const TUI_OPTIONS = ['fullscreen', 'default'] as const;
 const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console'] as const;
 const DISABLE_ONLY_OPTIONS = ['disable'] as const;
 const DEFAULT_SHELL_OPTIONS = ['bash', 'powershell'] as const;
 const SPINNER_MODE_OPTIONS = ['append', 'replace'] as const;
+const HOOK_SHELL_OPTIONS = ['bash', 'powershell'] as const;
 
 const STRING_SCHEMA = stringValue();
 const STRING_ARRAY_SCHEMA = arrayValue(STRING_SCHEMA);
@@ -303,6 +305,9 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
     command: required(STRING_SCHEMA),
     timeout: optional(numberValue()),
     async: optional(booleanValue()),
+    asyncRewake: optional(booleanValue()),
+    shell: optional(stringValue(HOOK_SHELL_OPTIONS)),
+    if: optional(STRING_SCHEMA),
     statusMessage: optional(STRING_SCHEMA),
   }),
   objectValue({
@@ -310,6 +315,7 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
     prompt: required(STRING_SCHEMA),
     model: optional(STRING_SCHEMA),
     timeout: optional(numberValue()),
+    if: optional(STRING_SCHEMA),
     statusMessage: optional(STRING_SCHEMA),
   }),
   objectValue({
@@ -317,6 +323,7 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
     prompt: required(STRING_SCHEMA),
     model: optional(STRING_SCHEMA),
     timeout: optional(numberValue()),
+    if: optional(STRING_SCHEMA),
     statusMessage: optional(STRING_SCHEMA),
   }),
   objectValue({
@@ -324,8 +331,18 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
     url: required(STRING_SCHEMA),
     headers: optional(STRING_RECORD_SCHEMA),
     timeout: optional(numberValue()),
+    if: optional(STRING_SCHEMA),
     statusMessage: optional(STRING_SCHEMA),
     allowedEnvVars: optional(STRING_ARRAY_SCHEMA),
+  }),
+  objectValue({
+    type: required(literalValue('mcp_tool')),
+    server: required(STRING_SCHEMA),
+    tool: required(STRING_SCHEMA),
+    input: optional(recordValue(STRING_SCHEMA)),
+    timeout: optional(numberValue()),
+    if: optional(STRING_SCHEMA),
+    statusMessage: optional(STRING_SCHEMA),
   }),
 );
 
@@ -335,6 +352,7 @@ const UPDATE_CHANNEL_VALUE_SCHEMA = stringValue(UPDATE_CHANNEL_OPTIONS);
 const TEAMMATE_MODE_VALUE_SCHEMA = stringValue(TEAMMATE_MODE_OPTIONS);
 const VIEW_MODE_VALUE_SCHEMA = stringValue(VIEW_MODE_OPTIONS);
 const EDITOR_MODE_VALUE_SCHEMA = stringValue(EDITOR_MODE_OPTIONS);
+const TUI_VALUE_SCHEMA = stringValue(TUI_OPTIONS);
 const FORCE_LOGIN_METHOD_VALUE_SCHEMA = stringValue(FORCE_LOGIN_METHOD_OPTIONS);
 const DISABLE_ONLY_VALUE_SCHEMA = stringValue(DISABLE_ONLY_OPTIONS);
 const DEFAULT_SHELL_VALUE_SCHEMA = stringValue(DEFAULT_SHELL_OPTIONS);
@@ -359,6 +377,7 @@ const STATUS_LINE_VALUE_SCHEMA = objectValue({
   type: required(literalValue('command')),
   command: required(STRING_SCHEMA),
   padding: optional(numberValue()),
+  refreshInterval: optional(numberValue({ min: 1, step: 1 })),
 });
 
 const FILE_SUGGESTION_VALUE_SCHEMA = objectValue({
@@ -374,6 +393,10 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
   enableWeakerNestedSandbox: optional(booleanValue()),
   allowUnsandboxedCommands: optional(booleanValue()),
   ignoreViolations: optional(recordValue(STRING_ARRAY_SCHEMA)),
+  ripgrep: optional(objectValue({
+    command: required(STRING_SCHEMA),
+    args: optional(STRING_ARRAY_SCHEMA),
+  })),
   filesystem: optional(objectValue({
     allowWrite: optional(STRING_ARRAY_SCHEMA),
     denyWrite: optional(STRING_ARRAY_SCHEMA),
@@ -383,19 +406,21 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
   })),
   network: optional(objectValue({
     allowedDomains: optional(STRING_ARRAY_SCHEMA),
+    deniedDomains: optional(STRING_ARRAY_SCHEMA),
     allowUnixSockets: optional(STRING_ARRAY_SCHEMA),
     allowAllUnixSockets: optional(booleanValue()),
     allowLocalBinding: optional(booleanValue()),
     httpProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     socksProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     allowManagedDomainsOnly: optional(booleanValue()),
+    allowMachLookup: optional(STRING_ARRAY_SCHEMA),
   })),
 });
 
 const COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA = arrayValue(STRING_SCHEMA);
 const FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA = unionValue(STRING_SCHEMA, STRING_ARRAY_SCHEMA);
 const MODEL_OVERRIDES_VALUE_SCHEMA = recordValue(STRING_SCHEMA);
-const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 0, step: 1 });
+const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
 const FEEDBACK_SURVEY_RATE_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
 
 const WORKTREE_VALUE_SCHEMA = objectValue({
@@ -415,6 +440,7 @@ const PERMISSIONS_VALUE_SCHEMA = objectValue({
   ask: optional(STRING_ARRAY_SCHEMA),
   defaultMode: optional(DEFAULT_MODE_VALUE_SCHEMA),
   disableBypassPermissionsMode: optional(DISABLE_ONLY_VALUE_SCHEMA),
+  disableAutoMode: optional(DISABLE_ONLY_VALUE_SCHEMA),
   additionalDirectories: optional(STRING_ARRAY_SCHEMA),
 });
 
@@ -457,6 +483,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
   display: [
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
+    createField('tui', TUI_VALUE_SCHEMA),
     booleanField('showTurnDuration', { default: true }),
     booleanField('showThinkingSummaries', { default: false }),
     booleanField('showClearContextOnPlanAccept', { default: false }),
@@ -517,6 +544,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('worktree', WORKTREE_VALUE_SCHEMA),
     createField('autoMode', AUTO_MODE_VALUE_SCHEMA),
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
+    stringField('prUrlTemplate'),
+    booleanField('channelsEnabled', { default: false }),
   ],
 } as const;
 
