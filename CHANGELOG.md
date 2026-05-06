@@ -2,24 +2,10 @@
 
 ## 0.2.5
 
-- fix: [version 腳本] BSD awk 多行 -v 改讀檔案
-- chore: [測試] vitest testTimeout 提高到 10s
-- feat: [settings] 同步 106 個官方 env vars 註冊與三語 i18n 描述
-- fix: [settings] disableAutoMode 補 nestedUnder 修正寫入路徑
-- feat: 同步 Claude settings schema 變更
-- feat: [settings] 補 effortLevel xhigh、advisorModel 改掛 general
-- feat: 新增 advisorModel 設定到 advanced 頁
-- docs: 強化 update-settings-options skill 比對流程
-- docs: 補齊 managed-only settings 清單
-- refactor: 讓 settings schema 成為唯一來源
-- Trim CLAUDE.md to repo rules and key references
-- fix: 收斂 settings schema 與輸入欄寬度
-- fix: 讓 settings 依 schema 渲染
-- for schema
-- refactor: 依 surface-map 準則重新分類 settings schema
-- feat: 同步 autoMode/defaultShell 設定與 5 個新 env vars
-- feat: 新增 auto 至 permissions defaultMode 已知選項
-- docs: 更新 0.2.4 changelog
+- Synced Claude Code settings schema with new keys (`advisorModel`, `tui`, `prUrlTemplate`, `channelsEnabled`, `autoMode`, `defaultShell`, `auto` permission mode), `effortLevel` `xhigh`/`max`, sandbox `ripgrep` / `deniedDomains` / `allowMachLookup`, `statusLine.refreshInterval`, and the `mcp_tool` hook variant
+- Expanded known env vars autocomplete from 116 to 222 entries based on official docs (Bedrock/Vertex/Foundry providers, mTLS auth, OAuth tokens, OTEL telemetry, plugin/MCP knobs) with localized descriptions in EN/JA/ZH-TW
+- Fixed a silent bug where toggling Disable Auto Mode wrote to the wrong settings path and was ignored by Claude Code CLI
+- Settings page now renders purely from schema with corrected input widths and section grouping
 
 ## 0.2.4
 
