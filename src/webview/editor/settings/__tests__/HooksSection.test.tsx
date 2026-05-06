@@ -357,6 +357,25 @@ describe('HooksSection — open file button', () => {
     });
   });
 
+  it('command = "node ~/path.mjs" interpreter 包腳本 → 偵測到腳本路徑並送 checkFilePaths', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; paths?: string[] }) => {
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve(['~/.claude/hooks/auto-format.mjs']);
+      return Promise.resolve(undefined);
+    });
+    renderSection({
+      hooks: {
+        PostToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: 'node ~/.claude/hooks/auto-format.mjs' }] }],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'hooks.checkFilePaths', paths: ['~/.claude/hooks/auto-format.mjs'] }),
+      );
+      expect(screen.getByTitle('Open file')).toBeTruthy();
+    });
+  });
+
   it('command = 路徑但不存在 → 不顯示按鈕', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'hooks.checkFilePaths') return Promise.resolve([]);

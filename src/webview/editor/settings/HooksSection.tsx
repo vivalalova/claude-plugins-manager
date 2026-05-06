@@ -14,7 +14,8 @@ import { SchemaSection, type SectionProps } from './components/SchemaSection';
 const MAX_CMD_LEN = 60;
 const FILE_PATH_RE = /^(?:\/|~\/)/;
 const MAX_EXPLAIN_ERROR_LEN = 120;
-const LEADING_PATH_RE = /^(?:"([^"]+)"|'([^']+)'|(\S+))/;
+// Match every token in a shell command, respecting double/single quotes.
+const TOKEN_RE = /"([^"]+)"|'([^']+)'|(\S+)/g;
 
 function truncate(s: string): string {
   return s.length > MAX_CMD_LEN ? `${s.slice(0, MAX_CMD_LEN)}…` : s;
@@ -52,9 +53,14 @@ function getHookContent(hook: HookCommand): string {
 }
 
 function extractFilePath(command: string): string | null {
-  const match = command.trim().match(LEADING_PATH_RE);
-  const firstToken = match?.[1] ?? match?.[2] ?? match?.[3] ?? '';
-  return FILE_PATH_RE.test(firstToken) ? firstToken : null;
+  // Scan tokens left-to-right; return first one that looks like an absolute or home-relative path.
+  // Handles `node ~/foo.mjs`, `bash /tmp/x.sh`, `/usr/bin/env python ~/bar.py` correctly,
+  // not just commands where the script itself is the leading token.
+  for (const match of command.trim().matchAll(TOKEN_RE)) {
+    const token = match[1] ?? match[2] ?? match[3] ?? '';
+    if (FILE_PATH_RE.test(token)) return token;
+  }
+  return null;
 }
 
 function getHookLabel(hook: HookCommand): string {
