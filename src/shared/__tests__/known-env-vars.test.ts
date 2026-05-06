@@ -39,7 +39,7 @@ describe('KNOWN_ENV_VARS registry', () => {
   it('sensitive flag only on auth-like keys', () => {
     for (const entry of Object.values(KNOWN_ENV_VARS)) {
       if (entry.sensitive) {
-        expect(entry.name).toMatch(/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|HEADERS/i);
+        expect(entry.name).toMatch(/KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|HEADERS|CERT|PASSPHRASE/i);
       }
     }
   });
