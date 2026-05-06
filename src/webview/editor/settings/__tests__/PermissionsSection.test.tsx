@@ -96,7 +96,7 @@ describe('PermissionsSection — 渲染', () => {
 });
 
 describe('PermissionsSection — new settings 互動', () => {
-  it('disableAutoMode 未設定, 選擇 disable → onSave("disableAutoMode", "disable")', async () => {
+  it('disableAutoMode 未設定, 選擇 disable → onSave("permissions", { disableAutoMode: "disable" })', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -104,19 +104,19 @@ describe('PermissionsSection — new settings 互動', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), { target: { value: 'disable' } });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('disableAutoMode', 'disable');
+      expect(onSave).toHaveBeenCalledWith('permissions', { disableAutoMode: 'disable' });
     });
   });
 
-  it('disableAutoMode="disable", 選擇空值 → onDelete("disableAutoMode")', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ disableAutoMode: 'disable' }, vi.fn(), onDelete);
+  it('permissions.disableAutoMode="disable", 選擇空值 → onSave("permissions", {})', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { disableAutoMode: 'disable' } }, onSave);
 
     await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), { target: { value: '' } });
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('disableAutoMode');
+      expect(onSave).toHaveBeenCalledWith('permissions', {});
     });
   });
 

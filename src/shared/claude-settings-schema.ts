@@ -502,7 +502,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('enableAllProjectMcpServers', { default: false }),
     arrayField('enabledMcpjsonServers', STRING_SCHEMA),
     arrayField('disabledMcpjsonServers', STRING_SCHEMA),
-    createField('disableAutoMode', DISABLE_ONLY_VALUE_SCHEMA),
+    createField('disableAutoMode', DISABLE_ONLY_VALUE_SCHEMA, {
+      nestedUnder: 'permissions',
+    }),
     booleanField('skipDangerousModePermissionPrompt', { default: false }),
     booleanField('useAutoModeDuringPlan', { default: true }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),

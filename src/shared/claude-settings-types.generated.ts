@@ -85,7 +85,6 @@ export interface ClaudeSettings {
   enableAllProjectMcpServers?: boolean;
   enabledMcpjsonServers?: string[];
   disabledMcpjsonServers?: string[];
-  disableAutoMode?: "disable";
   skipDangerousModePermissionPrompt?: boolean;
   useAutoModeDuringPlan?: boolean;
   permissions?: {

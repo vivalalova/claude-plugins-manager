@@ -362,14 +362,20 @@ export function PermissionsSection({
       <EnumDropdown
         label={t('settings.permissions.disableAutoMode.label')}
         description={t('settings.permissions.disableAutoMode.description')}
-        value={settings.disableAutoMode}
+        value={perms.disableAutoMode}
         knownValues={['disable']}
         knownLabels={{ disable: t('settings.permissions.disableAutoMode.disable') }}
         notSetLabel={t('settings.permissions.disableAutoMode.notSet')}
         unknownTemplate={t('settings.permissions.disableAutoMode.unknown')}
         settingKey="disableAutoMode"
-        onSave={onSave}
-        onDelete={onDelete}
+        onSave={async (_key, value) => {
+          updatePermissions({ ...perms, disableAutoMode: value as 'disable' });
+        }}
+        onDelete={async () => {
+          const updated = { ...perms };
+          delete (updated as Record<string, unknown>).disableAutoMode;
+          updatePermissions(updated);
+        }}
       />
 
       <BooleanToggle
