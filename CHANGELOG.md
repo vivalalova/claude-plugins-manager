@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6
+
+- fix: [hooks] 解釋功能能讀取 interpreter 包腳本的 hook 檔
+- docs: 整理 0.2.5 changelog 為使用者導向描述
+
 ## 0.2.5
 
 - Synced Claude Code settings schema with new keys (`advisorModel`, `tui`, `prUrlTemplate`, `channelsEnabled`, `autoMode`, `defaultShell`, `auto` permission mode), `effortLevel` `xhigh`/`max`, sandbox `ripgrep` / `deniedDomains` / `allowMachLookup`, `statusLine.refreshInterval`, and the `mcp_tool` hook variant
