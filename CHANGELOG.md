@@ -2,8 +2,7 @@
 
 ## 0.2.6
 
-- fix: [hooks] 解釋功能能讀取 interpreter 包腳本的 hook 檔
-- docs: 整理 0.2.5 changelog 為使用者導向描述
+- Fixed hook AI explanation feature to detect script paths in interpreter-wrapped commands (e.g. `node ~/x.mjs`, `bash /tmp/x.sh`); previously only the bare interpreter token was matched so Sonnet received only the command string and hallucinated "file not found"
 
 ## 0.2.5
 
