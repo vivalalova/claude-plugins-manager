@@ -357,20 +357,28 @@ describe('HooksSection — open file button', () => {
     });
   });
 
-  it('command = "node ~/path.mjs" interpreter 包腳本 → 偵測到腳本路徑並送 checkFilePaths', async () => {
+  it.each([
+    { name: '.mjs', cmd: 'node ~/.claude/hooks/auto-format.mjs', expected: '~/.claude/hooks/auto-format.mjs' },
+    { name: '.sh', cmd: 'bash /tmp/x.sh', expected: '/tmp/x.sh' },
+    { name: '.py', cmd: 'python ~/scripts/format.py', expected: '~/scripts/format.py' },
+    { name: '.ts via tsx', cmd: 'tsx ~/hooks/check.ts', expected: '~/hooks/check.ts' },
+    { name: '.rb', cmd: 'ruby /opt/scripts/audit.rb', expected: '/opt/scripts/audit.rb' },
+    { name: '無副檔名', cmd: 'sh ~/bin/format-script', expected: '~/bin/format-script' },
+    { name: '.deno.ts', cmd: 'deno run --allow-read ~/hooks/x.deno.ts', expected: '~/hooks/x.deno.ts' },
+  ])('command = "$cmd" → 偵測到 $name 腳本路徑並送 checkFilePaths', async ({ cmd, expected }) => {
     mockSendRequest.mockImplementation((msg: { type: string; paths?: string[] }) => {
-      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve(['~/.claude/hooks/auto-format.mjs']);
+      if (msg.type === 'hooks.checkFilePaths') return Promise.resolve([expected]);
       return Promise.resolve(undefined);
     });
     renderSection({
       hooks: {
-        PostToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: 'node ~/.claude/hooks/auto-format.mjs' }] }],
+        PostToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: cmd }] }],
       },
     });
 
     await waitFor(() => {
       expect(mockSendRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'hooks.checkFilePaths', paths: ['~/.claude/hooks/auto-format.mjs'] }),
+        expect.objectContaining({ type: 'hooks.checkFilePaths', paths: [expected] }),
       );
       expect(screen.getByTitle('Open file')).toBeTruthy();
     });
