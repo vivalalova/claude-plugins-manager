@@ -47,13 +47,22 @@ ENTRY="${HEADER}
 ${COMMITS}"
 
 if [[ -f "$CHANGELOG" ]]; then
-  # Insert after "# Changelog\n"
+  # Insert after "# Changelog\n" — write entry to temp file for portable awk
   TEMP=$(mktemp)
-  awk -v entry="$ENTRY" '
-    /^# Changelog/ { print; print ""; print entry; next }
+  ENTRY_FILE=$(mktemp)
+  printf "%s\n" "$ENTRY" > "$ENTRY_FILE"
+  awk -v entry_file="$ENTRY_FILE" '
+    /^# Changelog/ {
+      print
+      print ""
+      while ((getline line < entry_file) > 0) print line
+      close(entry_file)
+      next
+    }
     { print }
   ' "$CHANGELOG" > "$TEMP"
   mv "$TEMP" "$CHANGELOG"
+  rm -f "$ENTRY_FILE"
 else
   printf "# Changelog\n\n%s\n" "$ENTRY" > "$CHANGELOG"
 fi

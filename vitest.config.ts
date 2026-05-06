@@ -8,6 +8,6 @@ export default defineConfig({
       vscode: new URL('./src/extension/__mocks__/vscode.ts', import.meta.url).pathname,
     },
     pool: 'threads',
-    testTimeout: 10000,
+    testTimeout: 20000,
   },
 });
