@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7
+
+- Fixed adding an MCP server with environment variables or HTTP headers failing with a missing name/command error; the `-e` / `-H` flags were eating the server name argument
+
 ## 0.2.6
 
 - Fixed hook AI explanation feature to detect script paths in interpreter-wrapped commands (e.g. `node ~/x.mjs`, `bash /tmp/x.sh`); previously only the bare interpreter token was matched so Sonnet received only the command string and hallucinated "file not found"
