@@ -490,9 +490,9 @@ describe('McpService', () => {
           'mcp', 'add',
           '--transport', 'http',
           '--scope', 'user',
+          'my-mcp', 'https://example.com',
           '-e', 'API_KEY=secret',
           '-H', 'Authorization: Bearer token',
-          'my-mcp', 'https://example.com',
         ],
         expect.objectContaining({ cwd: undefined }),
       );

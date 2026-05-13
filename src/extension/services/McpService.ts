@@ -123,6 +123,11 @@ export class McpService {
     if (params.scope) {
       args.push('--scope', params.scope);
     }
+
+    args.push(params.name, params.commandOrUrl);
+
+    // -e/-H 是 variadic options，會吞掉後面的 positional args，
+    // 必須放在 <name> <commandOrUrl> 之後。
     if (params.env) {
       for (const [key, value] of Object.entries(params.env)) {
         args.push('-e', `${key}=${value}`);
@@ -133,8 +138,6 @@ export class McpService {
         args.push('-H', header);
       }
     }
-
-    args.push(params.name, params.commandOrUrl);
 
     if (params.args?.length) {
       args.push('--', ...params.args);
