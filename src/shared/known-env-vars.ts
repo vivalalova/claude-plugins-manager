@@ -181,6 +181,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'auth',
   },
+  NODE_EXTRA_CA_CERTS: {
+    name: 'NODE_EXTRA_CA_CERTS',
+    valueType: String,
+    category: 'auth',
+  },
 
   CLAUDE_CODE_CLIENT_CERT: {
     name: 'CLAUDE_CODE_CLIENT_CERT',
@@ -472,8 +477,8 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'timeout',
     default: '120000',
   },
-  CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: {
-    name: 'CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS',
+  CLAUDE_CODE_SESSION_END_HOOKS_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_SESSION_END_HOOKS_TIMEOUT_MS',
     valueType: Number,
     category: 'timeout',
   },
@@ -564,6 +569,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
 
   // --- feature ---
+  CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS: {
+    name: 'CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_AGENT_SDK_MCP_NO_PREFIX: {
+    name: 'CLAUDE_AGENT_SDK_MCP_NO_PREFIX',
+    valueType: Boolean,
+    category: 'feature',
+  },
   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: {
     name: 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE',
     valueType: Number,
@@ -1054,6 +1069,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_ENV_FILE: {
     name: 'CLAUDE_ENV_FILE',
+    valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_PROJECT_DIR: {
+    name: 'CLAUDE_PROJECT_DIR',
     valueType: String,
     category: 'shell',
   },
