@@ -459,7 +459,6 @@ const HOOKS_VALUE_SCHEMA = recordValue(arrayValue(objectValue({
 export const CLAUDE_SETTINGS_SCHEMA = {
   general: [
     stringField('model'),
-    stringField('advisorModel'),
     stringField('agent'),
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
@@ -492,7 +491,6 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('prefersReducedMotion', { default: false }),
     booleanField('voiceEnabled', { default: false }),
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
-    booleanField('autoConnectIde', { default: false }),
     booleanField('autoInstallIdeExtension', { default: true }),
     createField('spinnerVerbs', SPINNER_VERBS_VALUE_SCHEMA),
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),

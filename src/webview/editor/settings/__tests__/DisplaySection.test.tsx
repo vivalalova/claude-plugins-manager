@@ -60,18 +60,17 @@ describe('DisplaySection — 渲染', () => {
       expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
       expect(screen.getByText('(voiceEnabled: false)')).toBeTruthy();
       expect(screen.getByText('(editorMode: normal)')).toBeTruthy();
-      expect(screen.getByText('(autoConnectIde: false)')).toBeTruthy();
       expect(screen.getByText('(autoInstallIdeExtension: true)')).toBeTruthy();
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
-  it('顯示 10 個 checkbox（9 boolean toggle + excludeDefault）', async () => {
+  it('顯示 9 個 checkbox（8 boolean toggle + excludeDefault）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(10);
+      expect(checkboxes.length).toBe(9);
     });
   });
 

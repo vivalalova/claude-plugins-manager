@@ -46,7 +46,6 @@ export type HookCommand = {
 
 export interface ClaudeSettings {
   model?: string;
-  advisorModel?: string;
   agent?: string;
   effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   language?: string;
@@ -72,7 +71,6 @@ export interface ClaudeSettings {
   prefersReducedMotion?: boolean;
   voiceEnabled?: boolean;
   editorMode?: "normal" | "vim";
-  autoConnectIde?: boolean;
   autoInstallIdeExtension?: boolean;
   spinnerVerbs?: {
     mode?: "append" | "replace";
