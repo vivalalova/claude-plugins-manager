@@ -52,7 +52,9 @@ describe('AdvancedSection — 渲染', () => {
     'Disable Skill Shell Execution',
     'Attribution',
     'Status Line',
+    'Subagent Status Line',
     'File Suggestion Command',
+    'Skill Overrides',
     'Plans Directory',
     'API Key Helper',
     'OTEL Headers Helper',
@@ -72,7 +74,9 @@ describe('AdvancedSection — 渲染', () => {
       expect(screen.getByText('(forceLoginMethod)')).toBeTruthy();
       expect(screen.getByText('(attribution)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(statusLine)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(subagentStatusLine)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(fileSuggestion)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(skillOverrides)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(sandbox)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(companyAnnouncements)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(plansDirectory: ~/.claude/plans)')).toBeTruthy();
@@ -1209,5 +1213,103 @@ describe('AdvancedSection — CompanyAnnouncementsEditor scope 切換', () => {
       </I18nProvider>,
     );
     await waitFor(() => expect(inputTa.value).toBe(''));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// subagentStatusLine 物件編輯器
+// ---------------------------------------------------------------------------
+
+const SUBAGENT_STATUS_PLACEHOLDER = 'e.g. echo "subagent: $CLAUDE_AGENT_NAME"';
+
+describe('AdvancedSection — subagentStatusLine 物件編輯器', () => {
+  it('subagentStatusLine 未設定 → command input 為空', () => {
+    renderSection({});
+    expect((screen.getByPlaceholderText(SUBAGENT_STATUS_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('subagentStatusLine={type:"command", command:"echo hi"} → input 顯示值', () => {
+    renderSection({ subagentStatusLine: { type: 'command', command: 'echo hi' } });
+    expect((screen.getByPlaceholderText(SUBAGENT_STATUS_PLACEHOLDER) as HTMLInputElement).value).toBe('echo hi');
+  });
+
+  it('subagentStatusLine 有值 → Reset 按鈕顯示', () => {
+    renderSection({ subagentStatusLine: { type: 'command', command: 'echo hi' } });
+    const field = screen.getByPlaceholderText(SUBAGENT_STATUS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    expect(within(field).getByRole('button', { name: /Reset/ })).toBeTruthy();
+  });
+
+  it('未設定，輸入 command 並儲存 → onSave("subagentStatusLine", { type:"command", command:"echo hi" })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(SUBAGENT_STATUS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(SUBAGENT_STATUS_PLACEHOLDER), { target: { value: 'echo hi' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('subagentStatusLine', { type: 'command', command: 'echo hi' });
+    });
+  });
+
+  it('有值時點 Reset → onDelete("subagentStatusLine")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ subagentStatusLine: { type: 'command', command: 'echo hi' } }, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(SUBAGENT_STATUS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('subagentStatusLine');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// skillOverrides JSON 編輯器
+// ---------------------------------------------------------------------------
+
+const SKILL_OVERRIDES_PLACEHOLDER = 'e.g. { "code-review": { "description": "Custom review flow" } }';
+
+describe('AdvancedSection — skillOverrides JSON 編輯器', () => {
+  it('skillOverrides 未設定 → input 為空', () => {
+    renderSection({});
+    expect((screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER) as HTMLInputElement).value).toBe('');
+  });
+
+  it('skillOverrides 有值 → input 顯示 JSON 序列化字串', () => {
+    const overrides = { 'code-review': { description: 'Custom review' } };
+    renderSection({ skillOverrides: overrides });
+    expect((screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER) as HTMLInputElement).value).toBe(JSON.stringify(overrides));
+  });
+
+  it('輸入合法 JSON 並儲存 → onSave("skillOverrides", parsed)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const json = '{"my-skill":{"model":"sonnet"}}';
+    const field = screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER), { target: { value: json } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('skillOverrides', { 'my-skill': { model: 'sonnet' } });
+    });
+  });
+
+  it('有值時點 Reset → onDelete("skillOverrides")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ skillOverrides: { 'a': { model: 'sonnet' } } }, onSave, onDelete);
+
+    const field = screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('skillOverrides');
+      expect(onSave).not.toHaveBeenCalled();
+    });
   });
 });

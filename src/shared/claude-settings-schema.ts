@@ -281,13 +281,15 @@ const EFFORT_LEVEL_OPTIONS = ['max', 'xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
-const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
 const TUI_OPTIONS = ['fullscreen', 'default'] as const;
 const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console'] as const;
 const DISABLE_ONLY_OPTIONS = ['disable'] as const;
 const DEFAULT_SHELL_OPTIONS = ['bash', 'powershell'] as const;
 const SPINNER_MODE_OPTIONS = ['append', 'replace'] as const;
 const HOOK_SHELL_OPTIONS = ['bash', 'powershell'] as const;
+const WORKTREE_BASE_REF_OPTIONS = ['fresh', 'head'] as const;
+const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
+const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
 
 const STRING_SCHEMA = stringValue();
 const STRING_ARRAY_SCHEMA = arrayValue(STRING_SCHEMA);
@@ -309,6 +311,7 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
     shell: optional(stringValue(HOOK_SHELL_OPTIONS)),
     if: optional(STRING_SCHEMA),
     statusMessage: optional(STRING_SCHEMA),
+    args: optional(STRING_ARRAY_SCHEMA),
   }),
   objectValue({
     type: required(literalValue('prompt')),
@@ -317,6 +320,7 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
     timeout: optional(numberValue()),
     if: optional(STRING_SCHEMA),
     statusMessage: optional(STRING_SCHEMA),
+    continueOnBlock: optional(booleanValue()),
   }),
   objectValue({
     type: required(literalValue('agent')),
@@ -351,8 +355,10 @@ const EFFORT_LEVEL_VALUE_SCHEMA = stringValue(EFFORT_LEVEL_OPTIONS);
 const UPDATE_CHANNEL_VALUE_SCHEMA = stringValue(UPDATE_CHANNEL_OPTIONS);
 const TEAMMATE_MODE_VALUE_SCHEMA = stringValue(TEAMMATE_MODE_OPTIONS);
 const VIEW_MODE_VALUE_SCHEMA = stringValue(VIEW_MODE_OPTIONS);
-const EDITOR_MODE_VALUE_SCHEMA = stringValue(EDITOR_MODE_OPTIONS);
 const TUI_VALUE_SCHEMA = stringValue(TUI_OPTIONS);
+const WORKTREE_BASE_REF_VALUE_SCHEMA = stringValue(WORKTREE_BASE_REF_OPTIONS);
+const WORKTREE_BG_ISOLATION_VALUE_SCHEMA = stringValue(WORKTREE_BG_ISOLATION_OPTIONS);
+const SKILL_OVERRIDE_VALUE_SCHEMA = stringValue(SKILL_OVERRIDE_OPTIONS);
 const FORCE_LOGIN_METHOD_VALUE_SCHEMA = stringValue(FORCE_LOGIN_METHOD_OPTIONS);
 const DISABLE_ONLY_VALUE_SCHEMA = stringValue(DISABLE_ONLY_OPTIONS);
 const DEFAULT_SHELL_VALUE_SCHEMA = stringValue(DEFAULT_SHELL_OPTIONS);
@@ -380,10 +386,17 @@ const STATUS_LINE_VALUE_SCHEMA = objectValue({
   refreshInterval: optional(numberValue({ min: 1, step: 1 })),
 });
 
+const SUBAGENT_STATUS_LINE_VALUE_SCHEMA = objectValue({
+  type: required(literalValue('command')),
+  command: required(STRING_SCHEMA),
+});
+
 const FILE_SUGGESTION_VALUE_SCHEMA = objectValue({
   type: required(literalValue('command')),
   command: required(STRING_SCHEMA),
 });
+
+const SKILL_OVERRIDES_VALUE_SCHEMA = recordValue(SKILL_OVERRIDE_VALUE_SCHEMA);
 
 const SANDBOX_VALUE_SCHEMA = objectValue({
   enabled: optional(booleanValue()),
@@ -392,6 +405,7 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
   enableWeakerNetworkIsolation: optional(booleanValue()),
   enableWeakerNestedSandbox: optional(booleanValue()),
   allowUnsandboxedCommands: optional(booleanValue()),
+  failIfUnavailable: optional(booleanValue()),
   ignoreViolations: optional(recordValue(STRING_ARRAY_SCHEMA)),
   ripgrep: optional(objectValue({
     command: required(STRING_SCHEMA),
@@ -425,13 +439,15 @@ const FEEDBACK_SURVEY_RATE_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.
 
 const WORKTREE_VALUE_SCHEMA = objectValue({
   sparsePaths: optional(STRING_ARRAY_SCHEMA),
-  symlinkDirectories: optional(STRING_ARRAY_SCHEMA),
+  baseRef: optional(WORKTREE_BASE_REF_VALUE_SCHEMA),
+  bgIsolation: optional(WORKTREE_BG_ISOLATION_VALUE_SCHEMA),
 });
 
 const AUTO_MODE_VALUE_SCHEMA = objectValue({
   environment: optional(STRING_ARRAY_SCHEMA),
   allow: optional(STRING_ARRAY_SCHEMA),
   soft_deny: optional(STRING_ARRAY_SCHEMA),
+  hard_deny: optional(STRING_ARRAY_SCHEMA),
 });
 
 const PERMISSIONS_VALUE_SCHEMA = objectValue({
@@ -490,8 +506,6 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('terminalProgressBarEnabled', { default: true }),
     booleanField('prefersReducedMotion', { default: false }),
     booleanField('voiceEnabled', { default: false }),
-    createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
-    booleanField('autoInstallIdeExtension', { default: true }),
     createField('spinnerVerbs', SPINNER_VERBS_VALUE_SCHEMA),
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),
   ],
@@ -504,7 +518,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
       nestedUnder: 'permissions',
     }),
     booleanField('skipDangerousModePermissionPrompt', { default: false }),
-    booleanField('useAutoModeDuringPlan', { default: true }),
+    booleanField('useAutoModeDuringPlan', { default: false }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),
     createField('allowedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('deniedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
@@ -525,7 +539,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('forceLoginMethod', FORCE_LOGIN_METHOD_VALUE_SCHEMA),
     createField('attribution', ATTRIBUTION_VALUE_SCHEMA),
     createField('statusLine', STATUS_LINE_VALUE_SCHEMA),
+    createField('subagentStatusLine', SUBAGENT_STATUS_LINE_VALUE_SCHEMA),
     createField('fileSuggestion', FILE_SUGGESTION_VALUE_SCHEMA),
+    createField('skillOverrides', SKILL_OVERRIDES_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('sandbox', SANDBOX_VALUE_SCHEMA),
     createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('forceLoginOrgUUID', FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA, { controlTypeOverride: String }),

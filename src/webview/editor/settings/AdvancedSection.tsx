@@ -20,6 +20,22 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
             return <AttributionEditor attribution={settings.attribution} onSave={onSave} onDelete={onDelete} />;
           case 'statusLine':
             return <StatusLineEditor statusLine={settings.statusLine} onSave={onSave} onDelete={onDelete} />;
+          case 'subagentStatusLine':
+            return (
+              <TextSetting
+                label={t('settings.advanced.subagentStatusLine.label')}
+                description={t('settings.advanced.subagentStatusLine.description')}
+                value={settings.subagentStatusLine?.command}
+                placeholder={t('settings.advanced.subagentStatusLine.command.placeholder')}
+                saveLabel={t('settings.common.save')}
+                clearLabel={t('settings.common.clear')}
+                settingKey="subagentStatusLine"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('subagentStatusLine', { type: 'command', command: value as string })}
+                onDelete={async () => onDelete('subagentStatusLine')}
+              />
+            );
           case 'fileSuggestion':
             return (
               <TextSetting
@@ -54,6 +70,22 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 overriddenScope={overriddenScope}
                 onSave={async (_key, value) => onSave('modelOverrides', JSON.parse(value as string))}
                 onDelete={async () => onDelete('modelOverrides')}
+              />
+            );
+          case 'skillOverrides':
+            return (
+              <TextSetting
+                label={t('settings.advanced.skillOverrides.label')}
+                description={t('settings.advanced.skillOverrides.description')}
+                value={settings.skillOverrides ? JSON.stringify(settings.skillOverrides) : undefined}
+                placeholder={t('settings.advanced.skillOverrides.placeholder')}
+                saveLabel={t('settings.advanced.skillOverrides.save')}
+                clearLabel={t('settings.advanced.skillOverrides.clear')}
+                settingKey="skillOverrides"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('skillOverrides', JSON.parse(value as string))}
+                onDelete={async () => onDelete('skillOverrides')}
               />
             );
           case 'worktree':

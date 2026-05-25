@@ -393,7 +393,7 @@ export function PermissionsSection({
         description={t('settings.permissions.useAutoModeDuringPlan.description')}
         value={settings.useAutoModeDuringPlan}
         settingKey="useAutoModeDuringPlan"
-        defaultValue={true}
+        defaultValue={false}
         onSave={onSave}
         onDelete={onDelete}
       />

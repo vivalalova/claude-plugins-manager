@@ -59,18 +59,16 @@ describe('DisplaySection — 渲染', () => {
       expect(screen.getByText('(terminalProgressBarEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
       expect(screen.getByText('(voiceEnabled: false)')).toBeTruthy();
-      expect(screen.getByText('(editorMode: normal)')).toBeTruthy();
-      expect(screen.getByText('(autoInstallIdeExtension: true)')).toBeTruthy();
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
-  it('顯示 9 個 checkbox（8 boolean toggle + excludeDefault）', async () => {
+  it('顯示 8 個 checkbox（7 boolean toggle + excludeDefault）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(9);
+      expect(checkboxes.length).toBe(8);
     });
   });
 
@@ -94,11 +92,10 @@ describe('DisplaySection — 渲染', () => {
     await waitFor(() => expect(screen.getByText('Reduce Motion')).toBeTruthy());
   });
 
-  it('顯示 View Mode 與 Editor Mode dropdown', async () => {
+  it('顯示 View Mode dropdown', async () => {
     renderSection();
     await waitFor(() => {
       expect(screen.getByText('View Mode')).toBeTruthy();
-      expect(screen.getByText('Editor Mode')).toBeTruthy();
     });
   });
 
@@ -129,14 +126,6 @@ describe('DisplaySection — 驗收條件', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('showThinkingSummaries', true);
-    });
-  });
-
-  it('autoInstallIdeExtension 未設定 → checkbox checked（反映預設值 true）', async () => {
-    renderSection({});
-    await waitFor(() => {
-      const cb = screen.getByRole('checkbox', { name: 'Auto Install IDE Extension' }) as HTMLInputElement;
-      expect(cb.checked).toBe(true);
     });
   });
 
@@ -261,18 +250,6 @@ describe('DisplaySection — teammateMode dropdown', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('viewMode', 'verbose');
-    });
-  });
-
-  it('editorMode="vim", 選擇空值 → onDelete("editorMode")', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ editorMode: 'vim' }, vi.fn(), onDelete);
-
-    await waitFor(() => screen.getByRole('combobox', { name: 'Editor Mode' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Editor Mode' }), { target: { value: '' } });
-
-    await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('editorMode');
     });
   });
 

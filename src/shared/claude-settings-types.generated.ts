@@ -12,6 +12,7 @@ export type HookCommand = {
   shell?: "bash" | "powershell";
   if?: string;
   statusMessage?: string;
+  args?: string[];
 } | {
   type: "prompt";
   prompt: string;
@@ -19,6 +20,7 @@ export type HookCommand = {
   timeout?: number;
   if?: string;
   statusMessage?: string;
+  continueOnBlock?: boolean;
 } | {
   type: "agent";
   prompt: string;
@@ -70,8 +72,6 @@ export interface ClaudeSettings {
   terminalProgressBarEnabled?: boolean;
   prefersReducedMotion?: boolean;
   voiceEnabled?: boolean;
-  editorMode?: "normal" | "vim";
-  autoInstallIdeExtension?: boolean;
   spinnerVerbs?: {
     mode?: "append" | "replace";
     verbs: string[];
@@ -121,6 +121,7 @@ export interface ClaudeSettings {
       shell?: "bash" | "powershell";
       if?: string;
       statusMessage?: string;
+      args?: string[];
     } | {
       type: "prompt";
       prompt: string;
@@ -128,6 +129,7 @@ export interface ClaudeSettings {
       timeout?: number;
       if?: string;
       statusMessage?: string;
+      continueOnBlock?: boolean;
     } | {
       type: "agent";
       prompt: string;
@@ -166,10 +168,15 @@ export interface ClaudeSettings {
     padding?: number;
     refreshInterval?: number;
   };
+  subagentStatusLine?: {
+    type: "command";
+    command: string;
+  };
   fileSuggestion?: {
     type: "command";
     command: string;
   };
+  skillOverrides?: Record<string, "on" | "name-only" | "user-invocable-only" | "off">;
   sandbox?: {
     enabled?: boolean;
     autoAllowBashIfSandboxed?: boolean;
@@ -177,6 +184,7 @@ export interface ClaudeSettings {
     enableWeakerNetworkIsolation?: boolean;
     enableWeakerNestedSandbox?: boolean;
     allowUnsandboxedCommands?: boolean;
+    failIfUnavailable?: boolean;
     ignoreViolations?: Record<string, string[]>;
     ripgrep?: {
       command: string;
@@ -217,12 +225,14 @@ export interface ClaudeSettings {
   feedbackSurveyRate?: number;
   worktree?: {
     sparsePaths?: string[];
-    symlinkDirectories?: string[];
+    baseRef?: "fresh" | "head";
+    bgIsolation?: "worktree" | "none";
   };
   autoMode?: {
     environment?: string[];
     allow?: string[];
     soft_deny?: string[];
+    hard_deny?: string[];
   };
   defaultShell?: "bash" | "powershell";
   prUrlTemplate?: string;
