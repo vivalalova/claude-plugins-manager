@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.9
+
+- fix(package): 排除 dev-only 與 Claude 內部檔不打包進 vsix
+- test(env): rename test 改用 within(row) 避開 jsdom 全 DOM 慢查
+- docs: polish 0.2.8 changelog entry
+
 ## 0.2.8
 
 - Synced Claude Code settings schema with official docs: added `subagentStatusLine`, `skillOverrides`, `sandbox.failIfUnavailable`, `worktree.baseRef` / `bgIsolation`, `autoMode.hard_deny`, hook `command.args`, and `prompt.continueOnBlock`; removed `advisorModel` (slash command, not a settings field), `autoConnectIde` (lives in `.claude.json`), `editorMode`, `autoInstallIdeExtension`, and `worktree.symlinkDirectories`; flipped `useAutoModeDuringPlan` default to `false`
