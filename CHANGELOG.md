@@ -2,9 +2,7 @@
 
 ## 0.2.9
 
-- fix(package): 排除 dev-only 與 Claude 內部檔不打包進 vsix
-- test(env): rename test 改用 within(row) 避開 jsdom 全 DOM 慢查
-- docs: polish 0.2.8 changelog entry
+- Repackaged release to exclude development-only files that were accidentally bundled into the 0.2.8 `.vsix`; no functional changes
 
 ## 0.2.8
 
