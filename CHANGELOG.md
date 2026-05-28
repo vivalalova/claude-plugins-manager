@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8
+
+- feat(settings): [schema sync] 對齊官方 settings docs
+- fix(settings): [schema sync] 移除 advisorModel 與 autoConnectIde
+- chore(settings): [Env vars 同步] 對齊 schema store
+- docs: 0.2.7 changelog
+
 ## 0.2.7
 
 - Fixed adding an MCP server with environment variables or HTTP headers failing with a missing name/command error; the `-e` / `-H` flags were eating the server name argument
