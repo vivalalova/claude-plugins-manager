@@ -49,6 +49,8 @@ export type HookCommand = {
 export interface ClaudeSettings {
   model?: string;
   agent?: string;
+  autoConnectIde?: boolean;
+  autoInstallIdeExtension?: boolean;
   effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   language?: string;
   availableModels?: string[];
@@ -63,15 +65,27 @@ export interface ClaudeSettings {
   minimumVersion?: string;
   cleanupPeriodDays?: number;
   teammateMode?: "auto" | "in-process" | "tmux";
+  teammateDefaultModel?: string | null;
+  editorMode?: "normal" | "vim";
+  externalEditorContext?: boolean;
+  preferredNotifChannel?: "auto" | "terminal_bell" | "iterm2" | "iterm2_with_bell" | "kitty" | "ghostty" | "notifications_disabled";
   viewMode?: "default" | "verbose" | "focus";
   tui?: "fullscreen" | "default";
+  autoScrollEnabled?: boolean;
+  awaySummaryEnabled?: boolean;
   showTurnDuration?: boolean;
   showThinkingSummaries?: boolean;
   showClearContextOnPlanAccept?: boolean;
   spinnerTipsEnabled?: boolean;
   terminalProgressBarEnabled?: boolean;
   prefersReducedMotion?: boolean;
+  syntaxHighlightingDisabled?: boolean;
   voiceEnabled?: boolean;
+  voice?: {
+    enabled?: boolean;
+    mode?: "hold" | "tap";
+    autoSubmit?: boolean;
+  };
   spinnerVerbs?: {
     mode?: "append" | "replace";
     verbs: string[];
@@ -167,6 +181,7 @@ export interface ClaudeSettings {
     command: string;
     padding?: number;
     refreshInterval?: number;
+    hideVimModeIndicator?: boolean;
   };
   subagentStatusLine?: {
     type: "command";
@@ -195,7 +210,6 @@ export interface ClaudeSettings {
       denyWrite?: string[];
       denyRead?: string[];
       allowRead?: string[];
-      allowManagedReadPathsOnly?: boolean;
     };
     network?: {
       allowedDomains?: string[];
@@ -205,7 +219,6 @@ export interface ClaudeSettings {
       allowLocalBinding?: boolean;
       httpProxyPort?: number;
       socksProxyPort?: number;
-      allowManagedDomainsOnly?: boolean;
       allowMachLookup?: string[];
     };
   };
@@ -216,6 +229,9 @@ export interface ClaudeSettings {
   otelHeadersHelper?: string;
   awsCredentialExport?: string;
   awsAuthRefresh?: string;
+  gcpAuthRefresh?: string;
+  disableAgentView?: boolean;
+  disableRemoteControl?: boolean;
   skipWebFetchPreflight?: boolean;
   disableDeepLinkRegistration?: "disable";
   disableSkillShellExecution?: boolean;
@@ -223,11 +239,22 @@ export interface ClaudeSettings {
   claudeMdExcludes?: string[];
   modelOverrides?: Record<string, string>;
   feedbackSurveyRate?: number;
+  maxSkillDescriptionChars?: number;
+  skillListingBudgetFraction?: number;
   worktree?: {
     sparsePaths?: string[];
+    symlinkDirectories?: string[];
     baseRef?: "fresh" | "head";
     bgIsolation?: "worktree" | "none";
   };
+  sshConfigs?: {
+    id: string;
+    name: string;
+    sshHost: string;
+    sshPort?: number;
+    sshIdentityFile?: string;
+    startDirectory?: string;
+  }[];
   autoMode?: {
     environment?: string[];
     allow?: string[];
@@ -236,5 +263,4 @@ export interface ClaudeSettings {
   };
   defaultShell?: "bash" | "powershell";
   prUrlTemplate?: string;
-  channelsEnabled?: boolean;
 }

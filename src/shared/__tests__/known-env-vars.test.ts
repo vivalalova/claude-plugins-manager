@@ -52,6 +52,26 @@ describe('getKnownEnvVar()', () => {
     expect(result!.category).toBe('model');
   });
 
+  it('covers newly documented env vars with category/type metadata', () => {
+    expect(getKnownEnvVar('ANTHROPIC_AWS_API_KEY')).toMatchObject({
+      category: 'provider',
+      valueType: String,
+      sensitive: true,
+    });
+    expect(getKnownEnvVar('CLAUDE_CODE_SESSION_ID')).toMatchObject({
+      category: 'shell',
+      valueType: String,
+    });
+    expect(getKnownEnvVar('OTEL_METRICS_INCLUDE_ENTRYPOINT')).toMatchObject({
+      category: 'telemetry',
+      valueType: Boolean,
+    });
+    expect(getKnownEnvVar('MCP_CONNECT_TIMEOUT_MS')).toMatchObject({
+      category: 'timeout',
+      valueType: Number,
+    });
+  });
+
   it('returns undefined for unknown var', () => {
     expect(getKnownEnvVar('NOT_A_REAL_VAR')).toBeUndefined();
   });

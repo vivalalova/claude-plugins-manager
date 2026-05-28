@@ -98,8 +98,12 @@ export function SchemaSection({
         if (!field) return null;
         const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = field;
 
+        const custom = renderCustom?.(key, { scope, settings, overriddenScope, onSave: fieldOnSave, onDelete: fieldOnDelete });
+        if (custom !== undefined && custom !== null) {
+          return <React.Fragment key={key}>{custom}</React.Fragment>;
+        }
+
         if (schema.controlType === Object) {
-          const custom = renderCustom?.(key, { scope, settings, overriddenScope, onSave: fieldOnSave, onDelete: fieldOnDelete });
           if (custom !== undefined) return <React.Fragment key={key}>{custom}</React.Fragment>;
           console.warn(`[SchemaSection] Unhandled custom key: ${key}`);
           return null;

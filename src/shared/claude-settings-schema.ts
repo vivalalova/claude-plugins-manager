@@ -282,6 +282,8 @@ const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
 const TUI_OPTIONS = ['fullscreen', 'default'] as const;
+const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
+const PREFERRED_NOTIF_CHANNEL_OPTIONS = ['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled'] as const;
 const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console'] as const;
 const DISABLE_ONLY_OPTIONS = ['disable'] as const;
 const DEFAULT_SHELL_OPTIONS = ['bash', 'powershell'] as const;
@@ -290,6 +292,7 @@ const HOOK_SHELL_OPTIONS = ['bash', 'powershell'] as const;
 const WORKTREE_BASE_REF_OPTIONS = ['fresh', 'head'] as const;
 const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
 const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
+const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
 
 const STRING_SCHEMA = stringValue();
 const STRING_ARRAY_SCHEMA = arrayValue(STRING_SCHEMA);
@@ -356,9 +359,12 @@ const UPDATE_CHANNEL_VALUE_SCHEMA = stringValue(UPDATE_CHANNEL_OPTIONS);
 const TEAMMATE_MODE_VALUE_SCHEMA = stringValue(TEAMMATE_MODE_OPTIONS);
 const VIEW_MODE_VALUE_SCHEMA = stringValue(VIEW_MODE_OPTIONS);
 const TUI_VALUE_SCHEMA = stringValue(TUI_OPTIONS);
+const EDITOR_MODE_VALUE_SCHEMA = stringValue(EDITOR_MODE_OPTIONS);
+const PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA = stringValue(PREFERRED_NOTIF_CHANNEL_OPTIONS);
 const WORKTREE_BASE_REF_VALUE_SCHEMA = stringValue(WORKTREE_BASE_REF_OPTIONS);
 const WORKTREE_BG_ISOLATION_VALUE_SCHEMA = stringValue(WORKTREE_BG_ISOLATION_OPTIONS);
 const SKILL_OVERRIDE_VALUE_SCHEMA = stringValue(SKILL_OVERRIDE_OPTIONS);
+const VOICE_MODE_VALUE_SCHEMA = stringValue(VOICE_MODE_OPTIONS);
 const FORCE_LOGIN_METHOD_VALUE_SCHEMA = stringValue(FORCE_LOGIN_METHOD_OPTIONS);
 const DISABLE_ONLY_VALUE_SCHEMA = stringValue(DISABLE_ONLY_OPTIONS);
 const DEFAULT_SHELL_VALUE_SCHEMA = stringValue(DEFAULT_SHELL_OPTIONS);
@@ -384,6 +390,7 @@ const STATUS_LINE_VALUE_SCHEMA = objectValue({
   command: required(STRING_SCHEMA),
   padding: optional(numberValue()),
   refreshInterval: optional(numberValue({ min: 1, step: 1 })),
+  hideVimModeIndicator: optional(booleanValue()),
 });
 
 const SUBAGENT_STATUS_LINE_VALUE_SCHEMA = objectValue({
@@ -416,7 +423,6 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     denyWrite: optional(STRING_ARRAY_SCHEMA),
     denyRead: optional(STRING_ARRAY_SCHEMA),
     allowRead: optional(STRING_ARRAY_SCHEMA),
-    allowManagedReadPathsOnly: optional(booleanValue()),
   })),
   network: optional(objectValue({
     allowedDomains: optional(STRING_ARRAY_SCHEMA),
@@ -426,19 +432,22 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     allowLocalBinding: optional(booleanValue()),
     httpProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     socksProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
-    allowManagedDomainsOnly: optional(booleanValue()),
     allowMachLookup: optional(STRING_ARRAY_SCHEMA),
   })),
 });
 
 const COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA = arrayValue(STRING_SCHEMA);
 const FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA = unionValue(STRING_SCHEMA, STRING_ARRAY_SCHEMA);
+const STRING_OR_NULL_VALUE_SCHEMA = unionValue(STRING_SCHEMA, literalValue(null));
 const MODEL_OVERRIDES_VALUE_SCHEMA = recordValue(STRING_SCHEMA);
 const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
 const FEEDBACK_SURVEY_RATE_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
+const MAX_SKILL_DESCRIPTION_CHARS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
+const SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
 
 const WORKTREE_VALUE_SCHEMA = objectValue({
   sparsePaths: optional(STRING_ARRAY_SCHEMA),
+  symlinkDirectories: optional(STRING_ARRAY_SCHEMA),
   baseRef: optional(WORKTREE_BASE_REF_VALUE_SCHEMA),
   bgIsolation: optional(WORKTREE_BG_ISOLATION_VALUE_SCHEMA),
 });
@@ -449,6 +458,21 @@ const AUTO_MODE_VALUE_SCHEMA = objectValue({
   soft_deny: optional(STRING_ARRAY_SCHEMA),
   hard_deny: optional(STRING_ARRAY_SCHEMA),
 });
+
+const VOICE_VALUE_SCHEMA = objectValue({
+  enabled: optional(booleanValue()),
+  mode: optional(VOICE_MODE_VALUE_SCHEMA),
+  autoSubmit: optional(booleanValue()),
+});
+
+const SSH_CONFIGS_VALUE_SCHEMA = arrayValue(objectValue({
+  id: required(STRING_SCHEMA),
+  name: required(STRING_SCHEMA),
+  sshHost: required(STRING_SCHEMA),
+  sshPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
+  sshIdentityFile: optional(STRING_SCHEMA),
+  startDirectory: optional(STRING_SCHEMA),
+}));
 
 const PERMISSIONS_VALUE_SCHEMA = objectValue({
   allow: optional(STRING_ARRAY_SCHEMA),
@@ -476,6 +500,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
   general: [
     stringField('model'),
     stringField('agent'),
+    booleanField('autoConnectIde', { default: false }),
+    booleanField('autoInstallIdeExtension', { default: true }),
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
       dangerValues: ['bypassPermissions'],
@@ -497,15 +523,23 @@ export const CLAUDE_SETTINGS_SCHEMA = {
 
   display: [
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
+    createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String }),
+    createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
+    booleanField('externalEditorContext', { default: false }),
+    createField('preferredNotifChannel', PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA, { default: 'auto' }),
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
     createField('tui', TUI_VALUE_SCHEMA),
+    booleanField('autoScrollEnabled', { default: true }),
+    booleanField('awaySummaryEnabled', { default: true }),
     booleanField('showTurnDuration', { default: true }),
     booleanField('showThinkingSummaries', { default: false }),
     booleanField('showClearContextOnPlanAccept', { default: false }),
     booleanField('spinnerTipsEnabled', { default: true }),
     booleanField('terminalProgressBarEnabled', { default: true }),
     booleanField('prefersReducedMotion', { default: false }),
+    booleanField('syntaxHighlightingDisabled', { default: false }),
     booleanField('voiceEnabled', { default: false }),
+    createField('voice', VOICE_VALUE_SCHEMA),
     createField('spinnerVerbs', SPINNER_VERBS_VALUE_SCHEMA),
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),
   ],
@@ -550,6 +584,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('otelHeadersHelper'),
     stringField('awsCredentialExport'),
     stringField('awsAuthRefresh'),
+    stringField('gcpAuthRefresh'),
+    booleanField('disableAgentView', { default: false }),
+    booleanField('disableRemoteControl', { default: false }),
     booleanField('skipWebFetchPreflight', { default: false }),
     createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
     booleanField('disableSkillShellExecution', { default: false }),
@@ -557,11 +594,13 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     arrayField('claudeMdExcludes', STRING_SCHEMA),
     createField('modelOverrides', MODEL_OVERRIDES_VALUE_SCHEMA),
     createField('feedbackSurveyRate', FEEDBACK_SURVEY_RATE_VALUE_SCHEMA),
+    createField('maxSkillDescriptionChars', MAX_SKILL_DESCRIPTION_CHARS_VALUE_SCHEMA, { default: 1536 }),
+    createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
     createField('worktree', WORKTREE_VALUE_SCHEMA),
+    createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('autoMode', AUTO_MODE_VALUE_SCHEMA),
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
     stringField('prUrlTemplate'),
-    booleanField('channelsEnabled', { default: false }),
   ],
 } as const;
 

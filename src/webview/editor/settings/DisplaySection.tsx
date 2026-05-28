@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { TagListSetting } from './components/SettingControls';
+import { TagListSetting, TextSetting } from './components/SettingControls';
 import { SchemaSection } from './components/SchemaSection';
 import type { SectionProps } from './components/SchemaSection';
 import { useSettingSave } from './hooks/useSettingSave';
@@ -239,15 +239,49 @@ function SpinnerTipsOverrideEditor({ scope, value, onSave, onDelete }: SpinnerTi
 }
 
 export function DisplaySection(props: SectionProps): React.ReactElement {
+  const { t } = useI18n();
+
   return (
     <SchemaSection
       section="display"
-      renderCustom={(key, { scope, settings, onSave, onDelete }) => {
+      renderCustom={(key, { scope, settings, overriddenScope, onSave, onDelete }) => {
         switch (key) {
           case 'spinnerVerbs':
             return <SpinnerVerbsEditor scope={scope} value={settings.spinnerVerbs} onSave={onSave} onDelete={onDelete} />;
           case 'spinnerTipsOverride':
             return <SpinnerTipsOverrideEditor scope={scope} value={settings.spinnerTipsOverride} onSave={onSave} onDelete={onDelete} />;
+          case 'teammateDefaultModel':
+            return (
+              <TextSetting
+                label={t('settings.display.teammateDefaultModel.label')}
+                description={t('settings.display.teammateDefaultModel.description')}
+                value={settings.teammateDefaultModel === null ? 'null' : settings.teammateDefaultModel}
+                placeholder={t('settings.display.teammateDefaultModel.placeholder')}
+                saveLabel={t('settings.common.save')}
+                clearLabel={t('settings.common.clear')}
+                settingKey="teammateDefaultModel"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('teammateDefaultModel', value === 'null' ? null : value)}
+                onDelete={async () => onDelete('teammateDefaultModel')}
+              />
+            );
+          case 'voice':
+            return (
+              <TextSetting
+                label={t('settings.display.voice.label')}
+                description={t('settings.display.voice.description')}
+                value={settings.voice ? JSON.stringify(settings.voice) : undefined}
+                placeholder={t('settings.display.voice.placeholder')}
+                saveLabel={t('settings.common.save')}
+                clearLabel={t('settings.common.clear')}
+                settingKey="voice"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('voice', JSON.parse(value as string))}
+                onDelete={async () => onDelete('voice')}
+              />
+            );
           default:
             return null;
         }

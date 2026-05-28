@@ -30,6 +30,8 @@ npm run watch
 
 - 新增 setting 時，同步更新 schema、對應 editor/i18n，然後重生 settings generated types；不要再手動補 `ClaudeSettings` / `HookCommand`。
 - 沒有自然落點的 user-facing key 直接放 `advanced`。
+- `Managed settings only` 的 key 不做 first-party UI；包含 top-level managed key 與 sandbox nested managed key。若使用者既有 settings 檔有這些欄位，只保持 unknown/raw JSON 容忍，不新增一般 scope 控制項。
+- 官方 docs 有但 SchemaStore 尚未收錄的 user-facing key 可以同步到 UI；type/default 以 docs 文字為準，並在 `check:schema` 只驗 repo 內 schema 一致性。
 - `controlType: Object` 的欄位在對應 section 內手動渲染，不要硬塞進通用 renderer。
 - Schema 巢狀欄位（如 `permissions.defaultMode`、`permissions.disableAutoMode`）若要在 UI surface 為 top-level 欄位，**必須**加 `nestedUnder: 'permissions'`，UI 才會寫到 `settings.permissions[key]`；漏加 → 寫到 `settings[key]` 頂層位置，CLI 讀不到（silent bug，UI toggle 完全沒效果）。
 - `PermissionsSection` 手動 render 巢狀欄位時要走 `updatePermissions({ ...perms, [key]: value })`，禁止直接 `onSave(key, value)`（會繞過 `nestedUnder` 機制寫到頂層）。

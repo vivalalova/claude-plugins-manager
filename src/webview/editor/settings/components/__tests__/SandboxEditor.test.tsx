@@ -94,6 +94,30 @@ describe('SandboxEditor — 結構化模式渲染', () => {
     });
   });
 
+  it('sandbox 有網路清單 → 顯示 deniedDomains、allowUnixSockets、allowMachLookup tags', async () => {
+    renderEditor({
+      network: {
+        deniedDomains: ['internal.example.com'],
+        allowUnixSockets: ['/var/run/docker.sock'],
+        allowMachLookup: ['com.apple.system.notification_center'],
+      },
+    });
+    await waitFor(() => {
+      expect(screen.getByText('internal.example.com')).toBeTruthy();
+      expect(screen.getByText('/var/run/docker.sock')).toBeTruthy();
+      expect(screen.getByText('com.apple.system.notification_center')).toBeTruthy();
+    });
+  });
+
+  it('managed-only sandbox controls 不在一般 settings UI 顯示', async () => {
+    renderEditor({});
+    await waitFor(() => screen.getByText('Enable Sandbox'));
+    expect(screen.queryByText('Allow managed read paths only')).toBeNull();
+    expect(screen.queryByText('Allow managed domains only')).toBeNull();
+    expect(screen.queryByPlaceholderText('e.g. /usr/bin/bwrap')).toBeNull();
+    expect(screen.queryByPlaceholderText('e.g. /usr/bin/socat')).toBeNull();
+  });
+
   it('sandbox=undefined → Clear 按鈕不顯示', async () => {
     renderEditor(undefined);
     await waitFor(() => screen.getByText('Enable Sandbox'));
@@ -210,6 +234,25 @@ describe('SandboxEditor — 結構化模式 allowWrite tag list', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('sandbox');
+    });
+  });
+});
+
+describe('SandboxEditor — 結構化模式 network tag list', () => {
+  it('新增 denied domain → onSave 收到 network.deniedDomains', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+
+    await waitFor(() => screen.getByText('Denied Domains'));
+
+    const deniedDomainInput = screen.getByPlaceholderText('e.g. internal.example.com');
+    fireEvent.change(deniedDomainInput, { target: { value: 'internal.example.com' } });
+    fireEvent.keyDown(deniedDomainInput, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', {
+        network: { deniedDomains: ['internal.example.com'] },
+      });
     });
   });
 });

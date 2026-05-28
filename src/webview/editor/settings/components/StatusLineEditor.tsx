@@ -16,7 +16,9 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
   const createDraft = useCallback(() => ({
     command: statusLine?.command ?? '',
     paddingStr: statusLine?.padding !== undefined ? String(statusLine.padding) : '',
-  }), [statusLine?.command, statusLine?.padding]);
+    refreshIntervalStr: statusLine?.refreshInterval !== undefined ? String(statusLine.refreshInterval) : '',
+    hideVimModeIndicator: statusLine?.hideVimModeIndicator ?? false,
+  }), [statusLine?.command, statusLine?.hideVimModeIndicator, statusLine?.padding, statusLine?.refreshInterval]);
   const [draft, setDraft] = useObjectEditorState(createDraft);
 
   const handleSave = (): void => {
@@ -26,10 +28,23 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
         await onDelete('statusLine');
         return;
       }
-      const obj: { type: 'command'; command: string; padding?: number } = { type: 'command', command: trimmedCommand };
+      const obj: {
+        type: 'command';
+        command: string;
+        padding?: number;
+        refreshInterval?: number;
+        hideVimModeIndicator?: boolean;
+      } = { type: 'command', command: trimmedCommand };
       const trimmedPadding = draft.paddingStr.trim();
       if (trimmedPadding !== '' && /^\d+$/.test(trimmedPadding)) {
         obj.padding = parseInt(trimmedPadding, 10);
+      }
+      const trimmedRefreshInterval = draft.refreshIntervalStr.trim();
+      if (trimmedRefreshInterval !== '' && /^[1-9]\d*$/.test(trimmedRefreshInterval)) {
+        obj.refreshInterval = parseInt(trimmedRefreshInterval, 10);
+      }
+      if (draft.hideVimModeIndicator) {
+        obj.hideVimModeIndicator = true;
       }
       await onSave('statusLine', obj);
     });
@@ -97,6 +112,31 @@ export function StatusLineEditor({ statusLine, onSave, onDelete }: StatusLineEdi
           disabled={saving}
         />
       </div>
+      <div className="settings-subfield">
+        <label className="settings-label" htmlFor="statusLine-refreshInterval">
+          {t('settings.advanced.statusLine.refreshInterval.label')}
+        </label>
+        <input
+          id="statusLine-refreshInterval"
+          className="input"
+          type="number"
+          value={draft.refreshIntervalStr}
+          onChange={(e) => setDraft((prev) => ({ ...prev, refreshIntervalStr: e.target.value }))}
+          placeholder={t('settings.advanced.statusLine.refreshInterval.placeholder')}
+          min="1"
+          step="1"
+          disabled={saving}
+        />
+      </div>
+      <label className="hooks-toggle-label" style={{ marginTop: 8 }}>
+        <input
+          type="checkbox"
+          checked={draft.hideVimModeIndicator}
+          onChange={() => setDraft((prev) => ({ ...prev, hideVimModeIndicator: !prev.hideVimModeIndicator }))}
+          disabled={saving}
+        />
+        {t('settings.advanced.statusLine.hideVimModeIndicator.label')}
+      </label>
     </ObjectSetting>
   );
 }

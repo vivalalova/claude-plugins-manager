@@ -60,8 +60,14 @@ describe('AdvancedSection — 渲染', () => {
     'OTEL Headers Helper',
     'AWS Credential Export',
     'AWS Auth Refresh',
+    'GCP Auth Refresh',
+    'Disable Agent View',
+    'Disable Remote Control',
     'Sandbox',
     'Company Announcements',
+    'Max Skill Description Characters',
+    'Skill Listing Budget Fraction',
+    'SSH Configs',
   ])('顯示 %s 欄位', (label) => {
     renderSection();
     expect(screen.getByText(label)).toBeTruthy();
@@ -81,9 +87,15 @@ describe('AdvancedSection — 渲染', () => {
       expect(screen.getByText('(companyAnnouncements)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(plansDirectory: ~/.claude/plans)')).toBeTruthy();
       expect(screen.getByText('(apiKeyHelper)')).toBeTruthy();
+      expect(screen.getByText('(gcpAuthRefresh)')).toBeTruthy();
+      expect(screen.getByText('(disableAgentView: false)')).toBeTruthy();
+      expect(screen.getByText('(disableRemoteControl: false)')).toBeTruthy();
       expect(screen.getByText('(skipWebFetchPreflight: false)')).toBeTruthy();
       expect(screen.getByText('(disableDeepLinkRegistration)')).toBeTruthy();
       expect(screen.getByText('(disableSkillShellExecution: false)')).toBeTruthy();
+      expect(screen.getByText('(maxSkillDescriptionChars: 1536)')).toBeTruthy();
+      expect(screen.getByText('(skillListingBudgetFraction: 0.01)')).toBeTruthy();
+      expect(screen.getByText('(sshConfigs)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
@@ -228,6 +240,58 @@ describe('AdvancedSection — new settings 互動', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('disableSkillShellExecution');
+    });
+  });
+
+  it('gcpAuthRefresh 未設定, 輸入指令並儲存 → onSave("gcpAuthRefresh", ...)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText('e.g. gcloud auth application-default login').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. gcloud auth application-default login'), { target: { value: 'gcloud auth application-default login' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('gcpAuthRefresh', 'gcloud auth application-default login');
+    });
+  });
+
+  it('disableAgentView 未設定, toggle on → onSave("disableAgentView", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByText('Disable Agent View').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('disableAgentView', true);
+    });
+  });
+
+  it('maxSkillDescriptionChars 未設定, 輸入 2048 並儲存 → onSave("maxSkillDescriptionChars", 2048)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText('e.g. 2048').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. 2048'), { target: { value: '2048' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('maxSkillDescriptionChars', 2048);
+    });
+  });
+
+  it('sshConfigs 輸入 JSON array 並儲存 → onSave("sshConfigs", parsedArray)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const placeholder = 'e.g. [{ "id": "dev-vm", "name": "Dev VM", "sshHost": "user@dev.example.com" }]';
+    const field = screen.getByPlaceholderText(placeholder).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: '[{"id":"dev-vm","name":"Dev VM","sshHost":"user@dev.example.com"}]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sshConfigs', [{ id: 'dev-vm', name: 'Dev VM', sshHost: 'user@dev.example.com' }]);
     });
   });
 });

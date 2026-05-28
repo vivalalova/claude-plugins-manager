@@ -41,13 +41,17 @@ const renderEditor = (
 // ---------------------------------------------------------------------------
 
 describe('StatusLineEditor — 初始渲染', () => {
-  it('顯示 statusLine 的 command 與 padding', async () => {
-    renderEditor({ type: 'command', command: 'date +%H:%M', padding: 2 });
+  it('顯示 statusLine 的 command、padding、refreshInterval 與 hideVimModeIndicator', async () => {
+    renderEditor({ type: 'command', command: 'date +%H:%M', padding: 2, refreshInterval: 5, hideVimModeIndicator: true });
     await waitFor(() => {
       const commandInput = screen.getByLabelText('Command') as HTMLInputElement;
       const paddingInput = screen.getByLabelText('Padding') as HTMLInputElement;
+      const refreshInput = screen.getByLabelText('Refresh Interval') as HTMLInputElement;
+      const hideVimModeIndicator = screen.getByRole('checkbox', { name: 'Hide Vim mode indicator' }) as HTMLInputElement;
       expect(commandInput.value).toBe('date +%H:%M');
       expect(paddingInput.value).toBe('2');
+      expect(refreshInput.value).toBe('5');
+      expect(hideVimModeIndicator.checked).toBe(true);
     });
   });
 
@@ -56,8 +60,12 @@ describe('StatusLineEditor — 初始渲染', () => {
     await waitFor(() => {
       const commandInput = screen.getByLabelText('Command') as HTMLInputElement;
       const paddingInput = screen.getByLabelText('Padding') as HTMLInputElement;
+      const refreshInput = screen.getByLabelText('Refresh Interval') as HTMLInputElement;
+      const hideVimModeIndicator = screen.getByRole('checkbox', { name: 'Hide Vim mode indicator' }) as HTMLInputElement;
       expect(commandInput.value).toBe('');
       expect(paddingInput.value).toBe('');
+      expect(refreshInput.value).toBe('');
+      expect(hideVimModeIndicator.checked).toBe(false);
     });
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
   });
@@ -75,9 +83,9 @@ describe('StatusLineEditor — 初始渲染', () => {
 // ---------------------------------------------------------------------------
 
 describe('StatusLineEditor — 儲存', () => {
-  it('儲存時呼叫 onSave（含 type: command、command、padding）', async () => {
+  it('儲存時呼叫 onSave（含 type: command、command、padding、refreshInterval、hideVimModeIndicator）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEditor({ type: 'command', command: 'date +%H:%M', padding: 1 }, onSave);
+    renderEditor({ type: 'command', command: 'date +%H:%M', padding: 1, refreshInterval: 5, hideVimModeIndicator: true }, onSave);
     await waitFor(() => screen.getByRole('button', { name: 'Save' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => {
@@ -85,6 +93,8 @@ describe('StatusLineEditor — 儲存', () => {
         type: 'command',
         command: 'date +%H:%M',
         padding: 1,
+        refreshInterval: 5,
+        hideVimModeIndicator: true,
       });
     });
   });
@@ -113,6 +123,22 @@ describe('StatusLineEditor — 儲存', () => {
         type: 'command',
         command: 'echo hi',
       });
+    });
+  });
+
+  it('refreshInterval 非正整數 → onSave 不含 refreshInterval', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    await waitFor(() => screen.getByLabelText('Command'));
+    fireEvent.change(screen.getByLabelText('Command'), { target: { value: 'echo hi' } });
+    fireEvent.change(screen.getByLabelText('Refresh Interval'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('statusLine', {
+        type: 'command',
+        command: 'echo hi',
+      });
+      expect((onSave.mock.calls[0][1] as Record<string, unknown>)).not.toHaveProperty('refreshInterval');
     });
   });
 

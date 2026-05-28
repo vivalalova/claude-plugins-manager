@@ -104,6 +104,22 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 onDelete={async () => onDelete('worktree')}
               />
             );
+          case 'sshConfigs':
+            return (
+              <TextSetting
+                label={t('settings.advanced.sshConfigs.label')}
+                description={t('settings.advanced.sshConfigs.description')}
+                value={settings.sshConfigs ? JSON.stringify(settings.sshConfigs) : undefined}
+                placeholder={t('settings.advanced.sshConfigs.placeholder')}
+                saveLabel={t('settings.advanced.sshConfigs.save')}
+                clearLabel={t('settings.advanced.sshConfigs.clear')}
+                settingKey="sshConfigs"
+                scope={scope}
+                overriddenScope={overriddenScope}
+                onSave={async (_key, value) => onSave('sshConfigs', JSON.parse(value as string))}
+                onDelete={async () => onDelete('sshConfigs')}
+              />
+            );
           case 'autoMode':
             return (
               <TextSetting

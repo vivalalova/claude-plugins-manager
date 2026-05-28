@@ -19,8 +19,20 @@ type IsEqual<A, B> =
 
 type _ClaudeSettingsCompileTimeChecks = [
   Assert<IsEqual<ClaudeSettings['viewMode'], 'default' | 'verbose' | 'focus' | undefined>>,
+  Assert<IsEqual<ClaudeSettings['editorMode'], 'normal' | 'vim' | undefined>>,
+  Assert<IsEqual<ClaudeSettings['preferredNotifChannel'], 'auto' | 'terminal_bell' | 'iterm2' | 'iterm2_with_bell' | 'kitty' | 'ghostty' | 'notifications_disabled' | undefined>>,
+  Assert<IsEqual<ClaudeSettings['teammateDefaultModel'], string | null | undefined>>,
+  Assert<IsEqual<ClaudeSettings['voice'], { enabled?: boolean; mode?: 'hold' | 'tap'; autoSubmit?: boolean } | undefined>>,
   Assert<IsEqual<ClaudeSettings['forceLoginOrgUUID'], string | string[] | undefined>>,
+  Assert<IsEqual<ClaudeSettings['sshConfigs'], Array<{ id: string; name: string; sshHost: string; sshPort?: number; sshIdentityFile?: string; startDirectory?: string }> | undefined>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['permissions']>['disableBypassPermissionsMode'], 'disable' | undefined>>,
+  Assert<IsEqual<NonNullable<ClaudeSettings['statusLine']>['refreshInterval'], number | undefined>>,
+  Assert<IsEqual<NonNullable<ClaudeSettings['statusLine']>['hideVimModeIndicator'], boolean | undefined>>,
+  Assert<IsEqual<NonNullable<ClaudeSettings['worktree']>['symlinkDirectories'], string[] | undefined>>,
+  Assert<IsEqual<Extract<'bwrapPath', keyof NonNullable<ClaudeSettings['sandbox']>>, never>>,
+  Assert<IsEqual<Extract<'socatPath', keyof NonNullable<ClaudeSettings['sandbox']>>, never>>,
+  Assert<IsEqual<Extract<'allowManagedReadPathsOnly', keyof NonNullable<NonNullable<ClaudeSettings['sandbox']>['filesystem']>>, never>>,
+  Assert<IsEqual<Extract<'allowManagedDomainsOnly', keyof NonNullable<NonNullable<ClaudeSettings['sandbox']>['network']>>, never>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['spinnerVerbs']>['verbs'], string[]>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['companyAnnouncements']>, string[]>>,
   Assert<IsEqual<ClaudeSettings['hooks'], Record<string, Array<{ matcher?: string; hooks: HookCommand[] }>> | undefined>>,
@@ -40,6 +52,7 @@ describe('claude-settings-schema', () => {
 
   it('top-level schema keys 與 type source map keys 一致', () => {
     expect(topLevelKeys).not.toContain('defaultMode');
+    expect(topLevelKeys).not.toContain('channelsEnabled');
     expect(topLevelKeys).toContain('permissions');
     expect(topLevelKeys).toContain('hooks');
     expect(topLevelKeys).toContain('worktree');
@@ -150,6 +163,8 @@ describe('getSchemaEnumOptions', () => {
     expect(getSchemaEnumOptions('effortLevel')).toEqual(['max', 'xhigh', 'high', 'medium', 'low']);
     expect(getSchemaEnumOptions('autoUpdatesChannel')).toEqual(['stable', 'latest']);
     expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux']);
+    expect(getSchemaEnumOptions('editorMode')).toEqual(['normal', 'vim']);
+    expect(getSchemaEnumOptions('preferredNotifChannel')).toEqual(['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled']);
     expect(getSchemaEnumOptions('forceLoginMethod')).toEqual(['claudeai', 'console']);
   });
 
@@ -171,6 +186,18 @@ describe('getSchemaDefault', () => {
     expect(getSchemaDefault('plansDirectory')).toBe('~/.claude/plans');
     expect(getSchemaDefault('prefersReducedMotion')).toBe(false);
     expect(getSchemaDefault('teammateMode')).toBe('auto');
+    expect(getSchemaDefault('editorMode')).toBe('normal');
+    expect(getSchemaDefault('preferredNotifChannel')).toBe('auto');
+    expect(getSchemaDefault('autoScrollEnabled')).toBe(true);
+    expect(getSchemaDefault('awaySummaryEnabled')).toBe(true);
+    expect(getSchemaDefault('syntaxHighlightingDisabled')).toBe(false);
+    expect(getSchemaDefault('externalEditorContext')).toBe(false);
+    expect(getSchemaDefault('autoConnectIde')).toBe(false);
+    expect(getSchemaDefault('autoInstallIdeExtension')).toBe(true);
+    expect(getSchemaDefault('disableAgentView')).toBe(false);
+    expect(getSchemaDefault('disableRemoteControl')).toBe(false);
+    expect(getSchemaDefault('maxSkillDescriptionChars')).toBe(1536);
+    expect(getSchemaDefault('skillListingBudgetFraction')).toBe(0.01);
   });
 
   it('無 default 的 key 回傳 undefined', () => {

@@ -59,6 +59,8 @@ describe('GeneralSection — 渲染', () => {
     await waitFor(() => {
       expect(screen.getByText('(model)')).toBeTruthy();
       expect(screen.getByText('(agent)')).toBeTruthy();
+      expect(screen.getByText('(autoConnectIde: false)')).toBeTruthy();
+      expect(screen.getByText('(autoInstallIdeExtension: true)')).toBeTruthy();
       expect(screen.getByText('(effortLevel: high)')).toBeTruthy();
       expect(screen.getByText('(language)')).toBeTruthy();
       expect(screen.getByText('(availableModels)')).toBeTruthy();
@@ -100,6 +102,8 @@ describe('GeneralSection — 渲染', () => {
     renderSection();
     await waitFor(() => {
       expect(screen.getByText('Agent')).toBeTruthy();
+      expect(screen.getByText('Auto-connect IDE')).toBeTruthy();
+      expect(screen.getByText('Auto-install IDE Extension')).toBeTruthy();
       expect(screen.getByText('Auto Memory Directory')).toBeTruthy();
       expect(screen.getByText('Minimum Version')).toBeTruthy();
     });
@@ -123,6 +127,8 @@ describe('GeneralSection — 渲染', () => {
       expect(screen.getByRole('checkbox', { name: 'Fast Mode' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: 'Auto Memory' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: 'Fast Mode Per-Session Opt-In' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Auto-connect IDE' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Auto-install IDE Extension' })).toBeTruthy();
     });
   });
 
@@ -336,6 +342,30 @@ describe('GeneralSection — BooleanToggle 互動', () => {
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('fastModePerSessionOptIn');
       expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('autoConnectIde 未設定, toggle on → onSave("autoConnectIde", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Auto-connect IDE' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auto-connect IDE' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoConnectIde', true);
+    });
+  });
+
+  it('autoInstallIdeExtension 未設定, toggle off → onSave("autoInstallIdeExtension", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Auto-install IDE Extension' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auto-install IDE Extension' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoInstallIdeExtension', false);
     });
   });
 });

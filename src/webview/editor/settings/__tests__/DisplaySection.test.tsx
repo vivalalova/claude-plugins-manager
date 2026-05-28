@@ -51,24 +51,32 @@ describe('DisplaySection — 渲染', () => {
 
     await waitFor(() => {
       expect(screen.getByText('(teammateMode: auto)')).toBeTruthy();
+      expect(screen.getByText('(teammateDefaultModel)')).toBeTruthy();
+      expect(screen.getByText('(editorMode: normal)')).toBeTruthy();
+      expect(screen.getByText('(externalEditorContext: false)')).toBeTruthy();
+      expect(screen.getByText('(preferredNotifChannel: auto)')).toBeTruthy();
       expect(screen.getByText('(viewMode)')).toBeTruthy();
+      expect(screen.getByText('(autoScrollEnabled: true)')).toBeTruthy();
+      expect(screen.getByText('(awaySummaryEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(showTurnDuration: true)')).toBeTruthy();
       expect(screen.getByText('(showThinkingSummaries: false)')).toBeTruthy();
       expect(screen.getByText('(showClearContextOnPlanAccept: false)')).toBeTruthy();
       expect(screen.getByText('(spinnerTipsEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(terminalProgressBarEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
+      expect(screen.getByText('(syntaxHighlightingDisabled: false)')).toBeTruthy();
       expect(screen.getByText('(voiceEnabled: false)')).toBeTruthy();
+      expect(screen.getByText('(voice)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
-  it('顯示 8 個 checkbox（7 boolean toggle + excludeDefault）', async () => {
+  it('顯示 12 個 checkbox（11 boolean toggle + excludeDefault）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(8);
+      expect(checkboxes.length).toBe(12);
     });
   });
 
@@ -96,6 +104,20 @@ describe('DisplaySection — 渲染', () => {
     renderSection();
     await waitFor(() => {
       expect(screen.getByText('View Mode')).toBeTruthy();
+    });
+  });
+
+  it('顯示新增 display 欄位 label', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText('Editor Mode')).toBeTruthy();
+      expect(screen.getByText('Notifications')).toBeTruthy();
+      expect(screen.getByText('Auto-scroll')).toBeTruthy();
+      expect(screen.getByText('Session Recap')).toBeTruthy();
+      expect(screen.getByText('External Editor Context')).toBeTruthy();
+      expect(screen.getByText('Disable Syntax Highlighting')).toBeTruthy();
+      expect(screen.getByText('Teammate Default Model')).toBeTruthy();
+      expect(screen.getByText('Voice Settings')).toBeTruthy();
     });
   });
 
@@ -156,6 +178,107 @@ describe('DisplaySection — 驗收條件', () => {
     await waitFor(() => {
       const cb = screen.getByRole('checkbox', { name: 'Reduce Motion' }) as HTMLInputElement;
       expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('editorMode 未設定, 選擇 vim → onSave("editorMode", "vim")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Editor Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Editor Mode' }), { target: { value: 'vim' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('editorMode', 'vim');
+    });
+  });
+
+  it('preferredNotifChannel 未設定, 選擇 terminal_bell → onSave("preferredNotifChannel", "terminal_bell")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Notifications' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Notifications' }), { target: { value: 'terminal_bell' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('preferredNotifChannel', 'terminal_bell');
+    });
+  });
+
+  it('autoScrollEnabled 未設定, 點擊 → onSave("autoScrollEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Auto-scroll' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auto-scroll' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoScrollEnabled', false);
+    });
+  });
+
+  it('externalEditorContext 未設定, 點擊 → onSave("externalEditorContext", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'External Editor Context' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'External Editor Context' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('externalEditorContext', true);
+    });
+  });
+
+  it('syntaxHighlightingDisabled 未設定, 點擊 → onSave("syntaxHighlightingDisabled", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Disable Syntax Highlighting' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Disable Syntax Highlighting' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('syntaxHighlightingDisabled', true);
+    });
+  });
+
+  it('teammateDefaultModel 輸入 null 並儲存 → onSave("teammateDefaultModel", null)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. sonnet or null'));
+    const field = screen.getByPlaceholderText('e.g. sonnet or null').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. sonnet or null'), { target: { value: 'null' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('teammateDefaultModel', null);
+    });
+  });
+
+  it('voice 輸入 JSON 並儲存 → onSave("voice", parsedObject)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }'));
+    const field = screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }'), { target: { value: '{"enabled":true,"mode":"tap"}' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('voice', { enabled: true, mode: 'tap' });
+    });
+  });
+
+  it('voice 有值, Reset → onDelete("voice")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ voice: { enabled: true, mode: 'tap' } }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }'));
+    const field = screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('voice');
     });
   });
 

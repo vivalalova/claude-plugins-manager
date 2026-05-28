@@ -15,10 +15,10 @@ type SandboxBooleanKey =
   | 'allowUnsandboxedCommands'
   | 'failIfUnavailable';
 type SandboxFilesystemArrayKey = 'allowWrite' | 'denyWrite' | 'denyRead' | 'allowRead';
+type SandboxNetworkArrayKey = 'allowedDomains' | 'deniedDomains' | 'allowUnixSockets' | 'allowMachLookup';
 type SandboxNetworkBooleanKey =
   | 'allowAllUnixSockets'
-  | 'allowLocalBinding'
-  | 'allowManagedDomainsOnly';
+  | 'allowLocalBinding';
 type SandboxNetworkNumberKey = 'httpProxyPort' | 'socksProxyPort';
 
 interface SandboxEditorProps {
@@ -57,6 +57,7 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
   if (clean.ignoreViolations && Object.keys(clean.ignoreViolations as object).length === 0) delete clean.ignoreViolations;
   for (const k of ['enabled', 'autoAllowBashIfSandboxed', 'enableWeakerNetworkIsolation', 'enableWeakerNestedSandbox', 'allowUnsandboxedCommands', 'failIfUnavailable']) {
     if (clean[k] === undefined) delete clean[k];
+    if (clean[k] === '') delete clean[k];
   }
 
   return Object.keys(clean).length === 0 ? undefined : clean as SandboxValue;
@@ -216,7 +217,13 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
   const networkCheckboxes: Array<{ key: SandboxNetworkBooleanKey; label: string }> = [
     { key: 'allowAllUnixSockets', label: tk('network.allowAllUnixSockets') },
     { key: 'allowLocalBinding', label: tk('network.allowLocalBinding') },
-    { key: 'allowManagedDomainsOnly', label: tk('network.managedDomainsOnly') },
+  ];
+
+  const networkTagLists: Array<{ key: SandboxNetworkArrayKey; labelKey: string }> = [
+    { key: 'allowedDomains', labelKey: 'network.allowedDomains' },
+    { key: 'deniedDomains', labelKey: 'network.deniedDomains' },
+    { key: 'allowUnixSockets', labelKey: 'network.allowUnixSockets' },
+    { key: 'allowMachLookup', labelKey: 'network.allowMachLookup' },
   ];
 
   const networkNumberInputs: Array<{ key: SandboxNetworkNumberKey; labelKey: string }> = [
@@ -325,21 +332,22 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
               onChange={(items) => updateFs(key, items)}
             />
           ))}
-          <SandboxCheckbox
-            label={tk('filesystem.managedReadPathsOnly')}
-            checked={draft.filesystem?.allowManagedReadPathsOnly ?? false}
-            saving={saving}
-            onChange={(value) => void saveSandbox({ ...draft, filesystem: { ...draft.filesystem, allowManagedReadPathsOnly: value } })}
-          />
-
           {/* Network */}
           <h4 style={{ fontSize: 12, fontWeight: 600, marginTop: 12, marginBottom: 6, borderTop: '1px solid var(--vscode-editorWidget-border)', paddingTop: 8 }}>
             {tk('network')}
           </h4>
-          <SandboxTagList label={tk('network.allowedDomains')} items={draft.network?.allowedDomains ?? []}
-            empty={tk('network.allowedDomains.empty')} placeholder={tk('network.allowedDomains.placeholder')}
-            duplicate={tk('network.allowedDomains.duplicate')} saving={saving}
-            onChange={(items) => updateNet('allowedDomains', items)} />
+          {networkTagLists.map(({ key, labelKey }) => (
+            <SandboxTagList
+              key={key}
+              label={tk(labelKey)}
+              items={draft.network?.[key] ?? []}
+              empty={tk(`${labelKey}.empty`)}
+              placeholder={tk(`${labelKey}.placeholder`)}
+              duplicate={tk(`${labelKey}.duplicate`)}
+              saving={saving}
+              onChange={(items) => updateNet(key, items)}
+            />
+          ))}
           {networkCheckboxes.map(({ key, label }) => (
             <SandboxCheckbox
               key={key}

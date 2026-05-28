@@ -160,6 +160,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'auth',
     default: 'https://api.anthropic.com',
   },
+  ANTHROPIC_WORKSPACE_ID: {
+    name: 'ANTHROPIC_WORKSPACE_ID',
+    valueType: String,
+    category: 'auth',
+  },
   API_TIMEOUT_MS: {
     name: 'API_TIMEOUT_MS',
     valueType: Number,
@@ -245,6 +250,22 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'provider',
   },
+  ANTHROPIC_AWS_API_KEY: {
+    name: 'ANTHROPIC_AWS_API_KEY',
+    valueType: String,
+    category: 'provider',
+    sensitive: true,
+  },
+  ANTHROPIC_AWS_BASE_URL: {
+    name: 'ANTHROPIC_AWS_BASE_URL',
+    valueType: String,
+    category: 'provider',
+  },
+  ANTHROPIC_AWS_WORKSPACE_ID: {
+    name: 'ANTHROPIC_AWS_WORKSPACE_ID',
+    valueType: String,
+    category: 'provider',
+  },
   ANTHROPIC_FOUNDRY_API_KEY: {
     name: 'ANTHROPIC_FOUNDRY_API_KEY',
     valueType: String,
@@ -282,6 +303,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'provider',
   },
+  CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH: {
+    name: 'CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH',
+    valueType: Boolean,
+    category: 'provider',
+  },
   CLAUDE_CODE_SKIP_FOUNDRY_AUTH: {
     name: 'CLAUDE_CODE_SKIP_FOUNDRY_AUTH',
     valueType: Boolean,
@@ -294,6 +320,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_USE_BEDROCK: {
     name: 'CLAUDE_CODE_USE_BEDROCK',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_USE_ANTHROPIC_AWS: {
+    name: 'CLAUDE_CODE_USE_ANTHROPIC_AWS',
     valueType: Boolean,
     category: 'provider',
   },
@@ -413,6 +444,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'effort',
     default: 'high',
   },
+  CLAUDE_EFFORT: {
+    name: 'CLAUDE_EFFORT',
+    valueType: String,
+    category: 'effort',
+  },
   DISABLE_INTERLEAVED_THINKING: {
     name: 'DISABLE_INTERLEAVED_THINKING',
     valueType: Boolean,
@@ -442,6 +478,12 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'timeout',
     default: '3600000',
   },
+  CLAUDE_ASYNC_AGENT_STALL_TIMEOUT_MS: {
+    name: 'CLAUDE_ASYNC_AGENT_STALL_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '600000',
+  },
   MCP_TIMEOUT: {
     name: 'MCP_TIMEOUT',
     valueType: Number,
@@ -453,6 +495,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'timeout',
     default: '30000',
+  },
+  MCP_CONNECT_TIMEOUT_MS: {
+    name: 'MCP_CONNECT_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
   },
   MAX_MCP_OUTPUT_TOKENS: {
     name: 'MAX_MCP_OUTPUT_TOKENS',
@@ -482,8 +529,18 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'timeout',
   },
+  CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
   CLAUDE_CODE_SYNC_PLUGIN_INSTALL_TIMEOUT_MS: {
     name: 'CLAUDE_CODE_SYNC_PLUGIN_INSTALL_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_SYNC_SKILLS_WAIT_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_SYNC_SKILLS_WAIT_TIMEOUT_MS',
     valueType: Number,
     category: 'timeout',
   },
@@ -532,6 +589,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'limits',
     default: '10',
   },
+  CLAUDE_CODE_MAX_TURNS: {
+    name: 'CLAUDE_CODE_MAX_TURNS',
+    valueType: Number,
+    category: 'limits',
+  },
   MAX_STRUCTURED_OUTPUT_RETRIES: {
     name: 'MAX_STRUCTURED_OUTPUT_RETRIES',
     valueType: Number,
@@ -567,6 +629,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'limits',
   },
+  CLAUDE_CODE_STOP_HOOK_BLOCK_CAP: {
+    name: 'CLAUDE_CODE_STOP_HOOK_BLOCK_CAP',
+    valueType: Number,
+    category: 'limits',
+  },
 
   // --- feature ---
   CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS: {
@@ -579,6 +646,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDECODE: {
+    name: 'CLAUDECODE',
+    valueType: Boolean,
+    category: 'feature',
+  },
   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: {
     name: 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE',
     valueType: Number,
@@ -587,6 +659,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_AUTO_BACKGROUND_TASKS: {
     name: 'CLAUDE_AUTO_BACKGROUND_TASKS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_AGENT_VIEW: {
+    name: 'CLAUDE_CODE_DISABLE_AGENT_VIEW',
     valueType: Boolean,
     category: 'feature',
   },
@@ -674,6 +751,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   DISABLE_AUTO_COMPACT: {
     name: 'DISABLE_AUTO_COMPACT',
     valueType: Boolean,
+    category: 'feature',
+  },
+  DEBUG: {
+    name: 'DEBUG',
+    valueType: String,
     category: 'feature',
   },
   DISABLE_COMPACT: {
@@ -811,6 +893,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY: {
+    name: 'CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_OPUS_4_7_FAST_MODE: {
+    name: 'CLAUDE_CODE_ENABLE_OPUS_4_7_FAST_MODE',
+    valueType: Boolean,
+    category: 'feature',
+  },
   CLAUDE_CODE_EXTRA_BODY: {
     name: 'CLAUDE_CODE_EXTRA_BODY',
     valueType: String,
@@ -831,6 +923,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE: {
+    name: 'CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE: {
+    name: 'CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE',
+    valueType: Boolean,
+    category: 'feature',
+  },
   CLAUDE_CODE_PLUGIN_CACHE_DIR: {
     name: 'CLAUDE_CODE_PLUGIN_CACHE_DIR',
     valueType: String,
@@ -839,6 +941,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: {
     name: 'CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_PLUGIN_PREFER_HTTPS: {
+    name: 'CLAUDE_CODE_PLUGIN_PREFER_HTTPS',
     valueType: Boolean,
     category: 'feature',
   },
@@ -867,6 +974,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDE_CODE_RESUME_PROMPT: {
+    name: 'CLAUDE_CODE_RESUME_PROMPT',
+    valueType: String,
+    category: 'feature',
+  },
   CLAUDE_CODE_SCRIPT_CAPS: {
     name: 'CLAUDE_CODE_SCRIPT_CAPS',
     valueType: String,
@@ -882,6 +994,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDE_CODE_SYNC_SKILLS: {
+    name: 'CLAUDE_CODE_SYNC_SKILLS',
+    valueType: Boolean,
+    category: 'feature',
+  },
   CLAUDE_CODE_TASK_LIST_ID: {
     name: 'CLAUDE_CODE_TASK_LIST_ID',
     valueType: String,
@@ -894,6 +1011,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_ENABLE_BYTE_WATCHDOG: {
     name: 'CLAUDE_ENABLE_BYTE_WATCHDOG',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_ENABLE_BYTE_WATCHDOG_BEDROCK: {
+    name: 'CLAUDE_ENABLE_BYTE_WATCHDOG_BEDROCK',
     valueType: Boolean,
     category: 'feature',
   },
@@ -984,6 +1106,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'ui',
   },
+  CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT: {
+    name: 'CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: {
+    name: 'CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN',
+    valueType: Boolean,
+    category: 'ui',
+  },
   CLAUDE_CODE_DISABLE_VIRTUAL_SCROLL: {
     name: 'CLAUDE_CODE_DISABLE_VIRTUAL_SCROLL',
     valueType: Boolean,
@@ -999,8 +1131,18 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'ui',
   },
+  CLAUDE_CODE_FORCE_SYNC_OUTPUT: {
+    name: 'CLAUDE_CODE_FORCE_SYNC_OUTPUT',
+    valueType: Boolean,
+    category: 'ui',
+  },
   CLAUDE_CODE_NO_FLICKER: {
     name: 'CLAUDE_CODE_NO_FLICKER',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_NATIVE_CURSOR: {
+    name: 'CLAUDE_CODE_NATIVE_CURSOR',
     valueType: Boolean,
     category: 'ui',
   },
@@ -1057,6 +1199,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'shell',
   },
+  CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY: {
+    name: 'CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_SESSION_ID: {
+    name: 'CLAUDE_CODE_SESSION_ID',
+    valueType: String,
+    category: 'shell',
+  },
   CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: {
     name: 'CLAUDE_CODE_SUBPROCESS_ENV_SCRUB',
     valueType: Boolean,
@@ -1097,6 +1249,21 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'telemetry',
     default: '0',
   },
+  CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL: {
+    name: 'CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
+  CLAUDE_CODE_PROPAGATE_TRACEPARENT: {
+    name: 'CLAUDE_CODE_PROPAGATE_TRACEPARENT',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
+  DO_NOT_TRACK: {
+    name: 'DO_NOT_TRACK',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
   OTEL_METRICS_EXPORTER: {
     name: 'OTEL_METRICS_EXPORTER',
     valueType: String,
@@ -1131,6 +1298,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'telemetry',
     default: '60000',
+  },
+  OTEL_METRICS_INCLUDE_ENTRYPOINT: {
+    name: 'OTEL_METRICS_INCLUDE_ENTRYPOINT',
+    valueType: Boolean,
+    category: 'telemetry',
   },
   OTEL_LOGS_EXPORT_INTERVAL: {
     name: 'OTEL_LOGS_EXPORT_INTERVAL',
