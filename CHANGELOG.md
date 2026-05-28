@@ -2,10 +2,8 @@
 
 ## 0.2.8
 
-- feat(settings): [schema sync] 對齊官方 settings docs
-- fix(settings): [schema sync] 移除 advisorModel 與 autoConnectIde
-- chore(settings): [Env vars 同步] 對齊 schema store
-- docs: 0.2.7 changelog
+- Synced Claude Code settings schema with official docs: added `subagentStatusLine`, `skillOverrides`, `sandbox.failIfUnavailable`, `worktree.baseRef` / `bgIsolation`, `autoMode.hard_deny`, hook `command.args`, and `prompt.continueOnBlock`; removed `advisorModel` (slash command, not a settings field), `autoConnectIde` (lives in `.claude.json`), `editorMode`, `autoInstallIdeExtension`, and `worktree.symlinkDirectories`; flipped `useAutoModeDuringPlan` default to `false`
+- Expanded known env vars: fixed `CLAUDE_CODE_SESSION_END_HOOKS_TIMEOUT_MS` typo, added `NODE_EXTRA_CA_CERTS`, `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS`, `CLAUDE_AGENT_SDK_MCP_NO_PREFIX`, and `CLAUDE_PROJECT_DIR` with localized descriptions in EN / JA / ZH-TW
 
 ## 0.2.7
 
