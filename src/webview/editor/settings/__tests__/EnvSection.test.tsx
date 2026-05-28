@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { isSensitiveKey, EnvSection } from '../EnvSection';
 import { ToastProvider } from '../../../components/Toast';
@@ -385,11 +385,11 @@ describe('EnvSection — Custom vars', () => {
       expect(screen.getByDisplayValue('old-value')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByDisplayValue('OLD_KEY'), { target: { value: 'NEW_KEY' } });
-    fireEvent.change(screen.getByDisplayValue('old-value'), { target: { value: 'new-value' } });
-
-    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
-    fireEvent.click(saveButtons[saveButtons.length - 1]);
+    const keyInput = screen.getByDisplayValue('OLD_KEY');
+    const row = keyInput.closest('.env-custom-row') as HTMLElement;
+    fireEvent.change(keyInput, { target: { value: 'NEW_KEY' } });
+    fireEvent.change(within(row).getByDisplayValue('old-value'), { target: { value: 'new-value' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(2);
@@ -408,11 +408,11 @@ describe('EnvSection — Custom vars', () => {
       expect(screen.getByDisplayValue('EXISTING_KEY')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByDisplayValue('OLD_KEY'), { target: { value: ' EXISTING_KEY ' } });
-    fireEvent.change(screen.getByDisplayValue('old-value'), { target: { value: 'new-value' } });
-
-    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
-    fireEvent.click(saveButtons[saveButtons.length - 2]);
+    const oldKeyInput = screen.getByDisplayValue('OLD_KEY');
+    const oldRow = oldKeyInput.closest('.env-custom-row') as HTMLElement;
+    fireEvent.change(oldKeyInput, { target: { value: ' EXISTING_KEY ' } });
+    fireEvent.change(within(oldRow).getByDisplayValue('old-value'), { target: { value: 'new-value' } });
+    fireEvent.click(within(oldRow).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(screen.getByText('Key already exists')).toBeTruthy();
@@ -429,10 +429,10 @@ describe('EnvSection — Custom vars', () => {
       expect(screen.getByDisplayValue('old-value')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByDisplayValue('OLD_KEY'), { target: { value: '   ' } });
-
-    const saveButtons = screen.getAllByRole('button', { name: 'Save' });
-    fireEvent.click(saveButtons[saveButtons.length - 1]);
+    const keyInput = screen.getByDisplayValue('OLD_KEY');
+    const row = keyInput.closest('.env-custom-row') as HTMLElement;
+    fireEvent.change(keyInput, { target: { value: '   ' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       expect(screen.getByText('Key must contain only A-Z, 0-9, _')).toBeTruthy();
