@@ -1,7 +1,7 @@
 /**
  * Known Claude Code environment variables registry.
  * Source: https://code.claude.com/docs/en/env-vars
- * 同步維護：update-settings-options skill Phase 1d
+ * 同步維護：update-settings-options skill（workflow Fetch phase + apply Step 6）
  */
 
 export type EnvVarCategory = 'model' | 'auth' | 'provider' | 'effort' | 'timeout' | 'limits' | 'feature' | 'ui' | 'shell' | 'telemetry';
@@ -1164,6 +1164,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
 
   CLAUDE_CODE_HIDE_CWD: {
     name: 'CLAUDE_CODE_HIDE_CWD',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_HIDE_ACCOUNT_INFO: {
+    name: 'CLAUDE_CODE_HIDE_ACCOUNT_INFO',
     valueType: Boolean,
     category: 'ui',
   },

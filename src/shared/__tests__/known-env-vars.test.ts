@@ -70,6 +70,10 @@ describe('getKnownEnvVar()', () => {
       category: 'timeout',
       valueType: Number,
     });
+    expect(getKnownEnvVar('CLAUDE_CODE_HIDE_ACCOUNT_INFO')).toMatchObject({
+      category: 'ui',
+      valueType: Boolean,
+    });
   });
 
   it('returns undefined for unknown var', () => {

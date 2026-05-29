@@ -393,6 +393,7 @@ export const en = {
   'settings.env.knownVars.IS_DEMO.description': 'Set to 1 to enable demo mode: hides your email and organization name from the header and /status output, and skips on...',
   'settings.env.knownVars.MCP_CONNECTION_NONBLOCKING.description': 'Set to true in non-interactive mode (-p) to skip the MCP connection wait entirely.',
   'settings.env.knownVars.CLAUDE_CODE_HIDE_CWD.description': 'Set to 1 to hide the working directory in the startup logo.',
+  'settings.env.knownVars.CLAUDE_CODE_HIDE_ACCOUNT_INFO.description': 'Set to 1 to hide account info (email and organization) in the startup logo.',
   'settings.env.knownVars.CLAUDE_CODE_IDE_HOST_OVERRIDE.description': 'Override the host address used to connect to the IDE extension.',
   'settings.env.knownVars.CLAUDE_CODE_IDE_SKIP_VALID_CHECK.description': 'Set to 1 to skip validation of IDE lockfile entries during connection.',
   'settings.env.knownVars.CLAUDE_CODE_TMUX_TRUECOLOR.description': 'Set to 1 to allow 24-bit truecolor output inside tmux.',

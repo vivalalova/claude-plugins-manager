@@ -395,6 +395,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.IS_DEMO.description': '設為 1 啟用 demo 模式：隱藏標頭與 /status 的 email 及組織名稱，並跳過上線引導',
   'settings.env.knownVars.MCP_CONNECTION_NONBLOCKING.description': '在非互動模式（-p）設為 true 以完全跳過 MCP 連線等待',
   'settings.env.knownVars.CLAUDE_CODE_HIDE_CWD.description': '設為 1 在啟動 logo 隱藏工作目錄（CWD）',
+  'settings.env.knownVars.CLAUDE_CODE_HIDE_ACCOUNT_INFO.description': '設為 1 在啟動 logo 隱藏帳號資訊（email、組織名）',
   'settings.env.knownVars.CLAUDE_CODE_IDE_HOST_OVERRIDE.description': '覆寫連線 IDE 擴充套件所使用的主機位址',
   'settings.env.knownVars.CLAUDE_CODE_IDE_SKIP_VALID_CHECK.description': '設為 1 跳過連線時的 IDE lockfile 項目驗證',
   'settings.env.knownVars.CLAUDE_CODE_TMUX_TRUECOLOR.description': '設為 1 在 tmux 內允許 24-bit truecolor 輸出',

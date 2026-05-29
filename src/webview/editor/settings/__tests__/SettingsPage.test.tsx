@@ -500,9 +500,7 @@ describe('SettingsPage', () => {
     // defaultMode 已移至 General section（預設 nav），不需切換
     await waitFor(() => screen.getByText('Default Mode'));
 
-    const selects = screen.getAllByRole('combobox');
-    // selects[0] = defaultMode（General section，schema-driven，第一個 combobox）
-    const defaultModeSelect = selects[0];
+    const defaultModeSelect = screen.getByRole('combobox', { name: 'Default Mode' });
     fireEvent.change(defaultModeSelect, { target: { value: 'dontAsk' } });
 
     await waitFor(() => {
@@ -524,8 +522,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getByText('Default Mode'));
 
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'bypassPermissions' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'bypassPermissions' } });
 
     await waitFor(() => {
       expect(screen.getByText('Bypass Permissions')).toBeTruthy();
@@ -551,8 +548,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getByText('Default Mode'));
 
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: 'bypassPermissions' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'bypassPermissions' } });
 
     await waitFor(() => screen.getByText('Bypass Permissions'));
     fireEvent.click(screen.getByText('Confirm'));
@@ -578,8 +574,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => screen.getByText('Default Mode'));
 
-    const selects = screen.getAllByRole('combobox');
-    fireEvent.change(selects[0], { target: { value: '' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: '' } });
 
     await waitFor(() => {
       const setCalls = getCalls('settings.set');

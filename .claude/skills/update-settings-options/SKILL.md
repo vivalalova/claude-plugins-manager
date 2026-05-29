@@ -2,12 +2,12 @@
 name: update-settings-options
 description: 同步 Claude settings docs 變更到 repo（type/UI/i18n/tests/docs）
 model: opus
-allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skill
+allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Workflow, AskUserQuestion
 ---
 
 # update-settings-options
 
-同步 Claude settings docs 變更到 repo。4-phase automated pipeline。
+讓 extension 的 settings surface（schema + 衍生 types + UI + i18n + tests + docs + env registry）跟上 **Claude Code 目前有哪些設定選項**——以官方 schema（schemastore，交叉比對官方 docs/CHANGELOG）為準。
 
 ## Trigger
 
@@ -15,168 +15,99 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, Skil
 - `update settings options`
 - `Claude settings docs changed`
 
+## 形狀：workflow 探查 → 主迴圈套用
+
+這個 skill 用一個 **workflow** 跑「探查」，再由主迴圈做「決策 + 套用 + 驗證」。分工不是半套，是兩個硬限制逼出來的：
+
+1. **背景 workflow 不能 `AskUserQuestion`** — section 歸屬的確認必須回主迴圈做。
+2. **本 repo 禁止 test/build 併發**（見 `CLAUDE.md`）— workflow 會 fan-out 平行 agent，若在裡面跑 typecheck/test/build 會違反「整台機器同時僅一個」。
+
+所以：**workflow 擁有唯讀、可平行、無副作用的部分**（抓三來源 → deep diff → 逐 gap 分類 + repo-only 對抗式驗證），回傳結構化 gap report；**主迴圈擁有互動 + 寫檔 + 序列驗證的部分**。這正是 Workflow 工具文件背書的「scout with workflow, then act in main loop」。
+
 ## Source of truth
 
-- **primary**: JSON schema store `https://json.schemastore.org/claude-code-settings.json`（社群維護，machine-readable）
-- **official cross-check**: 官方 docs `code.claude.com/docs/en/settings` + CHANGELOG（每次執行檢查是否有 schema store 遺漏）
-- **supplementary**: `context7` `/websites/code_claude`（補充描述/context，≤3 queries，含 official discovery）
-- **fail-fast**: schema store 失敗 → 直接報錯結束，不 fallback
-- **secondary**: `src/shared/claude-settings-schema.ts`、現有 section 實作；只補 literal enum、default、shape
-- 衝突優先序：official schema（如有）> schema store > official docs > repo；輸出必列衝突點
+- **primary**：JSON schema store `https://json.schemastore.org/claude-code-settings.json`（社群維護、machine-readable）
+- **official cross-check**：官方 docs `code.claude.com/docs/en/settings` + CHANGELOG（每次執行檢查 schema store 是否遺漏）
+- **supplementary**：`context7` `/websites/code_claude`（補描述/context，≤3 queries）
+- **secondary**：`src/shared/claude-settings-schema.ts` 與現有 section 實作；只補 literal enum / default / object shape
+- **fail-fast**：schema store 抓取失敗 → 直接報錯結束，不 fallback
+- **優先序**：official schema（若出現）> schema store > official docs > repo；輸出必列衝突點
+
+細節見 `references/sources.md`。
 
 ## Key categories
 
-Schema 包含多種 key，僅 `user-facing` 需同步到 settings UI。完整 key 清單以 `references/surface-map.md` 為準（避免雙處同步漂移）。
+Schema 含多種 key，只有 user-facing 需要進 settings UI。判定準則與完整 excluded 清單以 `references/surface-map.md` 為準。
 
 | Category | 處理 |
 |----------|------|
 | user-facing | **同步**（按 surface-map 分 section） |
-| anti-direction | **同步到 AdvancedSection**（啟用後違反低成本/高效率/高精度方向；判定準則見 `references/surface-map.md`） |
+| anti-direction | **同步到 advanced**（啟用後違反低成本/高效率/高精度方向） |
 | managed-only | skip（企業管理員專用） |
-| plugin-internal | skip（由 plugin/marketplace UI 管理） |
+| plugin-internal | skip（plugin/marketplace UI 管理） |
 | deprecated | skip（被其他 key 取代） |
-| repo-only | **提報給使用者確認**（repo 有但 schema / official docs 皆無）；不擅自刪除 |
-| meta | skip（`$schema` 等 JSON schema 參照） |
+| repo-only | **提報使用者確認**（repo 有、schema/docs/env/issues 皆無）；不擅自刪除 |
+| docs-likely-gap | **保留**（repo 有、docs 無，但有 env var / issue / CHANGELOG 等 feature 證據；docs 漏寫） |
+| meta | skip（`$schema` 等） |
 
-## References
-
-- canonical source / 刪除規則：`references/sources.md`
-- key → section mapping：`references/surface-map.md`
-- editor 選型：`references/editor-patterns.md`
-
-## Phase 1: Fetch Schema（single source）
-
-### 1a. JSON schema store（primary）
-
-- `curl -sL https://json.schemastore.org/claude-code-settings.json`（需 `-L` follow redirect）
-- 解析所有 `properties.*`：key、type、enum、default、description
-- 解析 `$defs.hookCommand.anyOf[*]`：hook command types
-- 解析 `properties.hooks.properties.*`：hook event types
-
-### 1a′. Official source discovery
-
-Schema store 是社群維護（[anthropics/claude-code#11795](https://github.com/anthropics/claude-code/issues/11795)），可能落後官方。此步驟交叉比對官方資訊：
-
-1. **官方 docs 頁面**：透過 `context7` query `code.claude.com/docs/en/settings`（`/websites/code_claude`），抓 "Available settings" 表格中的 key 清單
-2. **CHANGELOG**：`WebSearch` 搜 `site:github.com/anthropics/claude-code CHANGELOG settings` 找最近新增的 settings key
-3. **False-negative 防衛**：對每個「docs 查無」的 key 再跑**精準字串搜**一次，至少 2 種來源：
-   - `WebSearch "<key>" site:code.claude.com` + `WebSearch "\"<key>\":" site:github.com/anthropics/claude-code`
-   - 配對 env var（`known-env-vars.ts` 中 `CLAUDE_CODE_*` / `*_<KEY_UPPER>`）、GitHub issue `"<key>"` 提及
-   - 兩處以上出現 → 視為 docs gap（feature 存在 docs 漏寫），不歸 `repo-only`
-4. **比對**：官方 docs 出現但 schema store 沒有的 key → 標記 `docs-only`，納入 gap report
-5. **優先序更新**：若找到 Anthropic 官方 hosted schema URL → 升級為 primary，schemastore 降為 fallback
-
-### 1b. context7 supplementary（≤3 queries）
-
-- resolve library id：`/websites/code_claude`
-- 補充 schema 未涵蓋的 description/context（如新 key 的用途說明）
-- 1a′ 的 docs query 計入 context7 quota
-- context7 API 限制：**每次最多 3 queries**
-
-### 1c. Env vars registry sync
-
-- Source: `context7` `/websites/code_claude` — query env vars 文件（`claude-code-guide` agent 可補充）
-- Env vars 不在 JSON schema store（schema 只有 `env: Record<string,string>`）
-- 比對 `src/shared/known-env-vars.ts` — `KNOWN_ENV_VARS` registry
-- Output: added/removed/changed env vars
-- 參照 `references/env-vars-source.md`
-
-### 1d. Fail-fast
-
-- 1a schema store 失敗 → 直接報錯結束，不 fallback
-
-## Phase 2: Repo Scan（single Explore agent）
-
-單一 Explore agent 掃描 repo 現狀：
-
-- `src/shared/claude-settings-schema.ts` — schema 單一來源；value shape 用 `valueSchema`（kind + enum/min/max/item/...），section 陣列順序即 UI 渲染順序，`controlType` 由 `valueSchema` 自動推導，只有 mixed union 或刻意走 custom editor 才加 `controlTypeOverride`；沒自然落點的 user-facing key 直接放 `advanced`，不加 `hidden`
-- `src/shared/known-env-vars.ts` — `KNOWN_ENV_VARS` registry（`valueType` 用原生型別）
-- `src/webview/i18n/locales/en.ts` — i18n key 完整性
-
-NOTE: `src/shared/claude-settings-types.generated.ts`（ClaudeSettings / HookCommand 來源）由 `npm run generate:settings-types` 從上面 schema 重生，禁止手改、不列 scan target。
-
-深度比對（**禁止只比對頂層 key 存在性**，這會漏掉 drift）：
-1. **頂層 key** — schema store properties vs repo schema 陣列
-2. **Scalar meta** — 每個 key 的 `default` / enum options（集合比，順序可不同）/ number `minimum|maximum|multipleOf` → repo `min/max/step`
-3. **Nested object properties** — 遞迴比對 `permissions` / `sandbox.{filesystem,network}` / `attribution` / `spinnerVerbs` / `spinnerTipsOverride` / `statusLine` / `fileSuggestion` / `autoMode` / `worktree`：properties 集合 + required/optional 旗標 + 子屬性 shape
-4. **Union types** — `$defs.hookCommand.anyOf` 每個 variant 的 required/optional properties、`allowedMcpServers` / `deniedMcpServers` items anyOf 的 discriminant 與 shape
-5. **Number range missing** — schema 有 minimum/maximum 但 repo `numberValue()` 沒 min/max 要補（例：port 欄位應補 1–65535）
-
-產出 diff：`{ added: [{key, type, default, source}], removed: [{key}], changed: [{key, field, schema, repo, depth}] }`，`depth` = top-level / nested / union / meta
-
-## Phase 3: Gap Report + 確認
-
-### 3a. Key 分類
-
-每個 diff key 標記 category（參照上方 Key categories 表）。`user-facing` 與 `anti-direction` 進入 Phase 4。`repo-only` 列表提給使用者確認（不擅自刪除）。
-
-Anti-direction 判定：新 key 先評估是否符合 `references/surface-map.md` 的 anti-direction 準則（anti-cost / anti-efficiency / anti-user）。符合 → 標記 `anti-direction`，固定放 `AdvancedSection`。
-
-Repo-only 判定分兩階：
-- **docs-likely-gap**：repo schema 有、官方 docs 無，但具備以下任一 feature 證據 → 視為 docs 漏寫，保留、標 `docs-likely-gap`
-  - `known-env-vars.ts` 有對應 env var（例：`autoConnectIde` ↔ `CLAUDE_CODE_AUTO_CONNECT_IDE`）
-  - GitHub issues 有以精準字串 `"<key>"` 提及 settings 使用方式
-  - CHANGELOG 曾提及
-- **repo-only**：以上證據都無 → `repo-only`，在 gap 表標記、要求使用者確認；若確認為誤加 → 由使用者授權刪除
-
-### 3b. Hook 覆蓋檢查
-
-- hook event types：比對 schema `hooks.properties.*` vs repo HooksSection 支援（動態 `Object.keys()` 則自動相容）
-- hook command types：比對 schema `$defs.hookCommand` vs repo `HookCommand` type union
-
-### 3c. Env vars registry gap
-
-- 比對 Phase 1c env vars docs vs `KNOWN_ENV_VARS` registry
-- 新增/移除/變更 env vars 列入 gap 表
-
-### 3d. Gap 表
+## Step 1 — 跑探查 workflow
 
 ```
-| Key | Status | Category | Source | Section | Details |
+Workflow({ scriptPath: ".claude/skills/update-settings-options/references/scripts/sync-settings.workflow.js" })
 ```
 
-Source 欄位：
-- `schema` — schema store 有
-- `docs-only` — 官方 docs 有但 schema store 無
-- `both` — 兩者皆有
-- `docs-likely-gap` — repo 有、docs 無，但有 env var 或 GitHub issue 等 feature 證據（保留，docs 漏寫）
-- `repo-only` — repo 有、schema store / docs / env var / issues 皆無（提使用者確認）
+腳本（`references/scripts/sync-settings.workflow.js`）三個 phase，全唯讀：
 
-### 3e. 確認或 early exit
+- **Fetch（平行）**：① curl + 解析 schemastore；② context7 讀官方 docs 表格 + WebSearch CHANGELOG + 找官方 schema URL；③ Explore agent 讀 repo schema/env/i18n。schemastore 失敗即 fail-fast。
+- **Diff**：把三份結構化快照丟給一個 agent 做 deep diff——**禁止只比頂層 key 存在性**。涵蓋 top-level / scalar meta（default、enum 集合、number min/max/multipleOf）/ nested object / union（hookCommand、MCP server matcher）/ number-range missing / env / hook coverage，每筆標 depth。
+- **Categorize（平行）**：逐 presence gap 分類；判為 `repo-only` 前先跑對抗式驗證（WebSearch ×2 + env var 配對）防 false-negative，有 feature 證據則降級為 `docs-likely-gap`。
 
-- 有 user-facing gap：`AskUserQuestion` 讓用戶確認 section assignment
-- **無 user-facing gap → 報告同步完成，END**（skip Phase 4）
+回傳：`gaps`（含 category + suggestedSection + repo-only evidence）、`userFacing`、`repoOnly`、`docsLikelyGap`、`changed`（既有 key 的 meta drift，直接套用）、`envChanges`、`hookCoverage`、`conflicts`、`officialSchemaUrl`、`docsOnlyKeys`。
 
-## Phase 4: Apply Changes
+> 要改 workflow 邏輯：編輯該 `.js` 檔後重跑（可帶 `resumeFromRunId` 命中快取）；不要把腳本貼進對話。
 
-依序執行（參照 `references/` 決策）：
+## Step 2 — 確認或 early exit
 
-1. `src/shared/claude-settings-schema.ts` — 新 key：在目標 section 陣列加 entry（陣列位置 = UI 渲染順序；沒自然落點放 `advanced`）；既有 key：改 valueSchema / default / nestedUnder / dangerValues；刪 key：從陣列移除。`src/shared/claude-settings-types.generated.ts` 由 `npm run generate:settings-types` 自動同步（prebuild/prelint/pretest/pretypecheck 皆會觸發），禁止手改。
-2. Section 元件 — 依 `references/surface-map.md` 分配；只有 `controlType: Object` 的欄位需要在對應 section 手動渲染，其餘走 `SchemaFieldRenderer`；editor 選型依 `references/editor-patterns.md`
-3. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys
-4. Tests — 對應 section test 檔
-5. `CLAUDE.md` — settings 分區表 + 陷阱
-6. `src/shared/known-env-vars.ts` — 增刪改 env var entries
-7. i18n — 增刪 `settings.env.knownVars.*` + `settings.env.category.*` keys
-8. Cleanup — dead imports / locale keys / tests
+- workflow 回報 `userFacing` 為空、無新 env var、無新 hook command type → 報告同步完成，**END**。
+- `changed` 內若只是 repo-ahead 的 UI 約束（如 number `step`）或 repo 遵循「docs > schemastore」的 default，屬 note-only 不需動作；唯有 schema 真正改了 repo 該跟進的 default/enum 才套用。`hookCoverage.missingEventTypes` 應為空（event types 動態，不會 drift）——若非空代表 workflow 誤報，忽略。
+- 有 user-facing gap 且 section 歸屬不明確 → `AskUserQuestion` 讓使用者確認。
+- `repoOnly` 清單一律提報使用者；確認為誤加才由使用者授權刪除。
+
+## Step 3 — 套用變更（主迴圈，依 `references/` 決策）
+
+1. `src/shared/claude-settings-schema.ts` — 新 key 在目標 section 陣列加 entry（陣列位置 = UI 渲染順序，依 section 內主題群組擺放；沒落點放 `advanced`）；既有 key 改 `valueSchema`/`default`/`nestedUnder`/`dangerValues`；刪 key 從陣列移除。`claude-settings-types.generated.ts` 由 `npm run generate:settings-types` 自動重生（prebuild/prelint/pretest/pretypecheck 皆觸發），**禁手改**。
+2. Section 元件 — 依 `references/surface-map.md` 分配；只有 `controlType: Object` 在對應 section 手寫渲染，其餘走 `SchemaFieldRenderer`；editor 選型見 `references/editor-patterns.md`。
+3. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 增刪 locale keys。
+4. Tests — 對應 section test；定位欄位用 label-scoped query（`getByRole('combobox', { name })` / `getByText(label).closest('.settings-field')`），**禁用位置索引**避免重排即碎。
+5. `CLAUDE.md` — settings 分區表 + 陷阱。
+6. `src/shared/known-env-vars.ts` + i18n `settings.env.knownVars.*` / `settings.env.category.*` — env var 增刪改（見 `references/env-vars-source.md`）。
+7. Cleanup — dead imports / locale keys / tests。
 
 ## Hard checklist
 
-- 新增 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
+- 新 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
 - docs 有 default：補 key hint / default hint
-- 刪除 key：移除 first-party support，不清使用者 settings 檔
-- object shape 不明：放 AdvancedSection，保守 type
-- 不新開 section
-- hook 變更：確認 HookCommand type union + hook event types 對齊
-- **meta drift**：schema 有 default / enum / min / max / multipleOf 但 repo 缺 → 補齊；repo 有但 schema 沒 → 保留（UI constraint）並於報告註記
+- 刪 key：移除 first-party support，**不清使用者既有 settings 檔**（unknown key 容忍保留）
+- object shape 不明：放 advanced，保守 type
+- **不新開 section**
+- hook 變更：對齊 `HookCommand` type union（固定集合）；event types 走動態 `Object.keys`，不列舉、不會 drift
+- **meta drift**：schema 有 default/enum/min/max/multipleOf 但 repo 缺 → 補；repo 有但 schema 沒 → 保留並於報告註記
 
-## Verification
+## Verification（序列，禁併發）
 
-1. 受影響 section tests
+1. 受影響 section tests（`npx vitest run <files>`，避開全套慢查）
 2. `npm run typecheck`
 3. `npm test`
 4. `npm run build`
 
 ## Output contract
 
-最終回報必列：新增 key、刪除 key、修改 key、excluded keys（with category）、repo-only keys（提使用者確認清單）、hook 覆蓋狀態、受影響 section、驗證結果、official source discovery 結果（是否找到官方 schema URL、docs-only keys）
+最終回報必列：新增 key、刪除 key、修改 key、excluded keys（含 category）、repo-only keys（提使用者確認清單）、docs-likely-gap keys（含證據）、hook 覆蓋狀態、env var 變更、受影響 section、驗證結果、official source discovery 結果（是否找到官方 schema URL、docs-only keys）、衝突點。
+
+## References
+
+- canonical source / 刪除規則：`references/sources.md`
+- key → section mapping + excluded 清單：`references/surface-map.md`
+- editor 選型：`references/editor-patterns.md`
+- env vars 來源：`references/env-vars-source.md`
+- 探查 workflow：`references/scripts/sync-settings.workflow.js`

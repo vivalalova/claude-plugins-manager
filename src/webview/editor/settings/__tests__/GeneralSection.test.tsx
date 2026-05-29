@@ -413,17 +413,16 @@ describe('GeneralSection — EnumDropdown 互動', () => {
   it('effortLevel 未設定 → select value 為空', async () => {
     renderSection({});
     await waitFor(() => {
-      // selects[0] = defaultMode, selects[1] = effortLevel
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      expect(selects[1].value).toBe('');
+      const select = screen.getByRole('combobox', { name: 'Effort Level' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
     });
   });
 
   it('effortLevel: "high" → select 顯示 high', async () => {
     renderSection({ effortLevel: 'high' });
     await waitFor(() => {
-      const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-      expect(selects[1].value).toBe('high');
+      const select = screen.getByRole('combobox', { name: 'Effort Level' }) as HTMLSelectElement;
+      expect(select.value).toBe('high');
     });
   });
 
@@ -431,8 +430,8 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
-    await waitFor(() => screen.getAllByRole('combobox'));
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'medium' } });
+    await waitFor(() => screen.getByRole('combobox', { name: 'Effort Level' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Effort Level' }), { target: { value: 'medium' } });
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('effortLevel', 'medium');
@@ -443,8 +442,8 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ effortLevel: 'high' }, vi.fn(), onDelete);
 
-    await waitFor(() => screen.getAllByRole('combobox'));
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '' } });
+    await waitFor(() => screen.getByRole('combobox', { name: 'Effort Level' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Effort Level' }), { target: { value: '' } });
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('effortLevel');

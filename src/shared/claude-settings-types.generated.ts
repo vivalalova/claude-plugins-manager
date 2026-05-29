@@ -48,44 +48,33 @@ export type HookCommand = {
 
 export interface ClaudeSettings {
   model?: string;
-  agent?: string;
-  autoConnectIde?: boolean;
-  autoInstallIdeExtension?: boolean;
-  effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
-  language?: string;
   availableModels?: string[];
-  includeGitInstructions?: boolean;
-  respectGitignore?: boolean;
+  effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   fastMode?: boolean;
   fastModePerSessionOptIn?: boolean;
+  agent?: string;
+  outputStyle?: string;
+  language?: string;
   autoMemoryEnabled?: boolean;
   autoMemoryDirectory?: string;
-  outputStyle?: string;
+  includeGitInstructions?: boolean;
+  respectGitignore?: boolean;
+  autoConnectIde?: boolean;
+  autoInstallIdeExtension?: boolean;
   autoUpdatesChannel?: "stable" | "latest";
   minimumVersion?: string;
   cleanupPeriodDays?: number;
-  teammateMode?: "auto" | "in-process" | "tmux";
-  teammateDefaultModel?: string | null;
-  editorMode?: "normal" | "vim";
-  externalEditorContext?: boolean;
-  preferredNotifChannel?: "auto" | "terminal_bell" | "iterm2" | "iterm2_with_bell" | "kitty" | "ghostty" | "notifications_disabled";
   viewMode?: "default" | "verbose" | "focus";
   tui?: "fullscreen" | "default";
   autoScrollEnabled?: boolean;
-  awaySummaryEnabled?: boolean;
+  syntaxHighlightingDisabled?: boolean;
+  prefersReducedMotion?: boolean;
   showTurnDuration?: boolean;
   showThinkingSummaries?: boolean;
   showClearContextOnPlanAccept?: boolean;
+  awaySummaryEnabled?: boolean;
   spinnerTipsEnabled?: boolean;
   terminalProgressBarEnabled?: boolean;
-  prefersReducedMotion?: boolean;
-  syntaxHighlightingDisabled?: boolean;
-  voiceEnabled?: boolean;
-  voice?: {
-    enabled?: boolean;
-    mode?: "hold" | "tap";
-    autoSubmit?: boolean;
-  };
   spinnerVerbs?: {
     mode?: "append" | "replace";
     verbs: string[];
@@ -94,6 +83,17 @@ export interface ClaudeSettings {
     tips: string[];
     excludeDefault?: boolean;
   };
+  preferredNotifChannel?: "auto" | "terminal_bell" | "iterm2" | "iterm2_with_bell" | "kitty" | "ghostty" | "notifications_disabled";
+  editorMode?: "normal" | "vim";
+  externalEditorContext?: boolean;
+  voiceEnabled?: boolean;
+  voice?: {
+    enabled?: boolean;
+    mode?: "hold" | "tap";
+    autoSubmit?: boolean;
+  };
+  teammateMode?: "auto" | "in-process" | "tmux";
+  teammateDefaultModel?: string | null;
   enableAllProjectMcpServers?: boolean;
   enabledMcpjsonServers?: string[];
   disabledMcpjsonServers?: string[];
@@ -172,10 +172,13 @@ export interface ClaudeSettings {
   httpHookAllowedEnvVars?: string[];
   allowedHttpHookUrls?: string[];
   forceLoginMethod?: "claudeai" | "console";
-  attribution?: {
-    commit?: string;
-    pr?: string;
-  };
+  forceLoginOrgUUID?: string | string[];
+  apiKeyHelper?: string;
+  awsCredentialExport?: string;
+  awsAuthRefresh?: string;
+  gcpAuthRefresh?: string;
+  otelHeadersHelper?: string;
+  modelOverrides?: Record<string, string>;
   statusLine?: {
     type: "command";
     command: string;
@@ -191,7 +194,37 @@ export interface ClaudeSettings {
     type: "command";
     command: string;
   };
+  attribution?: {
+    commit?: string;
+    pr?: string;
+  };
+  prUrlTemplate?: string;
   skillOverrides?: Record<string, "on" | "name-only" | "user-invocable-only" | "off">;
+  maxSkillDescriptionChars?: number;
+  skillListingBudgetFraction?: number;
+  disableSkillShellExecution?: boolean;
+  worktree?: {
+    sparsePaths?: string[];
+    symlinkDirectories?: string[];
+    baseRef?: "fresh" | "head";
+    bgIsolation?: "worktree" | "none";
+  };
+  autoMode?: {
+    environment?: string[];
+    allow?: string[];
+    soft_deny?: string[];
+    hard_deny?: string[];
+  };
+  defaultShell?: "bash" | "powershell";
+  plansDirectory?: string;
+  sshConfigs?: {
+    id: string;
+    name: string;
+    sshHost: string;
+    sshPort?: number;
+    sshIdentityFile?: string;
+    startDirectory?: string;
+  }[];
   sandbox?: {
     enabled?: boolean;
     autoAllowBashIfSandboxed?: boolean;
@@ -222,45 +255,12 @@ export interface ClaudeSettings {
       allowMachLookup?: string[];
     };
   };
-  companyAnnouncements?: string[];
-  forceLoginOrgUUID?: string | string[];
-  plansDirectory?: string;
-  apiKeyHelper?: string;
-  otelHeadersHelper?: string;
-  awsCredentialExport?: string;
-  awsAuthRefresh?: string;
-  gcpAuthRefresh?: string;
   disableAgentView?: boolean;
   disableRemoteControl?: boolean;
-  skipWebFetchPreflight?: boolean;
   disableDeepLinkRegistration?: "disable";
-  disableSkillShellExecution?: boolean;
+  skipWebFetchPreflight?: boolean;
   alwaysThinkingEnabled?: boolean;
+  companyAnnouncements?: string[];
   claudeMdExcludes?: string[];
-  modelOverrides?: Record<string, string>;
   feedbackSurveyRate?: number;
-  maxSkillDescriptionChars?: number;
-  skillListingBudgetFraction?: number;
-  worktree?: {
-    sparsePaths?: string[];
-    symlinkDirectories?: string[];
-    baseRef?: "fresh" | "head";
-    bgIsolation?: "worktree" | "none";
-  };
-  sshConfigs?: {
-    id: string;
-    name: string;
-    sshHost: string;
-    sshPort?: number;
-    sshIdentityFile?: string;
-    startDirectory?: string;
-  }[];
-  autoMode?: {
-    environment?: string[];
-    allow?: string[];
-    soft_deny?: string[];
-    hard_deny?: string[];
-  };
-  defaultShell?: "bash" | "powershell";
-  prUrlTemplate?: string;
 }

@@ -498,50 +498,63 @@ const HOOKS_VALUE_SCHEMA = recordValue(arrayValue(objectValue({
  */
 export const CLAUDE_SETTINGS_SCHEMA = {
   general: [
+    // Model & reasoning
     stringField('model'),
+    arrayField('availableModels', STRING_SCHEMA),
+    createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA, { default: 'high' }),
+    booleanField('fastMode', { default: false }),
+    booleanField('fastModePerSessionOptIn', { default: false }),
     stringField('agent'),
-    booleanField('autoConnectIde', { default: false }),
-    booleanField('autoInstallIdeExtension', { default: true }),
+    stringField('outputStyle'),
+    // Permission mode
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
       dangerValues: ['bypassPermissions'],
     }),
-    createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA, { default: 'high' }),
+    // Language
     stringField('language'),
-    arrayField('availableModels', STRING_SCHEMA),
-    booleanField('includeGitInstructions', { default: true }),
-    booleanField('respectGitignore', { default: true }),
-    booleanField('fastMode', { default: false }),
-    booleanField('fastModePerSessionOptIn', { default: false }),
+    // Memory
     booleanField('autoMemoryEnabled', { default: true }),
     stringField('autoMemoryDirectory'),
-    stringField('outputStyle'),
+    // Git
+    booleanField('includeGitInstructions', { default: true }),
+    booleanField('respectGitignore', { default: true }),
+    // IDE integration
+    booleanField('autoConnectIde', { default: false }),
+    booleanField('autoInstallIdeExtension', { default: true }),
+    // Updates & maintenance
     createField('autoUpdatesChannel', UPDATE_CHANNEL_VALUE_SCHEMA, { default: 'latest' }),
     stringField('minimumVersion'),
     createField('cleanupPeriodDays', CLEANUP_PERIOD_DAYS_VALUE_SCHEMA, { default: 30 }),
   ],
 
   display: [
-    createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
-    createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String }),
-    createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
-    booleanField('externalEditorContext', { default: false }),
-    createField('preferredNotifChannel', PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA, { default: 'auto' }),
+    // Rendering & view
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
     createField('tui', TUI_VALUE_SCHEMA),
     booleanField('autoScrollEnabled', { default: true }),
-    booleanField('awaySummaryEnabled', { default: true }),
+    booleanField('syntaxHighlightingDisabled', { default: false }),
+    booleanField('prefersReducedMotion', { default: false }),
+    // Transcript info
     booleanField('showTurnDuration', { default: true }),
     booleanField('showThinkingSummaries', { default: false }),
     booleanField('showClearContextOnPlanAccept', { default: false }),
+    booleanField('awaySummaryEnabled', { default: true }),
+    // Spinner & progress
     booleanField('spinnerTipsEnabled', { default: true }),
     booleanField('terminalProgressBarEnabled', { default: true }),
-    booleanField('prefersReducedMotion', { default: false }),
-    booleanField('syntaxHighlightingDisabled', { default: false }),
-    booleanField('voiceEnabled', { default: false }),
-    createField('voice', VOICE_VALUE_SCHEMA),
     createField('spinnerVerbs', SPINNER_VERBS_VALUE_SCHEMA),
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),
+    // Notifications
+    createField('preferredNotifChannel', PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA, { default: 'auto' }),
+    // Input & editor
+    createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
+    booleanField('externalEditorContext', { default: false }),
+    booleanField('voiceEnabled', { default: false }),
+    createField('voice', VOICE_VALUE_SCHEMA),
+    // Agent teammates
+    createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
+    createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String }),
   ],
 
   permissions: [
@@ -570,37 +583,46 @@ export const CLAUDE_SETTINGS_SCHEMA = {
   ],
 
   advanced: [
+    // Authentication & login
     createField('forceLoginMethod', FORCE_LOGIN_METHOD_VALUE_SCHEMA),
-    createField('attribution', ATTRIBUTION_VALUE_SCHEMA),
-    createField('statusLine', STATUS_LINE_VALUE_SCHEMA),
-    createField('subagentStatusLine', SUBAGENT_STATUS_LINE_VALUE_SCHEMA),
-    createField('fileSuggestion', FILE_SUGGESTION_VALUE_SCHEMA),
-    createField('skillOverrides', SKILL_OVERRIDES_VALUE_SCHEMA, { controlTypeOverride: Object }),
-    createField('sandbox', SANDBOX_VALUE_SCHEMA),
-    createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('forceLoginOrgUUID', FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA, { controlTypeOverride: String }),
-    stringField('plansDirectory', { default: '~/.claude/plans' }),
     stringField('apiKeyHelper'),
-    stringField('otelHeadersHelper'),
+    // Cloud provider auth & telemetry
     stringField('awsCredentialExport'),
     stringField('awsAuthRefresh'),
     stringField('gcpAuthRefresh'),
-    booleanField('disableAgentView', { default: false }),
-    booleanField('disableRemoteControl', { default: false }),
-    booleanField('skipWebFetchPreflight', { default: false }),
-    createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
-    booleanField('disableSkillShellExecution', { default: false }),
-    booleanField('alwaysThinkingEnabled', { default: false }),
-    arrayField('claudeMdExcludes', STRING_SCHEMA),
+    stringField('otelHeadersHelper'),
     createField('modelOverrides', MODEL_OVERRIDES_VALUE_SCHEMA),
-    createField('feedbackSurveyRate', FEEDBACK_SURVEY_RATE_VALUE_SCHEMA),
+    // Terminal customization
+    createField('statusLine', STATUS_LINE_VALUE_SCHEMA),
+    createField('subagentStatusLine', SUBAGENT_STATUS_LINE_VALUE_SCHEMA),
+    createField('fileSuggestion', FILE_SUGGESTION_VALUE_SCHEMA),
+    // Git & attribution
+    createField('attribution', ATTRIBUTION_VALUE_SCHEMA),
+    stringField('prUrlTemplate'),
+    // Skills
+    createField('skillOverrides', SKILL_OVERRIDES_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('maxSkillDescriptionChars', MAX_SKILL_DESCRIPTION_CHARS_VALUE_SCHEMA, { default: 1536 }),
     createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
+    booleanField('disableSkillShellExecution', { default: false }),
+    // Sessions & execution
     createField('worktree', WORKTREE_VALUE_SCHEMA),
-    createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('autoMode', AUTO_MODE_VALUE_SCHEMA),
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
-    stringField('prUrlTemplate'),
+    stringField('plansDirectory', { default: '~/.claude/plans' }),
+    createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
+    // Sandbox
+    createField('sandbox', SANDBOX_VALUE_SCHEMA),
+    // Opt-outs & feature toggles
+    booleanField('disableAgentView', { default: false }),
+    booleanField('disableRemoteControl', { default: false }),
+    createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
+    booleanField('skipWebFetchPreflight', { default: false }),
+    booleanField('alwaysThinkingEnabled', { default: false }),
+    // Enterprise & misc
+    createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
+    arrayField('claudeMdExcludes', STRING_SCHEMA),
+    createField('feedbackSurveyRate', FEEDBACK_SURVEY_RATE_VALUE_SCHEMA),
   ],
 } as const;
 

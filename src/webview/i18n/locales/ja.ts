@@ -649,6 +649,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.IS_DEMO.description': '1 を設定してデモモードを有効化（メールと組織名を非表示、オンボーディングをスキップ）',
   'settings.env.knownVars.MCP_CONNECTION_NONBLOCKING.description': '非インタラクティブモード（-p）で true に設定して MCP 接続待機を完全スキップ',
   'settings.env.knownVars.CLAUDE_CODE_HIDE_CWD.description': '1 を設定してスタートアップロゴで作業ディレクトリ（CWD）を非表示',
+  'settings.env.knownVars.CLAUDE_CODE_HIDE_ACCOUNT_INFO.description': '1 を設定してスタートアップロゴでアカウント情報（メール・組織名）を非表示',
   'settings.env.knownVars.CLAUDE_CODE_IDE_HOST_OVERRIDE.description': 'IDE 拡張への接続ホストアドレスを上書き',
   'settings.env.knownVars.CLAUDE_CODE_IDE_SKIP_VALID_CHECK.description': '1 を設定して接続時の IDE ロックファイルエントリの検証をスキップ',
   'settings.env.knownVars.CLAUDE_CODE_TMUX_TRUECOLOR.description': '1 を設定して tmux 内で 24 ビットトゥルーカラー出力を許可',
