@@ -39,6 +39,20 @@ const KEY_SHAPE = {
   },
 }
 
+const ENV_VAR_SHAPE = {
+  type: 'object',
+  required: ['name'],
+  properties: {
+    name: { type: 'string' },
+    valueType: { type: 'string', description: 'string | number | boolean if known, else empty' },
+    category: { type: 'string', description: 'model | auth | provider | effort | timeout | limits | feature | ui | shell | telemetry if known, else empty' },
+    defaultStr: { type: 'string', description: 'stringified default, empty if none' },
+    sensitive: { type: 'boolean' },
+    deprecated: { type: 'boolean' },
+    description: { type: 'string' },
+  },
+}
+
 const SCHEMA_STORE_SCHEMA = {
   type: 'object',
   required: ['fetchedOk', 'keys', 'hookCommandTypes', 'hookEventTypes'],
@@ -53,11 +67,17 @@ const SCHEMA_STORE_SCHEMA = {
 
 const OFFICIAL_SCHEMA = {
   type: 'object',
-  required: ['docsKeys', 'changelogSettings', 'officialSchemaUrl'],
+  required: ['docsKeys', 'changelogSettings', 'officialSchemaUrl', 'officialSchemaFetchedOk', 'officialSchemaKeys', 'envVars'],
   properties: {
     docsKeys: { type: 'array', items: { type: 'string' }, description: 'keys in the official "Available settings" table' },
     changelogSettings: { type: 'array', items: { type: 'string' }, description: 'settings keys in recent CHANGELOG entries' },
     officialSchemaUrl: { type: 'string', description: 'Anthropic-hosted schema URL if found, else empty' },
+    officialSchemaFetchedOk: { type: 'boolean', description: 'true only when officialSchemaUrl was found and parsed successfully' },
+    officialSchemaFetchError: { type: 'string', description: 'fetch/parse error if officialSchemaUrl was found but could not be parsed, else empty' },
+    officialSchemaKeys: { type: 'array', items: KEY_SHAPE, description: 'parsed official schema keys when officialSchemaFetchedOk=true, else []' },
+    officialHookCommandTypes: { type: 'array', items: { type: 'string' }, description: 'official schema hook command type literals when available' },
+    officialHookEventTypes: { type: 'array', items: { type: 'string' }, description: 'official schema hook event names when available' },
+    envVars: { type: 'array', items: ENV_VAR_SHAPE, description: 'known env vars from the official env-vars docs' },
   },
 }
 
@@ -81,7 +101,7 @@ const REPO_SCHEMA = {
         },
       },
     },
-    envVars: { type: 'array', items: { type: 'string' } },
+    envVars: { type: 'array', items: ENV_VAR_SHAPE },
     sections: { type: 'array', items: { type: 'string' } },
     hookCommandTypes: { type: 'array', items: { type: 'string' } },
     hookEventTypes: { type: 'array', items: { type: 'string' } },
@@ -159,10 +179,12 @@ const [store, official, repo] = await parallel([
   ),
   () => agent(
     [
-      'Cross-check the OFFICIAL Claude Code settings source (the schema store is community-maintained and may lag).',
+      'Cross-check the OFFICIAL Claude Code sources (schema store is community-maintained and may lag).',
       '1. Via context7 (resolve library id /websites/code_claude), read code.claude.com/docs/en/settings and extract every key in the "Available settings" table → docsKeys.',
-      '2. WebSearch: site:github.com/anthropics/claude-code CHANGELOG settings — list settings keys named in recent entries → changelogSettings.',
-      '3. Discover whether Anthropic now hosts its own settings schema URL (e.g. under code.claude.com). Return it in officialSchemaUrl, else empty string.',
+      '2. Via context7, read code.claude.com/docs/en/env-vars and extract env vars into envVars with name, valueType, defaultStr, sensitive/deprecated if stated, category if inferable from docs grouping, and description.',
+      '3. WebSearch: site:github.com/anthropics/claude-code CHANGELOG settings — list settings keys named in recent entries → changelogSettings.',
+      '4. Discover whether Anthropic now hosts its own settings schema URL (e.g. under code.claude.com). Return it in officialSchemaUrl, else empty string.',
+      '5. If officialSchemaUrl is non-empty, curl it and parse the same structure as schemastore into officialSchemaKeys, officialHookCommandTypes, and officialHookEventTypes. Set officialSchemaFetchedOk=true only when that schema parsed successfully; otherwise set false and put the error in officialSchemaFetchError.',
       'Hard limit: at most 3 context7 queries total.',
     ].join('\n'),
     { label: 'fetch:official', phase: 'Fetch', model: 'sonnet', schema: OFFICIAL_SCHEMA },
@@ -171,7 +193,7 @@ const [store, official, repo] = await parallel([
     [
       'Read the repo settings surface and return its current shape. READ ONLY — do not modify anything.',
       'Single source of truth: src/shared/claude-settings-schema.ts → CLAUDE_SETTINGS_SCHEMA. For each entry return: key, its section (general/display/permissions/env/hooks/advanced), valueSchema.kind, stringified default (defaultStr), enum options, nestedUnder, and hasNumberRange (true if a number field declares min/max).',
-      'Also: KNOWN_ENV_VARS keys from src/shared/known-env-vars.ts (→ envVars); the hook command-type union variants + hook event types the repo supports; and which schema keys LACK a label/description in src/webview/i18n/locales/en.ts (→ i18nMissing).',
+      'Also: KNOWN_ENV_VARS from src/shared/known-env-vars.ts (→ envVars with name, valueType, category, defaultStr, sensitive/deprecated); the hook command-type union variants + hook event types the repo supports; and which schema keys LACK a label/description in src/webview/i18n/locales/en.ts (→ i18nMissing).',
       'Also read .claude/skills/update-settings-options/references/surface-map.md and return its "Excluded categories" key list (managed-only / plugin-internal / deprecated / meta, including nested keys like sandbox.bwrapPath) → knownExcluded.',
       'Do NOT read src/shared/claude-settings-types.generated.ts — it is a generated artifact, not a source.',
     ].join('\n'),
@@ -179,10 +201,12 @@ const [store, official, repo] = await parallel([
   ),
 ])
 
-if (!store || !store.fetchedOk) {
-  throw new Error('schemastore fetch failed — fail-fast per skill contract, no fallback')
+if ((!store || !store.fetchedOk) && !official?.officialSchemaFetchedOk) {
+  throw new Error('schema fetch failed — schemastore failed and no official schema was parsed')
 }
-log(`Fetched ${store.keys.length} schema keys · repo ${repo?.schemaKeys?.length ?? 0} keys · official docs ${official?.docsKeys?.length ?? 0} keys`)
+const primarySchemaSource = official?.officialSchemaFetchedOk ? 'official' : 'schemastore'
+const primarySchemaKeyCount = official?.officialSchemaFetchedOk ? official.officialSchemaKeys.length : store.keys.length
+log(`Fetched ${primarySchemaKeyCount} ${primarySchemaSource} schema keys · repo ${repo?.schemaKeys?.length ?? 0} keys · official docs ${official?.docsKeys?.length ?? 0} keys · official env ${official?.envVars?.length ?? 0}`)
 
 // --- Phase 2: Diff (one reasoning pass over all three structured snapshots) ---
 phase('Diff')
@@ -190,14 +214,15 @@ const diff = await agent(
   [
     'You are given three structured snapshots of Claude Code settings. Produce a DEEP diff.',
     'Do NOT compare only top-level key existence — that misses real drift. Tag every change with depth = top-level | nested | union | meta.',
-    '1. top-level: schema-store keys vs repo schemaKeys → added / removed. EXCLUDE from "added" every key in REPO.knownExcluded — those are intentionally omitted (managed-only / plugin-internal / deprecated / meta), not gaps. Only list genuinely new keys.',
-    '2. scalar meta (existing keys): default, enum option SET (order-agnostic), and number minimum/maximum/multipleOf vs repo min/max/step.',
+    'Choose PRIMARY_SCHEMA first: if OFFICIAL.officialSchemaFetchedOk is true, use OFFICIAL.officialSchemaKeys / officialHookCommandTypes / officialHookEventTypes. Otherwise use SCHEMA_STORE.keys / hookCommandTypes / hookEventTypes. If OFFICIAL.officialSchemaUrl is non-empty but officialSchemaFetchedOk=false, continue with schemastore and add the fetch error to conflicts.',
+    '1. top-level: PRIMARY_SCHEMA keys vs repo schemaKeys → added / removed. EXCLUDE from "added" every key in REPO.knownExcluded — those are intentionally omitted (managed-only / plugin-internal / deprecated / meta), not gaps. Only list genuinely new keys.',
+    '2. scalar meta (existing keys): PRIMARY_SCHEMA default, enum option SET (order-agnostic), and number minimum/maximum/multipleOf vs repo min/max/step.',
     '3. nested object properties: recurse permissions, sandbox.{filesystem,network}, attribution, spinnerVerbs, spinnerTipsOverride, statusLine, fileSuggestion, autoMode, worktree — property set + required/optional + child shape.',
     '4. union types: hookCommand.anyOf variant required/optional props; allowedMcpServers/deniedMcpServers item discriminants.',
     '5. number-range missing: schema has minimum/maximum but repo lacks min/max (depth=meta).',
-    '6. env: official env-var docs vs repo envVars → envChanges (added/removed/changed).',
-    '7. hook coverage — COMMAND types only: the repo HOOK_COMMAND_SCHEMA union is a FIXED set (command/prompt/agent/http/mcp_tool), so list any schema-store command type it lacks → missingCommandTypes. EVENT types do NOT drift: the repo hooks schema is recordValue keyed by ARBITRARY event names (HooksSection derives types via Object.keys at runtime), so it is dynamically compatible with every event type → missingEventTypes MUST be []. Never enumerate event types as missing.',
-    'A key in official docsKeys/changelogSettings but missing from the schema store → add it with source="docs-only". Both present → source="both"; only schema store → source="schema".',
+    '6. env: OFFICIAL.envVars vs REPO.envVars → envChanges. Compare by name for added/removed; compare valueType/defaultStr/sensitive/deprecated/category when both sides provide metadata and use change="changed" for real metadata drift.',
+    '7. hook coverage — COMMAND types only: the repo HOOK_COMMAND_SCHEMA union is a FIXED set (command/prompt/agent/http/mcp_tool), so list any PRIMARY_SCHEMA command type it lacks → missingCommandTypes. EVENT types do NOT drift: the repo hooks schema is recordValue keyed by ARBITRARY event names (HooksSection derives types via Object.keys at runtime), so it is dynamically compatible with every event type → missingEventTypes MUST be []. Never enumerate event types as missing.',
+    'A key in official docsKeys/changelogSettings but missing from PRIMARY_SCHEMA → add it with source="docs-only". Both present → source="both"; only PRIMARY_SCHEMA → source="schema".',
     'List schema-vs-repo disagreements in conflicts.',
     '',
     'SCHEMA_STORE: ' + JSON.stringify(store),
@@ -222,31 +247,33 @@ const presenceGaps = [
   ...diff.removed.map(g => ({ ...g, kind: 'removed' })),
 ]
 
-const categorized = await parallel(presenceGaps.map(g => () =>
-  agent(
-    [
-      'Classify this Claude Code settings gap for the extension UI.',
-      'Gap: ' + JSON.stringify(g),
-      'Categories: user-facing | anti-direction | managed-only | plugin-internal | deprecated | repo-only | docs-likely-gap | meta.',
-      'managed-only = enterprise-admin keys (allowManaged*, sandbox.*ManagedOnly, blockedMarketplaces, policyHelper, ...). plugin-internal = enabledPlugins / extraKnownMarketplaces / pluginConfigs. deprecated = superseded (e.g. includeCoAuthoredBy → attribution). meta = $schema.',
-      'If user-facing, also set suggestedSection. ' + surfaceMapHint,
-    ].join('\n'),
-    { label: `cat:${g.key}`, phase: 'Categorize', schema: CATEGORY_SCHEMA },
-  ).then(async cat => {
-    if (cat.category !== 'repo-only') return { ...g, ...cat }
-    // false-negative guard: only declare repo-only after trying hard to prove it is a docs gap
-    const v = await agent(
+const categorized = presenceGaps.length === 0
+  ? []
+  : await parallel(presenceGaps.map(g => () =>
+    agent(
       [
-        `Settings key "${g.key}" is in the repo schema but was NOT found in the schema store or official docs.`,
-        'Try hard to prove it is a REAL feature the docs merely omitted (→ docs-likely-gap), not a mistaken repo addition (→ repo-only).',
-        `Search at least two ways: WebSearch "${g.key}" site:code.claude.com ; WebSearch "\\"${g.key}\\"" site:github.com/anthropics/claude-code ; and check for a matching CLAUDE_CODE_* env var in known-env-vars.ts.`,
-        'isDocsGap=true ONLY with concrete feature evidence (env var, a GitHub issue using the key as a setting, or a CHANGELOG mention).',
+        'Classify this Claude Code settings gap for the extension UI.',
+        'Gap: ' + JSON.stringify(g),
+        'Categories: user-facing | anti-direction | managed-only | plugin-internal | deprecated | repo-only | docs-likely-gap | meta.',
+        'managed-only = enterprise-admin keys (allowManaged*, sandbox.*ManagedOnly, blockedMarketplaces, policyHelper, ...). plugin-internal = enabledPlugins / extraKnownMarketplaces / pluginConfigs. deprecated = superseded (e.g. includeCoAuthoredBy → attribution). meta = $schema.',
+        'If user-facing, also set suggestedSection. ' + surfaceMapHint,
       ].join('\n'),
-      { label: `verify:${g.key}`, phase: 'Categorize', schema: VERIFY_SCHEMA },
-    )
-    return { ...g, ...cat, category: v.isDocsGap ? 'docs-likely-gap' : 'repo-only', evidence: v.evidence }
-  })
-))
+      { label: `cat:${g.key}`, phase: 'Categorize', schema: CATEGORY_SCHEMA },
+    ).then(async cat => {
+      if (cat.category !== 'repo-only') return { ...g, ...cat }
+      // false-negative guard: only declare repo-only after trying hard to prove it is a docs gap
+      const v = await agent(
+        [
+          `Settings key "${g.key}" is in the repo schema but was NOT found in the primary schema or official docs.`,
+          'Try hard to prove it is a REAL feature the docs merely omitted (→ docs-likely-gap), not a mistaken repo addition (→ repo-only).',
+          `Search at least two ways: WebSearch "${g.key}" site:code.claude.com ; WebSearch "\\"${g.key}\\"" site:github.com/anthropics/claude-code ; and check for a matching CLAUDE_CODE_* env var in known-env-vars.ts.`,
+          'isDocsGap=true ONLY with concrete feature evidence (env var, a GitHub issue using the key as a setting, or a CHANGELOG mention).',
+        ].join('\n'),
+        { label: `verify:${g.key}`, phase: 'Categorize', schema: VERIFY_SCHEMA },
+      )
+      return { ...g, ...cat, category: v.isDocsGap ? 'docs-likely-gap' : 'repo-only', evidence: v.evidence }
+    })
+  ))
 
 const gaps = categorized.filter(Boolean)
 const userFacing = gaps.filter(g => g.category === 'user-facing' || g.category === 'anti-direction')
@@ -265,5 +292,8 @@ return {
   conflicts: diff.conflicts,
   // official-source discovery results
   officialSchemaUrl: official?.officialSchemaUrl ?? '',
+  officialSchemaFetchedOk: official?.officialSchemaFetchedOk ?? false,
+  officialSchemaFetchError: official?.officialSchemaFetchError ?? '',
+  primarySchemaSource,
   docsOnlyKeys: diff.added.filter(a => a.source === 'docs-only').map(a => a.key),
 }

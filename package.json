@@ -98,8 +98,8 @@
     "test:watch": "vitest",
     "pretypecheck": "npm run generate:settings-types",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.webview.json",
-    "generate:settings-types": "npx tsx scripts/generate-settings-types.ts",
-    "check:schema": "npx tsx scripts/generate-settings-types.ts --check && npx tsx scripts/check-settings-schema.ts",
+    "generate:settings-types": "tsx scripts/generate-settings-types.ts",
+    "check:schema": "tsx scripts/generate-settings-types.ts --check && tsx scripts/check-settings-schema.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:schema && npm test && npm run build",
     "package": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
     "install:ext": "pnpm install && npm run package && code --install-extension claude-plugins-manager-$npm_package_version.vsix --force",
@@ -124,6 +124,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^17.4.0",
     "jsdom": "^28.0.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"

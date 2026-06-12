@@ -7,7 +7,7 @@ Keep the extension's settings surface in sync with **which settings options Clau
 A **workflow** runs the discovery (read-only, parallel); the main loop does the deciding, editing, and verifying. The split is forced by two constraints: a background workflow can't ask the user questions, and this repo forbids concurrent test/build (which parallel agents would break). So the workflow scouts, then the main loop acts.
 
 1. **Discovery workflow** (`references/scripts/sync-settings.workflow.js`) — three read-only phases:
-   - **Fetch** (parallel): schema store JSON · official docs/CHANGELOG + schema-URL discovery · repo schema/env/i18n
+   - **Fetch** (parallel): schema store JSON · official settings/env docs · CHANGELOG + schema-URL discovery and parsing · repo schema/env/i18n
    - **Diff**: deep diff across top-level / scalar-meta / nested-object / union / number-range / env / hook dimensions
    - **Categorize** (parallel): classify each gap; adversarially verify before declaring a key `repo-only`
    - Returns a structured gap report.

@@ -26,11 +26,11 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Workflow, AskUserQuestion
 
 ## Source of truth
 
-- **primary**：JSON schema store `https://json.schemastore.org/claude-code-settings.json`（社群維護、machine-readable）
+- **primary**：官方 schema（若 Anthropic 開始 host）→ JSON schema store `https://json.schemastore.org/claude-code-settings.json`（fallback，社群維護、machine-readable）
 - **official cross-check**：官方 docs `code.claude.com/docs/en/settings` + CHANGELOG（每次執行檢查 schema store 是否遺漏）
 - **supplementary**：`context7` `/websites/code_claude`（補描述/context，≤3 queries）
 - **secondary**：`src/shared/claude-settings-schema.ts` 與現有 section 實作；只補 literal enum / default / object shape
-- **fail-fast**：schema store 抓取失敗 → 直接報錯結束，不 fallback
+- **fail-fast**：schema store 抓取失敗且沒有可解析官方 schema → 直接報錯結束，不 fallback
 - **優先序**：official schema（若出現）> schema store > official docs > repo；輸出必列衝突點
 
 細節見 `references/sources.md`。
@@ -58,17 +58,17 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 腳本（`references/scripts/sync-settings.workflow.js`）三個 phase，全唯讀：
 
-- **Fetch（平行）**：① curl + 解析 schemastore；② context7 讀官方 docs 表格 + WebSearch CHANGELOG + 找官方 schema URL；③ Explore agent 讀 repo schema/env/i18n。schemastore 失敗即 fail-fast。
+- **Fetch（平行）**：① curl + 解析 schemastore；② context7 讀官方 settings/env docs + WebSearch CHANGELOG + 找官方 schema URL；若找到官方 schema URL，立即 curl + 解析為 primary；③ Explore agent 讀 repo schema/env/i18n。schemastore 失敗且沒有可解析官方 schema 即 fail-fast。
 - **Diff**：把三份結構化快照丟給一個 agent 做 deep diff——**禁止只比頂層 key 存在性**。涵蓋 top-level / scalar meta（default、enum 集合、number min/max/multipleOf）/ nested object / union（hookCommand、MCP server matcher）/ number-range missing / env / hook coverage，每筆標 depth。
 - **Categorize（平行）**：逐 presence gap 分類；判為 `repo-only` 前先跑對抗式驗證（WebSearch ×2 + env var 配對）防 false-negative，有 feature 證據則降級為 `docs-likely-gap`。
 
-回傳：`gaps`（含 category + suggestedSection + repo-only evidence）、`userFacing`、`repoOnly`、`docsLikelyGap`、`changed`（既有 key 的 meta drift，直接套用）、`envChanges`、`hookCoverage`、`conflicts`、`officialSchemaUrl`、`docsOnlyKeys`。
+回傳：`gaps`（含 category + suggestedSection + repo-only evidence）、`userFacing`、`repoOnly`、`docsLikelyGap`、`changed`（既有 key 的 meta drift，直接套用）、`envChanges`、`hookCoverage`、`conflicts`、`officialSchemaUrl`、`officialSchemaFetchedOk`、`primarySchemaSource`、`docsOnlyKeys`。
 
 > 要改 workflow 邏輯：編輯該 `.js` 檔後重跑（可帶 `resumeFromRunId` 命中快取）；不要把腳本貼進對話。
 
 ## Step 2 — 確認或 early exit
 
-- workflow 回報 `userFacing` 為空、無新 env var、無新 hook command type → 報告同步完成，**END**。
+- 只有 workflow 回報 `gaps`、`changed`、`envChanges`、`repoOnly`、`docsLikelyGap`、`conflicts`、`docsOnlyKeys` 都為空，且 `hookCoverage.missingCommandTypes` 為空時，才可報告同步完成並 **END**。
 - `changed` 內若只是 repo-ahead 的 UI 約束（如 number `step`）或 repo 遵循「docs > schemastore」的 default，屬 note-only 不需動作；唯有 schema 真正改了 repo 該跟進的 default/enum 才套用。`hookCoverage.missingEventTypes` 應為空（event types 動態，不會 drift）——若非空代表 workflow 誤報，忽略。
 - 有 user-facing gap 且 section 歸屬不明確 → `AskUserQuestion` 讓使用者確認。
 - `repoOnly` 清單一律提報使用者；確認為誤加才由使用者授權刪除。
