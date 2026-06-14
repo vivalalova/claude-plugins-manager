@@ -50,6 +50,11 @@ vi.mock('fs/promises', () => ({
 }));
 
 vi.mock('../../utils/workspace', () => ({
+  NoWorkspaceError: class NoWorkspaceError extends Error {
+    constructor() {
+      super('No workspace folder open');
+    }
+  },
   getWorkspacePath: () => '/mock/workspace',
 }));
 
@@ -315,6 +320,28 @@ describe('SkillService', () => {
       expect(result.find(s => s.name === 'shared-skill')?.scope).toBe('project');
       expect(result.find(s => s.name === 'global-only')).toBeDefined();
       expect(result.find(s => s.name === 'project-only')).toBeDefined();
+    });
+
+    it('無 scope 且 project list 失敗 → 拋錯，不靜默只顯示 global skills', async () => {
+      let callCount = 0;
+      mockSpawn.mockImplementation(() => {
+        const child = createMockChild();
+        queueMicrotask(() => {
+          callCount++;
+          if (callCount === 1) {
+            child.stdout.emit('data', Buffer.from(JSON.stringify([
+              { name: 'global-only', path: '/global/global-only', scope: 'global', agents: ['Claude Code'] },
+            ])));
+            child.emit('close', 0, null);
+            return;
+          }
+          child.stderr.emit('data', Buffer.from('project list failed'));
+          child.emit('close', 1, null);
+        });
+        return child;
+      });
+
+      await expect(service.list()).rejects.toThrow('project list failed');
     });
   });
 

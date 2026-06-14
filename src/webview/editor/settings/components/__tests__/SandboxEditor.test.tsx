@@ -257,6 +257,63 @@ describe('SandboxEditor — 結構化模式 network tag list', () => {
   });
 });
 
+describe('SandboxEditor — 結構化模式 network proxy port', () => {
+  it('HTTP proxy port 0 不符合 schema → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+
+    await waitFor(() => screen.getByText('HTTP Proxy Port'));
+    const input = screen.getByPlaceholderText('e.g. 8080') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('HTTP proxy port 1 → onSave("sandbox", { network: { httpProxyPort: 1 } })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+
+    await waitFor(() => screen.getByText('HTTP Proxy Port'));
+    const input = screen.getByPlaceholderText('e.g. 8080') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', { network: { httpProxyPort: 1 } });
+    });
+  });
+
+  it('HTTP proxy port 1.5 不符合 schema → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+
+    await waitFor(() => screen.getByText('HTTP Proxy Port'));
+    const input = screen.getByPlaceholderText('e.g. 8080') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1.5' } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('既有 sandbox 含非法 port 時，結構化變更不會重新保存非法值', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor({ network: { httpProxyPort: 0 } } as ClaudeSettings['sandbox'], onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Enable Sandbox' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Sandbox' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('sandbox.network.httpProxyPort must be >= 1');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 結構化模式 - Clear
 // ---------------------------------------------------------------------------
@@ -366,6 +423,70 @@ describe('SandboxEditor — JSON 模式驗證', () => {
 
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
     fireEvent.change(ta, { target: { value: 'null' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(within(field).getByRole('alert')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('輸入不符合 schema 的 proxy port 0 → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    await switchToJsonMode();
+
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '{"network":{"httpProxyPort":0}}' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(within(field).getByRole('alert')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('輸入 schema 未宣告的 root key → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    await switchToJsonMode();
+
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '{"bwrapPath":"/tmp/bwrap"}' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(within(field).getByRole('alert')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('輸入 schema 未宣告的 nested key → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    await switchToJsonMode();
+
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '{"network":{"allowManagedDomainsOnly":true}}' } });
+    const field = ta.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(within(field).getByRole('alert')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('輸入不符合 step 的 fractional proxy port → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    await switchToJsonMode();
+
+    const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
+    fireEvent.change(ta, { target: { value: '{"network":{"httpProxyPort":1.5}}' } });
     const field = ta.closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 

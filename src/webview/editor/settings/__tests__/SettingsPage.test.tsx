@@ -225,6 +225,7 @@ describe('SettingsPage', () => {
     const languageInput = screen.getByPlaceholderText('e.g. zh-TW');
     const languageField = languageInput.closest('.settings-field') as HTMLElement;
     fireEvent.change(languageInput, { target: { value: 'ja' } });
+    await waitFor(() => expect((languageInput as HTMLInputElement).value).toBe('ja'));
     fireEvent.click(within(languageField).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {

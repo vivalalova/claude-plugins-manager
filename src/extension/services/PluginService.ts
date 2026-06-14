@@ -145,10 +145,11 @@ export class PluginService {
     let installPath: string;
     let version: string;
 
-    if (existing?.length) {
+    const reusable = existing?.length ? await this.findReusableInstallEntry(existing) : undefined;
+    if (reusable) {
       // 已有其他 scope 安裝，複用同一個 cache path
-      installPath = existing[0].installPath;
-      version = existing[0].version;
+      installPath = reusable.installPath;
+      version = reusable.version;
     } else {
       // 尚未安裝：用 CLI 安裝（下載 cache + 寫 installed_plugins.json + enable）
       const cwd = this.getScopedProjectPath(scope);
@@ -182,6 +183,7 @@ export class PluginService {
       return;
     }
     const projectPath = this.getScopedProjectPath(scope);
+    await this.removeStaleScopedInstallEntry(plugin, existing ?? [], scope, projectPath, installPath);
 
     const entry: PluginInstallEntry = {
       scope,
@@ -454,6 +456,47 @@ export class PluginService {
         lastUpdated: entry.lastUpdated,
         projectPath: entry.projectPath,
       }));
+  }
+
+  private async findReusableInstallEntry(
+    entries: PluginInstallEntry[],
+  ): Promise<PluginInstallEntry | undefined> {
+    for (const entry of entries) {
+      try {
+        await stat(entry.installPath);
+        return entry;
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private async removeStaleScopedInstallEntry(
+    plugin: string,
+    entries: PluginInstallEntry[],
+    scope: PluginScope,
+    projectPath: string | undefined,
+    reusableInstallPath: string,
+  ): Promise<void> {
+    const matchingEntry = entries.find(
+      (entry) => entry.scope === scope && entry.projectPath === projectPath,
+    );
+    if (!matchingEntry || matchingEntry.installPath === reusableInstallPath) {
+      return;
+    }
+    try {
+      await stat(matchingEntry.installPath);
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== 'ENOENT') {
+        throw error;
+      }
+      await this.settings.removeInstallEntry(plugin, scope, projectPath);
+    }
   }
 
   /** 修正 plugin cache 目錄中 .sh 檔案的執行權限 */

@@ -100,8 +100,8 @@ interface EnvSensitiveFieldProps {
   knownVar?: KnownEnvVar;
   value: string | undefined;
   scope: PluginScope;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  onSave: (key: string, value: unknown) => Promise<boolean>;
+  onDelete: (key: string) => Promise<boolean>;
   disabled: boolean;
 }
 
@@ -131,8 +131,10 @@ function EnvSensitiveField({ envKey, knownVar, value, scope, onSave, onDelete, d
 
   const handleClear = async (): Promise<void> => {
     await runWithSaving(async () => {
-      await onDelete(envKey);
-      setDraft((current) => ({ ...current, inputValue: '' }));
+      const deleted = await onDelete(envKey);
+      if (deleted) {
+        setDraft((current) => ({ ...current, inputValue: '' }));
+      }
     });
   };
 
@@ -201,8 +203,9 @@ interface EnvCustomFieldProps {
   value: string | undefined;
   existingKeys: string[];
   scope: PluginScope;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  onSave: (key: string, value: unknown) => Promise<boolean>;
+  onRename: (oldKey: string, newKey: string, value: string) => Promise<boolean>;
+  onDelete: (key: string) => Promise<boolean>;
   disabled: boolean;
 }
 
@@ -212,6 +215,7 @@ function EnvCustomField({
   existingKeys,
   scope,
   onSave,
+  onRename,
   onDelete,
   disabled,
 }: EnvCustomFieldProps): React.ReactElement {
@@ -251,8 +255,7 @@ function EnvCustomField({
     setError('');
     await runWithSaving(async () => {
       if (normalizedDraft.key !== envKey) {
-        await onDelete(envKey);
-        await onSave(normalizedDraft.key, normalizedDraft.value);
+        await onRename(envKey, normalizedDraft.key, normalizedDraft.value);
       } else {
         await onSave(envKey, normalizedDraft.value);
       }
@@ -262,8 +265,10 @@ function EnvCustomField({
   const handleClear = async (): Promise<void> => {
     setError('');
     await runWithSaving(async () => {
-      await onDelete(envKey);
-      setDraft((current) => ({ ...current, inputValue: '' }));
+      const deleted = await onDelete(envKey);
+      if (deleted) {
+        setDraft((current) => ({ ...current, inputValue: '' }));
+      }
     });
   };
 
@@ -332,7 +337,7 @@ function EnvCategoryGroup({ children }: { children: React.ReactNode }): React.Re
 
 interface AddEnvFormProps {
   existingKeys: string[];
-  onAdd: (key: string, value: string) => Promise<void>;
+  onAdd: (key: string, value: string) => Promise<boolean>;
   disabled: boolean;
 }
 
@@ -361,10 +366,12 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
     if (!normalizedDraft.key || !normalizedDraft.value) return;
     setAdding(true);
     try {
-      await onAdd(normalizedDraft.key, normalizedDraft.value);
-      setKeyInput('');
-      setValueInput('');
-      setError('');
+      const saved = await onAdd(normalizedDraft.key, normalizedDraft.value);
+      if (saved) {
+        setKeyInput('');
+        setValueInput('');
+        setError('');
+      }
     } finally {
       setAdding(false);
     }
@@ -411,7 +418,7 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 interface EnvObjectEditorProps {
   scope: PluginScope;
   currentEnv: Record<string, string>;
-  onSaveEnv: (updatedEnv: Record<string, string>) => void;
+  onSaveEnv: (updatedEnv: Record<string, string>) => Promise<void>;
 }
 
 function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps): React.ReactElement {
@@ -425,25 +432,41 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     [currentEnv, knownNames],
   );
 
-  const updateEnv = (updatedEnv: Record<string, string>): void => {
-    void withSave(async () => {
-      onSaveEnv(updatedEnv);
+  const updateEnv = async (updatedEnv: Record<string, string>): Promise<boolean> => {
+    let saved = false;
+    await withSave(async () => {
+      await onSaveEnv(updatedEnv);
+      saved = true;
     });
+    return saved;
   };
 
   // Adapter: bridge per-key save/delete to whole-env-object update
-  const envOnSave = async (key: string, value: unknown): Promise<void> => {
+  const envOnSave = async (key: string, value: unknown): Promise<boolean> => {
     const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
-    updateEnv({ ...currentEnv, [key]: strVal });
+    return updateEnv({ ...currentEnv, [key]: strVal });
   };
 
-  const envOnDelete = async (key: string): Promise<void> => {
+  const envOnRename = async (oldKey: string, newKey: string, value: string): Promise<boolean> => {
+    const { [oldKey]: _, ...rest } = currentEnv;
+    return updateEnv({ ...rest, [newKey]: value });
+  };
+
+  const envOnDelete = async (key: string): Promise<boolean> => {
     const { [key]: _, ...rest } = currentEnv;
-    updateEnv(rest);
+    return updateEnv(rest);
   };
 
-  const handleAdd = async (key: string, value: string): Promise<void> => {
-    updateEnv({ ...currentEnv, [key]: value });
+  const envOnSaveVoid = async (key: string, value: unknown): Promise<void> => {
+    await envOnSave(key, value);
+  };
+
+  const envOnDeleteVoid = async (key: string): Promise<void> => {
+    await envOnDelete(key);
+  };
+
+  const handleAdd = async (key: string, value: string): Promise<boolean> => {
+    return updateEnv({ ...currentEnv, [key]: value });
   };
 
   // --- Render helpers per valueType ---
@@ -463,8 +486,9 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
         value={boolVal}
         settingKey={knownVar.name}
         defaultValue={defaultBool}
-        onSave={envOnSave}
-        onDelete={envOnDelete}
+        disabled={saving}
+        onSave={envOnSaveVoid}
+        onDelete={envOnDeleteVoid}
       />
     );
   };
@@ -486,6 +510,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
         settingKey={knownVar.name}
         scope={scope}
         defaultValue={defaultNum}
+        disabled={saving}
         onSave={envOnSave}
         onDelete={envOnDelete}
       />
@@ -521,6 +546,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
         settingKey={knownVar.name}
         scope={scope}
         defaultValue={knownVar.default}
+        disabled={saving}
         onSave={envOnSave}
         onDelete={envOnDelete}
       />
@@ -567,6 +593,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
             existingKeys={Object.keys(currentEnv)}
             scope={scope}
             onSave={envOnSave}
+            onRename={envOnRename}
             onDelete={envOnDelete}
             disabled={saving}
           />
@@ -600,9 +627,7 @@ export function EnvSection({ scope, settings, onSave, onDelete }: SectionProps):
           <EnvObjectEditor
             scope={scope}
             currentEnv={currentEnv}
-            onSaveEnv={(updatedEnv) => {
-              void onSave('env', updatedEnv);
-            }}
+            onSaveEnv={(updatedEnv) => onSave('env', updatedEnv)}
           />
         );
       }}
@@ -618,7 +643,7 @@ export interface EnvFieldRendererProps {
   envKey: string;
   currentEnv: Record<string, string>;
   scope: PluginScope;
-  onEnvChange: (updatedEnv: Record<string, string>) => void;
+  onEnvChange: (updatedEnv: Record<string, string>) => Promise<void>;
   saving?: boolean;
 }
 
@@ -632,14 +657,16 @@ export function EnvFieldRenderer({
   const { t } = useI18n();
   const knownVar = getKnownEnvVar(envKey);
 
-  const envOnSave = async (key: string, value: unknown): Promise<void> => {
+  const envOnSave = async (key: string, value: unknown): Promise<boolean> => {
     const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
-    onEnvChange({ ...currentEnv, [key]: strVal });
+    await onEnvChange({ ...currentEnv, [key]: strVal });
+    return true;
   };
 
-  const envOnDelete = async (key: string): Promise<void> => {
+  const envOnDelete = async (key: string): Promise<boolean> => {
     const { [key]: _, ...rest } = currentEnv;
-    onEnvChange(rest);
+    await onEnvChange(rest);
+    return true;
   };
 
   const getDescription = (key: string): string | null => {
@@ -705,8 +732,12 @@ export function EnvFieldRenderer({
         knownVar={knownVar}
         value={envVal}
         scope={scope}
-        onSave={envOnSave}
-        onDelete={envOnDelete}
+        onSave={async (key, value) => {
+          return envOnSave(key, value);
+        }}
+        onDelete={async (key) => {
+          return envOnDelete(key);
+        }}
         disabled={saving}
       />
     );

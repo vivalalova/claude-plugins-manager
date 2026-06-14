@@ -851,12 +851,26 @@ describe('GeneralSection — NumberSetting 互動', () => {
     });
   });
 
-  it('cleanupPeriodDays < 1 → save 按鈕 disabled', async () => {
-    renderSection({});
+  it('cleanupPeriodDays 未設定, 輸入 0 並儲存 → onSave("cleanupPeriodDays", 0)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
 
     await waitFor(() => screen.getByPlaceholderText('30'));
     const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
     fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '0' } });
+    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('cleanupPeriodDays', 0);
+    });
+  });
+
+  it('cleanupPeriodDays < 0 → save 按鈕 disabled', async () => {
+    renderSection({});
+
+    await waitFor(() => screen.getByPlaceholderText('30'));
+    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '-1' } });
 
     await waitFor(() => {
       expect((within(cleanupField).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);

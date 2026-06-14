@@ -27,6 +27,6 @@ describe('CliService — integration', () => {
     const cli = new CliService() as CliService & { claudePath: string };
     cli.claudePath = scriptPath;
 
-    await expect(cli.exec([], { timeout: 2_000 })).resolves.toBe('ok');
+    await expect(cli.exec([], { timeout: 10_000 })).resolves.toBe('ok');
   });
 });

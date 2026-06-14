@@ -1335,7 +1335,65 @@ describe('AdvancedSection — subagentStatusLine 物件編輯器', () => {
 // skillOverrides JSON 編輯器
 // ---------------------------------------------------------------------------
 
-const SKILL_OVERRIDES_PLACEHOLDER = 'e.g. { "code-review": { "description": "Custom review flow" } }';
+const MODEL_OVERRIDES_PLACEHOLDER = 'e.g. { "claude-opus-4-6": "arn:aws:bedrock:..." }';
+const WORKTREE_PLACEHOLDER = 'e.g. { "sparsePaths": ["packages/my-app"] }';
+const SKILL_OVERRIDES_PLACEHOLDER = 'e.g. { "code-review": "user-invocable-only" }';
+const SSH_CONFIGS_PLACEHOLDER = 'e.g. [{ "id": "dev-vm", "name": "Dev VM", "sshHost": "user@dev.example.com" }]';
+const AUTO_MODE_PLACEHOLDER = 'e.g. { "environment": ["Source control: github.com/my-org"] }';
+
+describe('AdvancedSection — object JSON schema validation', () => {
+  it('modelOverrides 輸入 JSON array → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(MODEL_OVERRIDES_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(MODEL_OVERRIDES_PLACEHOLDER), { target: { value: '[]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('worktree 輸入 JSON array → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(WORKTREE_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(WORKTREE_PLACEHOLDER), { target: { value: '[]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('sshConfigs 輸入 JSON object → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(SSH_CONFIGS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(SSH_CONFIGS_PLACEHOLDER), { target: { value: '{"id":"dev-vm","name":"Dev VM","sshHost":"user@dev.example.com"}' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('autoMode 輸入 JSON array → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(AUTO_MODE_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(AUTO_MODE_PLACEHOLDER), { target: { value: '[]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
 
 describe('AdvancedSection — skillOverrides JSON 編輯器', () => {
   it('skillOverrides 未設定 → input 為空', () => {
@@ -1344,12 +1402,26 @@ describe('AdvancedSection — skillOverrides JSON 編輯器', () => {
   });
 
   it('skillOverrides 有值 → input 顯示 JSON 序列化字串', () => {
-    const overrides = { 'code-review': { description: 'Custom review' } };
+    const overrides = { 'code-review': 'user-invocable-only' };
     renderSection({ skillOverrides: overrides });
     expect((screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER) as HTMLInputElement).value).toBe(JSON.stringify(overrides));
   });
 
   it('輸入合法 JSON 並儲存 → onSave("skillOverrides", parsed)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const json = '{"my-skill":"user-invocable-only"}';
+    const field = screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER), { target: { value: json } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('skillOverrides', { 'my-skill': 'user-invocable-only' });
+    });
+  });
+
+  it('輸入不符合 schema 的 object value → 不呼叫 onSave', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -1359,14 +1431,14 @@ describe('AdvancedSection — skillOverrides JSON 編輯器', () => {
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('skillOverrides', { 'my-skill': { model: 'sonnet' } });
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 
   it('有值時點 Reset → onDelete("skillOverrides")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ skillOverrides: { 'a': { model: 'sonnet' } } }, onSave, onDelete);
+    renderSection({ skillOverrides: { 'a': 'off' } }, onSave, onDelete);
 
     const field = screen.getByPlaceholderText(SKILL_OVERRIDES_PLACEHOLDER).closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));

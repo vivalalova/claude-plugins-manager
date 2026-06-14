@@ -1,5 +1,5 @@
-import { readFile, readdir, stat } from 'fs/promises';
-import { join, resolve } from 'path';
+import { lstat, readFile, readdir, realpath, stat } from 'fs/promises';
+import { isAbsolute, join, relative, resolve } from 'path';
 import type {
   AvailablePlugin,
   MarketplaceManifest,
@@ -55,28 +55,33 @@ export class PluginCatalogScanner {
               const sourceUrl = typeof plugin.source === 'object' && plugin.source !== null
                 ? extractSourceUrl(plugin.source as Record<string, unknown>)
                 : undefined;
-              const pluginDir = localSource ? resolve(mpDir, localSource) : null;
+              const marketplaceDir = resolve(mpDir);
+              const resolvedPluginDir = localSource ? resolve(marketplaceDir, localSource) : null;
+              const candidatePluginDir = resolvedPluginDir && isWithinDirectory(marketplaceDir, resolvedPluginDir)
+                ? resolvedPluginDir
+                : null;
               let contents: AvailablePlugin['contents'];
               let pluginMeta: { description?: string; version?: string } = {};
               let lastUpdated: string | undefined;
 
               // localSource 有值但目錄不存在 → 視為外部（不可安裝）
               let dirExists = false;
-              if (pluginDir) {
+              let pluginDir: string | null = null;
+              if (candidatePluginDir) {
                 try {
-                  await stat(pluginDir);
-                  dirExists = true;
+                  await stat(candidatePluginDir);
+                  if (await isRealPathWithinDirectory(marketplaceDir, candidatePluginDir)) {
+                    pluginDir = candidatePluginDir;
+                    dirExists = true;
+                  }
                 } catch {
                   // dir doesn't exist
                 }
               }
               if (pluginDir && dirExists) {
                 const [scannedContents, scannedMeta] = await Promise.all([
-                  this.scanPluginContents(pluginDir),
-                  readJsonFile<{ description?: string; version?: string }>(
-                    join(pluginDir, '.claude-plugin', 'plugin.json'),
-                    {},
-                  ).catch(() => ({} as { description?: string; version?: string })),
+                  this.scanPluginContents(pluginDir, marketplaceDir),
+                  this.readPluginMeta(pluginDir),
                 ]);
                 contents = declaredSkillPaths.length > 0
                   ? { ...scannedContents, skills: await this.scanDeclaredSkills(pluginDir, declaredSkillPaths) }
@@ -142,7 +147,8 @@ export class PluginCatalogScanner {
     return result;
   }
 
-  async scanPluginContents(pluginDir: string): Promise<PluginContents> {
+  async scanPluginContents(pluginDir: string, trustedParentDir?: string): Promise<PluginContents> {
+    const pluginRoot = resolve(pluginDir);
     const contents: PluginContents = {
       commands: [],
       skills: [],
@@ -151,19 +157,20 @@ export class PluginCatalogScanner {
       hooks: false,
     };
 
+    if (trustedParentDir) {
+      if (!(await isRealPathWithinDirectory(resolve(trustedParentDir), pluginRoot))) {
+        return contents;
+      }
+    } else if (await isSymbolicLink(pluginRoot)) {
+      return contents;
+    }
+
     const [commands, skills, agents, mcpKeys, hasHooks] = await Promise.all([
-      this.scanMdDir(join(pluginDir, 'commands')),
-      this.scanSkillsDir(join(pluginDir, 'skills')),
-      this.scanMdDir(join(pluginDir, 'agents')),
-      readJsonFile<Record<string, unknown>>(join(pluginDir, '.mcp.json'), {})
-        .then((mcp) => {
-          const servers = unwrapMcpServers(mcp);
-          return Object.keys(servers);
-        })
-        .catch(() => [] as string[]),
-      stat(join(pluginDir, 'hooks', 'hooks.json'))
-        .then(() => true)
-        .catch(() => false),
+      this.scanMdDir(join(pluginRoot, 'commands'), pluginRoot),
+      this.scanSkillsDir(join(pluginRoot, 'skills'), pluginRoot),
+      this.scanMdDir(join(pluginRoot, 'agents'), pluginRoot),
+      this.readMcpServerKeys(pluginRoot),
+      this.hasHooks(pluginRoot),
     ]);
 
     contents.commands = commands;
@@ -175,19 +182,64 @@ export class PluginCatalogScanner {
     return contents;
   }
 
-  private async readLastUpdated(pluginDir: string): Promise<string | undefined> {
+  private async readPluginMeta(pluginDir: string): Promise<{ description?: string; version?: string }> {
+    const pluginRoot = resolve(pluginDir);
+    const pluginJsonPath = join(pluginRoot, '.claude-plugin', 'plugin.json');
+    if (!(await isRealPathWithinDirectory(pluginRoot, pluginJsonPath))) {
+      return {};
+    }
+    return readJsonFile<{ description?: string; version?: string }>(
+      pluginJsonPath,
+      {},
+    ).catch(() => ({} as { description?: string; version?: string }));
+  }
+
+  private async readMcpServerKeys(pluginRoot: string): Promise<string[]> {
+    const mcpPath = join(pluginRoot, '.mcp.json');
+    if (!(await isRealPathWithinDirectory(pluginRoot, mcpPath))) {
+      return [];
+    }
+    let mcp: Record<string, unknown>;
     try {
-      const entries = await readdir(pluginDir);
+      mcp = await readJsonFile<Record<string, unknown>>(mcpPath, {});
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return [];
+      }
+      throw error;
+    }
+    const servers = unwrapMcpServers(mcp);
+    return Object.keys(servers);
+  }
+
+  private async hasHooks(pluginRoot: string): Promise<boolean> {
+    const hooksPath = join(pluginRoot, 'hooks', 'hooks.json');
+    if (!(await isRealPathWithinDirectory(pluginRoot, hooksPath))) {
+      return false;
+    }
+    return stat(hooksPath)
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  private async readLastUpdated(pluginDir: string): Promise<string | undefined> {
+    const pluginRoot = resolve(pluginDir);
+    try {
+      const entries = await readdir(pluginRoot);
       const contentEntries = entries.filter((entry) => entry !== '.git');
       const stats = await Promise.all(
-        contentEntries.map((entry) =>
-          stat(join(pluginDir, entry)).catch((err: unknown) => {
+        contentEntries.map(async (entry) => {
+          const entryPath = join(pluginRoot, entry);
+          if (!(await isRealPathWithinDirectory(pluginRoot, entryPath))) {
+            return null;
+          }
+          return stat(entryPath).catch((err: unknown) => {
             if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
               throw err;
             }
             return null;
-          }),
-        ),
+          });
+        }),
       );
       const latestMtime = Math.max(0, ...stats.map((entry) => entry?.mtimeMs ?? 0));
       return latestMtime > 0 ? new Date(latestMtime).toISOString() : undefined;
@@ -199,7 +251,11 @@ export class PluginCatalogScanner {
     }
   }
 
-  private async scanMdDir(dir: string): Promise<PluginContentItem[]> {
+  private async scanMdDir(dir: string, pluginRoot: string): Promise<PluginContentItem[]> {
+    if (!(await isRealPathWithinDirectory(pluginRoot, dir))) {
+      return [];
+    }
+
     let files: string[];
     try {
       files = await readdir(dir);
@@ -207,7 +263,11 @@ export class PluginCatalogScanner {
       return [];
     }
 
-    const mdFiles = files.filter((file) => file.endsWith('.md'));
+    const mdFiles = (await Promise.all(
+      files
+        .filter((file) => file.endsWith('.md'))
+        .map(async (file) => await isRealPathWithinDirectory(pluginRoot, join(dir, file)) ? file : null),
+    )).filter((file): file is string => file !== null);
     const fmResults = await Promise.all(
       mdFiles.map((file) => this.parseFrontmatter(join(dir, file))),
     );
@@ -223,9 +283,16 @@ export class PluginCatalogScanner {
     });
   }
 
-  private async scanSkillsDir(dir: string): Promise<PluginContentItem[]> {
+  private async scanSkillsDir(dir: string, pluginRoot: string): Promise<PluginContentItem[]> {
+    if (!(await isRealPathWithinDirectory(pluginRoot, dir))) {
+      return [];
+    }
+
     const rootSkillPath = join(dir, 'SKILL.md');
     try {
+      if (!(await isRealPathWithinDirectory(pluginRoot, rootSkillPath))) {
+        throw Object.assign(new Error('Skill file escapes plugin root'), { code: 'ENOENT' });
+      }
       await stat(rootSkillPath);
       const fm = await this.parseFrontmatter(rootSkillPath);
       return [{
@@ -251,6 +318,9 @@ export class PluginCatalogScanner {
       entries.map(async (entry) => {
         const skillMd = join(dir, entry, 'SKILL.md');
         try {
+          if (!(await isRealPathWithinDirectory(pluginRoot, skillMd))) {
+            return null;
+          }
           await stat(skillMd);
           const fm = await this.parseFrontmatter(skillMd);
           return {
@@ -275,8 +345,22 @@ export class PluginCatalogScanner {
     declaredSkillPaths: string[],
   ): Promise<PluginContentItem[]> {
     const dedupedPaths = [...new Set(declaredSkillPaths.map(normalizeRelativePath))];
+    const pluginRoot = resolve(pluginDir);
+    const skillDirs = await Promise.all(
+      dedupedPaths.map(async (skillPath) => {
+        const skillDir = resolve(pluginRoot, skillPath);
+        if (!isWithinDirectory(pluginRoot, skillDir)) {
+          return null;
+        }
+        return await isRealPathWithinDirectory(pluginRoot, skillDir)
+          ? skillDir
+          : null;
+      }),
+    );
     const nestedResults = await Promise.all(
-      dedupedPaths.map((skillPath) => this.scanSkillsDir(resolve(pluginDir, skillPath))),
+      skillDirs
+        .filter((skillDir): skillDir is string => skillDir !== null)
+        .map((skillDir) => this.scanSkillsDir(skillDir, pluginRoot)),
     );
     const byPath = new Map<string, PluginContentItem>();
     for (const items of nestedResults) {
@@ -410,4 +494,35 @@ function normalizeRelativePath(relativePath: string): string {
     .replace(/^\.\//, '')
     .replace(/\/+$/, '');
   return normalized === '' ? '.' : normalized;
+}
+
+function isWithinDirectory(parentDir: string, candidatePath: string): boolean {
+  const rel = relative(resolve(parentDir), resolve(candidatePath));
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+async function isSymbolicLink(candidatePath: string): Promise<boolean> {
+  try {
+    return (await lstat(candidatePath)).isSymbolicLink();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function isRealPathWithinDirectory(parentDir: string, candidatePath: string): Promise<boolean> {
+  try {
+    const [realParent, realCandidate] = await Promise.all([
+      realpath(parentDir),
+      realpath(candidatePath),
+    ]);
+    return isWithinDirectory(realParent, realCandidate);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return true;
+    }
+    throw error;
+  }
 }

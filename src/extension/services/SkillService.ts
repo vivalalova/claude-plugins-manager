@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { SKILL_CLI_TIMEOUT_MS, SKILL_CLI_LONG_TIMEOUT_MS } from '../constants';
-import { getWorkspacePath } from '../utils/workspace';
+import { getWorkspacePath, NoWorkspaceError } from '../utils/workspace';
 import type { AgentSkill, RegistrySkill, RegistrySort, SkillScope, SkillSearchResult } from '../../shared/types';
 import { WriteQueue } from '../utils/WriteQueue';
 import { spawnWithTimeout } from '../utils/spawnRunner';
@@ -82,14 +82,16 @@ export class SkillService {
 
   /** project scope list — 獨立方法避免 getWorkspacePath 在無 workspace 時拋錯影響 global 結果 */
   private async listProject(): Promise<AgentSkill[]> {
+    let cwd: string;
     try {
-      return await this.execJsonList(
-        ['skills', 'list', '--json'],
-        { cwd: getWorkspacePath() },
-      );
-    } catch {
-      return []; // 無 workspace 時 project scope 回傳空
+      cwd = getWorkspacePath();
+    } catch (error) {
+      if (error instanceof NoWorkspaceError) {
+        return [];
+      }
+      throw error;
     }
+    return this.execJsonList(['skills', 'list', '--json'], { cwd });
   }
 
   /** 執行 npx skills list --json 並解析回傳，再從 SKILL.md frontmatter 補 description */

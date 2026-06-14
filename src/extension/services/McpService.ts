@@ -321,13 +321,17 @@ export class McpService {
     );
 
     const [mcpRaw, metaRaw] = await Promise.all([
-      readFile(join(preferredEntry.installPath, '.mcp.json'), 'utf-8').catch(() => '{}'),
+      readFile(join(preferredEntry.installPath, '.mcp.json'), 'utf-8').catch((error) => {
+        if (this.isNotFoundError(error)) {
+          return '{}';
+        }
+        throw error;
+      }),
       readFile(join(preferredEntry.installPath, '.claude-plugin', 'plugin.json'), 'utf-8').catch(() => '{}'),
     ]);
 
-    let mcpConfig: Record<string, unknown>;
     let pluginMeta: Record<string, unknown>;
-    try { mcpConfig = JSON.parse(mcpRaw); } catch { mcpConfig = {}; }
+    const mcpConfig = this.parseJsonFile<Record<string, unknown>>(mcpRaw, join(preferredEntry.installPath, '.mcp.json'));
     try { pluginMeta = JSON.parse(metaRaw); } catch { pluginMeta = {}; }
 
     const detail = {
@@ -383,40 +387,55 @@ export class McpService {
     workspacePath: string | undefined,
   ): Promise<ServerMetadataMap> {
     const map: ServerMetadataMap = new Map();
+    let raw: string;
     try {
-      const raw = await readFile(CLAUDE_JSON_PATH, 'utf-8');
-      const claudeJson = JSON.parse(raw) as {
-        mcpServers?: Record<string, McpServerConfig>;
-        projects?: Record<string, { mcpServers?: Record<string, McpServerConfig> }>;
-      };
-
-      for (const [name, config] of Object.entries(claudeJson.mcpServers ?? {})) {
-        map.set(name, { scope: 'user', config });
+      raw = await readFile(CLAUDE_JSON_PATH, 'utf-8');
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return map;
       }
+      throw error;
+    }
 
-      // local scope："/" fallback 先載入，workspace 後載入覆蓋（last-write-wins）
-      const projectPaths = workspacePath ? ['/', workspacePath] : ['/'];
-      for (const pp of projectPaths) {
-        const projectData = claudeJson.projects?.[pp];
-        for (const [name, config] of Object.entries(projectData?.mcpServers ?? {})) {
-          map.set(name, { scope: 'local', config });
-        }
+    const claudeJson = this.parseJsonFile<{
+      mcpServers?: Record<string, McpServerConfig>;
+      projects?: Record<string, { mcpServers?: Record<string, McpServerConfig> }>;
+    }>(raw, CLAUDE_JSON_PATH);
+
+    for (const [name, config] of Object.entries(claudeJson.mcpServers ?? {})) {
+      map.set(name, { scope: 'user', config });
+    }
+
+    // local scope："/" fallback 先載入，workspace 後載入覆蓋（last-write-wins）
+    const projectPaths = workspacePath ? ['/', workspacePath] : ['/'];
+    for (const pp of projectPaths) {
+      const projectData = claudeJson.projects?.[pp];
+      for (const [name, config] of Object.entries(projectData?.mcpServers ?? {})) {
+        map.set(name, { scope: 'local', config });
       }
-    } catch { /* .claude.json 不存在或格式錯誤 */ }
+    }
     return map;
   }
 
   /** {workspace}/.mcp.json → project scope */
   private async readProjectServers(workspacePath: string): Promise<ServerMetadataMap> {
     const map: ServerMetadataMap = new Map();
+    const filePath = join(workspacePath, '.mcp.json');
+    let raw: string;
     try {
-      const raw = await readFile(join(workspacePath, '.mcp.json'), 'utf-8');
-      const mcpJson = JSON.parse(raw) as Record<string, unknown>;
-      const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
-      for (const [name, config] of Object.entries(servers)) {
-        map.set(name, { scope: 'project', config });
+      raw = await readFile(filePath, 'utf-8');
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return map;
       }
-    } catch { /* no .mcp.json */ }
+      throw error;
+    }
+
+    const mcpJson = this.parseJsonFile<Record<string, unknown>>(raw, filePath);
+    const servers = (mcpJson.mcpServers ?? mcpJson) as Record<string, McpServerConfig>;
+    for (const [name, config] of Object.entries(servers)) {
+      map.set(name, { scope: 'project', config });
+    }
     return map;
   }
 
@@ -448,23 +467,31 @@ export class McpService {
           return;
         }
 
+        const mcpPath = join(resolvedInstall.preferredEntry.installPath, '.mcp.json');
+        let mcpRaw: string;
         try {
-          const mcpRaw = await readFile(join(resolvedInstall.preferredEntry.installPath, '.mcp.json'), 'utf-8');
-          const mcpJson = JSON.parse(mcpRaw) as Record<string, unknown>;
-          const pluginServers = extractPluginServerConfigs(mcpJson);
-          for (const [serverName, config] of Object.entries(pluginServers)) {
-            if (this.isValidMcpServerConfig(config)) {
-              map.set(`plugin:${pluginKey}:${serverName}`, {
-                scope: resolvedInstall.preferredEntry.scope as McpScope,
-                config,
-                plugin: {
-                  id: pluginKey,
-                  enabled: resolvedInstall.enabled,
-                },
-              });
-            }
+          mcpRaw = await readFile(mcpPath, 'utf-8');
+        } catch (error) {
+          if (this.isNotFoundError(error)) {
+            return;
           }
-        } catch { /* plugin has no .mcp.json */ }
+          throw error;
+        }
+
+        const mcpJson = this.parseJsonFile<Record<string, unknown>>(mcpRaw, mcpPath);
+        const pluginServers = extractPluginServerConfigs(mcpJson);
+        for (const [serverName, config] of Object.entries(pluginServers)) {
+          if (this.isValidMcpServerConfig(config)) {
+            map.set(`plugin:${pluginKey}:${serverName}`, {
+              scope: resolvedInstall.preferredEntry.scope as McpScope,
+              config,
+              plugin: {
+                id: pluginKey,
+                enabled: resolvedInstall.enabled,
+              },
+            });
+          }
+        }
       }),
     );
 
@@ -554,6 +581,15 @@ export class McpService {
     }
     const err = error as NodeJS.ErrnoException;
     return err.code === 'ENOENT' || err.message === 'ENOENT' || err.message.includes('ENOENT');
+  }
+
+  private parseJsonFile<T>(raw: string, filePath: string): T {
+    try {
+      return JSON.parse(raw) as T;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Invalid JSON in ${filePath}: ${reason}`);
+    }
   }
 
   private formatServerCommand(name: string, config?: McpServerConfig, fallback = name): string {

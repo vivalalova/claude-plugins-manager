@@ -4,6 +4,7 @@ import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagInput, TextSetting } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
+import { parseJsonSettingValue } from './jsonSettingValidation';
 
 // ---------------------------------------------------------------------------
 // Constants（internal only — defaultMode 已移至 schema general section）
@@ -378,6 +379,25 @@ export function PermissionsSection({
         }}
       />
 
+      <EnumDropdown
+        label={t('settings.permissions.disableBypassPermissionsMode.label')}
+        description={t('settings.permissions.disableBypassPermissionsMode.description')}
+        value={perms.disableBypassPermissionsMode}
+        knownValues={['disable']}
+        knownLabels={{ disable: t('settings.permissions.disableBypassPermissionsMode.disable') }}
+        notSetLabel={t('settings.permissions.disableBypassPermissionsMode.notSet')}
+        unknownTemplate={t('settings.permissions.disableBypassPermissionsMode.unknown')}
+        settingKey="disableBypassPermissionsMode"
+        onSave={async (_key, value) => {
+          updatePermissions({ ...perms, disableBypassPermissionsMode: value as 'disable' });
+        }}
+        onDelete={async () => {
+          const updated = { ...perms };
+          delete (updated as Record<string, unknown>).disableBypassPermissionsMode;
+          updatePermissions(updated);
+        }}
+      />
+
       <BooleanToggle
         label={t('settings.permissions.skipDangerousModePermissionPrompt.label')}
         description={t('settings.permissions.skipDangerousModePermissionPrompt.description')}
@@ -440,7 +460,7 @@ export function PermissionsSection({
         clearLabel={t('settings.permissions.allowedMcpServers.clear')}
         settingKey="allowedMcpServers"
         scope={scope}
-        onSave={async (_key, value) => onSave('allowedMcpServers', JSON.parse(value as string))}
+        onSave={async (_key, value) => onSave('allowedMcpServers', parseJsonSettingValue('allowedMcpServers', value as string))}
         onDelete={async () => onDelete('allowedMcpServers')}
       />
 
@@ -454,7 +474,7 @@ export function PermissionsSection({
         clearLabel={t('settings.permissions.deniedMcpServers.clear')}
         settingKey="deniedMcpServers"
         scope={scope}
-        onSave={async (_key, value) => onSave('deniedMcpServers', JSON.parse(value as string))}
+        onSave={async (_key, value) => onSave('deniedMcpServers', parseJsonSettingValue('deniedMcpServers', value as string))}
         onDelete={async () => onDelete('deniedMcpServers')}
       />
 

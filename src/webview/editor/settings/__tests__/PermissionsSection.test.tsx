@@ -45,6 +45,7 @@ describe('PermissionsSection — 渲染', () => {
     await waitFor(() => {
       expect(screen.getByText('(enableAllProjectMcpServers: false)')).toBeTruthy();
       expect(screen.getByText('(disableAutoMode)')).toBeTruthy();
+      expect(screen.getByText('(disableBypassPermissionsMode)')).toBeTruthy();
       expect(screen.getByText('(skipDangerousModePermissionPrompt: false)')).toBeTruthy();
       expect(screen.getByText('(useAutoModeDuringPlan: false)')).toBeTruthy();
       expect(screen.getByText('(additionalDirectories)')).toBeTruthy();
@@ -73,10 +74,11 @@ describe('PermissionsSection — 渲染', () => {
     await waitFor(() => expect(screen.getByText('Disabled MCP JSON Servers')).toBeTruthy());
   });
 
-  it('顯示 Disable Auto Mode、Skip Dangerous Mode Permission Prompt、Use Auto Mode During Plan', async () => {
+  it('顯示 Disable Auto Mode、Disable Bypass Permissions Mode、Skip Dangerous Mode Permission Prompt、Use Auto Mode During Plan', async () => {
     renderSection();
     await waitFor(() => {
       expect(screen.getByText('Disable Auto Mode')).toBeTruthy();
+      expect(screen.getByText('Disable Bypass Permissions Mode')).toBeTruthy();
       expect(screen.getByText('Skip Dangerous Mode Permission Prompt')).toBeTruthy();
       expect(screen.getByText('Use Auto Mode During Plan')).toBeTruthy();
     });
@@ -114,6 +116,30 @@ describe('PermissionsSection — new settings 互動', () => {
 
     await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', {});
+    });
+  });
+
+  it('disableBypassPermissionsMode 未設定, 選擇 disable → onSave("permissions", { disableBypassPermissionsMode: "disable" })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }), { target: { value: 'disable' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { disableBypassPermissionsMode: 'disable' });
+    });
+  });
+
+  it('permissions.disableBypassPermissionsMode="disable", 選擇空值 → onSave("permissions", {})', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { disableBypassPermissionsMode: 'disable' } }, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }), { target: { value: '' } });
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('permissions', {});
@@ -320,6 +346,50 @@ describe('PermissionsSection — disabledMcpjsonServers 互動', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Server already in list')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('PermissionsSection — enterprise MCP JSON 編輯器', () => {
+  it('allowedMcpServers 輸入合法 JSON array → onSave("allowedMcpServers", parsed)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = screen.getByPlaceholderText('e.g. [{ "serverName": "github" }]');
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: '[{"serverName":"github"}]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('allowedMcpServers', [{ serverName: 'github' }]);
+    });
+  });
+
+  it('allowedMcpServers 輸入 JSON object → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = screen.getByPlaceholderText('e.g. [{ "serverName": "github" }]');
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: '{"serverName":"github"}' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('deniedMcpServers 輸入不符合 schema 的 array item → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = screen.getByPlaceholderText('e.g. [{ "serverName": "filesystem" }]');
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: '[{"serverName":123}]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
       expect(onSave).not.toHaveBeenCalled();
     });
   });

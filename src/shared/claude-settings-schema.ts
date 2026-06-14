@@ -440,7 +440,7 @@ const COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA = arrayValue(STRING_SCHEMA);
 const FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA = unionValue(STRING_SCHEMA, STRING_ARRAY_SCHEMA);
 const STRING_OR_NULL_VALUE_SCHEMA = unionValue(STRING_SCHEMA, literalValue(null));
 const MODEL_OVERRIDES_VALUE_SCHEMA = recordValue(STRING_SCHEMA);
-const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
+const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 0, step: 1 });
 const FEEDBACK_SURVEY_RATE_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
 const MAX_SKILL_DESCRIPTION_CHARS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
 const SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
@@ -562,6 +562,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     arrayField('enabledMcpjsonServers', STRING_SCHEMA),
     arrayField('disabledMcpjsonServers', STRING_SCHEMA),
     createField('disableAutoMode', DISABLE_ONLY_VALUE_SCHEMA, {
+      nestedUnder: 'permissions',
+    }),
+    createField('disableBypassPermissionsMode', DISABLE_ONLY_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
     }),
     booleanField('skipDangerousModePermissionPrompt', { default: false }),

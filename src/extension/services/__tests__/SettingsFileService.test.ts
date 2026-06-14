@@ -8,14 +8,18 @@ const mockReadFile = vi.hoisted(() => vi.fn());
 const mockWriteFile = vi.hoisted(() => vi.fn());
 const mockMkdir = vi.hoisted(() => vi.fn());
 const mockReaddir = vi.hoisted(() => vi.fn());
+const mockRealpath = vi.hoisted(() => vi.fn());
 const mockStat = vi.hoisted(() => vi.fn());
+const mockLstat = vi.hoisted(() => vi.fn());
 
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
   writeFile: mockWriteFile,
   mkdir: mockMkdir,
   readdir: mockReaddir,
+  realpath: mockRealpath,
   stat: mockStat,
+  lstat: mockLstat,
 }));
 
 describe('SettingsFileService', () => {
@@ -29,6 +33,8 @@ describe('SettingsFileService', () => {
     ] as any;
     mockWriteFile.mockResolvedValue(undefined);
     mockMkdir.mockResolvedValue(undefined);
+    mockRealpath.mockImplementation((path: string) => Promise.resolve(path));
+    mockLstat.mockResolvedValue({ isSymbolicLink: () => false });
   });
 
   /** 建立帶 code 屬性的 ENOENT error（readJson 用 err.code === 'ENOENT' 判斷） */

@@ -253,17 +253,20 @@ export interface BooleanToggleProps {
   settingKey: string;
   defaultValue?: boolean;
   overriddenScope?: PluginScope;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  disabled?: boolean;
+  onSave: (key: string, value: unknown) => Promise<void | boolean>;
+  onDelete: (key: string) => Promise<void | boolean>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, disabled = false, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
   const checked = value ?? defaultValue ?? false;
   const resetLabel = t('settings.common.reset');
+  const isDisabled = disabled || saving;
 
   const handleChange = (): void => {
+    if (isDisabled) return;
     const newVal = !checked;
     void withSave(() =>
       defaultValue !== undefined && newVal === defaultValue
@@ -273,6 +276,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
   };
 
   const handleReset = (): void => {
+    if (isDisabled) return;
     void withSave(() => onDelete(settingKey));
   };
 
@@ -284,7 +288,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
             type="checkbox"
             checked={checked}
             onChange={() => void handleChange()}
-            disabled={saving}
+            disabled={isDisabled}
           />
           <SettingLabelText label={label} settingKey={settingKey} defaultValue={defaultValue} overriddenScope={overriddenScope} />
         </label>
@@ -292,7 +296,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
           <button
             className="btn btn-secondary"
             onClick={() => void handleReset()}
-            disabled={saving}
+            disabled={isDisabled}
             type="button"
             aria-label={`${resetLabel} ${label}`}
           >
@@ -320,8 +324,8 @@ export interface EnumDropdownProps {
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  onSave: (key: string, value: unknown) => Promise<void | boolean>;
+  onDelete: (key: string) => Promise<void | boolean>;
 }
 
 export function EnumDropdown({
@@ -411,8 +415,9 @@ export interface TextSettingProps {
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
   scope: PluginScope;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  disabled?: boolean;
+  onSave: (key: string, value: unknown) => Promise<void | boolean>;
+  onDelete: (key: string) => Promise<void | boolean>;
 }
 
 export function TextSetting({
@@ -425,6 +430,7 @@ export function TextSetting({
   defaultValue,
   overriddenScope,
   scope,
+  disabled = false,
   onSave,
   onDelete,
 }: TextSettingProps): React.ReactElement {
@@ -432,13 +438,17 @@ export function TextSetting({
   const { t } = useI18n();
   const [inputValue, setInputValue] = useScopedInputValue(scope, value ?? '');
   const resetLabel = t('settings.common.reset');
+  const isDisabled = disabled || saving;
 
   const handleSave = (): void => {
+    if (isDisabled) return;
     void withSave(async () => {
       const trimmed = inputValue.trim();
       if (!trimmed || (defaultValue !== undefined && trimmed === defaultValue)) {
-        await onDelete(settingKey);
-        setInputValue('');
+        const deleted = await onDelete(settingKey);
+        if (deleted !== false) {
+          setInputValue('');
+        }
       } else {
         await onSave(settingKey, trimmed);
       }
@@ -446,9 +456,12 @@ export function TextSetting({
   };
 
   const handleClear = (): void => {
+    if (isDisabled) return;
     void withSave(async () => {
-      await onDelete(settingKey);
-      setInputValue('');
+      const deleted = await onDelete(settingKey);
+      if (deleted !== false) {
+        setInputValue('');
+      }
     });
   };
 
@@ -469,19 +482,19 @@ export function TextSetting({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={placeholder}
-          disabled={saving}
+          disabled={isDisabled}
         />
         <ResetOrClearButton
           value={value}
           resetLabel={resetLabel}
           label={label}
-          disabled={saving}
+          disabled={isDisabled}
           onClick={() => void handleClear()}
         />
         <button
           className="btn btn-primary"
           onClick={() => void handleSave()}
-          disabled={saving}
+          disabled={isDisabled}
           type="button"
         >
           {saveLabel}
@@ -749,8 +762,14 @@ export interface NumberSettingProps {
   maxError?: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  disabled?: boolean;
+  onSave: (key: string, value: unknown) => Promise<void | boolean>;
+  onDelete: (key: string) => Promise<void | boolean>;
+}
+
+function isStepAligned(value: number, step: number, base: number): boolean {
+  const quotient = (value - base) / step;
+  return Math.abs(quotient - Math.round(quotient)) < 1e-9;
 }
 
 export function NumberSetting({
@@ -768,6 +787,7 @@ export function NumberSetting({
   maxError,
   defaultValue,
   overriddenScope,
+  disabled = false,
   onSave,
   onDelete,
 }: NumberSettingProps): React.ReactElement {
@@ -778,24 +798,30 @@ export function NumberSetting({
     value !== undefined ? String(value) : '',
   );
   const resetLabel = t('settings.common.reset');
+  const isDisabled = disabled || saving;
 
   const parsedValue = Number(inputValue);
   const isEmpty = inputValue === '';
   const belowMin = !isEmpty && !isNaN(parsedValue) && min !== undefined && parsedValue < min;
   const aboveMax = !isEmpty && !isNaN(parsedValue) && max !== undefined && parsedValue > max;
+  const stepMismatch = !isEmpty && !isNaN(parsedValue) && step !== undefined && !isStepAligned(parsedValue, step, min ?? 0);
   const validationError = belowMin
     ? (minError ?? `Must be at least ${min}`)
     : aboveMax
       ? (maxError ?? `Must be at most ${max}`)
+      : stepMismatch
+        ? `Must match step ${step}`
       : null;
-  const saveDisabled = saving || belowMin || aboveMax || (!isEmpty && isNaN(parsedValue));
+  const saveDisabled = isDisabled || belowMin || aboveMax || stepMismatch || (!isEmpty && isNaN(parsedValue));
 
   const handleSave = (): void => {
     if (saveDisabled) return;
     void withSave(async () => {
       if (isEmpty || (defaultValue !== undefined && parsedValue === defaultValue)) {
-        await onDelete(settingKey);
-        setInputValue('');
+        const deleted = await onDelete(settingKey);
+        if (deleted !== false) {
+          setInputValue('');
+        }
       } else {
         await onSave(settingKey, parsedValue);
       }
@@ -804,8 +830,10 @@ export function NumberSetting({
 
   const handleClear = (): void => {
     void withSave(async () => {
-      await onDelete(settingKey);
-      setInputValue('');
+      const deleted = await onDelete(settingKey);
+      if (deleted !== false) {
+        setInputValue('');
+      }
     });
   };
 
@@ -829,13 +857,13 @@ export function NumberSetting({
           min={min}
           max={max}
           step={step}
-          disabled={saving}
+          disabled={isDisabled}
         />
         <ResetOrClearButton
           value={value}
           resetLabel={resetLabel}
           label={label}
-          disabled={saving}
+          disabled={isDisabled}
           onClick={() => void handleClear()}
         />
         <button

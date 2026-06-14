@@ -44,13 +44,16 @@ function createMockServices() {
       translate: vi.fn().mockResolvedValue([]),
       invalidateCache: vi.fn(),
     },
-    settings: {} as Record<string, unknown>,
+    settings: {
+      getContentDetail: vi.fn().mockResolvedValue({ frontmatter: {}, body: '' }),
+    } as Record<string, unknown>,
     preferences: {
       readAll: vi.fn().mockReturnValue({}),
       write: vi.fn().mockResolvedValue(undefined),
     },
     hookExplanation: {
       explain: vi.fn().mockResolvedValue({ explanation: 'test explanation', fromCache: false }),
+      loadCached: vi.fn().mockResolvedValue({}),
       cleanExpired: vi.fn().mockResolvedValue(undefined),
       invalidateCache: vi.fn(),
     },
@@ -246,6 +249,55 @@ describe('MessageRouter', () => {
       expect(posted).toEqual([{ type: 'response', requestId: 'he1', data: mockResult }]);
     });
 
+    it('hooks.explain → 不允許讀取 allowlist 外 filePath', async () => {
+      await router.handle(
+        { type: 'hooks.explain', requestId: 'he-outside', hookContent: '/etc/passwd', eventType: 'PreToolUse', locale: 'zh-TW', filePath: '/etc/passwd' } as RequestMessage,
+        post,
+      );
+
+      expect(services.hookExplanation.explain).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'he-outside' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+
+    it('hooks.explain → 拒絕 allowlist 內 symlink 指向外部檔案', async () => {
+      const fs = await import('fs');
+      const allowedDir = '/tmp/test-cache';
+      const outsideDir = '/tmp/test-router-outside';
+      fs.rmSync(allowedDir, { recursive: true, force: true });
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+      fs.mkdirSync(allowedDir, { recursive: true });
+      fs.mkdirSync(outsideDir, { recursive: true });
+      fs.writeFileSync(`${outsideDir}/secret.sh`, '#!/bin/sh\n');
+      fs.symlinkSync(`${outsideDir}/secret.sh`, `${allowedDir}/secret-link.sh`);
+
+      await router.handle(
+        { type: 'hooks.explain', requestId: 'he-symlink', hookContent: '/guard.sh', eventType: 'PreToolUse', locale: 'zh-TW', filePath: `${allowedDir}/secret-link.sh` } as RequestMessage,
+        post,
+      );
+
+      expect(services.hookExplanation.explain).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'he-symlink' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+
+    it('hooks.checkFilePaths → 過濾 allowlist 外路徑', async () => {
+      const fs = await import('fs');
+      fs.mkdirSync('/tmp/test-cache', { recursive: true });
+      fs.writeFileSync('/tmp/test-cache/hook.sh', '#!/bin/sh\n');
+
+      await router.handle(
+        { type: 'hooks.checkFilePaths', requestId: 'he-check', paths: ['/etc/passwd', '/tmp/test-cache/hook.sh'] } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({
+        type: 'response',
+        requestId: 'he-check',
+        data: ['/tmp/test-cache/hook.sh'],
+      });
+    });
+
     it('hooks.cleanExpiredExplanations → 呼叫 cleanExpired 並回傳 response', async () => {
       await router.handle(
         { type: 'hooks.cleanExpiredExplanations', requestId: 'he2' } as RequestMessage,
@@ -263,6 +315,83 @@ describe('MessageRouter', () => {
       );
 
       expect(posted[0]).toMatchObject({ type: 'error', requestId: 'he3' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+
+    it('hooks.openFile → 拒絕 allowlist 內 symlink 目錄指向外部不存在檔案', async () => {
+      const fs = await import('fs');
+      const vscode = await import('vscode');
+      const tmpRoot = fs.realpathSync('/tmp');
+      const allowedDir = `${tmpRoot}/test-cache-canonical`;
+      const outsideDir = `${tmpRoot}/test-router-open-outside`;
+      const localRouter = new MessageRouter(
+        services.marketplace as unknown as MarketplaceService,
+        services.plugin as unknown as PluginService,
+        services.mcp as unknown as McpService,
+        services.translation as unknown as TranslationService,
+        services.settings as unknown as SettingsFileService,
+        services.preferences as unknown as PreferencesService,
+        services.hookExplanation as unknown as HookExplanationService,
+        services.extensionInfo as never,
+        allowedDir,
+        services.skill as unknown as SkillService,
+        '/tmp/test-extensions/claude-plugins',
+      );
+      fs.rmSync(allowedDir, { recursive: true, force: true });
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+      fs.mkdirSync(allowedDir, { recursive: true });
+      fs.mkdirSync(outsideDir, { recursive: true });
+      fs.symlinkSync(outsideDir, `${allowedDir}/outside-link`, 'dir');
+
+      await localRouter.handle(
+        { type: 'hooks.openFile', requestId: 'he-symlink-missing', path: `${allowedDir}/outside-link/new.md` } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith(
+        'vscode.open',
+        expect.anything(),
+      );
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'he-symlink-missing' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+
+    it('hooks.openFile → 拒絕 symlink/.. 逃出 allowlist 的實際開檔路徑', async () => {
+      const fs = await import('fs');
+      const vscode = await import('vscode');
+      const tmpRoot = fs.realpathSync('/tmp');
+      const allowedDir = `${tmpRoot}/test-cache-dotdot`;
+      const outsideDir = `${tmpRoot}/test-router-dotdot-outside`;
+      const localRouter = new MessageRouter(
+        services.marketplace as unknown as MarketplaceService,
+        services.plugin as unknown as PluginService,
+        services.mcp as unknown as McpService,
+        services.translation as unknown as TranslationService,
+        services.settings as unknown as SettingsFileService,
+        services.preferences as unknown as PreferencesService,
+        services.hookExplanation as unknown as HookExplanationService,
+        services.extensionInfo as never,
+        allowedDir,
+        services.skill as unknown as SkillService,
+        '/tmp/test-extensions/claude-plugins',
+      );
+      fs.rmSync(allowedDir, { recursive: true, force: true });
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+      fs.mkdirSync(allowedDir, { recursive: true });
+      fs.mkdirSync(`${outsideDir}/dir`, { recursive: true });
+      fs.writeFileSync(`${outsideDir}/secret.sh`, '#!/bin/sh\n');
+      fs.symlinkSync(`${outsideDir}/dir`, `${allowedDir}/link`, 'dir');
+
+      await localRouter.handle(
+        { type: 'hooks.openFile', requestId: 'he-symlink-dotdot', path: `${allowedDir}/link/../secret.sh` } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith(
+        'vscode.open',
+        expect.anything(),
+      );
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'he-symlink-dotdot' });
       expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
   });
@@ -335,6 +464,19 @@ describe('MessageRouter', () => {
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'rp4' });
     });
 
+    it('extension.revealPath → cacheDir sibling 路徑不允許開啟', async () => {
+      const fs = await import('fs');
+      fs.mkdirSync('/tmp/test-sibling-cache', { recursive: true });
+
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp4b', path: '/tmp/test-sibling-cache' } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'rp4b' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+
     it('extension.revealPath → extensionPath 目錄內的路徑允許開啟', async () => {
       const fs = await import('fs');
       const vscode = await import('vscode');
@@ -350,6 +492,19 @@ describe('MessageRouter', () => {
         expect.objectContaining({ fsPath: '/tmp/test-extensions/claude-plugins' }),
       );
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'rp5' });
+    });
+
+    it('extension.revealPath → extensionPath sibling 路徑不允許開啟', async () => {
+      const fs = await import('fs');
+      fs.mkdirSync('/tmp/test-extensions/other-extension', { recursive: true });
+
+      await router.handle(
+        { type: 'extension.revealPath', requestId: 'rp5b', path: '/tmp/test-extensions/other-extension' } as RequestMessage,
+        post,
+      );
+
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 'rp5b' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
 
     it('extension.clearCache → 回傳 { cleared: true }', async () => {
@@ -420,12 +575,45 @@ describe('MessageRouter', () => {
       expect(services.skill.update).toHaveBeenCalled();
     });
 
-    it('skill.getDetail → 帶 path', async () => {
+    it('skill.getDetail → 帶 allowed path', async () => {
+      const os = await import('os');
+      const skillPath = `${os.homedir()}/.claude/skills/my-skill`;
       await router.handle(
-        { type: 'skill.getDetail', requestId: 's7', path: '/path/to/skill' } as RequestMessage,
+        { type: 'skill.getDetail', requestId: 's7', path: '~/.claude/skills/my-skill' } as RequestMessage,
         post,
       );
-      expect(services.skill.getDetail).toHaveBeenCalledWith('/path/to/skill');
+      expect(services.skill.getDetail).toHaveBeenCalledWith(skillPath);
+    });
+
+    it('skill.getDetail → 不允許的路徑回傳 error', async () => {
+      await router.handle(
+        { type: 'skill.getDetail', requestId: 's7b', path: '/etc/passwd' } as RequestMessage,
+        post,
+      );
+      expect(services.skill.getDetail).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 's7b' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+
+    it('skill.getDetail → 拒絕 allowlist 內 symlink 指向外部 skill 目錄', async () => {
+      const fs = await import('fs');
+      const allowedDir = '/tmp/test-cache';
+      const outsideDir = '/tmp/test-router-outside-skill';
+      fs.rmSync(allowedDir, { recursive: true, force: true });
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+      fs.mkdirSync(allowedDir, { recursive: true });
+      fs.mkdirSync(outsideDir, { recursive: true });
+      fs.writeFileSync(`${outsideDir}/SKILL.md`, '---\nname: outside\n---\n');
+      fs.symlinkSync(outsideDir, `${allowedDir}/skill-link`, 'dir');
+
+      await router.handle(
+        { type: 'skill.getDetail', requestId: 's7c', path: `${allowedDir}/skill-link` } as RequestMessage,
+        post,
+      );
+
+      expect(services.skill.getDetail).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 's7c' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
 
     it('skill.registry → 帶 sort 和 query', async () => {
@@ -462,6 +650,21 @@ describe('MessageRouter', () => {
         'vscode.open',
         expect.objectContaining({ fsPath: skillPath }),
       );
+    });
+
+    it('skill.openFile → 不允許 home 外 ../skills 被當成 ~/.<agent>/skills', async () => {
+      const vscode = await import('vscode');
+      const os = await import('os');
+      const escapedSkillPath = `${os.homedir()}/../skills/secret.md`;
+
+      await router.handle(
+        { type: 'skill.openFile', requestId: 's9c', path: escapedSkillPath } as RequestMessage,
+        post,
+      );
+
+      expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+      expect(posted[0]).toMatchObject({ type: 'error', requestId: 's9c' });
+      expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
     });
 
     it('skill.openFile → 不允許的路徑回傳 error', async () => {

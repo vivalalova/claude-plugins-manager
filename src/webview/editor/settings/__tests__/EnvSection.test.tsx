@@ -5,7 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
-import { isSensitiveKey, EnvSection } from '../EnvSection';
+import { isSensitiveKey, EnvSection, EnvFieldRenderer } from '../EnvSection';
 import { ToastProvider } from '../../../components/Toast';
 import { KNOWN_ENV_VARS } from '../../../../shared/known-env-vars';
 import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
@@ -109,11 +109,11 @@ describe('EnvSection — 全列表渲染', () => {
   });
 
   it('boolean env var 渲染為 checkbox（重用 BooleanToggle）', async () => {
-    renderEnvSection({});
+    const { container } = renderEnvSection({});
+    const booleanVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === Boolean).length;
 
     await waitFor(() => {
-      const checkboxes = screen.getAllByRole('checkbox');
-      const booleanVarCount = Object.values(KNOWN_ENV_VARS).filter(v => v.valueType === Boolean).length;
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
       expect(checkboxes.length).toBeGreaterThanOrEqual(booleanVarCount);
     });
   });
@@ -210,6 +210,46 @@ describe('EnvSection — String adapter', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('env', expect.not.objectContaining({ ANTHROPIC_MODEL: expect.anything() }));
     });
+  });
+
+  it('Clear 保存失敗 → 保留原本 input 值', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('write failed'));
+    const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'test' } }, onSave);
+
+    await waitFor(() => {
+      expect(container.querySelector('#ANTHROPIC_MODEL')).toBeTruthy();
+    });
+
+    const input = container.querySelector('#ANTHROPIC_MODEL') as HTMLInputElement;
+    const field = input.closest('.settings-field')!;
+    const clearBtn = field.querySelector('.btn-secondary') as HTMLButtonElement;
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(input.value).toBe('test');
+  });
+
+  it('custom env 新增保存失敗 → 保留使用者輸入', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('write failed'));
+    const { container } = renderEnvSection({}, onSave);
+
+    await waitFor(() => expect(container.querySelector('.env-add-form')).toBeTruthy());
+    const form = container.querySelector('.env-add-form') as HTMLElement;
+    const keyInput = within(form).getByPlaceholderText('VARIABLE_NAME') as HTMLInputElement;
+    const valueInput = within(form).getByPlaceholderText('value') as HTMLInputElement;
+
+    fireEvent.change(keyInput, { target: { value: 'NEW_VAR' } });
+    fireEvent.change(valueInput, { target: { value: 'new_value' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('env', { NEW_VAR: 'new_value' });
+    });
+    expect(keyInput.value).toBe('NEW_VAR');
+    expect(valueInput.value).toBe('new_value');
   });
 });
 
@@ -315,9 +355,9 @@ describe('EnvSection — Custom vars', () => {
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
-    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME');
+    const keyInput = screen.getByPlaceholderText('VARIABLE_NAME') as HTMLInputElement;
     const valueInputs = screen.getAllByPlaceholderText('value');
-    const valueInput = valueInputs[valueInputs.length - 1];
+    const valueInput = valueInputs[valueInputs.length - 1] as HTMLInputElement;
 
     fireEvent.change(keyInput, { target: { value: 'NEW_VAR' } });
     fireEvent.change(valueInput, { target: { value: 'new_value' } });
@@ -326,6 +366,8 @@ describe('EnvSection — Custom vars', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('env', { NEW_VAR: 'new_value' });
     });
+    expect(keyInput.value).toBe('');
+    expect(valueInput.value).toBe('');
   });
 
   it('duplicate key → 顯示錯誤', async () => {
@@ -376,7 +418,7 @@ describe('EnvSection — Custom vars', () => {
     expect(addBtn.disabled).toBe(true);
   });
 
-  it('Custom field rename → 先移除舊 key 再寫入新 key', async () => {
+  it('Custom field rename → 一次保存最終 env，舊 key 不會被帶回', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
 
@@ -392,9 +434,68 @@ describe('EnvSection — Custom vars', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(2);
-      expect(onSave).toHaveBeenNthCalledWith(1, 'env', expect.not.objectContaining({ OLD_KEY: expect.anything() }));
-      expect(onSave).toHaveBeenNthCalledWith(2, 'env', expect.objectContaining({ NEW_KEY: 'new-value' }));
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith('env', {
+        NEW_KEY: 'new-value',
+      });
+    });
+  });
+
+  it('Custom field rename 保存失敗 → 不送出部分刪除 payload', async () => {
+    const onSave = vi.fn().mockRejectedValueOnce(new Error('write failed'));
+    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
+      expect(screen.getByDisplayValue('old-value')).toBeTruthy();
+    });
+
+    const keyInput = screen.getByDisplayValue('OLD_KEY');
+    const row = keyInput.closest('.env-custom-row') as HTMLElement;
+    fireEvent.change(keyInput, { target: { value: 'NEW_KEY' } });
+    fireEvent.change(within(row).getByDisplayValue('old-value'), { target: { value: 'new-value' } });
+    const saveButton = within(row).getByRole('button', { name: 'Save' });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith('env', { NEW_KEY: 'new-value' });
+    });
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('Custom field rename 保存中 → 其他 env 控制項 disabled，避免舊 env 快照覆蓋 rename', async () => {
+    let resolveSave!: () => void;
+    const onSave = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    }));
+    const { container } = renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
+      expect(container.querySelector('#MAX_THINKING_TOKENS')).toBeTruthy();
+    });
+
+    const keyInput = screen.getByDisplayValue('OLD_KEY');
+    const row = keyInput.closest('.env-custom-row') as HTMLElement;
+    fireEvent.change(keyInput, { target: { value: 'NEW_KEY' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+
+    const numberInput = container.querySelector('#MAX_THINKING_TOKENS') as HTMLInputElement;
+    fireEvent.change(numberInput, { target: { value: '8000' } });
+    const numberSaveButton = numberInput.closest('.settings-field')!.querySelector('.btn-primary') as HTMLButtonElement;
+
+    await waitFor(() => {
+      expect(numberSaveButton.disabled).toBe(true);
+    });
+    fireEvent.click(numberSaveButton);
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    resolveSave();
+    await waitFor(() => {
+      expect(numberSaveButton.disabled).toBe(false);
     });
   });
 
@@ -463,6 +564,30 @@ describe('EnvSection — Number adapter', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ MAX_THINKING_TOKENS: '8000' }));
+    });
+  });
+});
+
+describe('EnvFieldRenderer — 搜尋結果保存契約', () => {
+  it('clear 失敗時不清空本地輸入', async () => {
+    const onEnvChange = vi.fn().mockRejectedValue(new Error('write failed'));
+    renderWithI18n(
+      <ToastProvider>
+        <EnvFieldRenderer
+          envKey="ANTHROPIC_MODEL"
+          currentEnv={{ ANTHROPIC_MODEL: 'claude-opus' }}
+          scope="user"
+          onEnvChange={onEnvChange}
+        />
+      </ToastProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue('claude-opus')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => {
+      expect(onEnvChange).toHaveBeenCalledWith({});
+      expect(screen.getByDisplayValue('claude-opus')).toBeTruthy();
     });
   });
 });

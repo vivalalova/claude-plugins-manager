@@ -276,7 +276,7 @@ export function SettingsPage(): React.ReactElement {
                             envKey={field.key}
                             currentEnv={currentEnv}
                             scope={scope}
-                            onEnvChange={(updatedEnv) => void handleSave('env', updatedEnv)}
+                            onEnvChange={(updatedEnv) => handleSave('env', updatedEnv)}
                           />
                         </div>
                       );

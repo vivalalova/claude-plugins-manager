@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MarketplaceService } from '../MarketplaceService';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
+import { NoWorkspaceError } from '../../utils/workspace';
 import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
@@ -10,6 +11,7 @@ const mockWriteFile = vi.hoisted(() => vi.fn());
 const mockMkdtemp = vi.hoisted(() => vi.fn());
 const mockRm = vi.hoisted(() => vi.fn());
 const mockAccess = vi.hoisted(() => vi.fn());
+const mockRealpath = vi.hoisted(() => vi.fn());
 const mockExecFile = vi.hoisted(() => vi.fn());
 const mockFixScriptPermissions = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
@@ -19,6 +21,7 @@ vi.mock('fs/promises', () => ({
   mkdtemp: mockMkdtemp,
   rm: mockRm,
   access: mockAccess,
+  realpath: mockRealpath,
 }));
 
 vi.mock('child_process', () => ({
@@ -72,6 +75,7 @@ describe('MarketplaceService', () => {
     mockReadFile.mockResolvedValue(JSON.stringify(MOCK_CONFIG));
     mockWriteFile.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
+    mockRealpath.mockImplementation(async (filePath: string) => filePath);
   });
 
   describe('list()', () => {
@@ -240,6 +244,52 @@ describe('MarketplaceService', () => {
       expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('local', {});
     });
 
+    it('無 workspace 且 project/local snapshot 為空時不中斷 reinstallAll', async () => {
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'looping@my-marketplace': true },
+        project: {},
+        local: {},
+      });
+      settings.replaceEnabledPlugins.mockImplementation(async (scope: string) => {
+        if (scope === 'user') return;
+        throw new NoWorkspaceError();
+      });
+
+      await svc.reinstallAll();
+
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('user', { 'looping@my-marketplace': true });
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('project', {});
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('local', {});
+    });
+
+    it('re-add 失敗的 marketplace 不會還原舊 enabledPlugins', async () => {
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: {
+          'looping@my-marketplace': true,
+          'stock@local-plugins': true,
+        },
+        project: {},
+        local: {},
+      });
+      cli.exec.mockImplementation(async (args: string[]) => {
+        if (args[0] === 'plugin' && args[1] === 'marketplace' && args[2] === 'add' && args[3] === '/local/path') {
+          throw new Error('local add failed');
+        }
+        return '';
+      });
+
+      const result = await svc.reinstallAll();
+
+      expect(result.failed).toEqual(['local-plugins']);
+      expect(settings.replaceEnabledPlugins).toHaveBeenCalledWith('user', {
+        'looping@my-marketplace': true,
+      });
+      expect(settings.replaceEnabledPlugins).not.toHaveBeenCalledWith(
+        'user',
+        expect.objectContaining({ 'stock@local-plugins': true }),
+      );
+    });
+
     it('重裝前已安裝的 plugins 會依原 scope 重裝回來', async () => {
       settings.readInstalledPlugins.mockResolvedValue({
         version: 2,
@@ -302,6 +352,22 @@ describe('MarketplaceService', () => {
         { name: 'plugin-a', description: 'Plugin A from json', version: '2.0.0' },
         { name: 'plugin-b', description: 'Plugin B', version: undefined },
       ]);
+    });
+
+    it('~/ local path → 展開後直接讀取，不走 git clone', async () => {
+      const os = await import('os');
+      mockReadFile.mockImplementation(async (filePath: string) => {
+        if (typeof filePath === 'string' && filePath.includes('marketplace.json')) return MANIFEST;
+        if (typeof filePath === 'string' && filePath.includes('plugins/a') && filePath.includes('plugin.json')) return PLUGIN_JSON_A;
+        if (typeof filePath === 'string' && filePath.includes('plugin.json')) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        return JSON.stringify(MOCK_CONFIG);
+      });
+      mockAccess.mockResolvedValue(undefined);
+
+      await svc.preview('~/marketplaces/local');
+
+      expect(mockAccess).toHaveBeenCalledWith(`${os.homedir()}/marketplaces/local`);
+      expect(mockExecFile).not.toHaveBeenCalled();
     });
 
     it('git URL → shallow clone + 讀取 manifest + cleanup', async () => {
@@ -402,6 +468,35 @@ describe('MarketplaceService', () => {
       expect(result[0]).toEqual({ name: 'evil-plugin', description: 'Evil', version: undefined });
       // good-plugin 正常讀取 plugin.json
       expect(result[1]).toEqual({ name: 'good-plugin', description: 'Good from json', version: '1.0.0' });
+    });
+
+    it('plugin.json symlink 逃出 preview root → 不讀取外部 metadata，fallback manifest', async () => {
+      const SYMLINK_MANIFEST = JSON.stringify({
+        name: 'symlink-marketplace',
+        plugins: [
+          { name: 'linked-plugin', description: 'Manifest description', version: '1.0.0', source: './plugins/link' },
+        ],
+      });
+      const pluginJsonPath = '/safe/marketplace/plugins/link/.claude-plugin/plugin.json';
+      mockReadFile.mockImplementation(async (filePath: string) => {
+        if (typeof filePath === 'string' && filePath.includes('marketplace.json')) return SYMLINK_MANIFEST;
+        if (filePath === pluginJsonPath) {
+          return JSON.stringify({ description: 'SHOULD NOT APPEAR', version: '9.9.9' });
+        }
+        return JSON.stringify(MOCK_CONFIG);
+      });
+      mockRealpath.mockImplementation(async (filePath: string) => {
+        if (filePath === pluginJsonPath) return '/outside/plugin.json';
+        return filePath;
+      });
+      mockAccess.mockResolvedValue(undefined);
+
+      const result = await svc.preview('/safe/marketplace');
+
+      expect(result).toEqual([
+        { name: 'linked-plugin', description: 'Manifest description', version: '1.0.0' },
+      ]);
+      expect(mockReadFile).not.toHaveBeenCalledWith(pluginJsonPath, 'utf-8');
     });
 
     it('git clone 失敗 → 拋錯 + cleanup', async () => {

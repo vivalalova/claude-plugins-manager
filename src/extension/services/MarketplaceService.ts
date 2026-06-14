@@ -21,6 +21,8 @@ import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
 import { KNOWN_MARKETPLACES_PATH, PLUGINS_CACHE_DIR } from '../paths';
 import { fixScriptPermissions } from '../utils/fixScriptPermissions';
+import { expandTildePath } from '../utils/pathUtils';
+import { NoWorkspaceError } from '../utils/workspace';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
 const GIT_CLONE_TIMEOUT_MS = 30_000;
@@ -207,7 +209,7 @@ export class MarketplaceService {
       );
 
       // Phase 5: Restore enabled settings and reinstall previously installed plugins
-      await this.restoreEnabledPlugins(enabledSnapshot);
+      await this.restoreEnabledPlugins(enabledSnapshot, new Set(failed));
       await this.reinstallPlugins(installedSnapshot, marketplaceNames, new Set(failed));
       this.emitReinstallProgress('completed', 1, 1);
 
@@ -217,12 +219,25 @@ export class MarketplaceService {
 
   private async restoreEnabledPlugins(
     enabledByScope: Record<PluginScope, EnabledPluginsMap>,
+    failedMarketplaces: Set<string>,
   ): Promise<void> {
     const scopes: PluginScope[] = ['user', 'project', 'local'];
     this.emitReinstallProgress('restoringSettings', 0, scopes.length);
     for (const [index, scope] of scopes.entries()) {
       this.emitReinstallProgress('restoringSettings', index + 1, scopes.length, scope);
-      await this.settings.replaceEnabledPlugins(scope, enabledByScope[scope] ?? {});
+      const enabledPlugins = filterEnabledPlugins(enabledByScope[scope] ?? {}, failedMarketplaces);
+      try {
+        await this.settings.replaceEnabledPlugins(scope, enabledPlugins);
+      } catch (error) {
+        if (
+          scope !== 'user'
+          && Object.keys(enabledPlugins).length === 0
+          && error instanceof NoWorkspaceError
+        ) {
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
@@ -283,7 +298,8 @@ export class MarketplaceService {
    * 本地路徑直接讀取，Git/GitHub source 透過 shallow clone 到 temp dir。
    */
   async preview(source: string): Promise<PreviewPlugin[]> {
-    const isLocal = source.startsWith('/') || source.startsWith('.');
+    const expandedSource = expandTildePath(source);
+    const isLocal = expandedSource.startsWith('/') || expandedSource.startsWith('.');
     const isGitHub = !isLocal && GITHUB_SHORTHAND_RE.test(source);
     const gitUrl = isGitHub ? `https://github.com/${source}.git` : source;
 
@@ -292,8 +308,8 @@ export class MarketplaceService {
 
     if (isLocal) {
       // 確認路徑存在
-      await fs.access(source);
-      dir = source;
+      await fs.access(expandedSource);
+      dir = expandedSource;
     } else {
       // Shallow clone to temp dir
       tempDir = await fs.mkdtemp(path.join(tmpdir(), 'mp-preview-'));
@@ -320,6 +336,7 @@ export class MarketplaceService {
       );
 
       const baseDir = path.resolve(dir);
+      const baseRealDir = await fs.realpath(baseDir);
       const plugins = await Promise.all(
         (manifest.plugins ?? []).map(async (p): Promise<PreviewPlugin> => {
           let description = p.description ?? '';
@@ -331,8 +348,15 @@ export class MarketplaceService {
             if (!pluginDir.startsWith(baseDir + path.sep) && pluginDir !== baseDir) {
               throw new Error('Path traversal detected');
             }
+            if (!(await isRealPathWithinDirectory(baseRealDir, pluginDir))) {
+              throw new Error('Plugin source escapes preview root');
+            }
+            const pluginJsonPath = path.join(pluginDir, '.claude-plugin', 'plugin.json');
+            if (!(await isRealPathWithinDirectory(baseRealDir, pluginJsonPath))) {
+              throw new Error('Plugin metadata escapes preview root');
+            }
             const pluginMeta = JSON.parse(
-              await fs.readFile(path.join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf-8'),
+              await fs.readFile(pluginJsonPath, 'utf-8'),
             ) as { description?: string; version?: string };
             if (pluginMeta.description) description = pluginMeta.description;
             if (pluginMeta.version) version = pluginMeta.version;
@@ -353,7 +377,29 @@ export class MarketplaceService {
 
 }
 
+async function isRealPathWithinDirectory(parentDir: string, candidatePath: string): Promise<boolean> {
+  const realCandidate = await fs.realpath(candidatePath);
+  const rel = path.relative(parentDir, realCandidate);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
 function getMarketplaceName(pluginId: string): string | null {
   const lastAt = pluginId.lastIndexOf('@');
   return lastAt > 0 ? pluginId.slice(lastAt + 1) : null;
+}
+
+function filterEnabledPlugins(
+  enabledPlugins: EnabledPluginsMap,
+  failedMarketplaces: Set<string>,
+): EnabledPluginsMap {
+  if (failedMarketplaces.size === 0) {
+    return enabledPlugins;
+  }
+
+  return Object.fromEntries(
+    Object.entries(enabledPlugins).filter(([pluginId]) => {
+      const marketplaceName = getMarketplaceName(pluginId);
+      return !marketplaceName || !failedMarketplaces.has(marketplaceName);
+    }),
+  );
 }

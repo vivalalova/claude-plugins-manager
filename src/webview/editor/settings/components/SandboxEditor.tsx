@@ -4,6 +4,7 @@ import { toErrorMessage } from '../../../../shared/errorUtils';
 import type { ClaudeSettings } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
 import { useSettingSave } from '../hooks/useSettingSave';
+import { validateJsonSettingValue } from '../jsonSettingValidation';
 
 type SandboxValue = NonNullable<ClaudeSettings['sandbox']>;
 type SandboxMode = 'structured' | 'json';
@@ -131,15 +132,16 @@ function SandboxNumberInput({ label, value, placeholder, saving, onChange }: {
   const handleBlur = (): void => {
     const trimmed = input.trim();
     if (!trimmed) { onChange(undefined); return; }
-    const num = parseInt(trimmed, 10);
-    if (!isNaN(num) && num >= 0 && num <= 65535) onChange(num);
+    if (!/^\d+$/.test(trimmed)) return;
+    const num = Number(trimmed);
+    if (Number.isInteger(num) && num >= 1 && num <= 65535) onChange(num);
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
       <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--vscode-descriptionForeground)', minWidth: 140 }}>{label}</span>
       <input className="input" type="number" value={input} onChange={(e) => setInput(e.target.value)}
-        onBlur={handleBlur} placeholder={placeholder} min={0} max={65535} disabled={saving}
+        onBlur={handleBlur} placeholder={placeholder} min={1} max={65535} disabled={saving}
         style={{ width: 100 }} />
     </div>
   );
@@ -173,6 +175,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     void withSave(async () => {
       const cleaned = cleanSandbox(updated);
       if (cleaned) {
+        validateJsonSettingValue('sandbox', cleaned);
         await onSave('sandbox', cleaned);
       } else {
         await onDelete('sandbox');
@@ -245,6 +248,12 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     }
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       setJsonError(t('settings.advanced.sandbox.invalidObject'));
+      return;
+    }
+    try {
+      validateJsonSettingValue('sandbox', parsed);
+    } catch (e) {
+      setJsonError(toErrorMessage(e));
       return;
     }
     void withSave(() => onSave('sandbox', parsed));

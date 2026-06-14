@@ -213,7 +213,7 @@ describe('McpService（integration / 真實 filesystem）', () => {
       expect(shared!.config?.args).toEqual(['project-version']);
     });
 
-    it('.claude.json 為無效 JSON → 不拋錯，回傳其他來源的 server', async () => {
+    it('.claude.json 為無效 JSON → 拋錯，不靜默回傳不完整 server', async () => {
       writeFileSync(join(SUITE_HOME, '.claude.json'), 'not json!!!');
       writeProjectMcpJson(workspaceDir, {
         mcpServers: {
@@ -222,10 +222,21 @@ describe('McpService（integration / 真實 filesystem）', () => {
       });
 
       const svc = new McpService(createMockCli(), createMockSettings());
-      const servers = await svc.listFromFiles();
 
-      expect(servers).toHaveLength(1);
-      expect(servers[0].name).toBe('project-only');
+      await expect(svc.listFromFiles()).rejects.toThrow('Invalid JSON');
+    });
+
+    it('project .mcp.json 為無效 JSON → 拋錯，不靜默漏掉 project server', async () => {
+      writeClaudeJson({
+        mcpServers: {
+          'user-server': { command: 'npx', args: ['ok'] },
+        },
+      });
+      writeFileSync(join(workspaceDir, '.mcp.json'), 'not json!!!');
+
+      const svc = new McpService(createMockCli(), createMockSettings());
+
+      await expect(svc.listFromFiles()).rejects.toThrow('Invalid JSON');
     });
   });
 
@@ -482,6 +493,28 @@ describe('McpService（integration / 真實 filesystem）', () => {
 
       // 不應有 plugin server
       expect(servers.filter((s) => s.plugin)).toHaveLength(0);
+    });
+
+    it('plugin .mcp.json 為無效 JSON → 拋錯，不靜默漏掉 plugin server', async () => {
+      const pluginPath = join(SUITE_TMP, 'plugins', 'invalid-mcp-plugin');
+      mkdirSync(pluginPath, { recursive: true });
+      writeFileSync(join(pluginPath, '.mcp.json'), 'not json!!!');
+
+      writeInstalledPlugins({
+        version: 2,
+        plugins: {
+          'invalid-mcp@mp': [{
+            scope: 'user',
+            installPath: pluginPath,
+            installedAt: '2026-01-01T00:00:00Z',
+            lastUpdated: '2026-01-01T00:00:00Z',
+          }],
+        },
+      });
+
+      const svc = new McpService(createMockCli(), createMockSettings());
+
+      await expect(svc.listFromFiles()).rejects.toThrow('Invalid JSON');
     });
 
     it('installed_plugins.json 不存在 → 不拋錯', async () => {

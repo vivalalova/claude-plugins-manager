@@ -140,6 +140,22 @@ describe('NumberSetting — 驗收條件', () => {
     });
   });
 
+  it('step=1, 輸入 1.5 → save 按鈕 disabled 且不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderNumberSetting({ min: 0, step: 1, onSave });
+
+    await waitFor(() => screen.getByPlaceholderText('e.g. 30'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 30'), { target: { value: '1.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      const saveBtn = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+      expect(saveBtn.disabled).toBe(true);
+      expect(screen.getByRole('alert').textContent).toContain('step 1');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
   it('value=30, 點擊 Reset → 呼叫 onDelete("cleanupPeriodDays")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderNumberSetting({ value: 30, onDelete });

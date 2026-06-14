@@ -7,6 +7,7 @@ import { SandboxEditor } from './components/SandboxEditor';
 import { CompanyAnnouncementsEditor } from './components/CompanyAnnouncementsEditor';
 import { SchemaSection } from './components/SchemaSection';
 import type { SectionProps } from './components/SchemaSection';
+import { parseJsonSettingValue } from './jsonSettingValidation';
 
 export function AdvancedSection(props: SectionProps): React.ReactElement {
   const { t } = useI18n();
@@ -68,7 +69,7 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 settingKey="modelOverrides"
                 scope={scope}
                 overriddenScope={overriddenScope}
-                onSave={async (_key, value) => onSave('modelOverrides', JSON.parse(value as string))}
+                onSave={async (_key, value) => onSave('modelOverrides', parseJsonSettingValue('modelOverrides', value as string))}
                 onDelete={async () => onDelete('modelOverrides')}
               />
             );
@@ -84,7 +85,7 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 settingKey="skillOverrides"
                 scope={scope}
                 overriddenScope={overriddenScope}
-                onSave={async (_key, value) => onSave('skillOverrides', JSON.parse(value as string))}
+                onSave={async (_key, value) => onSave('skillOverrides', parseJsonSettingValue('skillOverrides', value as string))}
                 onDelete={async () => onDelete('skillOverrides')}
               />
             );
@@ -100,7 +101,7 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 settingKey="worktree"
                 scope={scope}
                 overriddenScope={overriddenScope}
-                onSave={async (_key, value) => onSave('worktree', JSON.parse(value as string))}
+                onSave={async (_key, value) => onSave('worktree', parseJsonSettingValue('worktree', value as string))}
                 onDelete={async () => onDelete('worktree')}
               />
             );
@@ -116,7 +117,7 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 settingKey="sshConfigs"
                 scope={scope}
                 overriddenScope={overriddenScope}
-                onSave={async (_key, value) => onSave('sshConfigs', JSON.parse(value as string))}
+                onSave={async (_key, value) => onSave('sshConfigs', parseJsonSettingValue('sshConfigs', value as string))}
                 onDelete={async () => onDelete('sshConfigs')}
               />
             );
@@ -132,7 +133,7 @@ export function AdvancedSection(props: SectionProps): React.ReactElement {
                 settingKey="autoMode"
                 scope={scope}
                 overriddenScope={overriddenScope}
-                onSave={async (_key, value) => onSave('autoMode', JSON.parse(value as string))}
+                onSave={async (_key, value) => onSave('autoMode', parseJsonSettingValue('autoMode', value as string))}
                 onDelete={async () => onDelete('autoMode')}
               />
             );

@@ -155,13 +155,31 @@ export class MessageRouter {
       case 'hooks.checkFilePaths':
         return message.paths.filter((p) => {
           const expanded = expandTildePath(p);
-          return (p.startsWith('/') || p.startsWith('~/')) && fs.existsSync(expanded);
+          if (!(p.startsWith('/') || p.startsWith('~/'))) {
+            return false;
+          }
+          try {
+            this.assertAllowedPath(expanded);
+          } catch {
+            return false;
+          }
+          return fs.existsSync(expanded);
         });
 
-      case 'hooks.explain':
-        return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale, message.filePath, message.refresh);
+      case 'hooks.explain': {
+        const filePath = message.filePath ? expandTildePath(message.filePath) : undefined;
+        if (filePath) {
+          this.assertAllowedPath(filePath);
+        }
+        return this.hookExplanation.explain(message.hookContent, message.eventType, message.locale, filePath, message.refresh);
+      }
 
       case 'hooks.loadCachedExplanations':
+        for (const item of message.items) {
+          if (item.filePath) {
+            this.assertAllowedPath(expandTildePath(item.filePath));
+          }
+        }
         return this.hookExplanation.loadCached(message.items);
 
       case 'hooks.cleanExpiredExplanations':
@@ -209,7 +227,11 @@ export class MessageRouter {
       case 'skill.update':
         return this.skill.update();
       case 'skill.getDetail':
-        return this.skill.getDetail(message.path);
+        {
+          const resolvedSkillPath = expandTildePath(message.path);
+          this.assertAllowedPath(resolvedSkillPath);
+          return this.skill.getDetail(resolvedSkillPath);
+        }
       case 'skill.registry':
         return this.skill.fetchRegistry(message.sort, message.query);
       case 'skill.openFile':
@@ -253,21 +275,88 @@ export class MessageRouter {
     const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
     const allowed = [
       claudeDir,
-      path.dirname(this.cacheDir),
+      this.cacheDir,
       ...workspaceFolders.map((f) => f.uri.fsPath),
-      ...(this.extensionPath ? [path.dirname(this.extensionPath)] : []),
+      ...(this.extensionPath ? [this.extensionPath] : []),
     ];
     const normalized = path.resolve(resolved);
-    if (allowed.some((dir) => normalized.startsWith(dir + path.sep) || normalized === dir)) {
+    const canonical = this.realPathIfExists(resolved);
+    if (allowed.some((dir) => this.isAllowedDirectoryPath(dir, normalized, canonical))) {
       return;
     }
     // 允許 ~/.<dotdir>/skills/ 下的路徑（各 agent 的 skills 安裝目錄）
-    const rel = path.relative(home, normalized);
-    const parts = rel.split(path.sep);
-    if (parts.length >= 3 && parts[0].startsWith('.') && parts[1] === 'skills') {
+    const canonicalHome = this.realPathIfExists(home);
+    if (this.isDotdirSkillsPath(home, normalized) && this.isDotdirSkillsPath(canonicalHome, canonical)) {
       return;
     }
     throw new Error(`Path not in allowed directories: ${resolved}`);
   }
 
+  private isAllowedDirectoryPath(allowedDir: string, normalized: string, canonical: string): boolean {
+    const normalizedAllowed = path.resolve(allowedDir);
+    if (!this.isPathWithinDirectory(normalizedAllowed, normalized)) {
+      return false;
+    }
+    const canonicalAllowed = this.realPathIfExists(normalizedAllowed);
+    return this.isPathWithinDirectory(canonicalAllowed, canonical);
+  }
+
+  private isDotdirSkillsPath(home: string, candidate: string): boolean {
+    const rel = path.relative(home, candidate);
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+      return false;
+    }
+    const parts = rel.split(path.sep);
+    return parts.length >= 3 && parts[0].startsWith('.') && parts[0] !== '.' && parts[0] !== '..' && parts[1] === 'skills';
+  }
+
+  private isPathWithinDirectory(parentDir: string, candidatePath: string): boolean {
+    const rel = path.relative(parentDir, candidatePath);
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  }
+
+  private realPathIfExists(filePath: string): string {
+    const absolute = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+    const root = path.parse(absolute).root;
+    const segments = absolute
+      .slice(root.length)
+      .split(path.sep)
+      .filter((segment) => segment && segment !== '.');
+
+    let canonical = root;
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index];
+      if (segment === '..') {
+        canonical = path.dirname(canonical);
+        continue;
+      }
+
+      const candidate = path.join(canonical, segment);
+      try {
+        canonical = fs.realpathSync.native(candidate);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+        return appendMissingSegments(candidate, segments.slice(index + 1));
+      }
+    }
+    return canonical;
+  }
+
+}
+
+function appendMissingSegments(basePath: string, segments: string[]): string {
+  let result = basePath;
+  for (const segment of segments) {
+    if (segment === '.' || segment === '') {
+      continue;
+    }
+    if (segment === '..') {
+      result = path.dirname(result);
+    } else {
+      result = path.join(result, segment);
+    }
+  }
+  return result;
 }

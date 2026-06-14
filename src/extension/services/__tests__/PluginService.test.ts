@@ -456,6 +456,80 @@ describe('PluginService', () => {
       );
     });
 
+    it('既有 installPath 不存在時不複用壞路徑，重新走 CLI 安裝', async () => {
+      const reinstalledData: InstalledPluginsFile = {
+        version: 2,
+        plugins: {
+          'my-plugin@mp': [{
+            scope: 'user',
+            installPath: '/new/path',
+            version: '1.0.1',
+            installedAt: '2026-06-14',
+            lastUpdated: '2026-06-14',
+          }],
+        },
+      };
+      settings.readInstalledPlugins
+        .mockResolvedValueOnce(installedWithUser('my-plugin@mp'))
+        .mockResolvedValueOnce(reinstalledData);
+      mockStat.mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+
+      await svc.install('my-plugin@mp', 'user');
+
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+      expect(settings.addInstallEntry).not.toHaveBeenCalled();
+      expect(settings.setPluginEnabled).not.toHaveBeenCalled();
+      expect(mockFixScriptPermissions).toHaveBeenCalledWith('/new/path');
+    });
+
+    it('同 scope stale entry 存在但其他 scope 有有效 path → 先移除 stale 再寫入有效 entry', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'my-plugin@mp': [
+            {
+              scope: 'user',
+              installPath: '/missing/path',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+            },
+            {
+              scope: 'project',
+              projectPath: '/my/project',
+              installPath: '/valid/path',
+              version: '1.0.0',
+              installedAt: '2025-01-01',
+              lastUpdated: '2025-01-01',
+            },
+          ],
+        },
+      } satisfies InstalledPluginsFile);
+      mockStat.mockImplementation(async (filePath) => {
+        if (String(filePath) === '/missing/path') {
+          throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        }
+        return {} as never;
+      });
+
+      await svc.install('my-plugin@mp', 'user');
+
+      expect(cli.exec).not.toHaveBeenCalled();
+      expect(settings.removeInstallEntry).toHaveBeenCalledWith('my-plugin@mp', 'user', undefined);
+      expect(settings.addInstallEntry).toHaveBeenCalledWith(
+        'my-plugin@mp',
+        expect.objectContaining({
+          scope: 'user',
+          installPath: '/valid/path',
+          version: '1.0.0',
+        }),
+      );
+      expect(settings.setPluginEnabled).toHaveBeenCalledWith('my-plugin@mp', 'user', true);
+    });
+
     it('reuse 路徑 project scope 無 workspace → throw（不到 addInstallEntry）', async () => {
       settings.readInstalledPlugins.mockResolvedValue(installedWithUser('my-plugin@mp'));
 
