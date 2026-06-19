@@ -68,10 +68,17 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 ## Step 2 — 確認或 early exit
 
-- 只有 workflow 回報 `gaps`、`changed`、`envChanges`、`repoOnly`、`docsLikelyGap`、`conflicts`、`docsOnlyKeys` 都為空，且 `hookCoverage.missingCommandTypes` 為空時，才可報告同步完成並 **END**。
-- `changed` 內若只是 repo-ahead 的 UI 約束（如 number `step`）或 repo 遵循「docs > schemastore」的 default，屬 note-only 不需動作；唯有 schema 真正改了 repo 該跟進的 default/enum 才套用。`hookCoverage.missingEventTypes` 應為空（event types 動態，不會 drift）——若非空代表 workflow 誤報，忽略。
+- 只有 workflow 回報 `gaps`、`changed`、`envChanges`、`repoOnly`、`docsLikelyGap`、`docsOnlyKeys` 都為空，`conflicts` 只剩 schemastore-lag note（見下）或全空，且 `hookCoverage.missingCommandTypes` 為空時，才可報告同步完成並 **END**。
+- `changed` 內若只是 repo-ahead 的 UI 約束（如 number `step`）或 repo 遵循「docs > schemastore」的 default，屬 note-only 不需動作；唯有 schema 真正改了 repo 該跟進的 default/enum 才套用。`conflicts` 內 `schemastore lags docs:` 開頭的條目同屬 note-only——schemastore 還沒收錄、但 repo 已依官方 docs 同步的 key，repo 是對的，不需動作、不阻止 early-exit。`hookCoverage.missingEventTypes` 應為空（event types 動態，不會 drift）——若非空代表 workflow 誤報，忽略。
 - 有 user-facing gap 且 section 歸屬不明確 → `AskUserQuestion` 讓使用者確認。
 - `repoOnly` 清單一律提報使用者；確認為誤加才由使用者授權刪除。
+
+## 已知限制（探查 workflow）
+
+沒有官方 machine-readable schema 時，PRIMARY_SCHEMA fallback 到 schemastore，而 schemastore 落後官方 docs。實測（resume 重跑）有兩個限制：
+
+- **docsKeys 減法與 `knownExcluded` 排除靠 LLM 執行，不完全可靠**：diff 會認出「repo 有、docs 有、schemastore 沒收錄」的 key 並標成 `schemastore lags docs:` conflict（已驗證會產生），但實測 LLM 常把同一批 key **同時**留在 `removed`（沒完全遵守「改記 conflict 而非 removed」）；managed-only 等 `knownExcluded` key 也偶爾漏排除、被誤列 `added`（如 `channelsEnabled`）。判讀時以 conflicts 的 schemastore-lag 清單為準扣掉 `removed` 重複，並對照 surface-map 的 excluded 清單剔除誤列的 `added`；真要刪的只有 schemastore + docs + env/CHANGELOG 三來源皆無者。
+- **union 型欄位的 deep-diff 尚未展開**：object 子屬性已會展開比對（nested drift 可偵測，如 `sandbox.*`、`worktree.*`），但 `kind: 'union'` 欄位（`hookCommand.anyOf` variant、`allowedMcpServers`/`deniedMcpServers` item discriminants）只回 union 本身、不列 variant 子屬性 shape。hook command **type** 存在性由 `hookCommandTypes` + hook coverage 涵蓋，variant 內 props 的 drift 偵測不到。
 
 ## Step 3 — 套用變更（主迴圈，依 `references/` 決策）
 

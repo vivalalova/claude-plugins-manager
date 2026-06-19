@@ -74,6 +74,14 @@ describe('getKnownEnvVar()', () => {
       category: 'ui',
       valueType: Boolean,
     });
+    expect(getKnownEnvVar('CLAUDE_CLIENT_PRESENCE_FILE')).toMatchObject({
+      category: 'feature',
+      valueType: String,
+    });
+  });
+
+  it('BASH_MAX_TIMEOUT_MS default matches official docs (600000, not 3600000)', () => {
+    expect(getKnownEnvVar('BASH_MAX_TIMEOUT_MS')?.default).toBe('600000');
   });
 
   it('returns undefined for unknown var', () => {

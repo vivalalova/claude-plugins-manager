@@ -232,6 +232,7 @@ export interface ClaudeSettings {
     enableWeakerNetworkIsolation?: boolean;
     enableWeakerNestedSandbox?: boolean;
     allowUnsandboxedCommands?: boolean;
+    allowAppleEvents?: boolean;
     failIfUnavailable?: boolean;
     ignoreViolations?: Record<string, string[]>;
     ripgrep?: {

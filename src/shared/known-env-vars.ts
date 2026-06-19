@@ -476,7 +476,7 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'BASH_MAX_TIMEOUT_MS',
     valueType: Number,
     category: 'timeout',
-    default: '3600000',
+    default: '600000',
   },
   CLAUDE_ASYNC_AGENT_STALL_TIMEOUT_MS: {
     name: 'CLAUDE_ASYNC_AGENT_STALL_TIMEOUT_MS',
@@ -649,6 +649,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   CLAUDECODE: {
     name: 'CLAUDECODE',
     valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CLIENT_PRESENCE_FILE: {
+    name: 'CLAUDE_CLIENT_PRESENCE_FILE',
+    valueType: String,
     category: 'feature',
   },
   CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: {

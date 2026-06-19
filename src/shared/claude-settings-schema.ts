@@ -412,6 +412,7 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
   enableWeakerNetworkIsolation: optional(booleanValue()),
   enableWeakerNestedSandbox: optional(booleanValue()),
   allowUnsandboxedCommands: optional(booleanValue()),
+  allowAppleEvents: optional(booleanValue()),
   failIfUnavailable: optional(booleanValue()),
   ignoreViolations: optional(recordValue(STRING_ARRAY_SCHEMA)),
   ripgrep: optional(objectValue({

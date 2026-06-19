@@ -14,6 +14,7 @@ type SandboxBooleanKey =
   | 'enableWeakerNetworkIsolation'
   | 'enableWeakerNestedSandbox'
   | 'allowUnsandboxedCommands'
+  | 'allowAppleEvents'
   | 'failIfUnavailable';
 type SandboxFilesystemArrayKey = 'allowWrite' | 'denyWrite' | 'denyRead' | 'allowRead';
 type SandboxNetworkArrayKey = 'allowedDomains' | 'deniedDomains' | 'allowUnixSockets' | 'allowMachLookup';
@@ -56,7 +57,7 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
   // Clean root-level
   if (Array.isArray(clean.excludedCommands) && (clean.excludedCommands as unknown[]).length === 0) delete clean.excludedCommands;
   if (clean.ignoreViolations && Object.keys(clean.ignoreViolations as object).length === 0) delete clean.ignoreViolations;
-  for (const k of ['enabled', 'autoAllowBashIfSandboxed', 'enableWeakerNetworkIsolation', 'enableWeakerNestedSandbox', 'allowUnsandboxedCommands', 'failIfUnavailable']) {
+  for (const k of ['enabled', 'autoAllowBashIfSandboxed', 'enableWeakerNetworkIsolation', 'enableWeakerNestedSandbox', 'allowUnsandboxedCommands', 'allowAppleEvents', 'failIfUnavailable']) {
     if (clean[k] === undefined) delete clean[k];
     if (clean[k] === '') delete clean[k];
   }
@@ -207,6 +208,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     { key: 'enableWeakerNetworkIsolation', label: tk('weakerNetwork') },
     { key: 'enableWeakerNestedSandbox', label: tk('weakerNested') },
     { key: 'allowUnsandboxedCommands', label: tk('allowUnsandboxed') },
+    { key: 'allowAppleEvents', label: tk('allowAppleEvents') },
     { key: 'failIfUnavailable', label: tk('failIfUnavailable') },
   ];
 

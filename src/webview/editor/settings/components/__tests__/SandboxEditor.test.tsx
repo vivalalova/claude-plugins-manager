@@ -166,6 +166,16 @@ describe('SandboxEditor — 結構化模式 checkbox', () => {
       expect(onSave).toHaveBeenCalledWith('sandbox', { autoAllowBashIfSandboxed: true });
     });
   });
+
+  it('toggle allowAppleEvents → onSave 含 allowAppleEvents: true', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    await waitFor(() => screen.getByRole('checkbox', { name: /Allow Apple Events/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Allow Apple Events/i }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', { allowAppleEvents: true });
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
