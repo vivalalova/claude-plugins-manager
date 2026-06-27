@@ -861,6 +861,7 @@ export const en = {
   'mcp.section.plugin': 'Plugin-provided MCP Servers',
   // AddMcpDialog
   'mcp.add.validation': 'Name and Command/URL are required',
+  'mcp.add.nameValidation': 'Name cannot start with "-" (it would be parsed as a CLI flag)',
   // ConfirmDialog
   'confirm.default.confirm': 'Confirm',
   'confirm.default.cancel': 'Cancel',

@@ -863,6 +863,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'mcp.section.plugin': '由外掛安裝的 MCP',
   // AddMcpDialog
   'mcp.add.validation': '名稱和指令/URL 為必填',
+  'mcp.add.nameValidation': '名稱不可以 "-" 開頭(會被當成 CLI flag)',
   // ConfirmDialog
   'confirm.default.confirm': '確認',
   'confirm.default.cancel': '取消',

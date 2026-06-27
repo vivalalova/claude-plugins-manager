@@ -123,6 +123,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'mcp.section.plugin': 'プラグイン提供の MCP サーバー',
   // AddMcpDialog
   'mcp.add.validation': '名前とコマンド/URLは必須です',
+  'mcp.add.nameValidation': '名前は "-" で始められません(CLIフラグとして解釈されます)',
   // ConfirmDialog
   'confirm.default.confirm': '確認',
   'confirm.default.cancel': 'キャンセル',

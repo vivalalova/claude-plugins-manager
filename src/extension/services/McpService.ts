@@ -115,6 +115,12 @@ export class McpService {
 
   /** 新增 MCP server */
   async add(params: McpAddParams): Promise<void> {
+    // name 是 positional 參數,以 "-" 開頭會被 CLI 當成 flag 解析(且無法用 "--" 終止符
+    // 修正,因為後面的 -e/-H variadic options 必須在 name 之後)。fail-fast 拒絕。
+    if (params.name.startsWith('-')) {
+      throw new Error(`MCP server 名稱不可以 "-" 開頭(會被當成 CLI flag):${params.name}`);
+    }
+
     const args = ['mcp', 'add'];
 
     if (params.transport) {

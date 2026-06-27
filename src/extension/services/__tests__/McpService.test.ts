@@ -572,6 +572,28 @@ describe('McpService', () => {
       ).rejects.toThrow('mcp add failed');
     });
 
+    it('name 以 -- 開頭（如 --scope）→ add() 應 reject 且 cli.exec 不被呼叫', async () => {
+      await expect(
+        svc.add({ name: '--scope', commandOrUrl: 'npx my-mcp' }),
+      ).rejects.toThrow();
+      expect(cli.exec).not.toHaveBeenCalled();
+    });
+
+    it('name 以單一 - 開頭（如 -e）→ add() 應 reject 且 cli.exec 不被呼叫', async () => {
+      await expect(
+        svc.add({ name: '-e', commandOrUrl: 'npx my-mcp' }),
+      ).rejects.toThrow();
+      expect(cli.exec).not.toHaveBeenCalled();
+    });
+
+    it('合法 name 中間有連字號（如 my-server）→ add() 正常呼叫 cli.exec', async () => {
+      await svc.add({ name: 'my-server', commandOrUrl: 'npx my-mcp' });
+      expect(cli.exec).toHaveBeenCalledWith(
+        ['mcp', 'add', 'my-server', 'npx my-mcp'],
+        expect.objectContaining({ cwd: undefined }),
+      );
+    });
+
     it('add 後 metadata cache 立即 invalidate（不等 FileWatcher debounce）', async () => {
       mockReadFile.mockImplementation(async (path: string) => {
         if (path.includes('.claude.json')) {

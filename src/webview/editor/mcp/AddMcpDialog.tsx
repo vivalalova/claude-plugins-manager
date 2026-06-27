@@ -76,6 +76,9 @@ export function AddMcpDialog({
     if (!name.trim() || !commandOrUrl.trim()) {
       throw new Error(t('mcp.add.validation'));
     }
+    if (name.trim().startsWith('-')) {
+      throw new Error(t('mcp.add.nameValidation'));
+    }
 
     const env: Record<string, string> = {};
     for (const line of envText.split('\n').filter(Boolean)) {
