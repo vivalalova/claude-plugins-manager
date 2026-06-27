@@ -65,6 +65,7 @@ export function useRemoteListQuery<T>({
     if (cacheKey) {
       const cached = cacheRef.current.get(cacheKey);
       if (cached) {
+        latestRequestIdRef.current++; // 作廢 in-flight 請求，避免遲到 resolve 覆寫 cache-hit 結果
         setItems(cached);
         setLoading(false);
         setError(null);
