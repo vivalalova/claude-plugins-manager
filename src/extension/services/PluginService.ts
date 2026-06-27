@@ -279,14 +279,18 @@ export class PluginService {
    * 再清空變空的 plugin/marketplace 父目錄。
    */
   async pruneUnusedCache(): Promise<{ removedDirs: number; freedBytes: number }> {
-    // 收集所有 installPath（跨所有 scope/project）
-    const data = await this.settings.readInstalledPlugins();
-    const referencedPaths = new Set<string>();
-    for (const entries of Object.values(data.plugins)) {
-      for (const entry of entries) {
-        referencedPaths.add(entry.installPath);
+    const collectReferenced = (data: InstalledPluginsFile): Set<string> => {
+      const paths = new Set<string>();
+      for (const entries of Object.values(data.plugins)) {
+        for (const entry of entries) {
+          paths.add(entry.installPath);
+        }
       }
-    }
+      return paths;
+    };
+
+    // 收集所有 installPath（跨所有 scope/project）
+    const referencedPaths = collectReferenced(await this.settings.readInstalledPlugins());
 
     // 列舉 cache 下所有 hash-level 目錄
     let mpDirents: import('fs').Dirent[];
@@ -323,20 +327,28 @@ export class PluginService {
 
     if (unreferenced.length === 0) return { removedDirs: 0, freedBytes: 0 };
 
-    // 計算大小 + 刪除
-    const sizes = await Promise.all(
-      unreferenced.map((p) => this.calcDirSize(p)),
+    // 先算各候選目錄大小（遞迴 IO，較慢），放在 re-read 之前，縮小 re-read → rm 的競態窗口
+    const sizeByPath = new Map<string, number>();
+    await Promise.all(
+      unreferenced.map(async (p) => { sizeByPath.set(p, await this.calcDirSize(p)); }),
     );
-    const freedBytes = sizes.reduce((sum, s) => sum + s, 0);
+
+    // 刪除前 re-read：排除初次掃描後才被安裝引用的目錄，避免與並發 install 競態
+    // （新安裝的 cache 目錄不在 t0 快照、會被誤判 unreferenced 而刪除）。
+    const latestReferenced = collectReferenced(await this.settings.readInstalledPlugins());
+    const toDelete = unreferenced.filter((p) => !latestReferenced.has(p));
+    if (toDelete.length === 0) return { removedDirs: 0, freedBytes: 0 };
+
+    const freedBytes = toDelete.reduce((sum, p) => sum + (sizeByPath.get(p) ?? 0), 0);
 
     await Promise.all(
-      unreferenced.map((p) => rm(p, { recursive: true, force: true })),
+      toDelete.map((p) => rm(p, { recursive: true, force: true })),
     );
 
     // 清空變空的父目錄（plugin level → marketplace level）
     await this.cleanEmptyParents(PLUGINS_CACHE_DIR);
 
-    return { removedDirs: unreferenced.length, freedBytes };
+    return { removedDirs: toDelete.length, freedBytes };
   }
 
   /** 遞迴計算目錄大小（bytes） */

@@ -82,7 +82,11 @@ describe('PluginService', () => {
   let svc: PluginService;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    // fs mock 預設值（resetAllMocks 會清掉 hoisted 時設的 default，需補回）
+    mockStat.mockResolvedValue({});
+    mockReaddir.mockResolvedValue([]);
+    mockRm.mockResolvedValue(undefined);
     cli = createMockCli();
     settings = createMockSettings();
     svc = new PluginService(cli, settings);
@@ -1205,6 +1209,55 @@ describe('PluginService', () => {
 
       const result = await svc.pruneUnusedCache();
 
+      expect(result).toEqual({ removedDirs: 0, freedBytes: 0 });
+      expect(mockRm).not.toHaveBeenCalled();
+    });
+
+    it('race condition: install 在 t0 快照後寫入新 installPath → 不刪新安裝的 cache 目錄', async () => {
+      // 受測場景：
+      //   t0: pruneUnusedCache 第一次 readInstalledPlugins → 不含 newHashPath
+      //   t1: install() 並發寫入 newHashPath 到 installed_plugins.json
+      //   t2: prune 準備刪除 unreferenced 前，fix 後的 re-read 應看到 newHashPath 已被引用
+      //
+      // fix 前（只讀一次）：newHashPath 不在 t0 referencedPaths → 被 rm（test 紅）
+      // fix 後（刪前 re-read）：發現 newHashPath 已被引用 → 跳過刪除（test 綠）
+
+      const newHashPath = `${MOCK_CACHE_DIR}/mp/beta/newHash`;
+
+      // 第一次 readInstalledPlugins（t0 初始掃描）：不含 newHashPath
+      settings.readInstalledPlugins.mockResolvedValueOnce({
+        version: 2,
+        plugins: {},
+      });
+
+      // 第二次 readInstalledPlugins（fix 後 re-read，在 rm 之前）：已含 newHashPath（install 已寫入）
+      settings.readInstalledPlugins.mockResolvedValueOnce({
+        version: 2,
+        plugins: {
+          'beta@mp': [{
+            scope: 'user',
+            installPath: newHashPath,
+            version: '1.0.0',
+            installedAt: '2025-01-01',
+            lastUpdated: '2025-01-01',
+          }],
+        },
+      });
+
+      // cache 掃描三層：掃到 newHashPath（t0 快照不含它，會被放進 unreferenced）
+      mockReaddir.mockResolvedValueOnce([makeDirent('mp', true)]);        // Level 1: marketplace
+      mockReaddir.mockResolvedValueOnce([makeDirent('beta', true)]);      // Level 2: plugin
+      mockReaddir.mockResolvedValueOnce([makeDirent('newHash', true)]);   // Level 3: hash
+
+      // calcDirSize: newHashPath 內容（計算大小用，不影響 rm 決策）
+      mockReaddir.mockResolvedValueOnce([makeDirent('index.js', false)]);
+      mockStat.mockResolvedValueOnce({ size: 1024 });
+
+      // fix 後：toDelete 為空 → early return，cleanEmptyParents 不會執行，無需為其設 mock
+
+      const result = await svc.pruneUnusedCache();
+
+      // re-read 發現 newHashPath 已被引用 → toDelete 空 → early return
       expect(result).toEqual({ removedDirs: 0, freedBytes: 0 });
       expect(mockRm).not.toHaveBeenCalled();
     });
