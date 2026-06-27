@@ -344,6 +344,7 @@ export function PermissionsSection({
         addLabel={t('settings.permissions.additionalDirectories.add')}
         duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
         settingKey="additionalDirectories"
+        disabled={saving}
         onSave={async (_key, value) => {
           updatePermissions({ ...perms, additionalDirectories: value as string[] });
         }}
@@ -369,6 +370,7 @@ export function PermissionsSection({
         notSetLabel={t('settings.permissions.disableAutoMode.notSet')}
         unknownTemplate={t('settings.permissions.disableAutoMode.unknown')}
         settingKey="disableAutoMode"
+        disabled={saving}
         onSave={async (_key, value) => {
           updatePermissions({ ...perms, disableAutoMode: value as 'disable' });
         }}
@@ -388,6 +390,7 @@ export function PermissionsSection({
         notSetLabel={t('settings.permissions.disableBypassPermissionsMode.notSet')}
         unknownTemplate={t('settings.permissions.disableBypassPermissionsMode.unknown')}
         settingKey="disableBypassPermissionsMode"
+        disabled={saving}
         onSave={async (_key, value) => {
           updatePermissions({ ...perms, disableBypassPermissionsMode: value as 'disable' });
         }}

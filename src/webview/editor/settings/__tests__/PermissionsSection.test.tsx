@@ -520,6 +520,62 @@ describe('PermissionsSection — rule form 互動', () => {
 // enableAllProjectMcpServers 互動
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// issue #10: permissions 並發寫入導致 stale 快照覆寫
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — permissions 並發寫入防護', () => {
+  it('第一個 permissions 寫入 in-flight 時，disableBypassPermissionsMode select 應被 disabled', async () => {
+    // mock onSave 回傳永遠 pending 的 promise，模擬寫入 in-flight
+    const onSave = vi.fn().mockReturnValue(new Promise<void>(() => {}));
+    renderSection({}, onSave);
+
+    // 操作 disableAutoMode → 觸發 PermissionsSection.updatePermissions → saving=true
+    await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), {
+      target: { value: 'disable' },
+    });
+
+    // 確認 onSave 被呼叫一次且仍 pending（precondition）
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith('permissions', { disableAutoMode: 'disable' });
+    });
+
+    // fix 前：disableBypassPermissionsMode 沒有 disabled → 此斷言紅
+    // fix 後：PermissionsSection.saving 透過 disabled prop 傳入 → 此斷言綠
+    const bypassSelect = screen.getByRole('combobox', {
+      name: 'Disable Bypass Permissions Mode',
+    }) as HTMLSelectElement;
+    expect(bypassSelect.disabled).toBe(true);
+  });
+
+  it('第一個 permissions 寫入 in-flight 時，additionalDirectories Add 按鈕應被 disabled', async () => {
+    const onSave = vi.fn().mockReturnValue(new Promise<void>(() => {}));
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), {
+      target: { value: 'disable' },
+    });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    // 在 input 填值，確保 Add 按鈕的 disabled 狀態來自 saving 而非 empty input
+    const addDirInput = screen.getByPlaceholderText('e.g. ~/projects') as HTMLInputElement;
+    fireEvent.change(addDirInput, { target: { value: '~/new-dir' } });
+
+    const field = addDirInput.closest('.settings-field') as HTMLElement;
+    const addButton = within(field).getByRole('button', { name: 'Add' }) as HTMLButtonElement;
+
+    // fix 前：TagInput 沒收到 disabled prop → 按鈕只依 inputValue 決定 disabled → 不是 true → 紅
+    // fix 後：disabled prop 傳入 → saving 為 true → 按鈕 disabled → 綠
+    expect(addButton.disabled).toBe(true);
+  });
+});
+
 describe('PermissionsSection — enableAllProjectMcpServers 互動', () => {
   it('enableAllProjectMcpServers 未設定 → checkbox unchecked', async () => {
     renderSection({});

@@ -324,6 +324,7 @@ export interface EnumDropdownProps {
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
+  disabled?: boolean;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
 }
@@ -339,18 +340,20 @@ export function EnumDropdown({
   settingKey,
   defaultValue,
   overriddenScope,
+  disabled = false,
   onSave,
   onDelete,
 }: EnumDropdownProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
   const resetLabel = t('settings.common.reset');
+  const isDisabled = disabled || saving;
 
   const isUnknown = value !== undefined && !knownValues.includes(value);
   const selectValue = isUnknown ? '__unknown__' : (value ?? '');
 
   const handleChange = (val: string): void => {
-    if (val === '__unknown__') return;
+    if (val === '__unknown__' || isDisabled) return;
     void withSave(async () => {
       if (val === '' || (defaultValue !== undefined && val === defaultValue)) {
         await onDelete(settingKey);
@@ -372,7 +375,7 @@ export function EnumDropdown({
           className="select"
           value={selectValue}
           onChange={(e) => void handleChange(e.target.value)}
-          disabled={saving}
+          disabled={isDisabled}
         >
           <option value="">{notSetLabel}</option>
           {isUnknown && (
@@ -388,7 +391,7 @@ export function EnumDropdown({
           <button
             className="btn btn-secondary"
             onClick={() => void handleChange('')}
-            disabled={saving}
+            disabled={isDisabled}
             type="button"
             aria-label={`${resetLabel} ${label}`}
           >
@@ -520,6 +523,7 @@ export interface TagInputProps {
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
+  disabled?: boolean;
   onSave: (key: string, value: unknown) => Promise<void>;
 }
 
@@ -535,18 +539,20 @@ export function TagInput({
   settingKey,
   defaultValue,
   overriddenScope,
+  disabled = false,
   onSave,
 }: TagInputProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const [inputValue, setInputValue] = useScopedInputValue(scope, '');
   const [error, setError] = useState('');
+  const isDisabled = disabled || saving;
   useEffect(() => {
     setError('');
   }, [scope]);
 
   const handleAdd = (): void => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
+    if (!trimmed || isDisabled) return;
     if (tags.includes(trimmed)) {
       setError(duplicateError);
       return;
@@ -559,6 +565,7 @@ export function TagInput({
   };
 
   const handleDelete = (tag: string): void => {
+    if (isDisabled) return;
     void withSave(() => onSave(settingKey, tags.filter((t) => t !== tag)));
   };
 
@@ -577,7 +584,7 @@ export function TagInput({
       <TagList
         items={tags}
         emptyPlaceholder={emptyPlaceholder}
-        disabled={saving}
+        disabled={isDisabled}
         onDeleteItem={(tag) => void handleDelete(tag)}
       />
       <div className="general-tag-add-row">
@@ -588,12 +595,12 @@ export function TagInput({
           onChange={(e) => { setInputValue(e.target.value); setError(''); }}
           onKeyDown={handleKeyDown}
           placeholder={inputPlaceholder}
-          disabled={saving}
+          disabled={isDisabled}
         />
         <button
           className="btn btn-primary"
           onClick={() => void handleAdd()}
-          disabled={saving || !inputValue.trim()}
+          disabled={isDisabled || !inputValue.trim()}
           type="button"
         >
           {addLabel}
