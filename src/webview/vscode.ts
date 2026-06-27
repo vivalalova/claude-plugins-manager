@@ -14,6 +14,13 @@ declare function acquireVsCodeApi(): VsCodeApi;
 /** 全域唯一的 VSCode API 實例 */
 const vscode = acquireVsCodeApi();
 
+/**
+ * 每個 webview session 唯一的 requestId 前綴。
+ * webview reload 會重跑此 module、requestIdCounter 歸零，純數字 id 會跨 session 重複；
+ * 加 session 前綴使不同 session 的 id 空間不重疊，避免 reload 前的遲到 response 命中新 request。
+ */
+const SESSION_PREFIX = `${crypto.randomUUID()}-`;
+
 /** pending requests 等待 response 配對 */
 let requestIdCounter = 0;
 const pendingRequests = new Map<string, {
@@ -57,7 +64,7 @@ export function sendRequest<T>(
   message: Record<string, unknown>,
   timeoutMs = 30000,
 ): Promise<T> {
-  const requestId = String(++requestIdCounter);
+  const requestId = `${SESSION_PREFIX}${++requestIdCounter}`;
   return new Promise<T>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       pendingRequests.delete(requestId);
