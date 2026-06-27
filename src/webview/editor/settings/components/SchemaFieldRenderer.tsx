@@ -5,6 +5,7 @@ import type { FlatFieldSchema } from '../../../../shared/claude-settings-schema'
 import { getSchemaDefault, getSchemaEnumOptions, getValueSchemaEnumOptions, getValueSchemaNumberMeta } from '../../../../shared/claude-settings-schema';
 import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './SettingControls';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
+import { useSettingSave } from '../hooks/useSettingSave';
 
 export interface SchemaFieldRendererProps {
   settingKey: string;
@@ -18,6 +19,7 @@ export interface SchemaFieldRendererProps {
 
 export function SchemaFieldRenderer({ settingKey, schema, value, scope, overriddenScope, onSave, onDelete }: SchemaFieldRendererProps): React.ReactElement | null {
   const { t } = useI18n();
+  const { withSave } = useSettingSave();
   const tk = (suffix: string): string =>
     t(`settings.${schema.section}.${settingKey}.${suffix}` as Parameters<typeof t>[0]);
   const tc = (suffix: string, vars?: Record<string, string | number>): string =>
@@ -63,7 +65,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
                 onConfirm={() => {
                   const val = pendingDangerValue;
                   setPendingDangerValue(null);
-                  void onSave(settingKey, val);
+                  void withSave(() => onSave(settingKey, val));
                 }}
                 onCancel={() => setPendingDangerValue(null)}
               />

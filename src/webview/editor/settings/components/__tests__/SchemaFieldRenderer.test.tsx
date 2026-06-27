@@ -377,4 +377,26 @@ describe('SchemaFieldRenderer — dangerValues', () => {
     });
     expect(screen.queryByText('Bypass Permissions')).toBeNull();
   });
+
+  // Reproduction test for GitHub issue #14:
+  // danger-confirm onConfirm uses `void onSave(...)` directly, bypassing `withSave`.
+  // When onSave rejects, the rejection is swallowed — no error toast, no user feedback.
+  // Fix: wrap with `withSave(() => onSave(settingKey, val))` so catch → addToast('error').
+  it('ConfirmDialog confirm → onSave reject → error toast 顯示（issue #14 regression）', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('write failed'));
+    renderField('defaultMode', {
+      valueSchema: { kind: 'string', enum: ['plan', 'bypassPermissions'] as const },
+      section: 'general',
+      controlType: String,
+      dangerValues: ['bypassPermissions'] as const,
+    }, undefined, onSave);
+    await waitFor(() => screen.getByRole('combobox'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bypassPermissions' } });
+    await waitFor(() => screen.getByText('Bypass Permissions'));
+    fireEvent.click(screen.getByText('Confirm'));
+    // After fix: withSave catches rejection → addToast('write failed', 'error') → role="alert" in DOM.
+    // Before fix: void onSave swallows the rejection → no toast → this findByRole times out (RED).
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('write failed');
+  });
 });
