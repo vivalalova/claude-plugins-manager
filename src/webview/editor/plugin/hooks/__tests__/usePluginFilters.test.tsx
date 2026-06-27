@@ -219,6 +219,56 @@ describe('usePluginFilters', () => {
     });
   });
 
+  it('createSection 後 sectionNames 應保留（regression: #15 缺少 ...prev 導致 sectionNames 被清掉）', async () => {
+    // 初始 state：section 1 已有自訂名稱
+    mockViewState['plugin.sections'] = {
+      assignments: { mp1: 1 },
+      nextId: 2,
+      sectionOrder: [1],
+      sectionNames: { 1: '自訂名稱' },
+    };
+
+    const { result } = renderHook(() => usePluginFilters([
+      makePlugin('alpha@mp1'),
+      makePlugin('beta@mp2'),
+    ]));
+
+    await waitFor(() => {
+      expect(result.current.ready).toBe(true);
+    });
+
+    // 呼叫 createSection 把 mp2 拖曳到新 section
+    act(() => {
+      result.current.createSection('mp2');
+    });
+
+    await waitFor(() => {
+      const persisted = mockViewState['plugin.sections'] as Record<string, unknown>;
+      // nextId 應已遞增，表示 createSection 已執行
+      expect(persisted.nextId).toBe(3);
+    });
+
+    const persisted = mockViewState['plugin.sections'] as {
+      assignments: Record<string, number>;
+      nextId: number;
+      sectionOrder: number[];
+      sectionNames?: Record<number, string>;
+    };
+
+    // 新 section 2 應在 assignments 裡
+    expect(persisted.assignments['mp2']).toBe(2);
+    // nextId 遞增
+    expect(persisted.nextId).toBe(3);
+    // sectionOrder 包含新 section
+    expect(persisted.sectionOrder).toContain(2);
+
+    // *** 核心斷言：sectionNames 的自訂名稱必須保留 ***
+    // fix 前：createSection return 沒有 ...prev，sectionNames 被靜默丟棄 → 這行紅
+    // fix 後：加了 ...prev → sectionNames 保留 → 這行綠
+    expect(persisted.sectionNames).toBeDefined();
+    expect(persisted.sectionNames?.[1]).toBe('自訂名稱');
+  });
+
   it('search 只用 viewState（不持久化到 globalState），初始化時從 viewState 讀回', async () => {
     vi.useFakeTimers();
     mockViewState['plugin.search'] = 'from-viewstate';

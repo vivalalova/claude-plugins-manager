@@ -293,6 +293,7 @@ export function usePluginFilters(plugins: MergedPlugin[]): UsePluginFiltersRetur
       const newId = prev.nextId;
       const sectionOrder = [...(prev.sectionOrder ?? []), newId];
       return {
+        ...prev,
         assignments: { ...prev.assignments, [marketplace]: newId },
         nextId: newId + 1,
         sectionOrder,
