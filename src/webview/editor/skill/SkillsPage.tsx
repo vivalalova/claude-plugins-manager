@@ -241,7 +241,7 @@ export function SkillsPage(): React.ReactElement {
               skill={s}
               installedScopes={installedScopes}
               loadingScopes={loadingScopes}
-              installing={addingSkill && pendingInstall === s.repo}
+              installing={addingSkill && pendingInstall === s.repo && pendingInstallSkillName === s.name}
               hasWorkspace={hasWorkspace}
               onScopeToggle={handleRegistryScopeToggle}
               onViewOnline={handleViewOnline}

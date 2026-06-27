@@ -648,6 +648,67 @@ describe('SkillsPage', () => {
       }, { timeout: 3000 });
     });
 
+    it('同 repo 多 skill：只有正在安裝的那張 card 顯示 installing（checkboxes disabled），其餘不受影響', async () => {
+      // Registry 回傳同一 repo 下兩個 skill
+      const sameRepoResults: RegistrySkill[] = [
+        { rank: 1, name: 'skill-a', repo: 'github.com/x/y', installs: '1.0K', url: 'https://skills.sh/github.com/x/y/skill-a' },
+        { rank: 2, name: 'skill-b', repo: 'github.com/x/y', installs: '900', url: 'https://skills.sh/github.com/x/y/skill-b' },
+      ];
+
+      // skill.add never resolves → addingSkill 保持 true
+      let resolveAdd: (() => void) | undefined;
+      mockSendRequest.mockImplementation((req: { type: string }) => {
+        if (req.type === 'skill.list') return Promise.resolve([]);
+        if (req.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws' }]);
+        if (req.type === 'skill.registry') return Promise.resolve(sameRepoResults);
+        if (req.type === 'skill.add') return new Promise<void>((resolve) => { resolveAdd = resolve; });
+        return Promise.resolve(undefined);
+      });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Installed')).toBeTruthy());
+      fireEvent.click(screen.getByText('Registry'));
+
+      // 等 registry 資料載入
+      await waitFor(() => {
+        expect(screen.getByText('skill-a')).toBeTruthy();
+        expect(screen.getByText('skill-b')).toBeTruthy();
+      }, { timeout: 3000 });
+
+      // 取得兩張 card 各自的 global checkbox
+      // RegistrySkillCard role="group" aria-label=skillName，每張有 global + project 兩個 checkbox
+      const skillACard = screen.getByRole('group', { name: 'skill-a' });
+      const skillBCard = screen.getByRole('group', { name: 'skill-b' });
+      const skillACheckboxes = skillACard.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+      const skillBCheckboxes = skillBCard.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+
+      // 點 skill-a 的 global checkbox → handleRegistryScopeToggle → pendingInstall=repo, pendingInstallSkillName='skill-a'
+      fireEvent.click(skillACheckboxes[0]!);
+
+      // AddSkillDialog 出現（pendingInstall !== null）
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('owner/repo or GitHub URL')).toBeTruthy();
+      });
+
+      // 提交 → addingSkill=true（skill.add never resolves）
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      });
+
+      // 等 addingSkill=true 傳播到 RegistrySkillCard
+      // skill-a 的 checkboxes 應該 disabled（installing=true）
+      await waitFor(() => {
+        expect(skillACheckboxes[0]!.disabled).toBe(true);
+      });
+
+      // BUG（fix 前紅）：skill-b 的 checkboxes 也被 disabled，但應該 NOT disabled
+      // fix 後：skill-b checkboxes 不受影響（installing=false，因為 pendingInstallSkillName='skill-a' !== 'skill-b'）
+      expect(skillBCheckboxes[0]!.disabled).toBe(false);
+
+      // 清理：resolve add 以免 pending promise 影響其他測試
+      resolveAdd?.();
+    });
+
     it('query 改變時必須重新 fetch registry，不得誤用舊 cache', async () => {
       mockSendRequest.mockImplementation(async (req: { type: string; sort?: string; query?: string }) => {
         if (req.type === 'skill.list') return [];
