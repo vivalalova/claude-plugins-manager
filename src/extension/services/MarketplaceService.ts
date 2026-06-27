@@ -18,7 +18,7 @@ import type {
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
 import { WriteQueue } from '../utils/WriteQueue';
-import { readJsonFile } from '../utils/jsonFile';
+import { readJsonFile, writeJsonFileAtomic } from '../utils/jsonFile';
 import { KNOWN_MARKETPLACES_PATH, PLUGINS_CACHE_DIR } from '../paths';
 import { fixScriptPermissions } from '../utils/fixScriptPermissions';
 import { expandTildePath } from '../utils/pathUtils';
@@ -104,7 +104,7 @@ export class MarketplaceService {
       }
 
       if (changed) {
-        await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
+        await writeJsonFileAtomic(KNOWN_MARKETPLACES_PATH, afterConfig);
       }
 
       // 修正新 marketplace 中 .sh 檔案的執行權限
@@ -149,7 +149,7 @@ export class MarketplaceService {
       }
 
       entry.autoUpdate = !entry.autoUpdate;
-      await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(config, null, 2) + '\n');
+      await writeJsonFileAtomic(KNOWN_MARKETPLACES_PATH, config);
     });
   }
 
@@ -202,7 +202,7 @@ export class MarketplaceService {
         if (entry.autoUpdate !== true) { entry.autoUpdate = true; changed = true; }
       }
       if (changed) {
-        await fs.writeFile(KNOWN_MARKETPLACES_PATH, JSON.stringify(afterConfig, null, 2) + '\n');
+        await writeJsonFileAtomic(KNOWN_MARKETPLACES_PATH, afterConfig);
       }
       await Promise.all(
         Object.values(afterConfig).map((e) => e.installLocation).filter(Boolean).map((dir) => fixScriptPermissions(dir)),

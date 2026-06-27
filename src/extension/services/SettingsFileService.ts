@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { NoWorkspaceError } from '../utils/workspace';
@@ -12,7 +12,7 @@ import type {
   PluginContents,
 } from '../../shared/types';
 import { KeyedWriteQueue } from '../utils/WriteQueue';
-import { readJsonFile } from '../utils/jsonFile';
+import { readJsonFile, writeJsonFileAtomic } from '../utils/jsonFile';
 import { PluginCatalogScanner, type PluginCatalogSnapshot } from './PluginCatalogScanner';
 import {
   INSTALLED_PLUGINS_PATH,
@@ -47,7 +47,7 @@ export class SettingsFileService {
       if (scope !== 'user') {
         await mkdir(dirname(path), { recursive: true });
       }
-      await writeFile(path, JSON.stringify(settings, null, 2) + '\n');
+      await writeJsonFileAtomic(path, settings);
     });
   }
 
@@ -194,10 +194,7 @@ export class SettingsFileService {
 
   /** 寫入 installed_plugins.json */
   async writeInstalledPlugins(data: InstalledPluginsFile): Promise<void> {
-    await writeFile(
-      INSTALLED_PLUGINS_PATH,
-      JSON.stringify(data, null, 2) + '\n',
-    );
+    await writeJsonFileAtomic(INSTALLED_PLUGINS_PATH, data);
   }
 
   /** 新增一筆安裝 entry */

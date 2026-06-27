@@ -1,4 +1,4 @@
-import { readFile } from 'fs/promises';
+import { readFile, writeFile, rename } from 'fs/promises';
 import { toErrorMessage } from '../../shared/errorUtils';
 
 /**
@@ -21,4 +21,16 @@ export async function readJsonFile<T>(filePath: string, defaultValue: T): Promis
   } catch (cause) {
     throw new Error(`Invalid JSON in ${filePath}: ${toErrorMessage(cause)}`, { cause });
   }
+}
+
+/**
+ * 原子寫入 JSON 檔:先寫暫存檔再 rename。
+ * 避免 writeFile 的 O_TRUNC 在截斷後、flush 前被行程中止而留下空白/半寫檔。
+ * POSIX 同檔系統 rename 為原子操作。呼叫端須自行序列化同一 filePath 的並發寫入
+ * (暫存檔固定為 `<filePath>.tmp`)。
+ */
+export async function writeJsonFileAtomic<T>(filePath: string, data: T): Promise<void> {
+  const tmpPath = filePath + '.tmp';
+  await writeFile(tmpPath, JSON.stringify(data, null, 2) + '\n');
+  await rename(tmpPath, filePath);
 }

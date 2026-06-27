@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MarketplaceService } from '../MarketplaceService';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
 import { NoWorkspaceError } from '../../utils/workspace';
+import { KNOWN_MARKETPLACES_PATH } from '../../paths';
 import type { CliService } from '../CliService';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
 
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockWriteFile = vi.hoisted(() => vi.fn());
+const mockRename = vi.hoisted(() => vi.fn());
 const mockMkdtemp = vi.hoisted(() => vi.fn());
 const mockRm = vi.hoisted(() => vi.fn());
 const mockAccess = vi.hoisted(() => vi.fn());
@@ -18,6 +20,7 @@ const mockFixScriptPermissions = vi.hoisted(() => vi.fn().mockResolvedValue(unde
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
   writeFile: mockWriteFile,
+  rename: mockRename,
   mkdtemp: mockMkdtemp,
   rm: mockRm,
   access: mockAccess,
@@ -74,6 +77,7 @@ describe('MarketplaceService', () => {
     svc = new MarketplaceService(cli, settings);
     mockReadFile.mockResolvedValue(JSON.stringify(MOCK_CONFIG));
     mockWriteFile.mockResolvedValue(undefined);
+    mockRename.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
     mockRealpath.mockImplementation(async (filePath: string) => filePath);
   });
@@ -156,6 +160,7 @@ describe('MarketplaceService', () => {
       await Promise.all([addPromise, togglePromise]);
 
       expect(mockWriteFile).toHaveBeenCalledTimes(2);
+      expect(mockRename).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -212,8 +217,10 @@ describe('MarketplaceService', () => {
       await svc.toggleAutoUpdate('my-marketplace');
 
       expect(mockWriteFile).toHaveBeenCalledTimes(1);
+      expect(mockWriteFile.mock.calls[0][0]).toBe(KNOWN_MARKETPLACES_PATH + '.tmp');
       const written = JSON.parse(mockWriteFile.mock.calls[0][1]);
       expect(written['my-marketplace'].autoUpdate).toBe(false);
+      expect(mockRename).toHaveBeenCalledWith(KNOWN_MARKETPLACES_PATH + '.tmp', KNOWN_MARKETPLACES_PATH);
     });
 
     it('不存在的 name 拋錯', async () => {

@@ -6,6 +6,7 @@ import type { PluginInstallEntry } from '../../../shared/types';
 /* ── fs/promises mock ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
 const mockWriteFile = vi.hoisted(() => vi.fn());
+const mockRename = vi.hoisted(() => vi.fn());
 const mockMkdir = vi.hoisted(() => vi.fn());
 const mockReaddir = vi.hoisted(() => vi.fn());
 const mockRealpath = vi.hoisted(() => vi.fn());
@@ -15,6 +16,7 @@ const mockLstat = vi.hoisted(() => vi.fn());
 vi.mock('fs/promises', () => ({
   readFile: mockReadFile,
   writeFile: mockWriteFile,
+  rename: mockRename,
   mkdir: mockMkdir,
   readdir: mockReaddir,
   realpath: mockRealpath,
@@ -32,6 +34,7 @@ describe('SettingsFileService', () => {
       { uri: { fsPath: '/workspace' }, name: 'test', index: 0 },
     ] as any;
     mockWriteFile.mockResolvedValue(undefined);
+    mockRename.mockResolvedValue(undefined);
     mockMkdir.mockResolvedValue(undefined);
     mockRealpath.mockImplementation((path: string) => Promise.resolve(path));
     mockLstat.mockResolvedValue({ isSymbolicLink: () => false });
@@ -188,8 +191,13 @@ describe('SettingsFileService', () => {
 
       await svc.setPluginEnabled('my-plugin@mp', 'project', true);
 
-      const [path] = mockWriteFile.mock.calls[0];
-      expect(path).toBe('/workspace/.claude/settings.json');
+      // writeFile 寫暫存檔，rename 移到最終路徑（原子寫入）
+      const [tmpPath] = mockWriteFile.mock.calls[0];
+      expect(tmpPath).toBe('/workspace/.claude/settings.json.tmp');
+      expect(mockRename).toHaveBeenCalledWith(
+        '/workspace/.claude/settings.json.tmp',
+        '/workspace/.claude/settings.json',
+      );
     });
 
     it('local scope → 寫入 <workspace>/.claude/settings.local.json', async () => {
@@ -197,8 +205,13 @@ describe('SettingsFileService', () => {
 
       await svc.setPluginEnabled('my-plugin@mp', 'local', true);
 
-      const [path] = mockWriteFile.mock.calls[0];
-      expect(path).toBe('/workspace/.claude/settings.local.json');
+      // writeFile 寫暫存檔，rename 移到最終路徑（原子寫入）
+      const [tmpPath] = mockWriteFile.mock.calls[0];
+      expect(tmpPath).toBe('/workspace/.claude/settings.local.json.tmp');
+      expect(mockRename).toHaveBeenCalledWith(
+        '/workspace/.claude/settings.local.json.tmp',
+        '/workspace/.claude/settings.local.json',
+      );
     });
 
     it('project scope 寫入前先建立 .claude/ 目錄', async () => {
