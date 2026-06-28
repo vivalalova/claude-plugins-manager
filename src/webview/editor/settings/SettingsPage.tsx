@@ -30,6 +30,36 @@ const PERMISSIONS_NESTED_KEYS = new Set(
     .map(([key]) => key),
 );
 
+function collectCustomizedSchemaFields(
+  settings: ClaudeSettings,
+  scope: PluginScope,
+): Array<{ key: string; section: SettingsSection }> {
+  const noop = async () => {};
+  const result: Array<{ key: string; section: SettingsSection }> = [];
+  for (const section of SETTINGS_NAV_SECTIONS) {
+    for (const key of getSectionFieldOrder(section)) {
+      const binding = getSchemaFieldBindings(key, {
+        scope,
+        settings,
+        // Only binding.value is used for inclusion; value does not depend on userSettings.
+        // overriddenScope (the only userSettings consumer) is computed with real userSettings at render time.
+        userSettings: {} as ClaudeSettings,
+        onSave: noop,
+        onDelete: noop,
+      });
+      if (binding && binding.value !== undefined) {
+        if (key === 'permissions') {
+          const perms = (settings.permissions as Record<string, unknown> | undefined) ?? {};
+          const hasNonNested = Object.keys(perms).some((k) => !PERMISSIONS_NESTED_KEYS.has(k));
+          if (!hasNonNested) continue;
+        }
+        result.push({ key, section });
+      }
+    }
+  }
+  return result;
+}
+
 type SettingsNavItem = SettingsSection | 'customized';
 
 // ---------------------------------------------------------------------------
@@ -220,9 +250,12 @@ export function SettingsPage(): React.ReactElement {
       sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'project' }),
       sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'local' }),
     ]);
+    const countFor = (s: PluginScope, scopeSettings: ClaudeSettings) =>
+      collectCustomizedSchemaFields(scopeSettings ?? {} as ClaudeSettings, s).length
+      + getUnknownSettingsEntries(scopeSettings ?? {} as ClaudeSettings).length;
     return {
-      project: Object.keys(projectSettings ?? {}).length,
-      local: Object.keys(localSettings ?? {}).length,
+      project: countFor('project', projectSettings),
+      local: countFor('local', localSettings),
     };
   }, [hasWorkspace]);
 
@@ -234,29 +267,32 @@ export function SettingsPage(): React.ReactElement {
 
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
-    setData((prev) => ({
-      ...prev,
-      settings: { ...prev.settings, [key]: value },
-    }));
+    setData((prev) => ({ ...prev, settings: { ...prev.settings, [key]: value } }));
     if (scope === 'project' || scope === 'local') {
-      const isNew = !(key in settings);
-      if (isNew) {
-        setCounts((prev) => ({ ...prev, [scope]: prev[scope] + 1 }));
-      }
+      const next = { ...settings, [key]: value };
+      setCounts((prev) => ({
+        ...prev,
+        [scope]: collectCustomizedSchemaFields(next, scope).length
+          + getUnknownSettingsEntries(next).length,
+      }));
     }
   }, [scope, setData, setCounts, settings]);
 
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
     setData((prev) => {
-      const { [key]: _, ...rest } = prev.settings as Record<string, unknown>;
-      return {
-        ...prev,
-        settings: rest as ClaudeSettings,
-      };
+      const rest = { ...prev.settings } as Record<string, unknown>;
+      delete rest[key];
+      return { ...prev, settings: rest as ClaudeSettings };
     });
-    if ((scope === 'project' || scope === 'local') && key in settings) {
-      setCounts((prev) => ({ ...prev, [scope]: Math.max(0, prev[scope] - 1) }));
+    if (scope === 'project' || scope === 'local') {
+      const next = { ...settings } as Record<string, unknown>;
+      delete next[key];
+      setCounts((prev) => ({
+        ...prev,
+        [scope]: collectCustomizedSchemaFields(next as ClaudeSettings, scope).length
+          + getUnknownSettingsEntries(next as ClaudeSettings).length,
+      }));
     }
   }, [scope, setData, setCounts, settings]);
 
@@ -274,30 +310,10 @@ export function SettingsPage(): React.ReactElement {
   ];
 
   // Customized tab: schema fields whose value is set in current scope settings
-  const customizedFields = useMemo(() => {
-    const noop = async () => {};
-    const result: Array<{ key: string; section: SettingsSection }> = [];
-    for (const section of SETTINGS_NAV_SECTIONS) {
-      for (const key of getSectionFieldOrder(section)) {
-        const binding = getSchemaFieldBindings(key, {
-          scope,
-          settings,
-          userSettings,
-          onSave: noop,
-          onDelete: noop,
-        });
-        if (binding && binding.value !== undefined) {
-          if (key === 'permissions') {
-            const perms = (settings.permissions as Record<string, unknown> | undefined) ?? {};
-            const hasNonNested = Object.keys(perms).some((k) => !PERMISSIONS_NESTED_KEYS.has(k));
-            if (!hasNonNested) continue;
-          }
-          result.push({ key, section });
-        }
-      }
-    }
-    return result;
-  }, [scope, settings, userSettings]);
+  const customizedFields = useMemo(
+    () => collectCustomizedSchemaFields(settings, scope),
+    [scope, settings],
+  );
 
   const unknownCount = useMemo(
     () => getUnknownSettingsEntries(settings).length,

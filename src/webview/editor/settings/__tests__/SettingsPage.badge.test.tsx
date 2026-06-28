@@ -2,8 +2,16 @@
  * @vitest-environment jsdom
  *
  * Issue #8 — Scope tab badge：顯示該層設定項數量
- * 功能尚未實作時：顯示類測試紅、guard 類測試綠
- * 功能實作後：optimistic 分支測試綠、guard 仍綠
+ *
+ * Bug（已確認）：badge 目前 = Object.keys(scopeSettings).length（top-level key 數），
+ * 把 enabledPlugins / $schema / feedbackSurveyState / 空 permissions:{} 也算進去，
+ * 導致「badge ≥1 但已自訂分頁空白」的矛盾。
+ *
+ * 正確口徑 = collectCustomizedSchemaFields(scopeSettings).length + getUnknownSettingsEntries(scopeSettings).length
+ * 即 badge 數 === 點進「已自訂」分頁看到的項數。
+ *
+ * 紅燈：reproduction 和新口徑的斷言在未修 code 失敗（證明 bug 存在）。
+ * 綠燈：修好後所有測試轉綠。
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -33,6 +41,14 @@ const renderPage = () => renderWithI18n(<ToastProvider><SettingsPage /></ToastPr
 const getCalls = (type: string): any[][] =>
   mockSendRequest.mock.calls.filter((c: any[]) => c[0]?.type === type);
 
+/** 取某個 scope-tab 上的 badge span，不存在則 null */
+function getScopeBadge(container: HTMLElement, scopeIndex: number): HTMLElement | null {
+  const tabs = container.querySelectorAll('.settings-scope-tab');
+  const tab = tabs[scopeIndex];
+  if (!tab) return null;
+  return tab.querySelector('.settings-scope-badge');
+}
+
 describe('SettingsPage — scope tab badge（issue #8）', () => {
   beforeEach(() => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
@@ -50,45 +66,15 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Badge 顯示（功能未實作時這三條 RED）
+  // Bug reproduction（未修 code 紅；修後綠）
   // ---------------------------------------------------------------------------
 
-  it('Project / Local 有設定時，tab 顯示正確 badge 數字', async () => {
+  it('[RED] enabledPlugins 是 hidden key → badge 應為 0（無 badge span）', async () => {
+    // 口徑差異：current code 計 top-level key = 1，正確 = 0
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project')
-        return Promise.resolve({ model: 'x', env: { A: '1' } }); // 2 top-level keys
-      if (msg.type === 'settings.get' && msg.scope === 'local')
-        return Promise.resolve({ permissions: {} }); // 1 top-level key
-      if (msg.type === 'settings.get') return Promise.resolve({});
-      return Promise.resolve(null);
-    });
-
-    const { container } = renderPage();
-
-    // Wait until tabs are stable (workspace resolved)
-    await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect(tabs.length).toBe(3);
-      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
-    });
-
-    await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      // project tab（index 1）should show badge "2"
-      expect(tabs[1].textContent).toContain('2');
-      // local tab（index 2）should show badge "1"
-      expect(tabs[2].textContent).toContain('1');
-    });
-  });
-
-  it('0 個 key 時，該 tab 不顯示 badge 數字（以同測試驗 project badge=2 作紅燈錨）', async () => {
-    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
-      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
-      if (msg.type === 'settings.get' && msg.scope === 'project')
-        return Promise.resolve({ theme: 'dark', model: 'x' }); // 2 keys → badge "2" (紅燈錨)
-      if (msg.type === 'settings.get' && msg.scope === 'local')
-        return Promise.resolve({}); // 0 keys → no badge
+        return Promise.resolve({ enabledPlugins: { 'some-plugin': {} } }); // hidden key
       if (msg.type === 'settings.get') return Promise.resolve({});
       return Promise.resolve(null);
     });
@@ -100,25 +86,272 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
       expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
     });
 
+    // Badge 必須不存在（0 items）
+    // 當前未修 code：badge span 存在且顯示 "1" → test 紅，證明 bug
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      // project has 2 keys → badge must appear (red-light anchor)
-      expect(tabs[1].textContent).toContain('2');
+      expect(getScopeBadge(container, 1)).toBeNull();
     });
-
-    // local has 0 keys → no numeric badge; textContent should be pure label text (no digits)
-    const tabs = container.querySelectorAll('.settings-scope-tab');
-    const localText = tabs[2].textContent ?? '';
-    expect(localText).not.toMatch(/\d/);
   });
 
-  it('User tab 永遠不顯示 badge（以 project badge=3 作紅燈錨）', async () => {
+  it('[RED] $schema 是 hidden key → badge 應為 0（無 badge span）', async () => {
+    // local 有 model:'x' 作紅燈錨：確認 loadScopeCounts 已完成，才能判定 project badge 的真實值
+    // 舊口徑：project top-level key = 1 → badge "1"；正確口徑：0 → 無 badge
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project')
-        return Promise.resolve({ a: 1, b: 2, c: 3 }); // 3 keys → badge "3" (紅燈錨)
+        return Promise.resolve({ $schema: 'https://json.schemastore.org/claude-code-settings.json' });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' }); // 錨點：local badge "1" 出現表示 fetch 完成
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    // 等 local badge "1" 出現，確認 loadScopeCounts 已完成
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    // project 只有 $schema（hidden key）→ 無 badge
+    // 舊口徑：project badge = "1" → 此斷言紅，證明 bug
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  it('[RED] feedbackSurveyState 是 hidden key → badge 應為 0（無 badge span）', async () => {
+    // local 有 model:'x' 作紅燈錨：確認 loadScopeCounts 已完成
+    // 舊口徑：project top-level key = 1 → badge "1"；正確口徑：0 → 無 badge
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ feedbackSurveyState: { dismissed: true } });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' }); // 錨點：local badge "1" 出現表示 fetch 完成
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    // 等 local badge "1" 出現，確認 loadScopeCounts 已完成
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    // project 只有 feedbackSurveyState（hidden key）→ 無 badge
+    // 舊口徑：project badge = "1" → 此斷言紅，證明 bug
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  it('[RED] permissions:{} 空物件 → badge 應為 0（無 badge span）', async () => {
+    // 口徑差異：current code 計 top-level key = 1（permissions 算 1），正確 = 0（空物件不算）
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: {} }); // 空 permissions
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      expect(getScopeBadge(container, 1)).toBeNull();
+    });
+  });
+
+  it('[RED] permissions:{defaultMode, allow} → badge 應為 2（defaultMode 1 + permissions card 1）', async () => {
+    // 口徑差異：current code 計 top-level key = 1（permissions 算 1），正確 = 2
+    // defaultMode 是 nestedUnder:'permissions' → 在 customized 顯示為獨立 row（算 1）
+    // allow 是非 nested key → 出現 Permissions 跳轉卡片（算 1）
+    // 共 2
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { defaultMode: 'acceptEdits', allow: ['Bash'] } });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('2');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 正確口徑（部分在未修 code 已綠，因舊新口徑恰好一致）
+  // ---------------------------------------------------------------------------
+
+  it('permissions:{defaultMode} → badge = 1（nested row 算 1；top-level key 數也是 1，新舊一致）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { defaultMode: 'acceptEdits' } });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+
+  it('model:"opus" → badge = 1（schema key，新舊一致）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ model: 'opus' });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+
+  it('model + env + someUnknown → badge = 3（schema×2 + unknown×1；top-level key 數也 3，新舊一致）', async () => {
+    // model = schema scalar row（1）
+    // env = schema Object → Env 跳轉卡片（1）
+    // someUnknown = unknown entry（1）
+    // total = 3（舊口徑 top-level key 也 3 → 新舊恰好一致）
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ model: 'opus', env: { A: '1' }, someUnknown: 'x' });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('3');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Badge 顯示 — 基本 schema fields（重寫舊口徑測試，改用精確斷言）
+  // ---------------------------------------------------------------------------
+
+  it('Project / Local 有 schema 設定時，tab 顯示正確 badge 數字', async () => {
+    // project: { model: 'x', env: { A: '1' } } → model(1) + env card(1) = 2
+    // local: { permissions: {} } → 空 permissions 不算 → 0（無 badge）
+    // 注意：local badge 改為 0（空 permissions 不算），這在舊口徑顯示 1，是修後才綠的改動
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ model: 'x', env: { A: '1' } });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ permissions: {} }); // 空 permissions → 新口徑 0
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      const tabs = container.querySelectorAll('.settings-scope-tab');
+      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      // project badge = 2
+      const projectBadge = getScopeBadge(container, 1);
+      expect(projectBadge).not.toBeNull();
+      expect(projectBadge!.textContent).toBe('2');
+    });
+
+    // local badge 不存在（空 permissions → 0 items）
+    // 舊口徑此處顯示 "1" → 修後才綠
+    await waitFor(() => {
+      expect(getScopeBadge(container, 2)).toBeNull();
+    });
+  });
+
+  it('0 個 customized 項時，該 tab 不顯示 badge span', async () => {
+    // project: { theme: 'dark', model: 'x' } → theme 在 display section，model 在 general；都是 schema scalar → 2 items
+    // local: {} → 0 → no badge
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ theme: 'dark', model: 'x' });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({});
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      // project badge = 2（red-light anchor）
+      const projectBadge = getScopeBadge(container, 1);
+      expect(projectBadge).not.toBeNull();
+      expect(projectBadge!.textContent).toBe('2');
+    });
+
+    // local: no badge
+    expect(getScopeBadge(container, 2)).toBeNull();
+  });
+
+  it('User tab 永遠不顯示 badge（project badge 作紅燈錨）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ a: 1, b: 2, c: 3 }); // 3 unknown keys → badge "3" (red-light anchor)
       if (msg.type === 'settings.get' && msg.scope === 'user')
-        return Promise.resolve({ language: 'zh-TW', model: 'x', theme: 'dark' }); // 3 keys
+        return Promise.resolve({ language: 'zh-TW', model: 'x', theme: 'dark' });
       if (msg.type === 'settings.get') return Promise.resolve({});
       return Promise.resolve(null);
     });
@@ -126,28 +359,24 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
     const { container } = renderPage();
 
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
     });
 
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      // project badge exists (red-light anchor)
-      expect(tabs[1].textContent).toContain('3');
+      // project badge = 3（red-light anchor）
+      const projectBadge = getScopeBadge(container, 1);
+      expect(projectBadge).not.toBeNull();
+      expect(projectBadge!.textContent).toBe('3');
     });
 
-    // user tab (index 0) label is "User" — no digits should appear regardless of user key count
-    const tabs = container.querySelectorAll('.settings-scope-tab');
-    const userText = tabs[0].textContent ?? '';
-    expect(userText).not.toMatch(/\d/);
+    // user tab (index 0) badge 永遠不顯示
+    expect(getScopeBadge(container, 0)).toBeNull();
   });
 
   // ---------------------------------------------------------------------------
   // Guard（功能前後皆 GREEN）
   // ---------------------------------------------------------------------------
 
-  // NOTE: 無 workspace 時功能未實作 → 不發 count fetch（與未實作行為一致）。
-  // 功能實作後，此測試守衛「disabled 狀態下不發 count fetch」行為。
   it('（guard）無 workspace 時，不對 project/local 發 count 用 settings.get', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([]);
@@ -157,7 +386,6 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     const { container } = renderPage();
 
-    // Wait until workspace check is done → tabs are disabled
     await waitFor(() => {
       const tabs = container.querySelectorAll('.settings-scope-tab');
       expect((tabs[1] as HTMLButtonElement).disabled).toBe(true);
@@ -173,11 +401,10 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Push refresh → badge 即時更新（功能未實作時 RED）
+  // Push refresh → badge 即時更新（未實作時 RED）
   // ---------------------------------------------------------------------------
 
   it('settings.refresh push 後，badge 數量即時更新', async () => {
-    // Capture all push handlers (handles cases where multiple listeners are registered)
     const pushHandlers: Array<(msg: { type: string }) => void> = [];
     mockOnPushMessage.mockImplementation(((h: (msg: { type: string }) => void) => {
       pushHandlers.push(h);
@@ -189,7 +416,7 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project')
         return Promise.resolve(
-          projectKeyCount === 1 ? { a: 1 } : { a: 1, b: 2 },
+          projectKeyCount === 1 ? { model: 'x' } : { model: 'x', language: 'ja' },
         );
       if (msg.type === 'settings.get') return Promise.resolve({});
       return Promise.resolve(null);
@@ -197,34 +424,33 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     const { container } = renderPage();
 
-    // Initial state: project badge = 1
+    // Initial: project badge = 1
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
-      expect(tabs[1].textContent).toContain('1');
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
     });
 
-    // Simulate a save / external change: project now returns 2 keys
+    // Simulate external change: project now returns 2 schema keys
     projectKeyCount = 2;
 
-    // Fire settings.refresh through all captured push handlers
     for (const handler of pushHandlers) {
       handler({ type: 'settings.refresh' });
     }
 
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect(tabs[1].textContent).toContain('2');
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('2');
     });
   });
 
   // ---------------------------------------------------------------------------
-  // Optimistic count 分支（功能未實作時 RED；正確 prod 下 GREEN）
-  // Mutation 自驗說明在各 it() 內
+  // Optimistic count（mutation 級可信）
   // ---------------------------------------------------------------------------
 
-  it('save 新 key → Project tab badge +1（optimistic）', async () => {
-    // Project scope 初始為空 → badge 不顯示
+  it('save 新 schema key → Project tab badge +1（optimistic），不觸發 settings.get', async () => {
+    // Project scope 初始為空 → 無 badge
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project') return Promise.resolve({});
@@ -238,19 +464,20 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     // 切到 Project tab
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
     });
     fireEvent.click(container.querySelectorAll('.settings-scope-tab')[1]);
 
-    // 等待 Project scope 載入完成（Language 欄位可見）
+    // 等 Project scope 載入（Language placeholder 可見）
     await waitFor(() => screen.getByPlaceholderText('e.g. zh-TW'));
 
-    // 確認初始無 badge 數字
-    const tabsBefore = container.querySelectorAll('.settings-scope-tab');
-    expect(tabsBefore[1].textContent).not.toMatch(/\d/);
+    // 確認初始無 badge
+    expect(getScopeBadge(container, 1)).toBeNull();
 
-    // 在 Language（text 欄位）填值並按 Save → 新 key 寫入
+    // 記錄目前 settings.get call 數
+    const getCallsBefore = getCalls('settings.get').length;
+
+    // 在 Language 欄位填值並 Save
     const languageInput = screen.getByPlaceholderText('e.g. zh-TW');
     const languageField = languageInput.closest('.settings-field') as HTMLElement;
     fireEvent.change(languageInput, { target: { value: 'ja' } });
@@ -258,12 +485,16 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     await waitFor(() => expect(getCalls('settings.set').length).toBe(1));
 
-    // Optimistic +1 → badge 應出現 "1"
-    // Mutation 打死：把 `prev[scope] + 1` 改成 `+2` → badge 會是 "2" → 紅
+    // Optimistic +1 → badge 出現 "1"
+    // Mutation kill：把 +1 改 +2 → badge 顯示 "2" → 紅
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect(tabs[1].textContent).toContain('1');
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
     });
+
+    // 存/刪不可觸發 settings.get（call 數不得增加）
+    expect(getCalls('settings.get').length).toBe(getCallsBefore);
   });
 
   it('save 已存在 key（改值）→ Project badge 不變（isNew guard）', async () => {
@@ -281,18 +512,20 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     // 切到 Project tab
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
     });
     fireEvent.click(container.querySelectorAll('.settings-scope-tab')[1]);
 
     // 等 badge "1" 出現
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect(tabs[1].textContent).toContain('1');
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
     });
 
-    // 改 Language 值（key 已存在），按 Save
+    const getCallsBefore = getCalls('settings.get').length;
+
+    // 改 Language 值（key 已存在）
     const languageInput = screen.getByPlaceholderText('e.g. zh-TW');
     const languageField = languageInput.closest('.settings-field') as HTMLElement;
     fireEvent.change(languageInput, { target: { value: 'fr' } });
@@ -300,15 +533,17 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     await waitFor(() => expect(getCalls('settings.set').length).toBe(1));
 
-    // 既有 key 改值 → count 不變，仍為 "1"
-    // Mutation 打死：移除 `if (isNew)` guard（每次 save 都 +1）→ badge 會是 "2" → 紅
-    const tabs = container.querySelectorAll('.settings-scope-tab');
-    expect(tabs[1].textContent).toContain('1');
-    // 也確認不是 "2"（避免 "12" 等意外情況混過去）
-    expect(tabs[1].textContent).not.toMatch(/2/);
+    // 既有 key 改值 → badge 不變，仍為 "1"
+    // Mutation kill：重算誤把已存在 key 當新增（next settings 含原本就有的 language）→ badge 變 "2" → 紅
+    const badge = getScopeBadge(container, 1);
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toBe('1');
+
+    // 不觸發 settings.get
+    expect(getCalls('settings.get').length).toBe(getCallsBefore);
   });
 
-  it('delete 已存在 key → Project badge -1（optimistic）', async () => {
+  it('delete 已存在 key → Project badge -1（optimistic），不觸發 settings.get', async () => {
     // Project scope 初始有 language: 'en' → badge "1"
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
@@ -323,30 +558,32 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
 
     // 切到 Project tab
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect((tabs[1] as HTMLButtonElement).disabled).toBe(false);
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
     });
     fireEvent.click(container.querySelectorAll('.settings-scope-tab')[1]);
 
     // 等 badge "1" 出現
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect(tabs[1].textContent).toContain('1');
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
     });
 
-    // 按 Reset Language 按鈕 → 呼叫 onDelete('language')
+    const getCallsBefore = getCalls('settings.get').length;
+
+    // 按 Reset Language → 呼叫 onDelete('language')
     await waitFor(() => screen.getByRole('button', { name: 'Reset Language' }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset Language' }));
 
     await waitFor(() => expect(getCalls('settings.delete').length).toBe(1));
 
-    // Optimistic -1 → count 變 0 → badge 消失（textContent 不含數字）
-    // Mutation 打死 1：移除 `key in settings` guard → delete 不存在 key 也會 -1（count 可能負）
-    // Mutation 打死 2：移除 `Math.max(0, ...)` → count 可能負數 → 顯示 "-1" 等異常
-    // Mutation 打死 3：移除整個 delete 的 -1 邏輯 → badge 仍顯示 "1" → 紅
+    // Optimistic 重算 → count 0 → badge 消失
+    // Mutation kill：重算未用刪除後的 next（仍含該 key）→ badge 不歸 0 → 紅
     await waitFor(() => {
-      const tabs = container.querySelectorAll('.settings-scope-tab');
-      expect(tabs[1].textContent).not.toMatch(/\d/);
+      expect(getScopeBadge(container, 1)).toBeNull();
     });
+
+    // 不觸發 settings.get
+    expect(getCalls('settings.get').length).toBe(getCallsBefore);
   });
 });
