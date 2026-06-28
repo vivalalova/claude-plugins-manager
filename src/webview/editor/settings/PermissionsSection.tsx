@@ -243,6 +243,53 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
 }
 
 // ---------------------------------------------------------------------------
+// PermissionRuleListEditor — single-list (allow/deny/ask) rule editor atom
+// ---------------------------------------------------------------------------
+
+interface PermissionRuleListEditorProps {
+  /** Optional heading rendered above the rule list. Omit when the parent renders its own selector. */
+  title?: string;
+  rules: string[];
+  onAdd: (rule: string) => void;
+  onDelete: (rule: string) => void;
+  disabled?: boolean;
+}
+
+export function PermissionRuleListEditor({
+  title,
+  rules,
+  onAdd,
+  onDelete,
+  disabled,
+}: PermissionRuleListEditorProps): React.ReactElement {
+  const { t } = useI18n();
+  return (
+    <div className="perm-rule-list-editor">
+      {title && <h4 className="perm-rule-list-title">{title}</h4>}
+      <div className="perm-rule-list">
+        {rules.length === 0 ? (
+          <span className="perm-empty">{t('settings.permissions.emptyList')}</span>
+        ) : (
+          rules.map((rule) => (
+            <RuleTag
+              key={rule}
+              rule={rule}
+              onDelete={() => onDelete(rule)}
+              disabled={disabled}
+            />
+          ))
+        )}
+      </div>
+      <AddRuleForm
+        listRules={rules}
+        onAdd={onAdd}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PermissionsSection
 // ---------------------------------------------------------------------------
 
@@ -310,26 +357,11 @@ export function PermissionsSection({
         ))}
       </div>
 
-      {/* Rule list */}
-      <div className="perm-rule-list">
-        {listRules.length === 0 ? (
-          <span className="perm-empty">{t('settings.permissions.emptyList')}</span>
-        ) : (
-          listRules.map((rule) => (
-            <RuleTag
-              key={rule}
-              rule={rule}
-              onDelete={() => void handleDeleteRule(rule)}
-              disabled={saving}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Add rule form */}
-      <AddRuleForm
-        listRules={listRules}
+      {/* Rule list + add form for the active sub-tab */}
+      <PermissionRuleListEditor
+        rules={listRules}
         onAdd={(rule) => void handleAddRule(rule)}
+        onDelete={(rule) => void handleDeleteRule(rule)}
         disabled={saving}
       />
 

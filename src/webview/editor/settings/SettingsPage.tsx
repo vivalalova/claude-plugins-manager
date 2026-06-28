@@ -4,6 +4,7 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { useI18n } from '../../i18n/I18nContext';
 import { PermissionsSection } from './PermissionsSection';
+import { CustomizedPermissionsEditor } from './CustomizedPermissionsEditor';
 import { EnvSection, EnvFieldRenderer } from './EnvSection';
 import { HooksSection } from './HooksSection';
 import { GeneralSection } from './GeneralSection';
@@ -166,7 +167,7 @@ function renderSchemaResultRow({
           <label className="settings-label">{labelText}</label>
           {description && <p className="settings-field-description">{description}</p>}
           <button className="btn btn-secondary" onClick={onNavigate}>
-            {sectionLabel} →
+            {labelText} →
           </button>
         </div>
       </div>
@@ -540,10 +541,25 @@ export function SettingsPage(): React.ReactElement {
                         if (!fieldBindings) return null;
                         const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = fieldBindings;
                         const sectionLabel = t(`settings.nav.${section}` as Parameters<typeof t>[0]);
+                        const fieldLabel = t(`settings.${section}.${key}.label` as Parameters<typeof t>[0]) || key;
+
+                        if (key === 'permissions') {
+                          return (
+                            <div key={key} className="settings-search-result">
+                              <span className="settings-search-result-section">{sectionLabel}</span>
+                              <CustomizedPermissionsEditor
+                                perms={value as ClaudeSettings['permissions'] ?? {}}
+                                onSavePermissions={(p) => fieldOnSave('permissions', p)}
+                                scope={scope}
+                              />
+                            </div>
+                          );
+                        }
+
                         return renderSchemaResultRow({
                           fieldKey: key,
                           sectionLabel,
-                          labelText: sectionLabel,
+                          labelText: fieldLabel,
                           schema,
                           value,
                           scope,

@@ -620,3 +620,126 @@ describe('PermissionsSection — enableAllProjectMcpServers 互動', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression guard — 完整 permissions nav sub-tab 行為不變
+// 這些測試在改動前後都必須綠（guard），確保 inline 改動沒有污染獨立頁面行為
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — sub-tab 行為 regression guard', () => {
+  it('[guard] 初始顯示 Allow sub-tab 標題，Deny/Ask 標題也同時可見', async () => {
+    renderSection({ permissions: { allow: ['Bash'], deny: ['WebFetch'], ask: ['Edit'] } });
+
+    await waitFor(() => {
+      // 三個 sub-tab 按鈕存在
+      expect(screen.getByRole('button', { name: 'Allow' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Deny' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Ask' })).toBeTruthy();
+    });
+  });
+
+  it('[guard] 初始 Allow tab 激活，顯示 allow 規則而非 deny 規則', async () => {
+    renderSection({ permissions: { allow: ['Bash'], deny: ['WebFetch'] } });
+
+    await waitFor(() => {
+      // Allow 組規則可見
+      expect(screen.getByText('Bash')).toBeTruthy();
+      // Deny 組規則不可見（sub-tab 未切換到 Deny）
+      expect(screen.queryByText('WebFetch')).toBeNull();
+    });
+  });
+
+  it('[guard] 點 Deny tab → 切換到 deny 規則，allow 規則消失', async () => {
+    renderSection({ permissions: { allow: ['Bash'], deny: ['WebFetch'] } });
+
+    await waitFor(() => screen.getByRole('button', { name: 'Deny' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deny' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('WebFetch')).toBeTruthy();
+      expect(screen.queryByText('Bash')).toBeNull();
+    });
+  });
+
+  it('[guard] 點 Ask tab → 顯示 ask 規則', async () => {
+    renderSection({ permissions: { allow: ['Bash'], ask: ['Edit'] } });
+
+    await waitFor(() => screen.getByRole('button', { name: 'Ask' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Edit')).toBeTruthy();
+      expect(screen.queryByText('Bash')).toBeNull();
+    });
+  });
+
+  it('[guard] Allow 組空 → 顯示空清單文案', async () => {
+    renderSection({ permissions: {} });
+
+    await waitFor(() => {
+      expect(screen.getByText('No rules defined')).toBeTruthy();
+    });
+  });
+
+  it('[guard] Allow tab 新增規則 → onSave("permissions", { allow: [newRule] })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderSection({}, onSave);
+
+    await waitFor(() => container.querySelector('.perm-add-form'));
+
+    const form = container.querySelector('.perm-add-form') as HTMLElement;
+    const toolNameInput = within(form).getByPlaceholderText('e.g. WebFetch');
+    fireEvent.change(toolNameInput, { target: { value: 'Bash' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash'] });
+    });
+  });
+
+  it('[guard] Allow tab 刪除規則 → onSave("permissions", { allow: [] })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { allow: ['Bash'] } }, onSave);
+
+    await waitFor(() => screen.getByRole('button', { name: 'Remove rule Bash' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissions', { allow: [] });
+    });
+  });
+
+  it('[guard] scope 切換 → sub-tab reset 回 Allow', async () => {
+    // 用 wrapper component 控制 scope prop，避免 rerender 丟失 I18nProvider context
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const settings = { permissions: { allow: ['Bash'], deny: ['WebFetch'] } } as any;
+
+    let setScope!: (s: 'user' | 'project') => void;
+    function Wrapper(): React.ReactElement {
+      const [scope, setScopeState] = React.useState<'user' | 'project'>('user');
+      setScope = setScopeState;
+      return (
+        <ToastProvider>
+          <PermissionsSection scope={scope} settings={settings} onSave={onSave} onDelete={vi.fn()} />
+        </ToastProvider>
+      );
+    }
+
+    renderWithI18n(<Wrapper />);
+
+    // 切到 Deny tab
+    await waitFor(() => screen.getByRole('button', { name: 'Deny' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deny' }));
+    await waitFor(() => expect(screen.getByText('WebFetch')).toBeTruthy());
+
+    // scope 切換 → useEffect([scope]) 觸發 reset
+    fireEvent(document, new Event('__unused__')); // flush any pending
+    setScope('project');
+
+    // sub-tab reset → Allow 激活，deny 規則不可見
+    await waitFor(() => {
+      expect(screen.getByText('Bash')).toBeTruthy();
+      expect(screen.queryByText('WebFetch')).toBeNull();
+    });
+  });
+});
