@@ -1,22 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Customized 分頁測試 — 功能對應 GitHub issue #9。
- * 功能尚未實作，所有新測試預期為紅（TDD）。
- *
- * --- PR: permissions inline 直接編輯 + Object 欄位 label 缺陷修正 ---
- * 改動後：
- *   - customized 分頁的 permissions 欄位從跳轉按鈕改為 inline 編輯器
- *     (Allow / Deny / Ask 三組同時平鋪 + additionalDirectories)
- *   - allowedMcpServers / deniedMcpServers 仍是跳轉按鈕，但 label 顯示
- *     各自欄位名稱（非「Permissions」）
- * 新增測試（RED）：
- *   - 12. permissions inline 顯示三組標題
- *   - 13. permissions inline 新增規則 → sendRequest settings.set
- *   - 14. permissions inline 刪除規則 → sendRequest settings.set
- *   - 15. additionalDirectories-only → badge=1，inline 顯示 /x
- *   - 16. allowedMcpServers 仍是跳轉按鈕但 label 可區分（非「Permissions」）
- *   - 17. search 中 permissions Object 欄位 labelText 不變（field.label||key）
+ * Customized（已自訂）分頁測試。
+ * permissions/env/hooks 走各自的專屬 inline editor，其餘 controlType===Object
+ * 欄位（含 allowedMcpServers / deniedMcpServers）走 ObjectFieldEditor dispatcher
+ * inline 顯示；已自訂分頁不再出現跳轉按鈕。
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -137,10 +125,8 @@ describe('SettingsPage — Customized 分頁', () => {
     });
   });
 
-  it('4. [RED] permissions 含非 nested key → inline 直接顯示（無跳轉按鈕）', async () => {
-    // 改動後：permissions 在 customized 分頁改為 inline 編輯器，不再顯示跳轉按鈕
-    // 改動前此 test 驗「顯示 Permissions → 按鈕 + 點後切到 section」（已通過）
-    // 改動後改成驗「無跳轉按鈕 + inline 顯示 Allow / Deny / Ask 三組標題」
+  it('4. permissions{allow} → inline 顯示 Allow，deny/ask 不顯示空清單', async () => {
+    // #23 新行為：只渲染有值的子清單；allow 有值 → Allow 出現；deny/ask 空 → 不出現
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['WebSearch'] } });
@@ -154,23 +140,28 @@ describe('SettingsPage — Customized 分頁', () => {
     clickCustomized();
 
     await waitFor(() => {
-      // 無「Permissions →」跳轉按鈕（permission 欄位改為 inline）
+      // 無「Permissions →」跳轉按鈕（permission 欄位為 inline）
       const permJumpBtn = Array.from(document.querySelectorAll('button')).find(
         (b) => b.textContent?.trim() === 'Permissions →',
       );
       expect(permJumpBtn).toBeUndefined();
 
-      // inline 三組標題同時顯示
+      // Allow 清單有值 → 出現
       expect(screen.getByText('Allow')).toBeTruthy();
-      expect(screen.getByText('Deny')).toBeTruthy();
-      expect(screen.getByText('Ask')).toBeTruthy();
+      expect(screen.getByText('WebSearch')).toBeTruthy();
+
+      // Deny/Ask 清單空 → 不出現（不顯示「No rules defined」空塊）
+      expect(screen.queryByText('Deny')).toBeNull();
+      expect(screen.queryByText('Ask')).toBeNull();
+      expect(screen.queryAllByText('No rules defined')).toHaveLength(0);
     });
   });
 
-  it('5. env 已設定 → 顯示單一 Env 跳轉卡片', async () => {
+  it('5. env 已設定 → inline 逐項顯示，不出現跳轉按鈕', async () => {
+    // #23 新行為：env 用 EnvFieldRenderer 逐項 inline，不顯示「Environment Variables →」跳轉按鈕
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
-      if (msg.type === 'settings.get') return Promise.resolve({ env: { MY_VAR: 'x' } });
+      if (msg.type === 'settings.get') return Promise.resolve({ env: { CLAUDE_CODE_NEW_INIT: '1' } });
       return Promise.resolve(null);
     });
 
@@ -180,11 +171,19 @@ describe('SettingsPage — Customized 分頁', () => {
     clickCustomized();
 
     await waitFor(() => {
-      expect(screen.getByText('Environment Variables →')).toBeTruthy();
+      // 跳轉按鈕不存在
+      const jumpBtn = Array.from(document.querySelectorAll('button')).find(
+        (b) => b.textContent?.trim().endsWith('→'),
+      );
+      expect(jumpBtn).toBeUndefined();
+
+      // env var key 出現（inline 控件）
+      expect(screen.getByText('CLAUDE_CODE_NEW_INIT')).toBeTruthy();
     });
   });
 
-  it('6. hooks 已設定 → 顯示 Hooks 跳轉卡片', async () => {
+  it('6. hooks 已設定 → inline 顯示 hooks 內容，不出現跳轉按鈕', async () => {
+    // #23 新行為：hooks 用 HooksSection inline，不顯示「Hooks →」跳轉按鈕
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -199,7 +198,14 @@ describe('SettingsPage — Customized 分頁', () => {
     clickCustomized();
 
     await waitFor(() => {
-      expect(screen.getByText('Hooks →')).toBeTruthy();
+      // 跳轉按鈕不存在
+      const jumpBtn = Array.from(document.querySelectorAll('button')).find(
+        (b) => b.textContent?.trim().endsWith('→'),
+      );
+      expect(jumpBtn).toBeUndefined();
+
+      // hooks 內容 inline 顯示（PreToolUse 文字可見）
+      expect(screen.getByText('PreToolUse')).toBeTruthy();
     });
   });
 
@@ -379,8 +385,8 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     vi.clearAllMocks();
   });
 
-  it('12. [RED] permissions{allow} → inline 同時顯示 Allow / Deny / Ask 三組標題', async () => {
-    // 改動後：三組標題在 customized 分頁平鋪顯示，無跳轉按鈕
+  it('12. permissions{allow} → inline 顯示 Allow 組有規則，deny/ask 空組不顯示', async () => {
+    // #23 新行為：只渲染有值的子清單；allow=['Bash'] → Allow 出現含規則；deny/ask 空 → 不出現
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
@@ -393,15 +399,16 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     clickCustomized();
 
     await waitFor(() => {
-      // 三組標題同時可見（平鋪，非 sub-tab 切換）
+      // Allow 組有值 → 出現
       expect(screen.getByText('Allow')).toBeTruthy();
-      expect(screen.getByText('Deny')).toBeTruthy();
-      expect(screen.getByText('Ask')).toBeTruthy();
-
-      // 現有規則顯示在 Allow 組
       expect(screen.getByText('Bash')).toBeTruthy();
 
-      // 絕對沒有「Permissions →」跳轉按鈕
+      // Deny/Ask 空 → 不出現
+      expect(screen.queryByText('Deny')).toBeNull();
+      expect(screen.queryByText('Ask')).toBeNull();
+      expect(screen.queryAllByText('No rules defined')).toHaveLength(0);
+
+      // 無跳轉按鈕
       const permJumpBtn = Array.from(document.querySelectorAll('button')).find(
         (b) => b.textContent?.trim() === 'Permissions →',
       );
@@ -409,11 +416,12 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     });
   });
 
-  it('13. [RED] inline permissions → 輸入規則並新增 → sendRequest settings.set 含更新後 allow', async () => {
-    // inline 新增規則：輸入 "WebFetch"，按 Add Rule → settings.set permissions.allow=['WebFetch']
+  it('13. inline permissions → 輸入規則並新增 → sendRequest settings.set 含更新後 allow', async () => {
+    // inline 新增規則：allow 已有 'Bash'（清單可見），再輸入 "WebFetch" 按 Add Rule
+    // → settings.set permissions.allow 含 'Bash' 和 'WebFetch'
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
-      if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: [] } });
+      if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
       return Promise.resolve(null);
     });
@@ -500,14 +508,12 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     });
   });
 
-  it('16. [RED] allowedMcpServers label 可區分：顯示「Allowed MCP Servers」不等於「Permissions」', async () => {
-    // 改動前：allowedMcpServers 在 customized 顯示「Permissions →」（sectionLabel，bug）
-    // 改動後：顯示欄位自己的 label「Allowed MCP Servers」
-    // permissions{allow} 同時存在，兩者 label 必須不同
+  it('16. allowedMcpServers 有值 → inline 顯示其編輯控件，無跳轉按鈕', async () => {
+    // #23 新行為：allowedMcpServers 也應改為 inline（JSON TextSetting），無「→」跳轉按鈕
+    // 舊假設（MCP 仍跳轉）是錯的——驗收條件明確「不再出現任何跳轉按鈕」
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
-        permissions: { allow: ['Bash'] },
         allowedMcpServers: [{ serverName: 'github' }],
       });
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
@@ -519,17 +525,14 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     clickCustomized();
 
     await waitFor(() => {
-      // allowedMcpServers 跳轉按鈕文字含自己的 label，不含「Permissions →」
-      // 改動前：兩個 Object 欄位都顯示「Permissions →」，用 getByText 會報 multiple elements
-      // 改動後：permissions inline（無按鈕），allowedMcpServers 按鈕顯示自己的名稱
-      const allButtons = Array.from(document.querySelectorAll('button'));
-      const permJumpBtn = allButtons.find((b) => b.textContent?.trim() === 'Permissions →');
-      expect(permJumpBtn).toBeUndefined();
+      // 無任何跳轉按鈕
+      const jumpBtn = Array.from(document.querySelectorAll('button')).find(
+        (b) => b.textContent?.trim().endsWith('→'),
+      );
+      expect(jumpBtn).toBeUndefined();
 
-      // allowedMcpServers 的跳轉按鈕應有自己的欄位名稱文字
-      // 按鈕文字格式：「{fieldLabel} →」，fieldLabel = 'Allowed MCP Servers'
-      const mcpJumpBtn = allButtons.find((b) => b.textContent?.includes('Allowed MCP Servers'));
-      expect(mcpJumpBtn).toBeTruthy();
+      // allowedMcpServers JSON editor 的 placeholder 出現 → inline 已渲染
+      expect(screen.getByPlaceholderText('e.g. [{ "serverName": "github" }]')).toBeTruthy();
     });
   });
 
@@ -538,9 +541,10 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     // CustomizedPermissionsEditor.handleAdd 再包 Promise.resolve(onSavePermissions(...)) = 已 resolved
     // withSave 的 catch 收不到 settings.set reject → addToast 不觸發 → 使用者看不到錯誤
     // 修好後：onSavePermissions 必須傳回真 Promise，withSave 才能 catch 並 toast
+    // allow:['Bash'] 非空 → Allow 組渲染（#23 後空清單不顯示，故需非空 fixture）
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
-      if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: [] } });
+      if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
       if (msg.type === 'settings.set') return Promise.reject(new Error('boom'));
       return Promise.resolve(null);
     });

@@ -759,3 +759,75 @@ export function EnvFieldRenderer({
     />
   );
 }
+
+// ---------------------------------------------------------------------------
+// CustomizedEnvEditor — per-entry inline editor for the Customized tab
+// Renders ONLY env vars already set in the current scope: known vars via
+// EnvFieldRenderer, custom (unknown) vars via EnvCustomField. No AddEnvForm,
+// no listing of unset known vars.
+// ---------------------------------------------------------------------------
+
+interface CustomizedEnvEditorProps {
+  scope: PluginScope;
+  currentEnv: Record<string, string>;
+  onSaveEnv: (updatedEnv: Record<string, string>) => Promise<void>;
+}
+
+export function CustomizedEnvEditor({ scope, currentEnv, onSaveEnv }: CustomizedEnvEditorProps): React.ReactElement {
+  const { saving, withSave } = useSettingSave();
+
+  const updateEnv = async (updatedEnv: Record<string, string>): Promise<boolean> => {
+    let saved = false;
+    await withSave(async () => {
+      await onSaveEnv(updatedEnv);
+      saved = true;
+    });
+    return saved;
+  };
+
+  const envOnSave = async (key: string, value: unknown): Promise<boolean> => {
+    const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
+    return updateEnv({ ...currentEnv, [key]: strVal });
+  };
+
+  const envOnRename = async (oldKey: string, newKey: string, value: string): Promise<boolean> => {
+    const { [oldKey]: _, ...rest } = currentEnv;
+    return updateEnv({ ...rest, [newKey]: value });
+  };
+
+  const envOnDelete = async (key: string): Promise<boolean> => {
+    const { [key]: _, ...rest } = currentEnv;
+    return updateEnv(rest);
+  };
+
+  const existingKeys = Object.keys(currentEnv);
+
+  return (
+    <EnvCategoryGroup>
+      {existingKeys.map((key) =>
+        getKnownEnvVar(key) ? (
+          <EnvFieldRenderer
+            key={key}
+            envKey={key}
+            currentEnv={currentEnv}
+            scope={scope}
+            onEnvChange={onSaveEnv}
+            saving={saving}
+          />
+        ) : (
+          <EnvCustomField
+            key={key}
+            envKey={key}
+            value={currentEnv[key]}
+            existingKeys={existingKeys}
+            scope={scope}
+            onSave={envOnSave}
+            onRename={envOnRename}
+            onDelete={envOnDelete}
+            disabled={saving}
+          />
+        ),
+      )}
+    </EnvCategoryGroup>
+  );
+}

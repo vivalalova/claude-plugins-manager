@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
-import { BooleanToggle, EnumDropdown, TagInput, TextSetting } from './components/SettingControls';
+import { BooleanToggle, EnumDropdown, TagInput } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
-import { parseJsonSettingValue } from './jsonSettingValidation';
+import { ObjectFieldEditor } from './components/ObjectFieldEditor';
 
 // ---------------------------------------------------------------------------
 // Constants（internal only — defaultMode 已移至 schema general section）
@@ -486,32 +486,10 @@ export function PermissionsSection({
       />
 
       {/* allowedMcpServers */}
-      <TextSetting
-        label={t('settings.permissions.allowedMcpServers.label')}
-        description={t('settings.permissions.allowedMcpServers.description')}
-        value={settings.allowedMcpServers ? JSON.stringify(settings.allowedMcpServers) : undefined}
-        placeholder={t('settings.permissions.allowedMcpServers.placeholder')}
-        saveLabel={t('settings.permissions.allowedMcpServers.save')}
-        clearLabel={t('settings.permissions.allowedMcpServers.clear')}
-        settingKey="allowedMcpServers"
-        scope={scope}
-        onSave={async (_key, value) => onSave('allowedMcpServers', parseJsonSettingValue('allowedMcpServers', value as string))}
-        onDelete={async () => onDelete('allowedMcpServers')}
-      />
+      <ObjectFieldEditor settingKey="allowedMcpServers" scope={scope} settings={settings} onSave={onSave} onDelete={onDelete} />
 
       {/* deniedMcpServers */}
-      <TextSetting
-        label={t('settings.permissions.deniedMcpServers.label')}
-        description={t('settings.permissions.deniedMcpServers.description')}
-        value={settings.deniedMcpServers ? JSON.stringify(settings.deniedMcpServers) : undefined}
-        placeholder={t('settings.permissions.deniedMcpServers.placeholder')}
-        saveLabel={t('settings.permissions.deniedMcpServers.save')}
-        clearLabel={t('settings.permissions.deniedMcpServers.clear')}
-        settingKey="deniedMcpServers"
-        scope={scope}
-        onSave={async (_key, value) => onSave('deniedMcpServers', parseJsonSettingValue('deniedMcpServers', value as string))}
-        onDelete={async () => onDelete('deniedMcpServers')}
-      />
+      <ObjectFieldEditor settingKey="deniedMcpServers" scope={scope} settings={settings} onSave={onSave} onDelete={onDelete} />
 
     </SettingsSectionWrapper>
   );

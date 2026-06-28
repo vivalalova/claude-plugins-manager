@@ -5,8 +5,8 @@ import { PageHeader } from '../../components/PageHeader';
 import { useI18n } from '../../i18n/I18nContext';
 import { PermissionsSection } from './PermissionsSection';
 import { CustomizedPermissionsEditor } from './CustomizedPermissionsEditor';
-import { EnvSection, EnvFieldRenderer } from './EnvSection';
-import { HooksSection } from './HooksSection';
+import { EnvSection, EnvFieldRenderer, CustomizedEnvEditor } from './EnvSection';
+import { HooksSection, HooksFieldEditor } from './HooksSection';
 import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
@@ -18,6 +18,7 @@ import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { getSchemaFieldBindings } from './components/SchemaSection';
+import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -545,12 +546,50 @@ export function SettingsPage(): React.ReactElement {
 
                         if (key === 'permissions') {
                           return (
-                            <div key={key} className="settings-search-result">
+                            <div key={key} className="settings-search-result" data-customized-field={key}>
                               <span className="settings-search-result-section">{sectionLabel}</span>
                               <CustomizedPermissionsEditor
                                 perms={value as ClaudeSettings['permissions'] ?? {}}
                                 onSavePermissions={(p) => fieldOnSave('permissions', p)}
                                 scope={scope}
+                              />
+                            </div>
+                          );
+                        }
+
+                        if (key === 'env') {
+                          return (
+                            <div key={key} className="settings-search-result" data-customized-field={key}>
+                              <span className="settings-search-result-section">{sectionLabel}</span>
+                              <CustomizedEnvEditor
+                                scope={scope}
+                                currentEnv={(value as Record<string, string>) ?? {}}
+                                onSaveEnv={(e) => fieldOnSave('env', e)}
+                              />
+                            </div>
+                          );
+                        }
+
+                        if (key === 'hooks') {
+                          return (
+                            <div key={key} className="settings-search-result" data-customized-field={key}>
+                              <span className="settings-search-result-section">{sectionLabel}</span>
+                              <HooksFieldEditor scope={scope} settings={settings} />
+                            </div>
+                          );
+                        }
+
+                        if (OBJECT_EDITOR_KEYS.has(key)) {
+                          return (
+                            <div key={key} className="settings-search-result" data-customized-field={key}>
+                              <span className="settings-search-result-section">{sectionLabel}</span>
+                              <ObjectFieldEditor
+                                settingKey={key}
+                                scope={scope}
+                                settings={settings}
+                                overriddenScope={overriddenScope}
+                                onSave={fieldOnSave}
+                                onDelete={fieldOnDelete}
                               />
                             </div>
                           );

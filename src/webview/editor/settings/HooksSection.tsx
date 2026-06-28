@@ -182,7 +182,7 @@ function HookItem({ hook, eventType, filePath, onOpenFile, openingPath, explainL
 }
 
 // ---------------------------------------------------------------------------
-// HooksSection
+// HooksFieldEditor
 // ---------------------------------------------------------------------------
 
 interface HooksObjectEditorProps {
@@ -287,7 +287,12 @@ function HooksObjectEditor({
   );
 }
 
-export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: SectionProps): React.ReactElement {
+interface HooksFieldEditorProps {
+  scope: SectionProps['scope'];
+  settings: SectionProps['settings'];
+}
+
+export function HooksFieldEditor({ scope, settings }: HooksFieldEditorProps): React.ReactElement {
   const { t, locale } = useI18n();
   const { addToast } = useToast();
   const [opening, setOpening] = useState(false);
@@ -420,6 +425,28 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
   };
 
   return (
+    <HooksObjectEditor
+      scope={scope}
+      hooksData={hooksData}
+      locale={locale}
+      opening={opening}
+      openingPath={openingPath}
+      explanations={explanations}
+      explaining={explaining}
+      existingPaths={existingPaths}
+      onOpenInEditor={handleOpenInEditor}
+      onOpenFile={handleOpenFile}
+      onExplain={handleExplain}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HooksSection
+// ---------------------------------------------------------------------------
+
+export function HooksSection({ scope, settings, userSettings, onSave, onDelete }: SectionProps): React.ReactElement {
+  return (
     <SchemaSection
       section="hooks"
       scope={scope}
@@ -427,24 +454,9 @@ export function HooksSection({ scope, settings, userSettings, onSave, onDelete }
       userSettings={userSettings}
       onSave={onSave}
       onDelete={onDelete}
-      renderCustom={(key) => {
-        if (key !== 'hooks') return null;
-        return (
-          <HooksObjectEditor
-            scope={scope}
-            hooksData={hooksData}
-            locale={locale}
-            opening={opening}
-            openingPath={openingPath}
-            explanations={explanations}
-            explaining={explaining}
-            existingPaths={existingPaths}
-            onOpenInEditor={handleOpenInEditor}
-            onOpenFile={handleOpenFile}
-            onExplain={handleExplain}
-          />
-        );
-      }}
+      renderCustom={(key) =>
+        key === 'hooks' ? <HooksFieldEditor scope={scope} settings={settings} /> : null
+      }
     />
   );
 }

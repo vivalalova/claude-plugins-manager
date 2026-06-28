@@ -52,30 +52,36 @@ export function CustomizedPermissionsEditor({
 
   return (
     <div className="customized-permissions-editor">
-      {lists.map(({ id, label }) => (
-        <PermissionRuleListEditor
-          key={id}
-          title={label}
-          rules={(safePerms[id] ?? []) as string[]}
-          onAdd={(rule) => handleAdd(id, rule)}
-          onDelete={(rule) => handleDelete(id, rule)}
-          disabled={isDisabled}
-        />
-      ))}
+      {lists.map(({ id, label }) => {
+        const rules = (safePerms[id] ?? []) as string[];
+        if (rules.length === 0) return null;
+        return (
+          <PermissionRuleListEditor
+            key={id}
+            title={label}
+            rules={rules}
+            onAdd={(rule) => handleAdd(id, rule)}
+            onDelete={(rule) => handleDelete(id, rule)}
+            disabled={isDisabled}
+          />
+        );
+      })}
 
-      <TagInput
-        label={t('settings.permissions.additionalDirectories.label')}
-        description={t('settings.permissions.additionalDirectories.description')}
-        scope={scope}
-        tags={additionalDirs}
-        emptyPlaceholder={t('settings.permissions.additionalDirectories.empty')}
-        inputPlaceholder={t('settings.permissions.additionalDirectories.placeholder')}
-        addLabel={t('settings.permissions.additionalDirectories.add')}
-        duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
-        settingKey="additionalDirectories"
-        disabled={isDisabled}
-        onSave={async (_key, value) => onSavePermissions({ ...safePerms, additionalDirectories: value as string[] })}
-      />
+      {additionalDirs.length > 0 && (
+        <TagInput
+          label={t('settings.permissions.additionalDirectories.label')}
+          description={t('settings.permissions.additionalDirectories.description')}
+          scope={scope}
+          tags={additionalDirs}
+          emptyPlaceholder={t('settings.permissions.additionalDirectories.empty')}
+          inputPlaceholder={t('settings.permissions.additionalDirectories.placeholder')}
+          addLabel={t('settings.permissions.additionalDirectories.add')}
+          duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
+          settingKey="additionalDirectories"
+          disabled={isDisabled}
+          onSave={async (_key, value) => onSavePermissions({ ...safePerms, additionalDirectories: value as string[] })}
+        />
+      )}
     </div>
   );
 }
