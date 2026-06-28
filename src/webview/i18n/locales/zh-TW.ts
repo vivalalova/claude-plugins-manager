@@ -25,6 +25,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.nav.general': '一般',
   'settings.nav.display': '顯示',
   'settings.nav.advanced': '進階',
+  'settings.nav.customized': '已自訂',
+  'settings.customized.empty': '此 scope 尚無自訂設定。',
   'settings.search.placeholder': '搜尋設定...',
   'settings.search.clear': '清除搜尋',
   'settings.search.noResults': '找不到符合的設定。',

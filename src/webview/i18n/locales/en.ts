@@ -23,6 +23,8 @@ export const en = {
   'settings.nav.general': 'General',
   'settings.nav.display': 'Display',
   'settings.nav.advanced': 'Advanced',
+  'settings.nav.customized': 'Customized',
+  'settings.customized.empty': 'No customized settings in this scope.',
   'settings.search.placeholder': 'Search settings...',
   'settings.search.clear': 'Clear search',
   'settings.search.noResults': 'No settings found matching your search.',

@@ -35,6 +35,13 @@ function deserializeValue(raw: string): unknown {
   }
 }
 
+/** 從 settings 中篩出 schema 未定義且非隱藏 key 的 entries，供外部計算 unknownCount */
+export function getUnknownSettingsEntries(settings: ClaudeSettings): [string, unknown][] {
+  return Object.entries(settings as Record<string, unknown>).filter(
+    ([key, v]) => getFlatFieldSchema(key) === undefined && v !== undefined && !HIDDEN_UNKNOWN_KEYS.has(key),
+  );
+}
+
 export function UnknownSettingsSection({
   scope,
   settings,
@@ -44,10 +51,7 @@ export function UnknownSettingsSection({
   const { t } = useI18n();
 
   const unknownEntries = useMemo(
-    () =>
-      Object.entries(settings as Record<string, unknown>).filter(
-        ([key, v]) => getFlatFieldSchema(key) === undefined && v !== undefined && !HIDDEN_UNKNOWN_KEYS.has(key),
-      ),
+    () => getUnknownSettingsEntries(settings),
     [settings],
   );
 

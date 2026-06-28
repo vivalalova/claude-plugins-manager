@@ -70,15 +70,15 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('左側 nav 恰好 6 個 items，順序為 General, Display, Permissions, Env, Hooks, Advanced', async () => {
+  it('左側 nav 恰好 7 個 items，順序為 General, Display, Permissions, Env, Hooks, Advanced, Customized', async () => {
     renderPage();
 
     await waitFor(() => {
       const nav = screen.getByRole('navigation');
       const navButtons = nav.querySelectorAll('button');
-      expect(navButtons.length).toBe(6);
+      expect(navButtons.length).toBe(7);
       const labels = Array.from(navButtons).map((b) => b.textContent);
-      expect(labels).toEqual(['General', 'Display', 'Permissions', 'Env', 'Hooks', 'Advanced']);
+      expect(labels).toEqual(['General', 'Display', 'Permissions', 'Env', 'Hooks', 'Advanced', 'Customized']);
     });
   });
 
@@ -694,4 +694,5 @@ describe('SettingsPage', () => {
       expect((screen.getByPlaceholderText('e.g. zh-TW') as HTMLInputElement).value).toBe('fr');
     });
   });
+
 });

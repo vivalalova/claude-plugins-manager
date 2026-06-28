@@ -10,11 +10,11 @@ import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
-import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, type SettingsSection } from '../../../shared/claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, getAllFlatFieldSchemas, type SettingsSection, type FlatFieldSchema } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
-import { UnknownSettingsSection } from './components/UnknownSettingsSection';
+import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { getSchemaFieldBindings } from './components/SchemaSection';
 
@@ -24,8 +24,13 @@ import { getSchemaFieldBindings } from './components/SchemaSection';
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 const SETTINGS_NAV_SECTIONS = getSettingsSections();
+const PERMISSIONS_NESTED_KEYS = new Set(
+  Object.entries(getAllFlatFieldSchemas())
+    .filter(([, s]) => s.nestedUnder === 'permissions')
+    .map(([key]) => key),
+);
 
-type SettingsNavItem = SettingsSection;
+type SettingsNavItem = SettingsSection | 'customized';
 
 // ---------------------------------------------------------------------------
 // Search types & helpers
@@ -91,6 +96,65 @@ function matchesSearch(field: SearchableField, query: string): boolean {
     (field.label?.toLowerCase().includes(q) ?? false) ||
     (field.description?.toLowerCase().includes(q) ?? false) ||
     (field.optionLabels?.some(l => l.toLowerCase().includes(q)) ?? false)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared schema-field result renderer (search + customized)
+// ---------------------------------------------------------------------------
+
+function renderSchemaResultRow({
+  fieldKey,
+  sectionLabel,
+  labelText,
+  description,
+  schema,
+  value,
+  scope,
+  overriddenScope,
+  onSave,
+  onDelete,
+  onNavigate,
+}: {
+  fieldKey: string;
+  sectionLabel: string;
+  labelText: string;
+  description?: string;
+  schema: FlatFieldSchema;
+  value: unknown;
+  scope: PluginScope;
+  overriddenScope?: PluginScope;
+  onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+  onNavigate: () => void;
+}): React.ReactElement {
+  if (schema.controlType === Object) {
+    return (
+      <div key={fieldKey} className="settings-search-result">
+        <span className="settings-search-result-section">{sectionLabel}</span>
+        <div className="settings-field">
+          <label className="settings-label">{labelText}</label>
+          {description && <p className="settings-field-description">{description}</p>}
+          <button className="btn btn-secondary" onClick={onNavigate}>
+            {sectionLabel} →
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div key={fieldKey} className="settings-search-result">
+      <span className="settings-search-result-section">{sectionLabel}</span>
+      <SchemaFieldRenderer
+        settingKey={fieldKey}
+        schema={schema}
+        value={value}
+        scope={scope}
+        overriddenScope={overriddenScope}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+    </div>
   );
 }
 
@@ -201,10 +265,44 @@ export function SettingsPage(): React.ReactElement {
     setScope(s);
   };
 
-  const navItems: { id: SettingsNavItem; label: string }[] = SETTINGS_NAV_SECTIONS.map((section) => ({
-    id: section,
-    label: t(`settings.nav.${section}` as Parameters<typeof t>[0]),
-  }));
+  const navItems: { id: SettingsNavItem; label: string }[] = [
+    ...SETTINGS_NAV_SECTIONS.map((section) => ({
+      id: section as SettingsNavItem,
+      label: t(`settings.nav.${section}` as Parameters<typeof t>[0]),
+    })),
+    { id: 'customized' as SettingsNavItem, label: t('settings.nav.customized') },
+  ];
+
+  // Customized tab: schema fields whose value is set in current scope settings
+  const customizedFields = useMemo(() => {
+    const noop = async () => {};
+    const result: Array<{ key: string; section: SettingsSection }> = [];
+    for (const section of SETTINGS_NAV_SECTIONS) {
+      for (const key of getSectionFieldOrder(section)) {
+        const binding = getSchemaFieldBindings(key, {
+          scope,
+          settings,
+          userSettings,
+          onSave: noop,
+          onDelete: noop,
+        });
+        if (binding && binding.value !== undefined) {
+          if (key === 'permissions') {
+            const perms = (settings.permissions as Record<string, unknown> | undefined) ?? {};
+            const hasNonNested = Object.keys(perms).some((k) => !PERMISSIONS_NESTED_KEYS.has(k));
+            if (!hasNonNested) continue;
+          }
+          result.push({ key, section });
+        }
+      }
+    }
+    return result;
+  }, [scope, settings, userSettings]);
+
+  const unknownCount = useMemo(
+    () => getUnknownSettingsEntries(settings).length,
+    [settings],
+  );
 
   return (
     <div className="page-container settings-page settings-page--fixed-shell">
@@ -325,40 +423,20 @@ export function SettingsPage(): React.ReactElement {
                     });
                     if (!fieldBindings) return null;
                     const { schema, value, onSave, onDelete, overriddenScope } = fieldBindings;
-
-                    // Object type (custom control) — show navigate-to-section card
-                    if (schema.controlType === Object) {
-                      const sectionLabel = t(`settings.nav.${field.section}` as Parameters<typeof t>[0]);
-                      return (
-                        <div key={field.key} className="settings-search-result">
-                          <span className="settings-search-result-section">{sectionLabel}</span>
-                          <div className="settings-field">
-                            <label className="settings-label">{field.label || field.key}</label>
-                            {field.description && <p className="settings-field-description">{field.description}</p>}
-                            <button
-                              className="btn btn-secondary"
-                              onClick={() => { setSearchQuery(''); setActiveNav(field.section as SettingsNavItem); }}
-                            >
-                              {sectionLabel} →
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={field.key} className="settings-search-result">
-                        <span className="settings-search-result-section">{t(`settings.nav.${field.section}` as Parameters<typeof t>[0])}</span>
-                        <SchemaFieldRenderer
-                          settingKey={field.key}
-                          schema={schema}
-                          value={value}
-                          scope={scope}
-                          overriddenScope={overriddenScope}
-                          onSave={onSave}
-                          onDelete={onDelete}
-                        />
-                      </div>
-                    );
+                    const sectionLabel = t(`settings.nav.${field.section}` as Parameters<typeof t>[0]);
+                    return renderSchemaResultRow({
+                      fieldKey: field.key,
+                      sectionLabel,
+                      labelText: field.label || field.key,
+                      description: field.description,
+                      schema,
+                      value,
+                      scope,
+                      overriddenScope,
+                      onSave,
+                      onDelete,
+                      onNavigate: () => { setSearchQuery(''); setActiveNav(field.section as SettingsNavItem); },
+                    });
                   })}
                 </>
               )}
@@ -426,6 +504,48 @@ export function SettingsPage(): React.ReactElement {
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
+              )}
+              {activeNav === 'customized' && (
+                customizedFields.length === 0 && unknownCount === 0 ? (
+                  <SettingsSectionWrapper>
+                    <p className="settings-search-empty">{t('settings.customized.empty')}</p>
+                  </SettingsSectionWrapper>
+                ) : (
+                  <>
+                    <SettingsSectionWrapper>
+                      {customizedFields.map(({ key, section }) => {
+                        const fieldBindings = getSchemaFieldBindings(key, {
+                          scope,
+                          settings,
+                          userSettings,
+                          onSave: handleSave,
+                          onDelete: handleDelete,
+                        });
+                        if (!fieldBindings) return null;
+                        const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = fieldBindings;
+                        const sectionLabel = t(`settings.nav.${section}` as Parameters<typeof t>[0]);
+                        return renderSchemaResultRow({
+                          fieldKey: key,
+                          sectionLabel,
+                          labelText: sectionLabel,
+                          schema,
+                          value,
+                          scope,
+                          overriddenScope,
+                          onSave: fieldOnSave,
+                          onDelete: fieldOnDelete,
+                          onNavigate: () => setActiveNav(section as SettingsNavItem),
+                        });
+                      })}
+                    </SettingsSectionWrapper>
+                    <UnknownSettingsSection
+                      scope={scope}
+                      settings={settings}
+                      onSave={handleSave}
+                      onDelete={handleDelete}
+                    />
+                  </>
+                )
               )}
             </>
           )}

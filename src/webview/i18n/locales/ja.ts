@@ -280,6 +280,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.nav.general': '一般',
   'settings.nav.display': '表示',
   'settings.nav.advanced': '詳細設定',
+  'settings.nav.customized': 'カスタム',
+  'settings.customized.empty': 'このスコープにカスタム設定はありません。',
   'settings.search.placeholder': '設定を検索...',
   'settings.search.clear': '検索をクリア',
   'settings.search.noResults': '検索に一致する設定がありません。',
