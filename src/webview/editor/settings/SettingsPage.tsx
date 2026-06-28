@@ -148,13 +148,39 @@ export function SettingsPage(): React.ReactElement {
   const settings = data.settings;
   const userSettings = data.userSettings;
 
+  const loadScopeCounts = useCallback(async (): Promise<{ project: number; local: number }> => {
+    if (!hasWorkspace) {
+      return { project: 0, local: 0 };
+    }
+    const [projectSettings, localSettings] = await Promise.all([
+      sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'project' }),
+      sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'local' }),
+    ]);
+    return {
+      project: Object.keys(projectSettings ?? {}).length,
+      local: Object.keys(localSettings ?? {}).length,
+    };
+  }, [hasWorkspace]);
+
+  const { data: counts, setData: setCounts } = usePushSyncedResource<{ project: number; local: number }>({
+    initialData: { project: 0, local: 0 },
+    load: loadScopeCounts,
+    pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
+  });
+
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
     setData((prev) => ({
       ...prev,
       settings: { ...prev.settings, [key]: value },
     }));
-  }, [scope, setData]);
+    if (scope === 'project' || scope === 'local') {
+      const isNew = !(key in settings);
+      if (isNew) {
+        setCounts((prev) => ({ ...prev, [scope]: prev[scope] + 1 }));
+      }
+    }
+  }, [scope, setData, setCounts, settings]);
 
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
@@ -165,7 +191,10 @@ export function SettingsPage(): React.ReactElement {
         settings: rest as ClaudeSettings,
       };
     });
-  }, [scope, setData]);
+    if ((scope === 'project' || scope === 'local') && key in settings) {
+      setCounts((prev) => ({ ...prev, [scope]: Math.max(0, prev[scope] - 1) }));
+    }
+  }, [scope, setData, setCounts, settings]);
 
   const handleScopeClick = (s: PluginScope): void => {
     if (s !== 'user' && !hasWorkspace) return;
@@ -185,6 +214,7 @@ export function SettingsPage(): React.ReactElement {
       <div className="settings-scope-tabs settings-scope-tabs--fixed">
         {SCOPES.map((s) => {
           const disabled = s !== 'user' && !hasWorkspace;
+          const count = s === 'project' ? counts.project : s === 'local' ? counts.local : 0;
           return (
             <button
               key={s}
@@ -194,6 +224,9 @@ export function SettingsPage(): React.ReactElement {
               title={disabled ? t('settings.scope.noWorkspace') : undefined}
             >
               {t(`settings.scope.${s}` as Parameters<typeof t>[0])}
+              {(s === 'project' || s === 'local') && count >= 1 && (
+                <span className="settings-scope-badge">{count}</span>
+              )}
             </button>
           );
         })}

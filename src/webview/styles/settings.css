@@ -277,6 +277,18 @@
   cursor: not-allowed;
 }
 
+.settings-scope-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 8px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  vertical-align: middle;
+}
+
 .settings-body {
   display: flex;
   gap: 0;
