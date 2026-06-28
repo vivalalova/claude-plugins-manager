@@ -20,17 +20,33 @@ interface CustomizedPermissionsEditorProps {
 
 type PermissionsList = 'allow' | 'deny' | 'ask';
 
+/**
+ * 此編輯器實際會渲染出內容的判定（單一來源）：allow/deny/ask 任一非空，或
+ * additionalDirectories 非空。badge 計數與本編輯器都用它，避免「計數有值但畫面空白」。
+ */
+export function hasVisiblePermissionsContent(perms: ClaudeSettings['permissions']): boolean {
+  const p = perms ?? {};
+  return (
+    (p.allow ?? []).length > 0 ||
+    (p.deny ?? []).length > 0 ||
+    (p.ask ?? []).length > 0 ||
+    (p.additionalDirectories ?? []).length > 0
+  );
+}
+
 export function CustomizedPermissionsEditor({
   perms,
   onSavePermissions,
   scope,
   disabled,
-}: CustomizedPermissionsEditorProps): React.ReactElement {
+}: CustomizedPermissionsEditorProps): React.ReactElement | null {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
 
   const isDisabled = disabled || saving;
   const safePerms = perms ?? {};
+
+  if (!hasVisiblePermissionsContent(perms)) return null;
 
   const lists: { id: PermissionsList; label: string }[] = [
     { id: 'allow', label: t('settings.permissions.allow') },

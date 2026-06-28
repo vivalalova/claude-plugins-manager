@@ -587,3 +587,200 @@ describe('SettingsPage — scope tab badge（issue #8）', () => {
     expect(getCalls('settings.get').length).toBe(getCallsBefore);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Bug reproduction — permissions 空子清單的 badge 計數與渲染不一致
+//
+// Bug：collectCustomizedSchemaFields 對 permissions 只看 key 是否存在（`Object.keys(perms).some(...)`)，
+// 不看值是否為空陣列；但 CustomizedPermissionsEditor 對空子清單 return null（不渲染）。
+// 結果：{ allow: [] } 或 { additionalDirectories: [] } 使 badge +1，但 Customized 分頁卻空白。
+//
+// 正確口徑：badge 計入 permissions iff CustomizedPermissionsEditor 會 render 至少一個子清單，
+// 即至少一個非 nested key（allow/deny/ask/additionalDirectories）持有非空陣列。
+// ---------------------------------------------------------------------------
+
+describe('SettingsPage — badge 計數：permissions 空子清單 bug reproduction', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  // -------------------------------------------------------------------------
+  // [RED] 1. permissions:{ allow: [] } → badge 應為 0
+  // 目前 code 因 `Object.keys(perms).some(k => !PERMISSIONS_NESTED_KEYS.has(k))` 看到 "allow" key
+  // 存在就算 1，但 CustomizedPermissionsEditor 對空陣列 return null → 空白面板。
+  // 使用 anchor pattern：local scope 有 { model: 'x' } → badge "1" 出現後再斷言 project badge。
+  // -------------------------------------------------------------------------
+
+  it('[RED] permissions:{ allow: [] } 空陣列 → project badge 應為 0（無 badge span）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { allow: [] } });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' }); // 錨點：local badge "1" 出現表示 loadScopeCounts 完成
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    // 等 local badge "1" 出現，確認 loadScopeCounts 已完成（避免「尚未載入→null」誤判為通過）
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    // project 只有 permissions:{ allow:[] }（空陣列）→ 應無 badge
+    // 當前未修 code：badge span 存在且顯示 "1" → 此斷言紅，reproduction 確認
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // [GREEN] 2. 對照組：permissions:{ allow: ['Bash(ls)'] } 非空 → badge 為 1
+  // 防止修 bug 時矯枉過正，把非空陣列也誤算為 0。
+  // -------------------------------------------------------------------------
+
+  it('[GREEN guard] permissions:{ allow: [\'Bash(ls)\'] } 非空 → project badge 為 1', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { allow: ['Bash(ls)'] } });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // [RED optional] 3. permissions:{ additionalDirectories: [] } 空 → badge 0
+  // -------------------------------------------------------------------------
+
+  it('[RED] permissions:{ additionalDirectories: [] } 空陣列 → project badge 應為 0（無 badge span）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { additionalDirectories: [] } });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' }); // 錨點
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    // 等 local badge "1"（錨點：loadScopeCounts 完成）
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    // project 只有 permissions:{ additionalDirectories:[] }（空陣列）→ 應無 badge
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // [GREEN optional guard] 4. permissions:{ additionalDirectories: ['/x'] } 非空 → badge 1
+  // -------------------------------------------------------------------------
+
+  it('[GREEN guard] permissions:{ additionalDirectories: [\'/x\'] } 非空 → project badge 為 1', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { additionalDirectories: ['/x'] } });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // [RED render optional] 5. permissions:{ allow: [] } 時已自訂分頁出現空狀態訊息
+  // CustomizedPermissionsEditor 整體 return null（空容器），collectCustomizedSchemaFields
+  // 不計入 → 已自訂分頁沒有任何欄位 → 出現空狀態訊息。
+  // 目前 bug：collectCustomizedSchemaFields 計入了 permissions → 傳入 CustomizedPermissionsEditor
+  // → 它 render 空容器 → 畫面無任何規則，但頁面不顯示空狀態訊息（Customized 分頁有被視為「有內容」）。
+  // -------------------------------------------------------------------------
+
+  it('[RED render] permissions:{ allow: [] } → 已自訂分頁出現空狀態訊息（無 permissions 區塊）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: [] } });
+      return Promise.resolve(null);
+    });
+
+    renderPage();
+
+    await waitFor(() => screen.getByText('Customized'));
+    fireEvent.click(screen.getByText('Customized').closest('button')!);
+
+    await waitFor(() => {
+      // 空狀態訊息必須出現（badge=0 與 render 一致）
+      expect(screen.getByText('No customized settings in this scope.')).toBeTruthy();
+      // Allow/Deny/Ask 標題不應出現（空陣列不渲染）
+      expect(screen.queryByText('Allow')).toBeNull();
+      expect(screen.queryByText('Deny')).toBeNull();
+      expect(screen.queryByText('Ask')).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // [GREEN guard] nested-only permissions 行為不受影響：
+  // permissions:{ defaultMode: 'plan' } → badge 仍為 1（defaultMode 以頂層 row 計入，
+  // permissions card 本身因無非 nested key 而不計入，但 defaultMode 走 nestedUnder 路徑另算 1）
+  // -------------------------------------------------------------------------
+
+  it('[GREEN guard] permissions:{ defaultMode: \'plan\' } nested-only → badge 仍為 1（行為不受本 bug 修正影響）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ permissions: { defaultMode: 'plan' } });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+});

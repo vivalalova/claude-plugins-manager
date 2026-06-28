@@ -762,7 +762,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.general.docsHint': 'パラメータはプロジェクトの ',
   'settings.general.docsSkillName': 'update-settings-options',
   'settings.general.docsHintMiddle': ' skill が ',
-  'settings.general.docsLinkText': 'JSON Schema',
+  'settings.general.docsLinkText': '公式設定ドキュメント',
   'settings.general.docsHintSuffix': ' から自動生成',
   'settings.general.defaultMode.label': 'デフォルトモード',
   'settings.general.defaultMode.description': 'Claude 操作のデフォルト権限モード',

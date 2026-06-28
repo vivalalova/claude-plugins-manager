@@ -507,7 +507,7 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.general.docsHint': '參數由專案中的 ',
   'settings.general.docsSkillName': 'update-settings-options',
   'settings.general.docsHintMiddle': ' skill 讀取 ',
-  'settings.general.docsLinkText': 'JSON Schema',
+  'settings.general.docsLinkText': '官方設定文件',
   'settings.general.docsHintSuffix': ' 自動產生',
   'settings.general.defaultMode.label': '預設模式',
   'settings.general.defaultMode.description': 'Claude 操作的預設權限模式',

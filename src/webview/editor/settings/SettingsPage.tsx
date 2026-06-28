@@ -4,14 +4,14 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { useI18n } from '../../i18n/I18nContext';
 import { PermissionsSection } from './PermissionsSection';
-import { CustomizedPermissionsEditor } from './CustomizedPermissionsEditor';
+import { CustomizedPermissionsEditor, hasVisiblePermissionsContent } from './CustomizedPermissionsEditor';
 import { EnvSection, EnvFieldRenderer, CustomizedEnvEditor } from './EnvSection';
 import { HooksSection, HooksFieldEditor } from './HooksSection';
 import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
-import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, getAllFlatFieldSchemas, type SettingsSection, type FlatFieldSchema } from '../../../shared/claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, type SettingsSection, type FlatFieldSchema } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
@@ -26,11 +26,6 @@ import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldE
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 const SETTINGS_NAV_SECTIONS = getSettingsSections();
-const PERMISSIONS_NESTED_KEYS = new Set(
-  Object.entries(getAllFlatFieldSchemas())
-    .filter(([, s]) => s.nestedUnder === 'permissions')
-    .map(([key]) => key),
-);
 
 function collectCustomizedSchemaFields(
   settings: ClaudeSettings,
@@ -50,11 +45,9 @@ function collectCustomizedSchemaFields(
         onDelete: noop,
       });
       if (binding && binding.value !== undefined) {
-        if (key === 'permissions') {
-          const perms = (settings.permissions as Record<string, unknown> | undefined) ?? {};
-          const hasNonNested = Object.keys(perms).some((k) => !PERMISSIONS_NESTED_KEYS.has(k));
-          if (!hasNonNested) continue;
-        }
+        // permissions 與 CustomizedPermissionsEditor 共用同一「有可見內容」判定，
+        // 避免空子清單（如 allow:[]）被計入 badge 卻在面板畫不出來。
+        if (key === 'permissions' && !hasVisiblePermissionsContent(settings.permissions)) continue;
         result.push({ key, section });
       }
     }
@@ -351,7 +344,7 @@ export function SettingsPage(): React.ReactElement {
           {t('settings.general.docsHint')}
           <a href="https://github.com/vivalalova/claude-plugins-manager/tree/main/.claude/skills/update-settings-options" target="_blank" rel="noreferrer" className="settings-docs-link settings-docs-skill-name">{t('settings.general.docsSkillName')}</a>
           {t('settings.general.docsHintMiddle')}
-          <a href="https://json.schemastore.org/claude-code-settings.json" target="_blank" rel="noreferrer" className="settings-docs-link">
+          <a href="https://code.claude.com/docs/en/settings" target="_blank" rel="noreferrer" className="settings-docs-link">
             {t('settings.general.docsLinkText')}
           </a>
           {t('settings.general.docsHintSuffix')}
