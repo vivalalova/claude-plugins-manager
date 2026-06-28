@@ -370,9 +370,10 @@ describe('SettingsPage — issue #23 Object 欄位全覆蓋 guard', () => {
       sshConfigs:          [{ id: 'dev-vm', name: 'Dev VM', sshHost: 'user@dev.example.com' }],
       sandbox:             { enabled: true },
       companyAnnouncements: ['Welcome!'],
+      footerLinksRegexes:  [{ pattern: 'PROJ-\\d+', url: 'https://issues.example.com/browse/{0}' }],
     };
 
-    // 驗所有 19 個 key 都在 minimalSettings 中（漏掉即測試本身有問題）
+    // 驗所有 object key 都在 minimalSettings 中（漏掉即測試本身有問題）
     for (const key of objectKeys) {
       expect(minimalSettings).toHaveProperty(key);
     }

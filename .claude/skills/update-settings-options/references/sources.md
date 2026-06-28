@@ -1,52 +1,34 @@
 # Sources
 
-## Primary（official schema when available; JSON schema store fallback）
+## Primary（官方 docs，確定性 CLI 解析）
 
-- Fallback URL: `https://json.schemastore.org/claude-code-settings.json`（需 `curl -sL` follow redirect）
-- machine-readable：完整 type/enum/default/description
-- 單一 curl 取得所有 properties + hook defs
-- 社群維護（非 Anthropic 官方 host）；[anthropics/claude-code#11795](https://github.com/anthropics/claude-code/issues/11795) 追蹤官方 schema URL
-- 權威來源：type/enum/default 以 primary schema 為準；官方 schema URL 可解析時優先於 schema store
+- Settings：`https://code.claude.com/docs/en/settings.md`（curl 取 Markdown，`parseSettingsDocs` 解析 key 清單）
+- Env vars：`https://code.claude.com/docs/en/env-vars.md`（curl 取 Markdown，`parseEnvDocs` 解析 env var 名稱）
+- 偵測入口：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）
+- 輸出：`{ settingsGaps, envGaps, counts, health }`
 
-## Official source discovery（每次執行檢查）
+## Schemastore（交叉檢查 fixture）
 
-Schema store 可能落後官方。每次同步時交叉比對：
+- URL：`https://json.schemastore.org/claude-code-settings.json`
+- 用途：測試 fixture（`src/shared/settings-sync/__tests__/fixtures/schemastore.json`），非每次同步 curl
+- 不作為 presence-diff 的 primary source；社群維護、落後官方 docs
 
-1. **官方 settings docs**：`https://code.claude.com/docs/en/settings#available-settings` — 透過 context7 查 key 清單
-2. **官方 env vars docs**：`https://code.claude.com/docs/en/env-vars` — 透過 context7 查 env var 清單與描述
-3. **CHANGELOG**：`https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` — WebSearch 找最近新增 settings
-4. **官方 schema URL**：若 Anthropic 開始 host 自己的 schema（如 `code.claude.com/schema/settings.json`）→ curl + parse；成功時升級為 primary，schemastore 降為 fallback
+## Compare 目標（repo 內部）
 
-docs 有但 schema store 無的 key → 標記 `docs-only`，納入 gap report，使用 docs description 作為唯一來源
-
-## Supplementary（context7）
-
-- library: `/websites/code_claude`
-- 補充 schema 未涵蓋的描述/用途/context
-- official source discovery 的 docs query 計入 quota
-- **≤3 queries**（context7 API 限制）
+- `src/shared/claude-settings-schema.ts` — schema 單一來源，含 section 陣列（即 UI 渲染順序）
+- `src/shared/settings-sync/settings-diff.ts` → `KNOWN_EXCLUDED`：機器強制排除清單（權威 SSOT）
+- `src/webview/editor/settings/` 現有 section 實作
+- `src/shared/claude-settings-types.generated.ts` 由 schema 自動重生，禁手改、不列為來源
 
 ## Fail-fast
 
-- Schema store 失敗且沒有可解析官方 schema → 直接報錯結束，不 fallback
-
-## Secondary（repo 內部）
-
-- `src/shared/claude-settings-schema.ts` — schema 單一來源，含 section 陣列（即 UI 渲染順序）
-- `src/webview/editor/settings/` 現有 section 實作
-- 只補 literal enum、default、object shape
-- `src/shared/claude-settings-types.generated.ts` 由 schema 自動重生，禁手改、不列為 secondary source
-
-## 優先序
-
-official schema（如有）> schema store > official docs > repo
+- CLI exit 1（health failure 或 fetch error）→ workflow throw，不 fallback
 
 ## Rules
 
-- schema store > docs > repo（official schema 出現前）
-- secondary 只補 literal enum、default、object shape
-- schema 缺 shape：保守同步；不腦補 enterprise/private fields
+- type/enum/default 以 docs 描述為準；schema 缺 shape 時保守同步、不腦補 enterprise/private fields
+- 同步進 repo schema 時，secondary（既有 section 實作）只補 literal enum、default、object shape
 - 刪除 key：移除 repo first-party support、tests、locale、CLAUDE.md 說明
 - 刪除 key：不修改使用者既有 settings 檔；unknown key 容忍保持
-- schema 與 repo 衝突：回報列 `衝突點`
-- docs-only key：無 type 資訊時預設 `String`，object shape 保守處理
+- docs 與 repo 衝突：回報列衝突點
+- 新 key 無 type 資訊時預設 `String`，object shape 保守處理

@@ -72,11 +72,11 @@ describe('DisplaySection — 渲染', () => {
     });
   });
 
-  it('顯示 12 個 checkbox（11 boolean toggle + excludeDefault）', async () => {
+  it('顯示 18 個 checkbox（17 boolean toggle + excludeDefault；批次 S 加入 6 個 display boolean）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(12);
+      expect(checkboxes.length).toBe(18);
     });
   });
 
@@ -682,6 +682,169 @@ describe('DisplaySection — SpinnerTipsOverride 驗收', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('spinnerTipsOverride');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 批次 S：display 7 個新 key（先紅）
+// ---------------------------------------------------------------------------
+
+describe('DisplaySection — 批次 S 渲染（先紅）', () => {
+  it('顯示既有欄位 Show Turn Duration（harness 健在）', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Show Turn Duration')).toBeTruthy());
+  });
+
+  it.each([
+    ['theme', 'Theme'],
+    ['verbose', 'Verbose Output'],
+    ['axScreenReader', 'Screen Reader Mode'],
+    ['wheelScrollAccelerationEnabled', 'Wheel Scroll Acceleration'],
+    ['respondToBashCommands', 'Respond to Shell Commands'],
+    ['agentPushNotifEnabled', 'Push When Claude Decides'],
+    ['inputNeededNotifEnabled', 'Push When Action Required'],
+  ])('顯示 %s 欄位：label "%s"', async (_key, label) => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText(label)).toBeTruthy());
+  });
+});
+
+describe('DisplaySection — 批次 S 互動（先紅）', () => {
+  // theme: enum with default='dark'
+  // unset → select value '' (not set); select 'light' → onSave('theme','light')
+  // select 'dark' (=default) → onDelete('theme')
+  it('theme 未設定 → combobox value 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Theme' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+  });
+
+  it('theme 未設定, 選擇 light → onSave("theme", "light")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Theme' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Theme' }), { target: { value: 'light' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('theme', 'light');
+    });
+  });
+
+  it('theme 未設定, 選擇 dark（= default）→ onDelete("theme")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Theme' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Theme' }), { target: { value: 'dark' } });
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('theme');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('theme="auto" → combobox 顯示 auto', async () => {
+    renderSection({ theme: 'auto' });
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Theme' }) as HTMLSelectElement;
+      expect(select.value).toBe('auto');
+    });
+  });
+
+  // verbose: default=false → unset→unchecked; click→onSave(key, true)
+  it('verbose 未設定 → checkbox 未勾選（default false）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const field = screen.getByText('Verbose Output').closest('.settings-field') as HTMLElement;
+      const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+      expect(cb.checked).toBe(false);
+    });
+  });
+
+  it('verbose 未設定, toggle on → onSave("verbose", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByText('Verbose Output'));
+    const field = screen.getByText('Verbose Output').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('verbose', true);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // wheelScrollAccelerationEnabled: default=true → unset→checked; click→onSave(key, false)
+  it('wheelScrollAccelerationEnabled 未設定 → checkbox checked（default true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const field = screen.getByText('Wheel Scroll Acceleration').closest('.settings-field') as HTMLElement;
+      const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('wheelScrollAccelerationEnabled 未設定, 點擊 → onSave("wheelScrollAccelerationEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByText('Wheel Scroll Acceleration'));
+    const field = screen.getByText('Wheel Scroll Acceleration').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('wheelScrollAccelerationEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // respondToBashCommands: default=true → click→onSave(key, false)
+  it('respondToBashCommands 未設定, 點擊 → onSave("respondToBashCommands", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByText('Respond to Shell Commands'));
+    const field = screen.getByText('Respond to Shell Commands').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('respondToBashCommands', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // agentPushNotifEnabled: default=false → click→onSave(key, true)
+  it('agentPushNotifEnabled 未設定, toggle on → onSave("agentPushNotifEnabled", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByText('Push When Claude Decides'));
+    const field = screen.getByText('Push When Claude Decides').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('agentPushNotifEnabled', true);
+    });
+  });
+
+  // inputNeededNotifEnabled: default=false → click→onSave(key, true)
+  it('inputNeededNotifEnabled 未設定, toggle on → onSave("inputNeededNotifEnabled", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByText('Push When Action Required'));
+    const field = screen.getByText('Push When Action Required').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('inputNeededNotifEnabled', true);
+    });
+  });
+
+  // axScreenReader: default=false → click→onSave(key, true)
+  it('axScreenReader 未設定, toggle on → onSave("axScreenReader", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByText('Screen Reader Mode'));
+    const field = screen.getByText('Screen Reader Mode').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('axScreenReader', true);
     });
   });
 });

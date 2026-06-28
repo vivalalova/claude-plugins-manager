@@ -951,3 +951,122 @@ describe('GeneralSection — defaultMode（nested under permissions）', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// 批次 S：general 4 個新 key（先紅）
+// ---------------------------------------------------------------------------
+
+describe('GeneralSection — 批次 S 渲染（先紅）', () => {
+  it('顯示既有欄位 Effort Level（harness 健在）', async () => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText('Effort Level')).toBeTruthy());
+  });
+
+  it.each([
+    ['advisorModel', 'Advisor Model'],
+    ['fallbackModel', 'Fallback Model'],
+    ['autoCompactEnabled', 'Auto-Compact'],
+    ['fileCheckpointingEnabled', 'File Checkpointing'],
+  ])('顯示 %s 欄位：label "%s"', async (_key, label) => {
+    renderSection();
+    await waitFor(() => expect(screen.getByText(label)).toBeTruthy());
+  });
+});
+
+describe('GeneralSection — 批次 S 互動（先紅）', () => {
+  // autoCompactEnabled: default=true → unchecked click → onSave(key, false)
+  it('autoCompactEnabled 未設定 → checkbox checked（default true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'Auto-Compact' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('autoCompactEnabled 未設定, 點擊 → onSave("autoCompactEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Auto-Compact' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auto-Compact' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoCompactEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // fileCheckpointingEnabled: default=true → toggle off → onSave(key, false)
+  it('fileCheckpointingEnabled 未設定 → checkbox checked（default true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = screen.getByRole('checkbox', { name: 'File Checkpointing' }) as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('fileCheckpointingEnabled 未設定, 點擊 → onSave("fileCheckpointingEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByRole('checkbox', { name: 'File Checkpointing' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'File Checkpointing' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fileCheckpointingEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // advisorModel: string control, save via Save button
+  it('advisorModel 未設定, 輸入值並儲存 → onSave("advisorModel", trimmed)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByText('Advisor Model'));
+    const field = screen.getByText('Advisor Model').closest('.settings-field') as HTMLElement;
+    fireEvent.change(within(field).getByRole('textbox'), { target: { value: 'opus' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('advisorModel', 'opus');
+    });
+  });
+
+  // fallbackModel: must be arrayField (string[]) — discriminator is Add button, not textbox
+  // P1 fix contract: change from unionValue(STRING_SCHEMA, STRING_ARRAY_SCHEMA)+controlTypeOverride:String
+  //   → arrayField('fallbackModel', STRING_SCHEMA) so it renders same as availableModels (tag-list).
+  it('fallbackModel 欄位渲染出 array 控件（有 Add 按鈕）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const field = screen.getByText('Fallback Model').closest('.settings-field') as HTMLElement;
+      expect(within(field).getByRole('button', { name: 'Add' })).toBeTruthy();
+    });
+  });
+
+  it('fallbackModel 空值新增一個 model → onSave("fallbackModel", [value])', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => {
+      const field = screen.getByText('Fallback Model').closest('.settings-field') as HTMLElement;
+      expect(within(field).getByRole('button', { name: 'Add' })).toBeTruthy();
+    });
+    const field = screen.getByText('Fallback Model').closest('.settings-field') as HTMLElement;
+    fireEvent.change(within(field).getByRole('textbox'), { target: { value: 'claude-sonnet-4-6' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fallbackModel', ['claude-sonnet-4-6']);
+    });
+  });
+
+  it('fallbackModel 已有一個 → 新增第二個 → onSave 帶兩元素陣列', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ fallbackModel: ['claude-opus-4-5'] }, onSave);
+    await waitFor(() => {
+      const field = screen.getByText('Fallback Model').closest('.settings-field') as HTMLElement;
+      expect(within(field).getByRole('button', { name: 'Add' })).toBeTruthy();
+    });
+    const field = screen.getByText('Fallback Model').closest('.settings-field') as HTMLElement;
+    fireEvent.change(within(field).getByRole('textbox'), { target: { value: 'claude-haiku-4-5' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Add' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('fallbackModel', ['claude-opus-4-5', 'claude-haiku-4-5']);
+    });
+  });
+});

@@ -1,30 +1,27 @@
 # update-settings-options
 
-Keep the extension's settings surface in sync with **which settings options Claude Code currently has** — sourced from the official [JSON Schema](https://json.schemastore.org/claude-code-settings.json), cross-checked against the official docs/CHANGELOG.
+Keep the extension's settings surface in sync with **which settings Claude Code currently has** — sourced from the official docs `code.claude.com/docs/en/settings.md`, detected by a deterministic CLI.
 
 ## How it works
 
-A **workflow** runs the discovery (read-only, parallel); the main loop does the deciding, editing, and verifying. The split is forced by two constraints: a background workflow can't ask the user questions, and this repo forbids concurrent test/build (which parallel agents would break). So the workflow scouts, then the main loop acts.
+A **workflow** runs discovery (read-only); the main loop decides, edits, and verifies. See `SKILL.md` for the full flow.
 
-1. **Discovery workflow** (`references/scripts/sync-settings.workflow.js`) — three read-only phases:
-   - **Fetch** (parallel): schema store JSON · official settings/env docs · CHANGELOG + schema-URL discovery and parsing · repo schema/env/i18n
-   - **Diff**: deep diff across top-level / scalar-meta / nested-object / union / number-range / env / hook dimensions
-   - **Categorize** (parallel): classify each gap; adversarially verify before declaring a key `repo-only`
-   - Returns a structured gap report.
-2. **Confirm**: present the report; `AskUserQuestion` for ambiguous user-facing section assignments; list `repo-only` keys for the user.
-3. **Apply + verify**: edit schema, sections, i18n (3 languages), env registry, tests, and `CLAUDE.md`; then typecheck → test → build **serially**.
+1. **Detect**: run `scripts/settings-sync-diff.ts` (curl live docs → parse → diff against repo schema → JSON output)
+2. **Categorize** (parallel): classify each gap by section + isObjectEditor
+3. **Apply** (main loop): add schema field + i18n (3 languages) + tests; `SchemaFieldRenderer` auto-renders scalars; object editor keys need a dispatcher case in `ObjectFieldEditor.tsx`
 
 ## Files touched
 
 | File | Purpose |
 |------|---------|
 | `src/shared/claude-settings-schema.ts` | Settings schema (single source: value shape, section, UI metadata) |
+| `src/shared/settings-sync/settings-diff.ts` | Gap detection logic + `KNOWN_EXCLUDED` |
 | `src/shared/known-env-vars.ts` | Environment variables registry |
 | `src/webview/i18n/locales/{en,zh-TW,ja}.ts` | Translations |
 | `src/webview/editor/settings/*Section.tsx` | Section components |
 | `CLAUDE.md` | Settings section documentation |
 
-`src/shared/claude-settings-types.generated.ts` (`ClaudeSettings` / `HookCommand`) is regenerated from the schema — never edited by hand.
+`src/shared/claude-settings-types.generated.ts` is regenerated from the schema — never edited by hand.
 
 ## Usage
 
@@ -36,21 +33,17 @@ Or trigger with natural language: "sync settings from docs", "update settings op
 
 ## Key categories
 
-| Category | Action | Example keys |
-|----------|--------|-------------|
-| user-facing | Sync to UI | Most settings keys |
-| anti-direction | Pin to advanced | `alwaysThinkingEnabled` |
-| managed-only | Skip | `allowManagedHooksOnly`, `allowManagedPermissionRulesOnly` |
-| plugin-internal | Skip | `enabledPlugins`, `extraKnownMarketplaces` |
-| deprecated | Skip | `includeCoAuthoredBy` |
-| repo-only | Report for user confirmation | (repo has it; schema/docs/env/issues don't) |
-| docs-likely-gap | Keep (docs omission) | key with a matching env var or GitHub issue |
-| meta | Skip | `$schema` |
+| Category | Action |
+|----------|--------|
+| user-facing | Sync to UI |
+| anti-direction | Sync to existing `AdvancedSection` |
+| managed-only / plugin-internal / deprecated / meta | Skip → add to `KNOWN_EXCLUDED` |
 
 ## References
 
-- [`references/scripts/sync-settings.workflow.js`](references/scripts/sync-settings.workflow.js) — the discovery workflow
-- [`references/sources.md`](references/sources.md) - Canonical sources and deletion rules
-- [`references/surface-map.md`](references/surface-map.md) - Key to section mapping
-- [`references/editor-patterns.md`](references/editor-patterns.md) - Editor control selection guide
-- [`references/env-vars-source.md`](references/env-vars-source.md) - Env vars documentation source
+- [`SKILL.md`](SKILL.md) — full end-to-end flow (detect → categorize → apply)
+- [`references/scripts/sync-settings.workflow.js`](references/scripts/sync-settings.workflow.js) — discovery workflow
+- [`references/sources.md`](references/sources.md) — canonical sources and deletion rules
+- [`references/surface-map.md`](references/surface-map.md) — key to section mapping
+- [`references/editor-patterns.md`](references/editor-patterns.md) — editor control selection
+- [`references/env-vars-source.md`](references/env-vars-source.md) — env vars source

@@ -293,6 +293,7 @@ const WORKTREE_BASE_REF_OPTIONS = ['fresh', 'head'] as const;
 const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
 const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
 const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
+const THEME_OPTIONS = ['auto', 'dark', 'light', 'dark-daltonized', 'light-daltonized', 'dark-ansi', 'light-ansi'] as const;
 
 const STRING_SCHEMA = stringValue();
 const STRING_ARRAY_SCHEMA = arrayValue(STRING_SCHEMA);
@@ -365,6 +366,7 @@ const WORKTREE_BASE_REF_VALUE_SCHEMA = stringValue(WORKTREE_BASE_REF_OPTIONS);
 const WORKTREE_BG_ISOLATION_VALUE_SCHEMA = stringValue(WORKTREE_BG_ISOLATION_OPTIONS);
 const SKILL_OVERRIDE_VALUE_SCHEMA = stringValue(SKILL_OVERRIDE_OPTIONS);
 const VOICE_MODE_VALUE_SCHEMA = stringValue(VOICE_MODE_OPTIONS);
+const THEME_VALUE_SCHEMA = stringValue(THEME_OPTIONS);
 const FORCE_LOGIN_METHOD_VALUE_SCHEMA = stringValue(FORCE_LOGIN_METHOD_OPTIONS);
 const DISABLE_ONLY_VALUE_SCHEMA = stringValue(DISABLE_ONLY_OPTIONS);
 const DEFAULT_SHELL_VALUE_SCHEMA = stringValue(DEFAULT_SHELL_OPTIONS);
@@ -383,6 +385,7 @@ const SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA = objectValue({
 const ATTRIBUTION_VALUE_SCHEMA = objectValue({
   commit: optional(STRING_SCHEMA),
   pr: optional(STRING_SCHEMA),
+  sessionUrl: optional(booleanValue()),
 });
 
 const STATUS_LINE_VALUE_SCHEMA = objectValue({
@@ -434,6 +437,16 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     httpProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     socksProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     allowMachLookup: optional(STRING_ARRAY_SCHEMA),
+  })),
+  credentials: optional(objectValue({
+    files: optional(arrayValue(objectValue({
+      path: required(STRING_SCHEMA),
+      mode: required(literalValue('deny')),
+    }))),
+    envVars: optional(arrayValue(objectValue({
+      name: required(STRING_SCHEMA),
+      mode: required(literalValue('deny')),
+    }))),
   })),
 });
 
@@ -492,6 +505,13 @@ const HOOKS_VALUE_SCHEMA = recordValue(arrayValue(objectValue({
   hooks: required(arrayValue(HOOK_COMMAND_SCHEMA)),
 })));
 
+const FOOTER_LINKS_REGEXES_VALUE_SCHEMA = arrayValue(objectValue({
+  type: optional(literalValue('regex')),
+  pattern: required(STRING_SCHEMA),
+  url: required(STRING_SCHEMA),
+  label: optional(STRING_SCHEMA),
+}));
+
 /**
  * Settings schema — 巢狀結構，section 分群。
  * 陣列順序即 UI 渲染順序。
@@ -502,6 +522,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Model & reasoning
     stringField('model'),
     arrayField('availableModels', STRING_SCHEMA),
+    stringField('advisorModel'),
+    arrayField('fallbackModel', STRING_SCHEMA),
     createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA, { default: 'high' }),
     booleanField('fastMode', { default: false }),
     booleanField('fastModePerSessionOptIn', { default: false }),
@@ -527,15 +549,23 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('autoUpdatesChannel', UPDATE_CHANNEL_VALUE_SCHEMA, { default: 'latest' }),
     stringField('minimumVersion'),
     createField('cleanupPeriodDays', CLEANUP_PERIOD_DAYS_VALUE_SCHEMA, { default: 30 }),
+    // Behavior
+    booleanField('autoCompactEnabled', { default: true }),
+    booleanField('fileCheckpointingEnabled', { default: true }),
   ],
 
   display: [
     // Rendering & view
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
     createField('tui', TUI_VALUE_SCHEMA),
+    createField('theme', THEME_VALUE_SCHEMA, { default: 'dark' }),
     booleanField('autoScrollEnabled', { default: true }),
     booleanField('syntaxHighlightingDisabled', { default: false }),
     booleanField('prefersReducedMotion', { default: false }),
+    booleanField('verbose', { default: false }),
+    booleanField('axScreenReader', { default: false }),
+    booleanField('wheelScrollAccelerationEnabled', { default: true }),
+    booleanField('respondToBashCommands', { default: true }),
     // Transcript info
     booleanField('showTurnDuration', { default: true }),
     booleanField('showThinkingSummaries', { default: false }),
@@ -548,6 +578,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),
     // Notifications
     createField('preferredNotifChannel', PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA, { default: 'auto' }),
+    booleanField('agentPushNotifEnabled', { default: false }),
+    booleanField('inputNeededNotifEnabled', { default: false }),
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
     booleanField('externalEditorContext', { default: false }),
@@ -617,12 +649,20 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     // Sandbox
     createField('sandbox', SANDBOX_VALUE_SCHEMA),
+    // Footer link patterns
+    createField('footerLinksRegexes', FOOTER_LINKS_REGEXES_VALUE_SCHEMA, { controlTypeOverride: Object }),
     // Opt-outs & feature toggles
     booleanField('disableAgentView', { default: false }),
     booleanField('disableRemoteControl', { default: false }),
     createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
     booleanField('skipWebFetchPreflight', { default: false }),
     booleanField('alwaysThinkingEnabled', { default: false }),
+    booleanField('remoteControlAtStartup', { default: false }),
+    booleanField('disableArtifact', { default: false }),
+    booleanField('disableBundledSkills', { default: false }),
+    booleanField('disableClaudeAiConnectors', { default: false }),
+    booleanField('disableWorkflows', { default: false }),
+    booleanField('workflowKeywordTriggerEnabled', { default: true }),
     // Enterprise & misc
     createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     arrayField('claudeMdExcludes', STRING_SCHEMA),

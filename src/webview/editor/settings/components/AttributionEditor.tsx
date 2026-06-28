@@ -13,17 +13,21 @@ interface AttributionEditorProps {
 export function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
+  // sessionUrl default is true: undefined means checked (session URL shown)
   const createDraft = useCallback(() => ({
     commit: attribution?.commit ?? '',
     pr: attribution?.pr ?? '',
-  }), [attribution?.commit, attribution?.pr]);
+    sessionUrl: attribution?.sessionUrl ?? true,
+  }), [attribution?.commit, attribution?.pr, attribution?.sessionUrl]);
   const [draft, setDraft] = useObjectEditorState(createDraft);
 
   const handleSave = (): void => {
     void withSave(async () => {
-      const obj: { commit?: string; pr?: string } = {};
+      const obj: { commit?: string; pr?: string; sessionUrl?: boolean } = {};
       if (draft.commit.trim()) obj.commit = draft.commit.trim();
       if (draft.pr.trim()) obj.pr = draft.pr.trim();
+      // Only write sessionUrl when it's explicitly false (hiding session URL)
+      if (draft.sessionUrl === false) obj.sessionUrl = false;
 
       if (Object.keys(obj).length === 0) {
         await onDelete('attribution');
@@ -76,6 +80,22 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
           placeholder={t('settings.advanced.attribution.pr.placeholder')}
           disabled={saving}
         />
+      </div>
+      <div className="settings-subfield">
+        <label className="hooks-toggle-label" style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}>
+          <input
+            id="attribution-sessionUrl"
+            type="checkbox"
+            checked={draft.sessionUrl}
+            onChange={(e) => setDraft((prev) => ({ ...prev, sessionUrl: e.target.checked }))}
+            disabled={saving}
+            aria-label={t('settings.advanced.attribution.sessionUrl.label')}
+          />
+          {t('settings.advanced.attribution.sessionUrl.label')}
+        </label>
+        <p className="settings-field-description" style={{ marginTop: 2 }}>
+          {t('settings.advanced.attribution.sessionUrl.description')}
+        </p>
       </div>
     </ObjectSetting>
   );

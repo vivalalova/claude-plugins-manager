@@ -54,6 +54,15 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
     else clean.network = net;
   }
 
+  // Clean credentials sub-object
+  if (obj.credentials) {
+    const creds = { ...obj.credentials } as Record<string, unknown>;
+    if (Array.isArray(creds.files) && (creds.files as unknown[]).length === 0) delete creds.files;
+    if (Array.isArray(creds.envVars) && (creds.envVars as unknown[]).length === 0) delete creds.envVars;
+    if (Object.keys(creds).length === 0) delete clean.credentials;
+    else clean.credentials = creds;
+  }
+
   // Clean root-level
   if (Array.isArray(clean.excludedCommands) && (clean.excludedCommands as unknown[]).length === 0) delete clean.excludedCommands;
   if (clean.ignoreViolations && Object.keys(clean.ignoreViolations as object).length === 0) delete clean.ignoreViolations;
@@ -200,6 +209,16 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
 
   const updateNet = (key: string, val: unknown): void => {
     void saveSandbox({ ...draft, network: { ...draft.network, [key]: val } });
+  };
+
+  const updateCredentialFiles = (items: string[]): void => {
+    const files = items.map((path) => ({ path, mode: 'deny' as const }));
+    void saveSandbox({ ...draft, credentials: { ...draft.credentials, files } });
+  };
+
+  const updateCredentialEnvVars = (items: string[]): void => {
+    const envVars = items.map((name) => ({ name, mode: 'deny' as const }));
+    void saveSandbox({ ...draft, credentials: { ...draft.credentials, envVars } });
   };
 
   const generalCheckboxes: Array<{ key: SandboxBooleanKey; label: string }> = [
@@ -378,6 +397,29 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
               onChange={(value) => updateNet(key, value)}
             />
           ))}
+
+          {/* Credentials */}
+          <h4 style={{ fontSize: 12, fontWeight: 600, marginTop: 12, marginBottom: 6, borderTop: '1px solid var(--vscode-editorWidget-border)', paddingTop: 8 }}>
+            {tk('credentials')}
+          </h4>
+          <SandboxTagList
+            label={tk('credentials.files.label')}
+            items={(draft.credentials?.files ?? []).map((f) => f.path)}
+            empty={tk('credentials.files.empty')}
+            placeholder={tk('credentials.files.placeholder')}
+            duplicate={tk('credentials.files.duplicate')}
+            saving={saving}
+            onChange={updateCredentialFiles}
+          />
+          <SandboxTagList
+            label={tk('credentials.envVars.label')}
+            items={(draft.credentials?.envVars ?? []).map((ev) => ev.name)}
+            empty={tk('credentials.envVars.empty')}
+            placeholder={tk('credentials.envVars.placeholder')}
+            duplicate={tk('credentials.envVars.duplicate')}
+            saving={saving}
+            onChange={updateCredentialEnvVars}
+          />
 
           {/* Clear */}
           {sandbox && (

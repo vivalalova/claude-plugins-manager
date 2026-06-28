@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { getAllFlatFieldSchemas } from '../../../../shared/claude-settings-schema';
@@ -9,6 +9,70 @@ import { SandboxEditor } from './SandboxEditor';
 import { CompanyAnnouncementsEditor } from './CompanyAnnouncementsEditor';
 import { SpinnerVerbsEditor, SpinnerTipsOverrideEditor } from './SpinnerEditors';
 import { parseJsonSettingValue } from '../jsonSettingValidation';
+import { useSettingSave } from '../hooks/useSettingSave';
+import { SettingLabelText } from './SettingControls';
+
+// ---------------------------------------------------------------------------
+// FooterLinksRegexesEditor — JSON textarea with explicit Save + Clear buttons.
+// ---------------------------------------------------------------------------
+
+interface FooterLinksRegexesEditorProps {
+  value: ClaudeSettings['footerLinksRegexes'];
+  onSave: (key: string, value: unknown) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+}
+
+function FooterLinksRegexesEditor({ value, onSave, onDelete }: FooterLinksRegexesEditorProps): React.ReactElement {
+  const { t } = useI18n();
+  const { saving, withSave } = useSettingSave();
+  const [text, setText] = useState(value ? JSON.stringify(value) : '');
+
+  const handleSave = (): void => {
+    void withSave(async () => {
+      const trimmed = text.trim();
+      if (!trimmed) {
+        await onDelete('footerLinksRegexes');
+      } else {
+        await onSave('footerLinksRegexes', parseJsonSettingValue('footerLinksRegexes', trimmed));
+      }
+    });
+  };
+
+  const handleClear = (): void => {
+    void withSave(async () => {
+      await onDelete('footerLinksRegexes');
+      setText('');
+    });
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="settings-label">
+        <SettingLabelText label={t('settings.advanced.footerLinksRegexes.label')} settingKey="footerLinksRegexes" />
+      </label>
+      <p className="settings-field-description">{t('settings.advanced.footerLinksRegexes.description')}</p>
+      <textarea
+        className="input"
+        rows={5}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={t('settings.advanced.footerLinksRegexes.placeholder')}
+        disabled={saving}
+        spellCheck={false}
+      />
+      <div className="settings-actions">
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving} type="button">
+          {t('settings.advanced.footerLinksRegexes.save')}
+        </button>
+        {value && (
+          <button className="btn btn-secondary" onClick={handleClear} disabled={saving} type="button">
+            {t('settings.advanced.footerLinksRegexes.clear')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // ObjectFieldEditor — single source of truth for object-typed field editors.
@@ -154,6 +218,8 @@ export function ObjectFieldEditor({
           onDelete={async () => onDelete('sshConfigs')}
         />
       );
+    case 'footerLinksRegexes':
+      return <FooterLinksRegexesEditor value={settings.footerLinksRegexes} onSave={onSave} onDelete={onDelete} />;
     case 'autoMode':
       return (
         <TextSetting

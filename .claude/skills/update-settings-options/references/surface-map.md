@@ -20,6 +20,12 @@
 
 `permissions`、`hooks`、`env` 是手寫/客製 render：UI 順序在各自的 `.tsx`，不由 schema 陣列驅動。
 
+三條 render path：
+
+- **scalar → `SchemaFieldRenderer`**：`general`/`display`/`advanced` 的 boolean/string/enum/number field，schema 驅動自動渲染。無需寫 render code。
+- **object key → `ObjectFieldEditor` dispatcher**：`controlType === Object` 的 field，dispatcher 中需有對應 `case`。實作細節見 SKILL.md Step 3。
+- **`PermissionsSection` 全手寫**：`permissions`/`hooks`/`env` 相關 key，renderer 在各自 section `.tsx`，不走 `SchemaFieldRenderer`。
+
 ## Anti-direction 分類
 
 使用者優化方向：**低成本、高效率、高精度**。Anti-direction key 是啟用後違反上述方向的選項，一律放 `AdvancedSection`（advanced 的 Opt-outs & feature toggles 群組），使用者日常不需查看。
@@ -46,6 +52,8 @@ Schema 中存在但**不納入** settings UI 的 key：
 | plugin-internal | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` | 由 extension plugin/marketplace UI 管理 |
 | deprecated | `includeCoAuthoredBy` | 已被 `attribution` 取代 |
 | meta | `$schema` | JSON schema 參照，非設定值 |
+
+上表為人讀文件，涵蓋上述 category 的 managed-bracket keys（parser 自動辨識）與 schema 中明確列舉的 key。**機器強制排除的補充 SSOT** 在 `src/shared/settings-sync/settings-diff.ts` 的 `KNOWN_EXCLUDED`——包含 parser 無法自動辨識的 key（no-bracket managed-only 如 `policyHelper`、session-only、undocumented），與上表互補（`policyHelper` 兩邊均收，其餘不重疊）。新發現的 non-user-facing gap → 加進 `KNOWN_EXCLUDED`；上表僅列人需要一眼看到的顯著排除項（如整批 enterprise managed-only key），機器強制以 `KNOWN_EXCLUDED` 為準，例行單一 key 新增不必都補上表。
 
 ## Rules
 

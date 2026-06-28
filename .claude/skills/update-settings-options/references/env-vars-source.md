@@ -2,14 +2,12 @@
 
 ## 特性
 
-- Env vars **不在** JSON schema store（schema 只定義 `env: Record<string,string>`）
-- 個別 env var 的 name/type/default/description 來自 Claude Code docs
+- Env vars **不在** settings schema（schema 只定義 `env: Record<string,string>`）
+- 個別 env var 的 name/type/default/description 來自官方 docs
 
 ## Source
 
-- `context7` `/websites/code_claude` — query env vars 文件
-- `claude-code-guide` agent — 補充 context7 未涵蓋的 env vars
-- 官方文件：`https://code.claude.com/docs/en/env-vars`
+- 官方文件：`https://code.claude.com/docs/en/env-vars.md`（`scripts/settings-sync-diff.ts` 直接 curl + `parseEnvDocs` 解析）
 
 ## Registry
 

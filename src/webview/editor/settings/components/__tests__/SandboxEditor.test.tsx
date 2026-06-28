@@ -656,3 +656,5 @@ describe('SandboxEditor — 模式切換', () => {
     });
   });
 });
+
+// credentials tests live in SandboxEditor.credentials.test.tsx (split for 800-line limit)

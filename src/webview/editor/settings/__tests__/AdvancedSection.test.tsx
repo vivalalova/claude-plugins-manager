@@ -1449,3 +1449,94 @@ describe('AdvancedSection — skillOverrides JSON 編輯器', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// 批次 S：advanced 6 個新 key（先紅）
+// ---------------------------------------------------------------------------
+
+describe('AdvancedSection — 批次 S 渲染（先紅）', () => {
+  it('顯示既有欄位 Skip WebFetch Preflight（harness 健在）', () => {
+    renderSection();
+    expect(screen.getByText('Skip WebFetch Preflight')).toBeTruthy();
+  });
+
+  it.each([
+    ['remoteControlAtStartup', 'Remote Control at Startup'],
+    ['disableArtifact', 'Disable Artifact Tool'],
+    ['disableBundledSkills', 'Disable Bundled Skills'],
+    ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
+    ['disableWorkflows', 'Disable Workflows'],
+    ['workflowKeywordTriggerEnabled', 'Workflow Keyword Trigger'],
+  ])('顯示 %s 欄位：label "%s"', (_key, label) => {
+    renderSection();
+    expect(screen.getByText(label)).toBeTruthy();
+  });
+});
+
+describe('AdvancedSection — 批次 S 互動（先紅）', () => {
+  // All advanced batch-S booleans default=false except workflowKeywordTriggerEnabled (default=true).
+
+  it.each([
+    ['remoteControlAtStartup', 'Remote Control at Startup'],
+    ['disableArtifact', 'Disable Artifact Tool'],
+    ['disableBundledSkills', 'Disable Bundled Skills'],
+    ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
+    ['disableWorkflows', 'Disable Workflows'],
+  ])('%s 未設定 → checkbox 未勾選（default false）', (_key, label) => {
+    renderSection({});
+    const field = screen.getByText(label).closest('.settings-field') as HTMLElement;
+    const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(cb.checked).toBe(false);
+  });
+
+  it.each([
+    ['remoteControlAtStartup', 'Remote Control at Startup'],
+    ['disableArtifact', 'Disable Artifact Tool'],
+    ['disableBundledSkills', 'Disable Bundled Skills'],
+    ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
+    ['disableWorkflows', 'Disable Workflows'],
+  ])('%s 未設定, toggle on → onSave(key, true)', async (key, label) => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    const field = screen.getByText(label).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(key, true);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // workflowKeywordTriggerEnabled: default=true → unset→checked; click→onSave(key, false)
+  it('workflowKeywordTriggerEnabled 未設定 → checkbox checked（default true）', () => {
+    renderSection({});
+    const field = screen.getByText('Workflow Keyword Trigger').closest('.settings-field') as HTMLElement;
+    const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(cb.checked).toBe(true);
+  });
+
+  it('workflowKeywordTriggerEnabled 未設定, 點擊 → onSave("workflowKeywordTriggerEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    const field = screen.getByText('Workflow Keyword Trigger').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('workflowKeywordTriggerEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // workflowKeywordTriggerEnabled=false, toggle on → 新值 true === default(true) → onDelete
+  it('workflowKeywordTriggerEnabled=false, toggle on → onDelete("workflowKeywordTriggerEnabled")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ workflowKeywordTriggerEnabled: false }, onSave, onDelete);
+    const field = screen.getByText('Workflow Keyword Trigger').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('workflowKeywordTriggerEnabled');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});

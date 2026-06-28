@@ -49,6 +49,8 @@ export type HookCommand = {
 export interface ClaudeSettings {
   model?: string;
   availableModels?: string[];
+  advisorModel?: string;
+  fallbackModel?: string[];
   effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   fastMode?: boolean;
   fastModePerSessionOptIn?: boolean;
@@ -64,11 +66,18 @@ export interface ClaudeSettings {
   autoUpdatesChannel?: "stable" | "latest";
   minimumVersion?: string;
   cleanupPeriodDays?: number;
+  autoCompactEnabled?: boolean;
+  fileCheckpointingEnabled?: boolean;
   viewMode?: "default" | "verbose" | "focus";
   tui?: "fullscreen" | "default";
+  theme?: "auto" | "dark" | "light" | "dark-daltonized" | "light-daltonized" | "dark-ansi" | "light-ansi";
   autoScrollEnabled?: boolean;
   syntaxHighlightingDisabled?: boolean;
   prefersReducedMotion?: boolean;
+  verbose?: boolean;
+  axScreenReader?: boolean;
+  wheelScrollAccelerationEnabled?: boolean;
+  respondToBashCommands?: boolean;
   showTurnDuration?: boolean;
   showThinkingSummaries?: boolean;
   showClearContextOnPlanAccept?: boolean;
@@ -84,6 +93,8 @@ export interface ClaudeSettings {
     excludeDefault?: boolean;
   };
   preferredNotifChannel?: "auto" | "terminal_bell" | "iterm2" | "iterm2_with_bell" | "kitty" | "ghostty" | "notifications_disabled";
+  agentPushNotifEnabled?: boolean;
+  inputNeededNotifEnabled?: boolean;
   editorMode?: "normal" | "vim";
   externalEditorContext?: boolean;
   voiceEnabled?: boolean;
@@ -197,6 +208,7 @@ export interface ClaudeSettings {
   attribution?: {
     commit?: string;
     pr?: string;
+    sessionUrl?: boolean;
   };
   prUrlTemplate?: string;
   skillOverrides?: Record<string, "on" | "name-only" | "user-invocable-only" | "off">;
@@ -255,12 +267,34 @@ export interface ClaudeSettings {
       socksProxyPort?: number;
       allowMachLookup?: string[];
     };
+    credentials?: {
+      files?: {
+        path: string;
+        mode: "deny";
+      }[];
+      envVars?: {
+        name: string;
+        mode: "deny";
+      }[];
+    };
   };
+  footerLinksRegexes?: {
+    type?: "regex";
+    pattern: string;
+    url: string;
+    label?: string;
+  }[];
   disableAgentView?: boolean;
   disableRemoteControl?: boolean;
   disableDeepLinkRegistration?: "disable";
   skipWebFetchPreflight?: boolean;
   alwaysThinkingEnabled?: boolean;
+  remoteControlAtStartup?: boolean;
+  disableArtifact?: boolean;
+  disableBundledSkills?: boolean;
+  disableClaudeAiConnectors?: boolean;
+  disableWorkflows?: boolean;
+  workflowKeywordTriggerEnabled?: boolean;
   companyAnnouncements?: string[];
   claudeMdExcludes?: string[];
   feedbackSurveyRate?: number;
