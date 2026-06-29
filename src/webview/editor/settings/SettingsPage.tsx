@@ -17,7 +17,8 @@ import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
-import { getSchemaFieldBindings } from './components/SchemaSection';
+import { getSchemaFieldBindings, type ParentSettings } from './components/SchemaSection';
+import { PARENT_SCOPES, OverrideBadge } from './components/SettingControls';
 import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,19 @@ import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldE
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 const SETTINGS_NAV_SECTIONS = getSettingsSections();
+
+/**
+ * 是否視為「已自訂」的實質內容：undefined、空物件 {}、空陣列 [] 都不算。
+ * 空容器（env:{}/hooks:{}/availableModels:[] 等）對應編輯器畫不出可操作項，
+ * 計入 badge 會造成「計數說有、面板空白」矛盾——與 shouldShowReset 同精神（有值才算）。
+ * permissions 因空子清單（{allow:[]}）需更深判定，另由 hasVisiblePermissionsContent 處理。
+ */
+function isCustomizedValue(value: unknown): boolean {
+  if (value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (value !== null && typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
 
 function collectCustomizedSchemaFields(
   settings: ClaudeSettings,
@@ -38,15 +52,15 @@ function collectCustomizedSchemaFields(
       const binding = getSchemaFieldBindings(key, {
         scope,
         settings,
-        // Only binding.value is used for inclusion; value does not depend on userSettings.
-        // overriddenScope (the only userSettings consumer) is computed with real userSettings at render time.
-        userSettings: {} as ClaudeSettings,
+        // Only binding.value is used for inclusion; parentSettings (the overriddenScope source)
+        // is irrelevant here — counting cares about the current scope only.
+        parentSettings: {},
         onSave: noop,
         onDelete: noop,
       });
-      if (binding && binding.value !== undefined) {
-        // permissions 與 CustomizedPermissionsEditor 共用同一「有可見內容」判定，
-        // 避免空子清單（如 allow:[]）被計入 badge 卻在面板畫不出來。
+      if (binding && isCustomizedValue(binding.value)) {
+        // permissions 走更深的「有可見內容」判定（空子清單如 allow:[] 也要排除），
+        // 與 CustomizedPermissionsEditor 共用單一來源，避免計入 badge 卻畫不出面板。
         if (key === 'permissions' && !hasVisiblePermissionsContent(settings.permissions)) continue;
         result.push({ key, section });
       }
@@ -213,29 +227,41 @@ export function SettingsPage(): React.ReactElement {
       .catch(() => setHasWorkspace(false));
   }, []);
 
-  const loadSettings = useCallback(async () => {
-      const [data, userData] = await Promise.all([
-        sendRequest<ClaudeSettings>({ type: 'settings.get', scope }),
-        scope !== 'user'
-          ? sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'user' })
-          : Promise.resolve({} as ClaudeSettings),
-      ]);
-    return { settings: data, userSettings: userData };
-  }, [scope]);
+  const loadSettings = useCallback(
+    () => sendRequest<ClaudeSettings>({ type: 'settings.get', scope }),
+    [scope],
+  );
 
   const {
-    data,
+    data: settings,
     loading,
     error,
     setError,
-    setData,
-  } = usePushSyncedResource<{ settings: ClaudeSettings; userSettings: ClaudeSettings }>({
-    initialData: { settings: {}, userSettings: {} },
+    setData: setSettings,
+  } = usePushSyncedResource<ClaudeSettings>({
+    initialData: {},
     load: loadSettings,
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
-  const settings = data.settings;
-  const userSettings = data.userSettings;
+
+  // Parent-scope snapshots feed the override badge (nearest-overridden layer).
+  // Loaded separately so the current-scope view never blocks on parent fetches.
+  const loadParentSettings = useCallback(async (): Promise<ParentSettings> => {
+    const parents = PARENT_SCOPES[scope];
+    if (parents.length === 0) return {};
+    const results = await Promise.all(
+      parents.map((s) => sendRequest<ClaudeSettings>({ type: 'settings.get', scope: s })),
+    );
+    const map: ParentSettings = {};
+    parents.forEach((s, i) => { map[s] = results[i]; });
+    return map;
+  }, [scope]);
+
+  const { data: parentSettings } = usePushSyncedResource<ParentSettings>({
+    initialData: {},
+    load: loadParentSettings,
+    pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
+  });
 
   const loadScopeCounts = useCallback(async (): Promise<{ project: number; local: number }> => {
     if (!hasWorkspace) {
@@ -262,7 +288,7 @@ export function SettingsPage(): React.ReactElement {
 
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
-    setData((prev) => ({ ...prev, settings: { ...prev.settings, [key]: value } }));
+    setSettings((prev) => ({ ...prev, [key]: value }));
     if (scope === 'project' || scope === 'local') {
       const next = { ...settings, [key]: value };
       setCounts((prev) => ({
@@ -271,14 +297,14 @@ export function SettingsPage(): React.ReactElement {
           + getUnknownSettingsEntries(next).length,
       }));
     }
-  }, [scope, setData, setCounts, settings]);
+  }, [scope, setSettings, setCounts, settings]);
 
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
-    setData((prev) => {
-      const rest = { ...prev.settings } as Record<string, unknown>;
+    setSettings((prev) => {
+      const rest = { ...prev } as Record<string, unknown>;
       delete rest[key];
-      return { ...prev, settings: rest as ClaudeSettings };
+      return rest as ClaudeSettings;
     });
     if (scope === 'project' || scope === 'local') {
       const next = { ...settings } as Record<string, unknown>;
@@ -289,7 +315,7 @@ export function SettingsPage(): React.ReactElement {
           + getUnknownSettingsEntries(next as ClaudeSettings).length,
       }));
     }
-  }, [scope, setData, setCounts, settings]);
+  }, [scope, setSettings, setCounts, settings]);
 
   const handleScopeClick = (s: PluginScope): void => {
     if (s !== 'user' && !hasWorkspace) return;
@@ -428,7 +454,7 @@ export function SettingsPage(): React.ReactElement {
                     const fieldBindings = getSchemaFieldBindings(field.key, {
                       scope,
                       settings,
-                      userSettings,
+                      parentSettings,
                       onSave: handleSave,
                       onDelete: handleDelete,
                     });
@@ -467,7 +493,7 @@ export function SettingsPage(): React.ReactElement {
                 <EnvSection
                   scope={scope}
                   settings={settings}
-                  userSettings={userSettings}
+                  parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -476,7 +502,7 @@ export function SettingsPage(): React.ReactElement {
                 <HooksSection
                   scope={scope}
                   settings={settings}
-                  userSettings={userSettings}
+                  parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -485,7 +511,7 @@ export function SettingsPage(): React.ReactElement {
                 <GeneralSection
                   scope={scope}
                   settings={settings}
-                  userSettings={userSettings}
+                  parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -494,7 +520,7 @@ export function SettingsPage(): React.ReactElement {
                 <DisplaySection
                   scope={scope}
                   settings={settings}
-                  userSettings={userSettings}
+                  parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -503,7 +529,7 @@ export function SettingsPage(): React.ReactElement {
                 <AdvancedSection
                   scope={scope}
                   settings={settings}
-                  userSettings={userSettings}
+                  parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -528,7 +554,7 @@ export function SettingsPage(): React.ReactElement {
                         const fieldBindings = getSchemaFieldBindings(key, {
                           scope,
                           settings,
-                          userSettings,
+                          parentSettings,
                           onSave: handleSave,
                           onDelete: handleDelete,
                         });
@@ -541,6 +567,7 @@ export function SettingsPage(): React.ReactElement {
                           return (
                             <div key={key} className="settings-search-result" data-customized-field={key}>
                               <span className="settings-search-result-section">{sectionLabel}</span>
+                              {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <CustomizedPermissionsEditor
                                 perms={value as ClaudeSettings['permissions'] ?? {}}
                                 onSavePermissions={(p) => fieldOnSave('permissions', p)}
@@ -554,6 +581,7 @@ export function SettingsPage(): React.ReactElement {
                           return (
                             <div key={key} className="settings-search-result" data-customized-field={key}>
                               <span className="settings-search-result-section">{sectionLabel}</span>
+                              {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <CustomizedEnvEditor
                                 scope={scope}
                                 currentEnv={(value as Record<string, string>) ?? {}}
@@ -567,6 +595,7 @@ export function SettingsPage(): React.ReactElement {
                           return (
                             <div key={key} className="settings-search-result" data-customized-field={key}>
                               <span className="settings-search-result-section">{sectionLabel}</span>
+                              {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <HooksFieldEditor scope={scope} settings={settings} />
                             </div>
                           );

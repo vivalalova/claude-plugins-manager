@@ -784,3 +784,158 @@ describe('SettingsPage — badge 計數：permissions 空子清單 bug reproduct
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Bug reproduction — 空容器（{} / []）被當已自訂計入
+//
+// Bug：collectCustomizedSchemaFields 用 `value !== undefined` 判定，空物件 env:{}/hooks:{}
+// 與空陣列（availableModels:[] 等）都 !== undefined → badge +1，但對應編輯器畫不出任何
+// 可操作項（env 空白、hooks 空狀態、TagInput 空清單）→「計數說有、面板空白」矛盾。
+// 與 permissions 空子清單同 class（permissions 已有 hasVisiblePermissionsContent 守門）。
+//
+// 正確口徑：空容器不算已自訂。badge 計入 iff 值有實質內容（非 undefined、非空 {}、非空 []）。
+// ---------------------------------------------------------------------------
+
+describe('SettingsPage — badge 計數：空容器 {} / [] bug reproduction', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it('[RED] env:{} 空物件 → project badge 應為 0（無 badge span）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ env: {} });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' }); // 錨點：local badge "1" → loadScopeCounts 完成
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  it('[GREEN guard] env:{ A: \'1\' } 非空 → project badge 為 1', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ env: { A: '1' } });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+
+  it('[RED render] env:{} → 已自訂分頁出現空狀態訊息（無空白 Env 區塊）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get') return Promise.resolve({ env: {} });
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => screen.getByText('Customized'));
+    fireEvent.click(screen.getByText('Customized').closest('button')!);
+
+    await waitFor(() => {
+      // 空狀態訊息必須出現（badge=0 與 render 一致）
+      expect(screen.getByText('No customized settings in this scope.')).toBeTruthy();
+      // 空白 Env 區塊不應渲染（空物件不算已自訂）
+      expect(container.querySelector('[data-customized-field="env"]')).toBeNull();
+    });
+  });
+
+  it('[RED] hooks:{} 空物件 → project badge 應為 0（無 badge span）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ hooks: {} });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  it('[RED] availableModels:[] 空陣列 → project badge 應為 0（無 badge span）', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ availableModels: [] });
+      if (msg.type === 'settings.get' && msg.scope === 'local')
+        return Promise.resolve({ model: 'x' });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+    await waitFor(() => {
+      const localBadge = getScopeBadge(container, 2);
+      expect(localBadge).not.toBeNull();
+      expect(localBadge!.textContent).toBe('1');
+    });
+
+    expect(getScopeBadge(container, 1)).toBeNull();
+  });
+
+  it('[GREEN guard] availableModels:[\'claude-x\'] 非空 → project badge 為 1', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'project')
+        return Promise.resolve({ availableModels: ['claude-x'] });
+      if (msg.type === 'settings.get') return Promise.resolve({});
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect((container.querySelectorAll('.settings-scope-tab')[1] as HTMLButtonElement).disabled).toBe(false);
+    });
+    await waitFor(() => {
+      const badge = getScopeBadge(container, 1);
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toBe('1');
+    });
+  });
+});

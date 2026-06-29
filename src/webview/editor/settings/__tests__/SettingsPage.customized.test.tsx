@@ -625,4 +625,87 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
       expect(results.length).toBeGreaterThan(0);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Object 欄位 block-level override badge（跨層比對最近父層）
+  // env/permissions/hooks 在已自訂分頁應與其他 object 欄位一致，顯示「覆寫 X」badge。
+  // ---------------------------------------------------------------------------
+
+  it('18. local env 覆寫 project env → 已自訂分頁 env row 顯示「覆寫 專案」badge', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'local') return Promise.resolve({ env: { A: '1' } });
+      if (msg.type === 'settings.get' && msg.scope === 'project') return Promise.resolve({ env: { B: '2' } });
+      if (msg.type === 'settings.get') return Promise.resolve({}); // user
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    // 切到 Local scope
+    await waitFor(() => screen.getByText('Local'));
+    fireEvent.click(screen.getByText('Local').closest('button')!);
+
+    // 開「已自訂」分頁
+    await waitFor(() => screen.getByText('Customized'));
+    clickCustomized();
+
+    await waitFor(() => {
+      const envRow = container.querySelector('[data-customized-field="env"]');
+      expect(envRow).not.toBeNull();
+      const badge = envRow!.querySelector('.settings-override-badge');
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toContain('Project');
+    });
+  });
+
+  it('19. project 無對應 env（只有 user 有）→ env row badge 標「使用者」', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'local') return Promise.resolve({ env: { A: '1' } });
+      if (msg.type === 'settings.get' && msg.scope === 'project') return Promise.resolve({}); // 無 env
+      if (msg.type === 'settings.get') return Promise.resolve({ env: { B: '2' } }); // user 有 env
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => screen.getByText('Local'));
+    fireEvent.click(screen.getByText('Local').closest('button')!);
+
+    await waitFor(() => screen.getByText('Customized'));
+    clickCustomized();
+
+    await waitFor(() => {
+      const envRow = container.querySelector('[data-customized-field="env"]');
+      expect(envRow).not.toBeNull();
+      const badge = envRow!.querySelector('.settings-override-badge');
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toContain('User');
+    });
+  });
+
+  it('20. [guard] 父層皆無 env → env row 無 override badge', async () => {
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get' && msg.scope === 'local') return Promise.resolve({ env: { A: '1' } });
+      if (msg.type === 'settings.get') return Promise.resolve({}); // project + user 皆無
+      return Promise.resolve(null);
+    });
+
+    const { container } = renderPage();
+
+    await waitFor(() => screen.getByText('Local'));
+    fireEvent.click(screen.getByText('Local').closest('button')!);
+
+    await waitFor(() => screen.getByText('Customized'));
+    clickCustomized();
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-customized-field="env"]')).not.toBeNull();
+    });
+    expect(
+      container.querySelector('[data-customized-field="env"]')!.querySelector('.settings-override-badge'),
+    ).toBeNull();
+  });
 });

@@ -24,11 +24,11 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
-  userSettings?: Record<string, unknown>,
+  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <GeneralSection scope={scope} settings={settings as any} userSettings={userSettings as any} onSave={onSave} onDelete={onDelete} />
+      <GeneralSection scope={scope} settings={settings as any} parentSettings={parentSettings as any} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -173,13 +173,13 @@ describe('GeneralSection — 渲染', () => {
     });
   });
 
-  it('scope=project + userSettings 有 fastMode → 顯示 override badge', async () => {
+  it('scope=project + user 層有 fastMode → 顯示「覆寫 使用者」badge', async () => {
     const { container } = renderSection(
       { fastMode: false },
       vi.fn().mockResolvedValue(undefined),
       vi.fn().mockResolvedValue(undefined),
       'project',
-      { fastMode: true },
+      { user: { fastMode: true } },
     );
     await waitFor(() => {
       const badges = container.querySelectorAll('.settings-override-badge');
@@ -206,7 +206,7 @@ describe('GeneralSection — 渲染', () => {
       vi.fn().mockResolvedValue(undefined),
       vi.fn().mockResolvedValue(undefined),
       'project',
-      { fastMode: false },
+      { user: { fastMode: false } },
     );
     await waitFor(() => {
       const badges = container.querySelectorAll('.settings-override-badge');
@@ -214,17 +214,83 @@ describe('GeneralSection — 渲染', () => {
     });
   });
 
-  it('scope=project + userSettings 無對應 key → 該欄位無 override badge', async () => {
+  it('scope=project + 父層無對應 key → 該欄位無 override badge', async () => {
     const { container } = renderSection(
       { fastMode: true },
       vi.fn().mockResolvedValue(undefined),
       vi.fn().mockResolvedValue(undefined),
       'project',
-      {},
+      { user: {} },
     );
     await waitFor(() => {
-      // userSettings 為空，不應有任何 override badge
+      // 父層為空，不應有任何 override badge
       expect(container.querySelector('.settings-override-badge')).toBeNull();
+    });
+  });
+
+  it('scope=project 本層未設定該 key（無 Reset 鈕）但父層有 → 無 override badge', async () => {
+    // 本層 settings 不含 fastMode → value === undefined → 沒有 Reset 鈕 = 沒設定，
+    // 不算覆寫。override badge 必須與 Reset 鈕走同一個 value !== undefined 閘門。
+    const { container } = renderSection(
+      {},
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+      { user: { fastMode: true } },
+    );
+    await waitFor(() => {
+      // fastMode 欄位有渲染（section view 列出全部欄位）但本層未設定
+      expect(screen.getByText('Fast Mode')).toBeTruthy();
+    });
+    // 本層未設定 → 不顯示 Reset 鈕，亦不該有 override badge（兩者口徑一致）
+    expect(screen.queryByRole('button', { name: 'Reset Fast Mode' })).toBeNull();
+    expect(container.querySelector('.settings-override-badge')).toBeNull();
+  });
+
+  // 跨層比對：local 蓋過最近父層 project（即使 user 也有，標最近的 project）
+  it('scope=local + project 層有 fastMode（user 無）→ 顯示「覆寫 專案」badge', async () => {
+    const { container } = renderSection(
+      { fastMode: true },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'local',
+      { project: { fastMode: false } },
+    );
+    await waitFor(() => {
+      const badges = container.querySelectorAll('.settings-override-badge');
+      expect(badges.length).toBeGreaterThan(0);
+      expect(badges[0].textContent).toContain('Project');
+    });
+  });
+
+  it('scope=local + project 與 user 都有 → badge 標最近的「專案」非「使用者」', async () => {
+    const { container } = renderSection(
+      { fastMode: true },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'local',
+      { project: { fastMode: false }, user: { fastMode: false } },
+    );
+    await waitFor(() => {
+      const badges = container.querySelectorAll('.settings-override-badge');
+      expect(badges.length).toBeGreaterThan(0);
+    });
+    expect(container.querySelector('.settings-override-badge')!.textContent).toContain('Project');
+    expect(container.querySelector('.settings-override-badge')!.textContent).not.toContain('User');
+  });
+
+  it('scope=local + 只有 user 有（project 無）→ 顯示「覆寫 使用者」badge', async () => {
+    const { container } = renderSection(
+      { fastMode: true },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'local',
+      { project: {}, user: { fastMode: false } },
+    );
+    await waitFor(() => {
+      const badge = container.querySelector('.settings-override-badge');
+      expect(badge).not.toBeNull();
+      expect(badge!.textContent).toContain('User');
     });
   });
 });

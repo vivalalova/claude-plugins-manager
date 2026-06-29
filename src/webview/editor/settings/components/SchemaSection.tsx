@@ -9,12 +9,24 @@ import { SettingsSectionWrapper } from './SettingsSectionWrapper';
 // Shared section props (reused by General, Display, Advanced, Hooks)
 // ---------------------------------------------------------------------------
 
+/** 各父 scope 的設定快照，供 override badge 跨層比對最近覆寫層。 */
+export type ParentSettings = Partial<Record<PluginScope, ClaudeSettings>>;
+
 export interface SectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
-  userSettings?: ClaudeSettings;
+  parentSettings?: ParentSettings;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
+}
+
+/** 把各父 scope 的設定 drill 到指定的巢狀父物件（如 permissions），供巢狀欄位跨層比對。 */
+function drillParents(parentSettings: ParentSettings | undefined, parentKey: string): Partial<Record<PluginScope, Record<string, unknown>>> {
+  const out: Partial<Record<PluginScope, Record<string, unknown>>> = {};
+  for (const [s, scopeSettings] of Object.entries(parentSettings ?? {})) {
+    out[s as PluginScope] = ((scopeSettings as Record<string, unknown> | undefined)?.[parentKey] ?? {}) as Record<string, unknown>;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,10 +52,10 @@ export function getSchemaFieldBindings(
   {
     scope,
     settings,
-    userSettings,
+    parentSettings,
     onSave,
     onDelete,
-  }: Pick<SectionProps, 'scope' | 'settings' | 'userSettings' | 'onSave' | 'onDelete'>,
+  }: Pick<SectionProps, 'scope' | 'settings' | 'parentSettings' | 'onSave' | 'onDelete'>,
 ): ResolvedSchemaFieldBindings | null {
   const schema = getFlatFieldSchema(key) as FlatFieldSchema | undefined;
   if (!schema) return null;
@@ -51,11 +63,11 @@ export function getSchemaFieldBindings(
   if (schema.nestedUnder) {
     const parentKey = schema.nestedUnder;
     const parent = ((settings as Record<string, unknown>)[parentKey] ?? {}) as Record<string, unknown>;
-    const parentUserSettings = ((userSettings as Record<string, unknown> | undefined)?.[parentKey] ?? {}) as Record<string, unknown>;
+    const value = parent[key];
 
     return {
       schema,
-      value: parent[key],
+      value,
       onSave: async (_k: string, newValue: unknown) => {
         await onSave(parentKey, { ...parent, [key]: newValue });
       },
@@ -64,16 +76,17 @@ export function getSchemaFieldBindings(
         delete updated[key];
         await onSave(parentKey, updated);
       },
-      overriddenScope: getOverriddenScope(scope, parentUserSettings, key),
+      overriddenScope: getOverriddenScope(scope, drillParents(parentSettings, parentKey), key, value),
     } as ResolvedSchemaFieldBindings;
   }
 
+  const value = (settings as Record<string, unknown>)[key];
   return {
     schema,
-    value: (settings as Record<string, unknown>)[key],
+    value,
     onSave,
     onDelete,
-    overriddenScope: getOverriddenScope(scope, userSettings as Record<string, unknown>, key),
+    overriddenScope: getOverriddenScope(scope, (parentSettings ?? {}) as Partial<Record<PluginScope, Record<string, unknown>>>, key, value),
   } as ResolvedSchemaFieldBindings;
 }
 
@@ -81,7 +94,7 @@ export function SchemaSection({
   section,
   scope,
   settings,
-  userSettings,
+  parentSettings,
   onSave,
   onDelete,
   renderCustom,
@@ -94,7 +107,7 @@ export function SchemaSection({
       {headerContent}
 
       {fieldOrder.map((key) => {
-        const field = getSchemaFieldBindings(key, { scope, settings, userSettings, onSave, onDelete });
+        const field = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete });
         if (!field) return null;
         const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = field;
 

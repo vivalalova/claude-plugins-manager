@@ -7,14 +7,34 @@ import type { PluginScope } from '../../../../shared/types';
 // Override helpers
 // ---------------------------------------------------------------------------
 
-/** 判斷 key 是否覆寫了 parent scope 的值 */
+/**
+ * 各 scope 的「父層」鏈，依優先序由近到遠（local 蓋過 project 蓋過 user）。
+ * override badge 找的是「本層往下覆寫的最近一層」。
+ */
+export const PARENT_SCOPES: Record<PluginScope, readonly PluginScope[]> = {
+  user: [],
+  project: ['user'],
+  local: ['project', 'user'],
+};
+
+/**
+ * 判斷本層 key 覆寫了哪個父層（回傳最近一個有設該 key 的父 scope）。
+ * 僅當本層實際有設定值（value !== undefined）才算覆寫——與 shouldShowReset 同一口徑：
+ * 本層沒值＝沒設定（不顯示 Reset 鈕），是繼承而非覆寫，不該掛 override badge。
+ * parentSettings 已 drill 到對照層級（巢狀欄位傳父物件，頂層欄位傳 scope 根）。
+ */
 export function getOverriddenScope(
   scope: PluginScope,
-  userSettings: Record<string, unknown> | undefined,
+  parentSettings: Partial<Record<PluginScope, Record<string, unknown>>>,
   key: string,
+  value: unknown,
 ): PluginScope | undefined {
-  if (scope === 'user' || !userSettings) return undefined;
-  return key in userSettings ? 'user' : undefined;
+  if (value === undefined) return undefined;
+  for (const parent of PARENT_SCOPES[scope]) {
+    const ps = parentSettings[parent];
+    if (ps && key in ps) return parent;
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,7 +54,7 @@ interface OverrideBadgeProps {
   scope: PluginScope;
 }
 
-function OverrideBadge({ scope }: OverrideBadgeProps): React.ReactElement {
+export function OverrideBadge({ scope }: OverrideBadgeProps): React.ReactElement {
   const { t } = useI18n();
   const scopeLabel = t(`settings.scope.${scope}` as Parameters<typeof t>[0]);
   const label = t('settings.common.overrides' as Parameters<typeof t>[0], { scope: scopeLabel });
