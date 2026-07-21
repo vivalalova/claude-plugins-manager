@@ -56,4 +56,19 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'off',
     },
   },
+  {
+    // Workflow scripts run inside the harness's Workflow tool, which injects
+    // `phase`/`agent`/`parallel`/`log` as globals at execution time — they
+    // are not imports and have no local declaration.
+    files: ['**/*.workflow.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        phase: 'readonly',
+        agent: 'readonly',
+        parallel: 'readonly',
+        log: 'readonly',
+      },
+    },
+  },
 );

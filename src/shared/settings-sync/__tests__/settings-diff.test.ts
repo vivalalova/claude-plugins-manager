@@ -1,73 +1,16 @@
 /**
- * Core gate: fixture-driven diff logic tests.
- *
- * This file imports a module that does NOT yet exist:
- *   ../settings-diff
- *
- * All tests in this file are intentionally RED until the executor implements
- * that module. The module-not-found import error is the expected red state.
+ * Core gate: fixture-driven diff logic tests for ../settings-diff.
  *
  * ─── Why a frozen snapshot ────────────────────────────────────────────────
- * We use fixtures/repo-keys.snapshot.json (frozen at current schema state)
- * rather than live-importing the schema. This lets the logic tests remain
- * stable across the NEXT round, when those 21 missing keys get added to the
- * schema. Adding them to the schema must NOT make these tests break — they
- * test parseSettingsDocs + diffKeys logic, not "current schema state".
- * "Current schema state" is checked by the end-to-end CLI invocation.
+ * fixtures/repo-keys.snapshot.json is frozen at a past schema state rather
+ * than live-imported from the schema. This lets the `missing`-direction
+ * logic tests stay stable when the schema catches up on gap keys — those
+ * tests exercise parseSettingsDocs + diffKeys logic, not "current schema
+ * state". "Current schema state" is checked by the end-to-end CLI invocation.
  *
- * ─── Assumed module contract (executor: implement exactly these signatures) ─
- *
- * parseSettingsDocs(md: string): { keys: Set<string> }
- *   Parse settings.md → Set of effective JSON keys (with section→prefix
- *   applied and bracket managed-only keys excluded).
- *   Section→prefix rules:
- *     "Available settings"    → ''           (top-level)
- *     "Worktree settings"     → ''           (keys written as worktree.x)
- *     "Permission settings"   → 'permissions.' (except skipDangerousModePermissionPrompt → top-level)
- *     "Sandbox settings"      → 'sandbox.'
- *     "Attribution settings"  → 'attribution.'
- *     All other sections      → excluded
- *   Managed-only marker: /\([^)]*[Mm]anaged settings only[^)]*\)/ (bracket form only).
- *   "…and managed settings only." in descriptive text is NOT a marker.
- *   Any level of heading (##, ###, ####, …) triggers section boundary.
- *
- * parseEnvDocs(md: string): Set<string>
- *   Parse env-vars.md → Set of env var names.
- *   Source: table rows matching /^\|\s*`([A-Z][A-Z0-9_]*)`/.
- *
- * collectRepoSettingKeys(
- *   flatSchemas: Record<string, FlatFieldSchema>,
- *   objectValueSchemas: Record<string, ObjectValueSchema>   // unused in current impl
- * ): Set<string>
- *   Build repo key set. For each flat schema entry:
- *     - Include the bare schema key (e.g. 'disableAutoMode')
- *     - If nestedUnder, also include 'nestedUnder.key' (e.g. 'permissions.disableAutoMode')
- *     - Recurse into object-kind valueSchema.properties, adding 'prefix.prop' keys
- *   Note: "bare key" is REQUIRED so docs "Available settings" entries like
- *   "disableAutoMode" match the repo's permissions.disableAutoMode schema field.
- *
- * diffKeys(
- *   docsKeys: Set<string>,
- *   repoKeys: Set<string>,
- *   knownExcluded: Set<string>
- * ): { missing: string[] }
- *   Return sorted array of keys in docsKeys that are in neither repoKeys nor knownExcluded.
- *
- * KNOWN_EXCLUDED: ReadonlySet<string>
- *   The single authoritative exclusion list. Must contain at least:
- *     'policyHelper'             - "Only honored from MDM" (no bracket marker)
- *     'ultracode'                - session-only, not read from settings.json
- *     'autoDreamEnabled'         - undocumented
- *     'skipWorkflowUsageWarning' - undocumented
- *     'skipAutoPermissionPrompt' - undocumented
- *     'requiredMinimumVersion'   - "Managed settings only." (text, not bracket)
- *     'requiredMaximumVersion'   - "Managed settings only." (text, not bracket)
- *     'enforceAvailableModels'   - effectively managed-only
- *
- * checkEnvDocsHealth(envKeys: Set<string>): { ok: boolean; reason?: string }
- *   Returns { ok: false, reason: '...' } when the set is empty or suspiciously
- *   small (threshold: < 50 keys). Returns { ok: true } otherwise.
- *   Callers should throw or exit-nonzero on !ok.
+ * `removed`-direction and `collectRepoFlatFieldKeys` tests use small inline
+ * fake schemas instead (same reason: isolate diff logic from live schema
+ * shape, which is exercised separately by the CLI's real invocation).
  */
 
 import { readFileSync } from 'fs';
@@ -80,8 +23,11 @@ import {
   parseSettingsDocs,
   parseEnvDocs,
   collectRepoSettingKeys,
+  collectRepoFlatFieldKeys,
   diffKeys,
+  diffEnvVars,
   KNOWN_EXCLUDED,
+  KNOWN_REPO_ONLY,
   checkEnvDocsHealth,
   checkSettingsDocsHealth,
 } from '../settings-diff';
@@ -278,6 +224,26 @@ describe('parseSettingsDocs — section/prefix mapping', () => {
     expect(keys.has('sandbox../')).toBe(false);
     expect(keys.has('sandbox.~/')).toBe(false);
   });
+
+  it('"Global config settings" keys have no prefix (stored in ~/.claude.json, not settings.json)', () => {
+    const { keys } = parseSettingsDocs(settingsMd);
+    expect(keys.has('autoConnectIde')).toBe(true);
+    expect(keys.has('autoInstallIdeExtension')).toBe(true);
+    expect(keys.has('externalEditorContext')).toBe(true);
+    expect(keys.has('teammateDefaultModel')).toBe(true);
+  });
+
+  it('extracts a non-empty description for a known key', () => {
+    const { descriptions } = parseSettingsDocs(settingsMd);
+    expect(descriptions.get('model')).toBeTruthy();
+    expect(descriptions.get('sandbox.enabled')).toBeTruthy();
+  });
+
+  it('returns empty string (never throws) for a row with no description cell', () => {
+    const { keys, descriptions } = parseSettingsDocs('### Available settings\n\n| `fooBar` |\n');
+    expect(keys.has('fooBar')).toBe(true);
+    expect(descriptions.get('fooBar')).toBe('');
+  });
 });
 
 // ─── E. KNOWN_EXCLUDED contents ──────────────────────────────────────────────
@@ -305,7 +271,7 @@ describe('KNOWN_EXCLUDED constant', () => {
 
 describe('parseEnvDocs', () => {
   it('parses env-vars.md and returns a Set with ~277 entries', () => {
-    const keys = parseEnvDocs(envVarsMd);
+    const { keys } = parseEnvDocs(envVarsMd);
     expect(keys).toBeInstanceOf(Set);
     // Verified count from fixture is ~277; allow some flex for docs changes
     expect(keys.size).toBeGreaterThanOrEqual(250);
@@ -313,15 +279,26 @@ describe('parseEnvDocs', () => {
   });
 
   it('contains ANTHROPIC_API_KEY', () => {
-    const keys = parseEnvDocs(envVarsMd);
+    const { keys } = parseEnvDocs(envVarsMd);
     expect(keys.has('ANTHROPIC_API_KEY')).toBe(true);
   });
 
   it('contains only uppercase env-var-like strings (A-Z, 0-9, underscore)', () => {
-    const keys = parseEnvDocs(envVarsMd);
+    const { keys } = parseEnvDocs(envVarsMd);
     for (const key of keys) {
       expect(key).toMatch(/^[A-Z][A-Z0-9_]*$/);
     }
+  });
+
+  it('extracts a non-empty description for ANTHROPIC_API_KEY', () => {
+    const { descriptions } = parseEnvDocs(envVarsMd);
+    expect(descriptions.get('ANTHROPIC_API_KEY')).toBeTruthy();
+  });
+
+  it('returns empty string (never throws) for a var with no description cell', () => {
+    const { keys, descriptions } = parseEnvDocs('| `FOO_BAR` |\n');
+    expect(keys.has('FOO_BAR')).toBe(true);
+    expect(descriptions.get('FOO_BAR')).toBe('');
   });
 });
 
@@ -348,7 +325,7 @@ describe('checkEnvDocsHealth', () => {
   });
 
   it('returns { ok: false } for content that produces zero env keys (empty string)', () => {
-    const keys = parseEnvDocs('');
+    const { keys } = parseEnvDocs('');
     const result = checkEnvDocsHealth(keys);
     expect(result.ok).toBe(false);
   });
@@ -358,7 +335,7 @@ describe('checkEnvDocsHealth', () => {
 
 describe('collectRepoSettingKeys', () => {
   it('returns a Set', () => {
-    const result = collectRepoSettingKeys({}, {});
+    const result = collectRepoSettingKeys({});
     expect(result).toBeInstanceOf(Set);
   });
 
@@ -373,7 +350,7 @@ describe('collectRepoSettingKeys', () => {
         section: 'permissions' as const,
       },
     };
-    const result = collectRepoSettingKeys(fakeSchema, {});
+    const result = collectRepoSettingKeys(fakeSchema);
     // Must include both forms so docs "disableAutoMode" matches
     expect(result.has('disableAutoMode')).toBe(true);
     expect(result.has('permissions.disableAutoMode')).toBe(true);
@@ -395,7 +372,7 @@ describe('collectRepoSettingKeys', () => {
         section: 'advanced' as const,
       },
     };
-    const result = collectRepoSettingKeys(fakeSchema, {});
+    const result = collectRepoSettingKeys(fakeSchema);
     expect(result.has('attribution')).toBe(true);
     expect(result.has('attribution.commit')).toBe(true);
     expect(result.has('attribution.pr')).toBe(true);
@@ -413,6 +390,176 @@ describe('collectRepoSettingKeys', () => {
   });
 });
 
+// ─── H2. collectRepoFlatFieldKeys ─────────────────────────────────────────────
+//
+// Flat-field-grain repo key set (bare + nestedUnder-prefixed, non-object
+// fields only — object-kind fields are dropped entirely, not recursed). This
+// is the set the `removed` diff direction compares against: docs never
+// documents a nested object's *container* path on its own, and whether a
+// top-level object field additionally gets an "Available settings" overview
+// row is inconsistent across docs — not a reliable per-field signal — so the
+// whole kind is excluded structurally rather than case-by-case.
+
+describe('collectRepoFlatFieldKeys', () => {
+  const fakeSchemaWithNested = {
+    disableAutoMode: {
+      nestedUnder: 'permissions',
+      valueSchema: { kind: 'string' as const },
+      controlType: String,
+      default: undefined,
+      section: 'permissions' as const,
+    },
+    sandbox: {
+      nestedUnder: undefined,
+      valueSchema: {
+        kind: 'object' as const,
+        properties: {
+          enabled: { schema: { kind: 'boolean' as const }, optional: true },
+          filesystem: {
+            schema: {
+              kind: 'object' as const,
+              properties: {
+                allowWrite: { schema: { kind: 'array' as const, item: { kind: 'string' as const } }, optional: true },
+              },
+            },
+            optional: true,
+          },
+        },
+      },
+      controlType: Object,
+      default: undefined,
+      section: 'advanced' as const,
+    },
+  };
+
+  it('returns a Set', () => {
+    expect(collectRepoFlatFieldKeys({})).toBeInstanceOf(Set);
+  });
+
+  it('includes bare key AND nestedUnder.key for a non-object nestedUnder field', () => {
+    const result = collectRepoFlatFieldKeys(fakeSchemaWithNested);
+    expect(result.has('disableAutoMode')).toBe(true);
+    expect(result.has('permissions.disableAutoMode')).toBe(true);
+  });
+
+  it('excludes an object-kind field entirely — no bare key, no recursion into its properties', () => {
+    const result = collectRepoFlatFieldKeys(fakeSchemaWithNested);
+    expect(result.has('sandbox')).toBe(false);
+    expect(result.has('sandbox.enabled')).toBe(false);
+    expect(result.has('sandbox.filesystem')).toBe(false);
+    expect(result.has('sandbox.filesystem.allowWrite')).toBe(false);
+  });
+});
+
+// ─── H3. diffKeys — removed direction (repo-has/docs-lacks) ──────────────────
+//
+// The `removed` direction must run at flat-field grain: comparing the fully
+// expanded repoKeys set (collectRepoSettingKeys) against docsKeys produces
+// spurious hits for every nested object container (docs documents leaf paths
+// like `sandbox.filesystem.allowWrite`, never the intermediate container path
+// `sandbox.filesystem`, and inconsistently documents the top-level container
+// itself). This section proves the flat-field-grain set avoids that
+// structurally, and that a genuine reverse-direction gap (docs dropped a key
+// repo still has) is still caught.
+
+describe('diffKeys — removed direction', () => {
+  it('flags a repo-only leaf key that docs no longer documents', () => {
+    const docsKeys = new Set(['model', 'permissions.allow']);
+    const repoFlatFieldKeys = new Set(['model', 'permissions.allow', 'legacyRenamedKey']);
+    const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys);
+    expect(removed).toEqual(['legacyRenamedKey']);
+  });
+
+  it('does NOT flag a nested object container merely because docs never lists the container path itself', () => {
+    // Simulates the real `sandbox` case: docs documents `sandbox.filesystem.allowWrite`
+    // (a deep leaf) but never `sandbox` or `sandbox.filesystem` as their own row.
+    const docsKeys = new Set(['sandbox.filesystem.allowWrite']);
+    const fakeSchema = {
+      sandbox: {
+        nestedUnder: undefined,
+        valueSchema: { kind: 'object' as const, properties: {} },
+        controlType: Object,
+        default: undefined,
+        section: 'advanced' as const,
+      },
+    };
+    // collectRepoFlatFieldKeys drops object-kind fields entirely — 'sandbox'
+    // never reaches the comparison, so it can never be a false positive here
+    // (no KNOWN_REPO_ONLY entry needed, unlike the nestedUnder dual-form case).
+    const repoFlatFieldKeys = collectRepoFlatFieldKeys(fakeSchema);
+    expect(repoFlatFieldKeys.has('sandbox')).toBe(false);
+    const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys, KNOWN_REPO_ONLY);
+    expect(removed).toEqual([]);
+  });
+
+  it('defaults removed to [] when repoFlatFieldKeys is omitted (missing-only callers are unaffected)', () => {
+    const docsKeys = new Set(['model']);
+    const repoKeys = new Set(['model']);
+    const { removed } = diffKeys(docsKeys, repoKeys, KNOWN_EXCLUDED);
+    expect(removed).toEqual([]);
+  });
+
+  it('applies knownRepoOnly exclusions to the removed set', () => {
+    const docsKeys = new Set<string>();
+    const repoFlatFieldKeys = new Set(['excludedKey', 'realRemovedKey']);
+    const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys, new Set(['excludedKey']));
+    expect(removed).toEqual(['realRemovedKey']);
+  });
+});
+
+// ─── H4. KNOWN_REPO_ONLY constant ─────────────────────────────────────────────
+
+describe('KNOWN_REPO_ONLY constant', () => {
+  it('is a Set (or Set-like with .has method)', () => {
+    expect(typeof KNOWN_REPO_ONLY.has).toBe('function');
+  });
+
+  it.each([
+    'defaultMode',
+    'disableBypassPermissionsMode',
+    'permissions.disableAutoMode',
+  ])('contains "%s"', (key) => {
+    expect(KNOWN_REPO_ONLY.has(key)).toBe(true);
+  });
+
+  it('does NOT need object-kind container entries (sandbox/worktree/subagentStatusLine) — collectRepoFlatFieldKeys excludes them structurally', () => {
+    expect(KNOWN_REPO_ONLY.has('sandbox')).toBe(false);
+    expect(KNOWN_REPO_ONLY.has('worktree')).toBe(false);
+    expect(KNOWN_REPO_ONLY.has('subagentStatusLine')).toBe(false);
+  });
+});
+
+// ─── H5. diffEnvVars ──────────────────────────────────────────────────────────
+
+describe('diffEnvVars', () => {
+  it('envGaps: docs has, registry lacks', () => {
+    const docsEnvKeys = new Set(['ANTHROPIC_API_KEY', 'NEW_DOCS_ONLY_VAR']);
+    const registryEnvNames = new Set(['ANTHROPIC_API_KEY']);
+    const { envGaps } = diffEnvVars(docsEnvKeys, registryEnvNames);
+    expect(envGaps).toEqual(['NEW_DOCS_ONLY_VAR']);
+  });
+
+  it('envRemoved: registry has, docs lacks', () => {
+    const docsEnvKeys = new Set(['ANTHROPIC_API_KEY']);
+    const registryEnvNames = new Set(['ANTHROPIC_API_KEY', 'STALE_REGISTRY_ONLY_VAR']);
+    const { envRemoved } = diffEnvVars(docsEnvKeys, registryEnvNames);
+    expect(envRemoved).toEqual(['STALE_REGISTRY_ONLY_VAR']);
+  });
+
+  it('returns empty arrays when docs and registry match exactly', () => {
+    const both = new Set(['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL']);
+    const { envGaps, envRemoved } = diffEnvVars(both, both);
+    expect(envGaps).toEqual([]);
+    expect(envRemoved).toEqual([]);
+  });
+
+  it('sorts both output arrays', () => {
+    const docsEnvKeys = new Set(['Z_VAR', 'A_VAR']);
+    const { envGaps } = diffEnvVars(docsEnvKeys, new Set());
+    expect(envGaps).toEqual(['A_VAR', 'Z_VAR']);
+  });
+});
+
 // ─── I. checkSettingsDocsHealth ────────────────────────────────────────────────
 //
 // Contract for executor:
@@ -424,9 +571,11 @@ describe('collectRepoSettingKeys', () => {
 //   2. settingsKeys is suspiciously small (threshold: < 20 keys — floor comparable
 //      to env's spirit: a real parse produces 90+ keys), OR
 //   3. Any sentinel key is absent:
-//        - 'model'            (in "Available settings")
-//        - 'permissions.allow' (in "Permission settings")
-//        - 'env'              (in "Available settings")
+//        - 'model'              (in "Available settings")
+//        - 'permissions.allow'  (in "Permission settings")
+//        - 'env'                (in "Available settings")
+//        - 'sandbox.enabled'    (in "Sandbox settings")
+//        - 'attribution.commit' (in "Attribution settings")
 // Returns { ok: true } when settingsKeys has enough keys AND all sentinels present.
 //
 // Rationale: if the official settings.md renames "### Available settings" or
@@ -477,6 +626,36 @@ describe('checkSettingsDocsHealth', () => {
     );
     const { keys } = parseSettingsDocs(corruptedMd);
     expect(keys.has('permissions.allow')).toBe(false);
+    const result = checkSettingsDocsHealth(keys);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBeTruthy();
+  });
+
+  it('"Sandbox settings" section renamed → sentinel "sandbox.enabled" missing → ok:false', () => {
+    // Rename "### Sandbox settings" so that section's keys (including
+    // sandbox.enabled) are excluded by parseSettingsDocs. Total key count
+    // stays well above the 20-key floor, so only the sentinel check catches this.
+    const corruptedMd = settingsMd.replace(
+      '### Sandbox settings',
+      '### Sandboxing (renamed)',
+    );
+    const { keys } = parseSettingsDocs(corruptedMd);
+    expect(keys.has('sandbox.enabled')).toBe(false);
+    const result = checkSettingsDocsHealth(keys);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBeTruthy();
+  });
+
+  it('"Attribution settings" section renamed → sentinel "attribution.commit" missing → ok:false', () => {
+    // Rename "### Attribution settings" so that section's keys (including
+    // attribution.commit) are excluded by parseSettingsDocs. Total key count
+    // stays well above the 20-key floor, so only the sentinel check catches this.
+    const corruptedMd = settingsMd.replace(
+      '### Attribution settings',
+      '### Attribution (renamed)',
+    );
+    const { keys } = parseSettingsDocs(corruptedMd);
+    expect(keys.has('attribution.commit')).toBe(false);
     const result = checkSettingsDocsHealth(keys);
     expect(result.ok).toBe(false);
     expect(result.reason).toBeTruthy();

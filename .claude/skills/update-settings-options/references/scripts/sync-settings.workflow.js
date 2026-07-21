@@ -22,17 +22,30 @@ export const meta = {
 
 const DETECT_SCHEMA = {
   type: 'object',
-  required: ['settingsGaps', 'envGaps', 'counts', 'health'],
+  required: ['settingsGaps', 'removedKeys', 'envGaps', 'envRemoved', 'counts', 'health'],
   properties: {
-    settingsGaps: { type: 'array', items: { type: 'string' }, description: 'doc keys missing from repo schema (already filtered by KNOWN_EXCLUDED)' },
-    envGaps: { type: 'array', items: { type: 'string' }, description: 'env var names missing from repo (currently always [])' },
+    settingsGaps: {
+      type: 'array',
+      items: { type: 'object', properties: { key: { type: 'string' }, description: { type: 'string' } } },
+      description: 'doc keys missing from repo schema (already filtered by KNOWN_EXCLUDED), each with its docs description text',
+    },
+    removedKeys: { type: 'array', items: { type: 'string' }, description: 'repo schema keys no longer documented (flat-field grain, already filtered by KNOWN_REPO_ONLY) — candidates for the delete-key flow, never auto-applied' },
+    envGaps: {
+      type: 'array',
+      items: { type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
+      description: 'env var names documented but missing from src/shared/known-env-vars.ts, each with its docs description text',
+    },
+    envRemoved: { type: 'array', items: { type: 'string' }, description: 'env var names in known-env-vars.ts no longer documented' },
     counts: {
       type: 'object',
       properties: {
         docsKeys: { type: 'number' },
         repoKeys: { type: 'number' },
         settingsGaps: { type: 'number' },
+        removedKeys: { type: 'number' },
         envKeys: { type: 'number' },
+        envGaps: { type: 'number' },
+        envRemoved: { type: 'number' },
       },
     },
     health: {
@@ -86,7 +99,7 @@ if (!detected) {
 // health is guaranteed ok: CLI calls process.exit(1) on failure, producing no JSON output.
 // A parsed `detected` therefore always has health.ok === true.
 
-log(`Detect: ${detected.counts.settingsGaps} settings gaps · ${detected.counts.docsKeys} docs keys · ${detected.counts.repoKeys} repo keys`)
+log(`Detect: ${detected.counts.settingsGaps} settings gaps · ${detected.counts.removedKeys} removed keys · ${detected.counts.envGaps} env gaps · ${detected.counts.envRemoved} env removed · ${detected.counts.docsKeys} docs keys · ${detected.counts.repoKeys} repo keys`)
 
 if (detected.settingsGaps.length === 0) {
   log('No settings gaps — skipping Categorize phase.')
@@ -94,7 +107,9 @@ if (detected.settingsGaps.length === 0) {
     categorized: [],
     userFacing: [],
     nonUserFacing: [],
+    removedKeys: detected.removedKeys,
     envGaps: detected.envGaps,
+    envRemoved: detected.envRemoved,
     counts: detected.counts,
   }
 }
@@ -110,18 +125,19 @@ const surfaceMapHint = [
   'Never invent a new section.',
 ].join(' ')
 
-const categorized = await parallel(detected.settingsGaps.map(key => () =>
+const categorized = await parallel(detected.settingsGaps.map(gap => () =>
   agent(
     [
       'Classify this Claude Code settings gap for the extension UI.',
-      'REASON ONLY: the key is inline below. Do NOT use Bash, Write, Read, WebSearch, or an advisor. Emit the StructuredOutput classification directly.',
-      'Key: ' + JSON.stringify(key),
+      'REASON ONLY: the key and its docs description are inline below. Do NOT use Bash, Write, Read, WebSearch, or an advisor. Emit the StructuredOutput classification directly.',
+      'Key: ' + JSON.stringify(gap.key),
+      'Docs description: ' + JSON.stringify(gap.description),
       'If the key is dotted (e.g. "sandbox.foo", "permissions.bar", "attribution.baz"), it is a nested child — classify by the parent object\'s role and note that in the rationale.',
       'Set isObjectEditor=true if the key likely maps to a complex object value needing a bespoke editor (e.g. array-of-objects). Boolean/string/enum/number keys → isObjectEditor=false.',
       'If category is managed-only/plugin-internal/deprecated/meta, set suggestedSection="" — it will be added to KNOWN_EXCLUDED instead of synced to UI.',
       surfaceMapHint,
     ].join('\n'),
-    { label: `cat:${key}`, phase: 'Categorize', schema: CATEGORY_SCHEMA, effort: 'low' },
+    { label: `cat:${gap.key}`, phase: 'Categorize', schema: CATEGORY_SCHEMA, effort: 'low' },
   )
 ))
 
@@ -136,7 +152,9 @@ return {
   categorized: gaps,
   userFacing,
   nonUserFacing,
-  // env gaps are provided by the CLI directly — no LLM categorization needed
+  // removedKeys/envGaps/envRemoved are provided by the CLI directly — no LLM categorization needed
+  removedKeys: detected.removedKeys,
   envGaps: detected.envGaps,
+  envRemoved: detected.envRemoved,
   counts: detected.counts,
 }

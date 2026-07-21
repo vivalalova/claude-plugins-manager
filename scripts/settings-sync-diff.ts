@@ -19,16 +19,19 @@ import { promisify } from 'util';
 import {
   getAllFlatFieldSchemas,
   type FlatFieldSchema,
-  type ObjectValueSchema,
 } from '../src/shared/claude-settings-schema';
+import { getKnownEnvVarNames } from '../src/shared/known-env-vars';
 import {
   parseSettingsDocs,
   parseEnvDocs,
   collectRepoSettingKeys,
+  collectRepoFlatFieldKeys,
   diffKeys,
+  diffEnvVars,
   checkEnvDocsHealth,
   checkSettingsDocsHealth,
   KNOWN_EXCLUDED,
+  KNOWN_REPO_ONLY,
 } from '../src/shared/settings-sync/settings-diff';
 
 const execFileAsync = promisify(execFile);
@@ -82,8 +85,8 @@ async function main(): Promise<void> {
   ]);
 
   // Parse docs
-  const { keys: docsKeys } = parseSettingsDocs(settingsMd);
-  const envKeys = parseEnvDocs(envVarsMd);
+  const { keys: docsKeys, descriptions: settingsDescriptions } = parseSettingsDocs(settingsMd);
+  const { keys: envKeys, descriptions: envDescriptions } = parseEnvDocs(envVarsMd);
 
   // Health check — fail-fast on suspicious settings docs
   const settingsHealth = checkSettingsDocsHealth(docsKeys);
@@ -101,23 +104,37 @@ async function main(): Promise<void> {
 
   // Collect repo keys from live schema
   const flatSchemas = getAllFlatFieldSchemas() as Record<string, FlatFieldSchema>;
-  const objectValueSchemas: Record<string, ObjectValueSchema> = {};
-  const repoKeys = collectRepoSettingKeys(flatSchemas, objectValueSchemas);
+  const repoKeys = collectRepoSettingKeys(flatSchemas);
+  const repoFlatFieldKeys = collectRepoFlatFieldKeys(flatSchemas);
 
-  // Compute gaps
-  const { missing: settingsGaps } = diffKeys(docsKeys, repoKeys, KNOWN_EXCLUDED);
+  // Compute settings gaps (docs-has/repo-lacks) and removed keys (repo-has/docs-lacks)
+  const { missing: settingsGapKeys, removed: removedKeys } = diffKeys(
+    docsKeys,
+    repoKeys,
+    KNOWN_EXCLUDED,
+    repoFlatFieldKeys,
+    KNOWN_REPO_ONLY,
+  );
+  const settingsGaps = settingsGapKeys.map((key) => ({ key, description: settingsDescriptions.get(key) ?? '' }));
 
-  // env gaps: not applicable in this script (we have no repo env-var registry to diff against)
-  const envGaps: string[] = [];
+  // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
+  const registryEnvNames = new Set(getKnownEnvVarNames());
+  const { envGaps: envGapNames, envRemoved } = diffEnvVars(envKeys, registryEnvNames);
+  const envGaps = envGapNames.map((name) => ({ name, description: envDescriptions.get(name) ?? '' }));
 
   const result = {
     settingsGaps,
+    removedKeys,
     envGaps,
+    envRemoved,
     counts: {
       docsKeys: docsKeys.size,
       repoKeys: repoKeys.size,
       settingsGaps: settingsGaps.length,
+      removedKeys: removedKeys.length,
       envKeys: envKeys.size,
+      envGaps: envGaps.length,
+      envRemoved: envRemoved.length,
     },
     health,
   };
