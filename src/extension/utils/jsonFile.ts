@@ -1,6 +1,14 @@
 import { readFile, writeFile, rename } from 'fs/promises';
 import { toErrorMessage } from '../../shared/errorUtils';
 
+function parseJsonContent<T>(content: string, filePath: string): T {
+  try {
+    return JSON.parse(content) as T;
+  } catch (cause) {
+    throw new Error(`Invalid JSON in ${filePath}: ${toErrorMessage(cause)}`, { cause });
+  }
+}
+
 /**
  * 讀取 JSON 檔案並解析為指定型別。
  * - ENOENT → 回傳 defaultValue
@@ -16,11 +24,16 @@ export async function readJsonFile<T>(filePath: string, defaultValue: T): Promis
     }
     throw err;
   }
-  try {
-    return JSON.parse(content) as T;
-  } catch (cause) {
-    throw new Error(`Invalid JSON in ${filePath}: ${toErrorMessage(cause)}`, { cause });
-  }
+  return parseJsonContent<T>(content, filePath);
+}
+
+/**
+ * 讀取 JSON 檔案，檔案不存在或 parse 失敗一律 fail-fast 拋錯（無 default fallback）。
+ * 供「檔案理應已存在、缺檔代表異常狀態」的場景使用（如 ~/.claude.json 的 read-merge-write）。
+ */
+export async function readJsonFileStrict<T>(filePath: string): Promise<T> {
+  const content = await readFile(filePath, 'utf-8'); // ENOENT 原樣往上拋，呼叫端可用 err.code 判斷
+  return parseJsonContent<T>(content, filePath);
 }
 
 /**

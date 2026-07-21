@@ -236,6 +236,22 @@ export function ObjectFieldEditor({
           onDelete={async () => onDelete('autoMode')}
         />
       );
+    case 'vimInsertModeRemaps':
+      return (
+        <TextSetting
+          label={t('settings.display.vimInsertModeRemaps.label')}
+          description={t('settings.display.vimInsertModeRemaps.description')}
+          value={settings.vimInsertModeRemaps ? JSON.stringify(settings.vimInsertModeRemaps) : undefined}
+          placeholder={t('settings.display.vimInsertModeRemaps.placeholder')}
+          saveLabel={t('settings.display.vimInsertModeRemaps.save')}
+          clearLabel={t('settings.display.vimInsertModeRemaps.clear')}
+          settingKey="vimInsertModeRemaps"
+          scope={scope}
+          overriddenScope={overriddenScope}
+          onSave={async (_key, value) => onSave('vimInsertModeRemaps', parseJsonSettingValue('vimInsertModeRemaps', value as string))}
+          onDelete={async () => onDelete('vimInsertModeRemaps')}
+        />
+      );
     case 'voice':
       return (
         <TextSetting

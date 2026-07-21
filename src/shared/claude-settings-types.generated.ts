@@ -56,6 +56,7 @@ export interface ClaudeSettings {
   fastModePerSessionOptIn?: boolean;
   agent?: string;
   outputStyle?: string;
+  workflowSizeGuideline?: "unrestricted" | "small" | "medium" | "large";
   language?: string;
   autoMemoryEnabled?: boolean;
   autoMemoryDirectory?: string;
@@ -63,6 +64,7 @@ export interface ClaudeSettings {
   respectGitignore?: boolean;
   autoConnectIde?: boolean;
   autoInstallIdeExtension?: boolean;
+  diffTool?: "auto" | "terminal";
   autoUpdatesChannel?: "stable" | "latest";
   minimumVersion?: string;
   cleanupPeriodDays?: number;
@@ -96,6 +98,7 @@ export interface ClaudeSettings {
   agentPushNotifEnabled?: boolean;
   inputNeededNotifEnabled?: boolean;
   editorMode?: "normal" | "vim";
+  vimInsertModeRemaps?: Record<string, string>;
   externalEditorContext?: boolean;
   voiceEnabled?: boolean;
   voice?: {
@@ -103,6 +106,8 @@ export interface ClaudeSettings {
     mode?: "hold" | "tap";
     autoSubmit?: boolean;
   };
+  askUserQuestionTimeout?: "60s" | "5m" | "10m" | "never";
+  permissionExplainerEnabled?: boolean;
   teammateMode?: "auto" | "in-process" | "tmux";
   teammateDefaultModel?: string | null;
   enableAllProjectMcpServers?: boolean;
@@ -212,7 +217,7 @@ export interface ClaudeSettings {
   };
   prUrlTemplate?: string;
   skillOverrides?: Record<string, "on" | "name-only" | "user-invocable-only" | "off">;
-  maxSkillDescriptionChars?: number;
+  skillListingMaxDescChars?: number;
   skillListingBudgetFraction?: number;
   disableSkillShellExecution?: boolean;
   worktree?: {
@@ -226,6 +231,7 @@ export interface ClaudeSettings {
     allow?: string[];
     soft_deny?: string[];
     hard_deny?: string[];
+    classifyAllShell?: boolean;
   };
   defaultShell?: "bash" | "powershell";
   plansDirectory?: string;
@@ -237,6 +243,7 @@ export interface ClaudeSettings {
     sshIdentityFile?: string;
     startDirectory?: string;
   }[];
+  processWrapper?: string;
   sandbox?: {
     enabled?: boolean;
     autoAllowBashIfSandboxed?: boolean;
@@ -291,6 +298,7 @@ export interface ClaudeSettings {
   alwaysThinkingEnabled?: boolean;
   remoteControlAtStartup?: boolean;
   disableArtifact?: boolean;
+  enableArtifact?: boolean;
   disableBundledSkills?: boolean;
   disableClaudeAiConnectors?: boolean;
   disableWorkflows?: boolean;

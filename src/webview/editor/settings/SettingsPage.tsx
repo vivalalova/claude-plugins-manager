@@ -17,7 +17,7 @@ import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
-import { getSchemaFieldBindings, type ParentSettings } from './components/SchemaSection';
+import { getSchemaFieldBindings, isFieldVisibleForScope, type ParentSettings } from './components/SchemaSection';
 import { PARENT_SCOPES, OverrideBadge } from './components/SettingControls';
 import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
 
@@ -212,11 +212,16 @@ export function SettingsPage(): React.ReactElement {
   // Build searchable fields from schema + i18n
   const searchableFields = useMemo(() => buildSearchableFields(t), [t]);
 
-  // Filter fields by search query
+  // Filter fields by search query; globalConfig 欄位在非 user scope 排除（不可見/不可編輯）
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    return searchableFields.filter((f) => matchesSearch(f, searchQuery.trim()));
-  }, [searchableFields, searchQuery]);
+    return searchableFields.filter((f) => {
+      if (!matchesSearch(f, searchQuery.trim())) return false;
+      if (f.isEnvVar) return true;
+      const schema = getFlatFieldSchema(f.key);
+      return schema ? isFieldVisibleForScope(schema, scope) : true;
+    });
+  }, [searchableFields, searchQuery, scope]);
 
   const isSearching = searchQuery.trim().length > 0;
 

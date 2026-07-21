@@ -135,6 +135,26 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'model',
   },
+  ANTHROPIC_DEFAULT_FABLE_MODEL: {
+    name: 'ANTHROPIC_DEFAULT_FABLE_MODEL',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION: {
+    name: 'ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_DEFAULT_FABLE_MODEL_NAME: {
+    name: 'ANTHROPIC_DEFAULT_FABLE_MODEL_NAME',
+    valueType: String,
+    category: 'model',
+  },
+  ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES: {
+    name: 'ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES',
+    valueType: String,
+    category: 'model',
+  },
 
   // --- auth ---
   ANTHROPIC_API_KEY: {
@@ -356,7 +376,7 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   ANTHROPIC_BEDROCK_SERVICE_TIER: {
     name: 'ANTHROPIC_BEDROCK_SERVICE_TIER',
-    valueType: Number,
+    valueType: String,
     category: 'provider',
   },
   ENABLE_PROMPT_CACHING_1H_BEDROCK: {
@@ -425,6 +445,37 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'provider',
   },
+  ANTHROPIC_FOUNDRY_AUTH_TOKEN: {
+    name: 'ANTHROPIC_FOUNDRY_AUTH_TOKEN',
+    valueType: String,
+    category: 'provider',
+    sensitive: true,
+  },
+  CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_GUARD: {
+    name: 'CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_GUARD',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_SKIP_AWS_CRED_CACHE: {
+    name: 'CLAUDE_CODE_SKIP_AWS_CRED_CACHE',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  VERTEX_REGION_CLAUDE_4_8_OPUS: {
+    name: 'VERTEX_REGION_CLAUDE_4_8_OPUS',
+    valueType: String,
+    category: 'provider',
+  },
+  VERTEX_REGION_CLAUDE_5_SONNET: {
+    name: 'VERTEX_REGION_CLAUDE_5_SONNET',
+    valueType: String,
+    category: 'provider',
+  },
+  VERTEX_REGION_CLAUDE_FABLE_5: {
+    name: 'VERTEX_REGION_CLAUDE_FABLE_5',
+    valueType: String,
+    category: 'provider',
+  },
 
   // --- effort ---
   CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING: {
@@ -457,6 +508,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   MAX_THINKING_TOKENS: {
     name: 'MAX_THINKING_TOKENS',
     valueType: Number,
+    category: 'effort',
+  },
+  CLAUDE_CODE_ALWAYS_ENABLE_EFFORT: {
+    name: 'CLAUDE_CODE_ALWAYS_ENABLE_EFFORT',
+    valueType: Boolean,
     category: 'effort',
   },
 
@@ -524,11 +580,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'timeout',
     default: '120000',
   },
-  CLAUDE_CODE_SESSION_END_HOOKS_TIMEOUT_MS: {
-    name: 'CLAUDE_CODE_SESSION_END_HOOKS_TIMEOUT_MS',
-    valueType: Number,
-    category: 'timeout',
-  },
   CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS: {
     name: 'CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS',
     valueType: Number,
@@ -548,6 +599,68 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'CLAUDE_STREAM_IDLE_TIMEOUT_MS',
     valueType: Number,
     category: 'timeout',
+  },
+  API_FORCE_IDLE_TIMEOUT: {
+    name: 'API_FORCE_IDLE_TIMEOUT',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_AFK_COUNTDOWN_MS: {
+    name: 'CLAUDE_AFK_COUNTDOWN_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '20000',
+  },
+  CLAUDE_AFK_TIMEOUT_MS: {
+    name: 'CLAUDE_AFK_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_AWS_CHAIN_RESOLVE_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_AWS_CHAIN_RESOLVE_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '60000',
+  },
+  CLAUDE_CODE_CONNECT_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_CONNECT_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    deprecated: true,
+  },
+  CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS: {
+    name: 'CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '120000',
+  },
+  CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT: {
+    name: 'CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: {
+    name: 'CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '600000',
+  },
+  CLAUDE_CODE_RESUME_INTERRUPTED_TURN_MAX_AGE_MS: {
+    name: 'CLAUDE_CODE_RESUME_INTERRUPTED_TURN_MAX_AGE_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_SYNC_SKILLS_INSTALL_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_SYNC_SKILLS_INSTALL_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '30000',
+  },
+  CLAUDE_CODE_TEAM_TEARDOWN_PARK_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_TEAM_TEARDOWN_PARK_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '10000',
   },
 
   // --- limits ---
@@ -632,6 +745,23 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   CLAUDE_CODE_STOP_HOOK_BLOCK_CAP: {
     name: 'CLAUDE_CODE_STOP_HOOK_BLOCK_CAP',
     valueType: Number,
+    category: 'limits',
+  },
+  CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION: {
+    name: 'CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION',
+    valueType: Number,
+    category: 'limits',
+    default: '200',
+  },
+  CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION: {
+    name: 'CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION',
+    valueType: Number,
+    category: 'limits',
+    default: '200',
+  },
+  CLAUDE_CODE_RETRY_WATCHDOG: {
+    name: 'CLAUDE_CODE_RETRY_WATCHDOG',
+    valueType: Boolean,
     category: 'limits',
   },
 
@@ -1099,6 +1229,112 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
+  CLAUDE_CODE_ARTIFACT_AUTO_OPEN: {
+    name: 'CLAUDE_CODE_ARTIFACT_AUTO_OPEN',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_BRIDGE_SESSION_ID: {
+    name: 'CLAUDE_CODE_BRIDGE_SESSION_ID',
+    valueType: String,
+    category: 'feature',
+  },
+  CLAUDE_CODE_CHILD_SESSION: {
+    name: 'CLAUDE_CODE_CHILD_SESSION',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_ADVISOR_TOOL: {
+    name: 'CLAUDE_CODE_DISABLE_ADVISOR_TOOL',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_ARTIFACT: {
+    name: 'CLAUDE_CODE_DISABLE_ARTIFACT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF: {
+    name: 'CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP: {
+    name: 'CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: {
+    name: 'CLAUDE_CODE_DISABLE_BUNDLED_SKILLS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS: {
+    name: 'CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_NOTIFICATION_PRESENCE_CHECK: {
+    name: 'CLAUDE_CODE_DISABLE_NOTIFICATION_PRESENCE_CHECK',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_WORKFLOWS: {
+    name: 'CLAUDE_CODE_DISABLE_WORKFLOWS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_APPEND_SUBAGENT_PROMPT: {
+    name: 'CLAUDE_CODE_ENABLE_APPEND_SUBAGENT_PROMPT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_AUTO_MODE: {
+    name: 'CLAUDE_CODE_ENABLE_AUTO_MODE',
+    valueType: Boolean,
+    category: 'feature',
+    deprecated: true,
+  },
+  CLAUDE_CODE_FORCE_SESSION_PERSISTENCE: {
+    name: 'CLAUDE_CODE_FORCE_SESSION_PERSISTENCE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_FORWARD_SUBAGENT_TEXT: {
+    name: 'CLAUDE_CODE_FORWARD_SUBAGENT_TEXT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_PROCESS_WRAPPER: {
+    name: 'CLAUDE_CODE_PROCESS_WRAPPER',
+    valueType: String,
+    category: 'feature',
+  },
+  CLAUDE_CODE_SAFE_MODE: {
+    name: 'CLAUDE_CODE_SAFE_MODE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS: {
+    name: 'CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK: {
+    name: 'CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_DISABLE_ADOPT: {
+    name: 'CLAUDE_DISABLE_ADOPT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  DISABLE_PROMPT_CACHING_FABLE: {
+    name: 'DISABLE_PROMPT_CACHING_FABLE',
+    valueType: Boolean,
+    category: 'feature',
+  },
 
   // --- ui ---
   CLAUDE_CODE_AUTO_CONNECT_IDE: {
@@ -1172,11 +1408,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'ui',
   },
-  CLAUDE_CODE_HIDE_ACCOUNT_INFO: {
-    name: 'CLAUDE_CODE_HIDE_ACCOUNT_INFO',
-    valueType: Boolean,
-    category: 'ui',
-  },
   CLAUDE_CODE_IDE_HOST_OVERRIDE: {
     name: 'CLAUDE_CODE_IDE_HOST_OVERRIDE',
     valueType: String,
@@ -1189,6 +1420,26 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_TMUX_TRUECOLOR: {
     name: 'CLAUDE_CODE_TMUX_TRUECOLOR',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_AX_SCREEN_READER: {
+    name: 'CLAUDE_AX_SCREEN_READER',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_DISABLE_MOUSE_CLICKS: {
+    name: 'CLAUDE_CODE_DISABLE_MOUSE_CLICKS',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_FORCE_STRIKETHROUGH: {
+    name: 'CLAUDE_CODE_FORCE_STRIKETHROUGH',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  FORCE_HYPERLINK: {
+    name: 'FORCE_HYPERLINK',
     valueType: Boolean,
     category: 'ui',
   },
@@ -1242,6 +1493,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
 
   CLAUDE_CODE_TMPDIR: {
     name: 'CLAUDE_CODE_TMPDIR',
+    valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_PID: {
+    name: 'CLAUDE_PID',
     valueType: String,
     category: 'shell',
   },
@@ -1368,11 +1624,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'telemetry',
     default: '2000',
   },
-  CLAUDE_CODE_TEAM_NAME: {
-    name: 'CLAUDE_CODE_TEAM_NAME',
-    valueType: String,
-    category: 'telemetry',
-  },
   DISABLE_GROWTHBOOK: {
     name: 'DISABLE_GROWTHBOOK',
     valueType: Boolean,
@@ -1410,6 +1661,32 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   OTEL_METRICS_INCLUDE_VERSION: {
     name: 'OTEL_METRICS_INCLUDE_VERSION',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
+  CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH: {
+    name: 'CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH',
+    valueType: Number,
+    category: 'telemetry',
+    default: '61440',
+  },
+  CLAUDE_CODE_OTEL_DIAG_STDERR: {
+    name: 'CLAUDE_CODE_OTEL_DIAG_STDERR',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
+  OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT: {
+    name: 'OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT',
+    valueType: Number,
+    category: 'telemetry',
+  },
+  OTEL_LOG_ASSISTANT_RESPONSES: {
+    name: 'OTEL_LOG_ASSISTANT_RESPONSES',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
+  OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES: {
+    name: 'OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES',
     valueType: Boolean,
     category: 'telemetry',
   },

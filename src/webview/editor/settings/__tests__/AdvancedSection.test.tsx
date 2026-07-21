@@ -65,9 +65,10 @@ describe('AdvancedSection — 渲染', () => {
     'Disable Remote Control',
     'Sandbox',
     'Company Announcements',
-    'Max Skill Description Characters',
+    'Skill Listing Max Description Chars',
     'Skill Listing Budget Fraction',
     'SSH Configs',
+    'Process Wrapper',
   ])('顯示 %s 欄位', (label) => {
     renderSection();
     expect(screen.getByText(label)).toBeTruthy();
@@ -93,7 +94,7 @@ describe('AdvancedSection — 渲染', () => {
       expect(screen.getByText('(skipWebFetchPreflight: false)')).toBeTruthy();
       expect(screen.getByText('(disableDeepLinkRegistration)')).toBeTruthy();
       expect(screen.getByText('(disableSkillShellExecution: false)')).toBeTruthy();
-      expect(screen.getByText('(maxSkillDescriptionChars: 1536)')).toBeTruthy();
+      expect(screen.getByText('(skillListingMaxDescChars: 1536)')).toBeTruthy();
       expect(screen.getByText('(skillListingBudgetFraction: 0.01)')).toBeTruthy();
       expect(screen.getByText('(sshConfigs)').classList.contains('settings-key-hint')).toBe(true);
     });
@@ -268,7 +269,7 @@ describe('AdvancedSection — new settings 互動', () => {
     });
   });
 
-  it('maxSkillDescriptionChars 未設定, 輸入 2048 並儲存 → onSave("maxSkillDescriptionChars", 2048)', async () => {
+  it('skillListingMaxDescChars 未設定, 輸入 2048 並儲存 → onSave("skillListingMaxDescChars", 2048)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -277,7 +278,21 @@ describe('AdvancedSection — new settings 互動', () => {
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('maxSkillDescriptionChars', 2048);
+      expect(onSave).toHaveBeenCalledWith('skillListingMaxDescChars', 2048);
+    });
+  });
+
+  it('processWrapper 未設定, 輸入指令並儲存 → onSave("processWrapper", ...)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const placeholder = 'e.g. /opt/corp/launcher --profile claude';
+    const field = screen.getByPlaceholderText(placeholder).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: '/opt/corp/launcher --profile claude' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('processWrapper', '/opt/corp/launcher --profile claude');
     });
   });
 
@@ -1467,9 +1482,54 @@ describe('AdvancedSection — 批次 S 渲染（先紅）', () => {
     ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
     ['disableWorkflows', 'Disable Workflows'],
     ['workflowKeywordTriggerEnabled', 'Workflow Keyword Trigger'],
+    ['enableArtifact', 'Enable Artifact Tool'],
   ])('顯示 %s 欄位：label "%s"', (_key, label) => {
     renderSection();
     expect(screen.getByText(label)).toBeTruthy();
+  });
+});
+
+describe('AdvancedSection — enableArtifact（無 fixed default）', () => {
+  it('enableArtifact 未設定 → checkbox 未勾選', () => {
+    renderSection({});
+    const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
+    const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(cb.checked).toBe(false);
+  });
+
+  it('enableArtifact 未設定, toggle on → onSave("enableArtifact", true)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('enableArtifact', true);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('enableArtifact=true, toggle off → onSave("enableArtifact", false)（無 default 可比對，不觸發 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enableArtifact: true }, onSave, onDelete);
+    const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('enableArtifact', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('enableArtifact=true → Reset 按鈕顯示，點擊 → onDelete("enableArtifact")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enableArtifact: true }, vi.fn(), onDelete);
+    const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
+    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
+    fireEvent.click(resetBtn);
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('enableArtifact');
+    });
   });
 });
 

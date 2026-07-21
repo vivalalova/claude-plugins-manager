@@ -112,6 +112,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 ## Hard checklist
 
+- 新 key：先確認在 docs 哪張表——「Global config settings」表的 key 存 `~/.claude.json`，schema field 必標 `storageFile: 'globalConfig'`（判定細節見 `references/surface-map.md`）
 - 新 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
 - docs 有 default：補 key hint / default hint
 - 刪 key：移除 first-party support，**不清使用者既有 settings 檔**（unknown key 容忍保留）

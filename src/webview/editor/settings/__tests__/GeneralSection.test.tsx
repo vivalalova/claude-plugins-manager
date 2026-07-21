@@ -70,6 +70,16 @@ describe('GeneralSection — 渲染', () => {
       expect(screen.getByText('(cleanupPeriodDays: 30)')).toBeTruthy();
       expect(screen.getByText('(autoUpdatesChannel: latest)')).toBeTruthy();
       expect(screen.getByText('(minimumVersion)')).toBeTruthy();
+      expect(screen.getByText('(diffTool: auto)')).toBeTruthy();
+      expect(screen.getByText('(workflowSizeGuideline: unrestricted)')).toBeTruthy();
+    });
+  });
+
+  it('顯示 Diff Tool、Dynamic Workflow Size 欄位', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText('Diff Tool')).toBeTruthy();
+      expect(screen.getByText('Dynamic Workflow Size')).toBeTruthy();
     });
   });
 
@@ -610,6 +620,66 @@ describe('GeneralSection — EnumDropdown 互動', () => {
       expect(screen.getByText(/Current value: beta/)).toBeTruthy();
     });
   });
+
+  it('diffTool 未設定 → select value 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Diff Tool' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+  });
+
+  it('選擇 diffTool "terminal" → 呼叫 onSave("diffTool", "terminal")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Diff Tool' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Diff Tool' }), { target: { value: 'terminal' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('diffTool', 'terminal');
+    });
+  });
+
+  it('diffTool 選擇 auto（=default）→ onDelete("diffTool")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ diffTool: 'terminal' }, onSave, onDelete);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Diff Tool' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Diff Tool' }), { target: { value: 'auto' } });
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('diffTool');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('workflowSizeGuideline 未設定 → select value 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+  });
+
+  it('選擇 workflowSizeGuideline "small" → 呼叫 onSave("workflowSizeGuideline", "small")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }), { target: { value: 'small' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('workflowSizeGuideline', 'small');
+    });
+  });
+
+  it('workflowSizeGuideline 選擇 unrestricted（=default）→ onDelete("workflowSizeGuideline")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ workflowSizeGuideline: 'small' }, onSave, onDelete);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }), { target: { value: 'unrestricted' } });
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('workflowSizeGuideline');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1134,5 +1204,33 @@ describe('GeneralSection — 批次 S 互動（先紅）', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('fallbackModel', ['claude-opus-4-5', 'claude-haiku-4-5']);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// storageFile=globalConfig 欄位在 project scope 完全不渲染（先紅）
+// 這 4 個 key（autoConnectIde/autoInstallIdeExtension/diffTool/workflowSizeGuideline）
+// 依官方文件只存在 ~/.claude.json（user 層級），project/local scope 不該顯示。
+// ---------------------------------------------------------------------------
+
+describe('GeneralSection — globalConfig 欄位 scope 隔離（先紅）', () => {
+  it('scope=project → autoConnectIde/autoInstallIdeExtension/diffTool/workflowSizeGuideline 完全不渲染', async () => {
+    renderSection(
+      { autoConnectIde: true, autoInstallIdeExtension: true, diffTool: 'terminal', workflowSizeGuideline: 'small' },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+    );
+
+    await waitFor(() => expect(screen.getByText('Effort Level')).toBeTruthy());
+
+    expect(screen.queryByText('Auto-connect IDE')).toBeNull();
+    expect(screen.queryByText('Auto-install IDE Extension')).toBeNull();
+    expect(screen.queryByText('Diff Tool')).toBeNull();
+    expect(screen.queryByText('Dynamic Workflow Size')).toBeNull();
+    expect(screen.queryByText('(autoConnectIde: false)')).toBeNull();
+    expect(screen.queryByText('(autoInstallIdeExtension: true)')).toBeNull();
+    expect(screen.queryByText('(diffTool: auto)')).toBeNull();
+    expect(screen.queryByText('(workflowSizeGuideline: unrestricted)')).toBeNull();
   });
 });

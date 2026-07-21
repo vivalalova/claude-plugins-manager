@@ -47,6 +47,11 @@ interface ResolvedSchemaFieldBindings {
   overriddenScope?: PluginScope;
 }
 
+/** globalConfig 欄位（存在 ~/.claude.json）只在 user scope 可見；其餘欄位不受限制。 */
+export function isFieldVisibleForScope(schema: FlatFieldSchema, scope: PluginScope): boolean {
+  return !(schema.storageFile === 'globalConfig' && scope !== 'user');
+}
+
 export function getSchemaFieldBindings(
   key: string,
   {
@@ -59,6 +64,7 @@ export function getSchemaFieldBindings(
 ): ResolvedSchemaFieldBindings | null {
   const schema = getFlatFieldSchema(key) as FlatFieldSchema | undefined;
   if (!schema) return null;
+  if (!isFieldVisibleForScope(schema, scope)) return null;
 
   if (schema.nestedUnder) {
     const parentKey = schema.nestedUnder;

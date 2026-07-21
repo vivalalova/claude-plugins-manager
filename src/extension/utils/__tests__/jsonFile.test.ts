@@ -1,16 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /* ── fs/promises mock ── */
+const mockReadFile = vi.hoisted(() => vi.fn());
 const mockWriteFile = vi.hoisted(() => vi.fn());
 const mockRename = vi.hoisted(() => vi.fn());
 
 vi.mock('fs/promises', () => ({
-  readFile: vi.fn(),
+  readFile: mockReadFile,
   writeFile: mockWriteFile,
   rename: mockRename,
 }));
 
-import { writeJsonFileAtomic } from '../jsonFile';
+import { writeJsonFileAtomic, readJsonFileStrict } from '../jsonFile';
 
 describe('writeJsonFileAtomic', () => {
   beforeEach(() => {
@@ -55,5 +56,32 @@ describe('writeJsonFileAtomic', () => {
     await writeJsonFileAtomic('/some/path.json', { a: 1 });
 
     expect(callOrder).toEqual(['writeFile', 'rename']);
+  });
+});
+
+describe('readJsonFileStrict', () => {
+  beforeEach(() => {
+    mockReadFile.mockReset();
+  });
+
+  it('檔案存在且合法 JSON → 回傳解析後物件', async () => {
+    mockReadFile.mockResolvedValue(JSON.stringify({ foo: 'bar' }));
+
+    const result = await readJsonFileStrict<{ foo: string }>('/some/path.json');
+
+    expect(result).toEqual({ foo: 'bar' });
+  });
+
+  it('檔案不存在（ENOENT）→ 拋出錯誤（不像 readJsonFile 那樣回傳 default）', async () => {
+    const enoentErr = Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' });
+    mockReadFile.mockRejectedValue(enoentErr);
+
+    await expect(readJsonFileStrict('/some/missing.json')).rejects.toThrow();
+  });
+
+  it('檔案存在但內容不是合法 JSON → 拋出錯誤，訊息含 "Invalid JSON in"', async () => {
+    mockReadFile.mockResolvedValue('{ not valid json');
+
+    await expect(readJsonFileStrict('/some/bad.json')).rejects.toThrow('Invalid JSON in');
   });
 });

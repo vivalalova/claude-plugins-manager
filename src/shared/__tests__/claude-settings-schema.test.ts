@@ -3,6 +3,8 @@ import type { ClaudeSettings, HookCommand } from '../claude-settings-schema';
 import {
   CLAUDE_SETTINGS_SCHEMA,
   getAllFlatFieldSchemas,
+  getFlatFieldSchema,
+  getGlobalConfigSettingKeys,
   getSchemaDefault,
   getSchemaEnumOptions,
   SETTINGS_SECTION_KEYS,
@@ -196,7 +198,7 @@ describe('getSchemaDefault', () => {
     expect(getSchemaDefault('autoInstallIdeExtension')).toBe(true);
     expect(getSchemaDefault('disableAgentView')).toBe(false);
     expect(getSchemaDefault('disableRemoteControl')).toBe(false);
-    expect(getSchemaDefault('maxSkillDescriptionChars')).toBe(1536);
+    expect(getSchemaDefault('skillListingMaxDescChars')).toBe(1536);
     expect(getSchemaDefault('skillListingBudgetFraction')).toBe(0.01);
   });
 
@@ -209,9 +211,16 @@ describe('getSchemaDefault', () => {
     expect(() => getSchemaDefault('nonExistent')).toThrow('not found');
   });
 
-  it('所有 Boolean entry 都有 default 值', () => {
+  // Keys documented as having no fixed default — the effective default is
+  // dynamic (e.g. account-tier dependent) rather than a stable true/false,
+  // so encoding one here would misstate docs. Verified 2026-07-21 against
+  // https://code.claude.com/docs/en/settings.md ("When unset, the default
+  // follows the feature's availability for your account").
+  const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set(['enableArtifact']);
+
+  it('所有 Boolean entry 都有 default 值（documented dynamic-default keys 除外）', () => {
     for (const [key, field] of Object.entries(flatSchema)) {
-      if (field.controlType === Boolean) {
+      if (field.controlType === Boolean && !BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT.has(key)) {
         expect(field.default, `${key} Boolean entry 缺少 default`).not.toBeUndefined();
         expect(typeof field.default, `${key} default 應為 boolean`).toBe('boolean');
       }
@@ -225,5 +234,32 @@ describe('getSchemaDefault', () => {
         expect(enumValues).toContain(field.default);
       }
     }
+  });
+});
+
+describe('getGlobalConfigSettingKeys', () => {
+  // 依官方文件應存在 ~/.claude.json（頂層 key）而非 settings.json 的 7 個 key。
+  const EXPECTED_GLOBAL_CONFIG_KEYS = [
+    'autoConnectIde',
+    'autoInstallIdeExtension',
+    'diffTool',
+    'externalEditorContext',
+    'permissionExplainerEnabled',
+    'teammateDefaultModel',
+    'workflowSizeGuideline',
+  ];
+
+  it('回傳精確 7 個 key（排序後比對，防止漏標或多標）', () => {
+    const keys = getGlobalConfigSettingKeys();
+    expect(keys.length).toBe(7);
+    expect([...keys].sort()).toEqual([...EXPECTED_GLOBAL_CONFIG_KEYS].sort());
+  });
+
+  it.each(EXPECTED_GLOBAL_CONFIG_KEYS)('%s 的 flat field schema storageFile 為 "globalConfig"', (key) => {
+    expect(getFlatFieldSchema(key)?.storageFile).toBe('globalConfig');
+  });
+
+  it.each(['model', 'effortLevel'])('%s（非 globalConfig 欄位）storageFile 為 undefined', (key) => {
+    expect(getFlatFieldSchema(key)?.storageFile).toBeUndefined();
   });
 });

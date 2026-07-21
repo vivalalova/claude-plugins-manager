@@ -1,5 +1,9 @@
 # Surface Map
 
+## 儲存檔判定（section 歸屬前先做）
+
+docs settings.md 分多張表，**「Global config settings」表的 key 存 `~/.claude.json` 而非 `settings.json`**——寫進 settings.json 會被 Claude Code 靜默忽略。這類 key 在 schema field 必須標 `storageFile: 'globalConfig'`（讀寫由 `SettingsFileService` 分流到 `~/.claude.json`，僅 user scope 顯示），漏標＝UI 開關 no-op silent bug。分類 gap 時先確認 key 落在 docs 哪張表。
+
 ## Section mapping
 
 - `env` → `EnvSection`

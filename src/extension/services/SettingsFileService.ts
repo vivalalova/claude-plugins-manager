@@ -12,9 +12,11 @@ import type {
   PluginContents,
 } from '../../shared/types';
 import { KeyedWriteQueue } from '../utils/WriteQueue';
-import { readJsonFile, writeJsonFileAtomic } from '../utils/jsonFile';
+import { readJsonFile, readJsonFileStrict, writeJsonFileAtomic } from '../utils/jsonFile';
 import { PluginCatalogScanner, type PluginCatalogSnapshot } from './PluginCatalogScanner';
+import { getFlatFieldSchema, getGlobalConfigSettingKeys } from '../../shared/claude-settings-schema';
 import {
+  CLAUDE_JSON_PATH,
   INSTALLED_PLUGINS_PATH,
   MARKETPLACES_DIR,
   KNOWN_MARKETPLACES_PATH,
@@ -75,16 +77,34 @@ export class SettingsFileService {
   /**
    * 讀取指定 scope 的 settings.json，回傳 raw JSON object。
    * 不做跨 scope 合併；檔案不存在回傳 {}。
+   * scope='user' 時額外以 ~/.claude.json（globalConfig）覆蓋 storageFile='globalConfig' 的 key：
+   * 存在則覆蓋、不存在則刪除（避免 settings.json 殘留舊值誤導 UI）。
    */
   async getSettings(scope: PluginScope): Promise<Record<string, unknown>> {
-    return readJsonFile<Record<string, unknown>>(this.getSettingsPath(scope), {});
+    const settings = await readJsonFile<Record<string, unknown>>(this.getSettingsPath(scope), {});
+    if (scope !== 'user') {
+      return settings;
+    }
+    const globalConfig = await readJsonFile<Record<string, unknown>>(CLAUDE_JSON_PATH, {});
+    for (const key of getGlobalConfigSettingKeys()) {
+      if (key in globalConfig) {
+        settings[key] = globalConfig[key];
+      } else {
+        delete settings[key];
+      }
+    }
+    return settings;
   }
 
   /**
    * 設定指定 scope 的單一 key（read-modify-write）。
    * 使用 raw object 保留 $schema 等額外欄位；project/local scope 自動 mkdir。
+   * scope='user' 且 key 為 storageFile='globalConfig' 時改寫 ~/.claude.json。
    */
   async setSetting(scope: PluginScope, key: string, value: unknown): Promise<void> {
+    if (scope === 'user' && getFlatFieldSchema(key)?.storageFile === 'globalConfig') {
+      return this.setGlobalConfigSetting(key, value);
+    }
     return this.updateScopedSettingsFile(scope, (settings) => {
       settings[key] = value;
       return true;
@@ -94,8 +114,12 @@ export class SettingsFileService {
   /**
    * 刪除指定 scope 的頂層 key（read-modify-write）。
    * 檔案不存在（ENOENT）則 no-op；readJsonFile 已處理 ENOENT 回傳 {}。
+   * scope='user' 且 key 為 storageFile='globalConfig' 時改動 ~/.claude.json。
    */
   async deleteSetting(scope: PluginScope, key: string): Promise<void> {
+    if (scope === 'user' && getFlatFieldSchema(key)?.storageFile === 'globalConfig') {
+      return this.deleteGlobalConfigSetting(key);
+    }
     return this.updateScopedSettingsFile(scope, (settings) => {
       if (!(key in settings)) {
         return false;
@@ -103,6 +127,55 @@ export class SettingsFileService {
       delete settings[key];
       return true;
     });
+  }
+
+  /**
+   * read-merge-write ~/.claude.json（globalConfig）的共用 helper。
+   * mutate 回傳 false 時略過寫入；tolerateMissing=true 時缺檔（ENOENT）視為 no-op 而非拋錯。
+   *
+   * 已知限制：行程內寫入以 KeyedWriteQueue 序列化，但對「跨行程」（live claude CLI session
+   * 也會寫 ~/.claude.json）是 lock-free 的 read-merge-write——極端時序下（read 與 rename 之間
+   * 對方寫入）會以舊快照覆蓋對方的變更（lost update，非半寫壞檔；寫入本身 temp+rename 原子）。
+   * claude CLI 多 session 之間同為 lock-free 寫者，故不另實作跨行程檔鎖。
+   */
+  private async updateGlobalConfigFile(
+    mutate: (config: Record<string, unknown>) => boolean,
+    options: { tolerateMissing?: boolean } = {},
+  ): Promise<void> {
+    return this.settingsWriteQueues.enqueue(CLAUDE_JSON_PATH, async () => {
+      let config: Record<string, unknown>;
+      try {
+        config = await readJsonFileStrict<Record<string, unknown>>(CLAUDE_JSON_PATH);
+      } catch (err) {
+        if (options.tolerateMissing && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          return;
+        }
+        throw err;
+      }
+      const shouldWrite = mutate(config);
+      if (!shouldWrite) return;
+      await writeJsonFileAtomic(CLAUDE_JSON_PATH, config);
+    });
+  }
+
+  /** 寫入單一 global config key（~/.claude.json，read-merge-write）。缺檔/parse 失敗 fail-fast。 */
+  async setGlobalConfigSetting(key: string, value: unknown): Promise<void> {
+    return this.updateGlobalConfigFile((config) => {
+      config[key] = value;
+      return true;
+    });
+  }
+
+  /** 刪除單一 global config key（~/.claude.json）。缺檔 → no-op；key 不存在 → no-op；parse 失敗 → fail-fast。 */
+  async deleteGlobalConfigSetting(key: string): Promise<void> {
+    return this.updateGlobalConfigFile(
+      (config) => {
+        if (!(key in config)) return false;
+        delete config[key];
+        return true;
+      },
+      { tolerateMissing: true },
+    );
   }
 
   /**

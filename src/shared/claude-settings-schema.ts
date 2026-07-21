@@ -124,6 +124,8 @@ export interface SettingFieldSchema<
   dangerValues?: readonly string[];
   /** 僅在自動推導不符合 UI 需求時覆寫 controlType */
   controlTypeOverride?: ControlType;
+  /** 該 key 實際存放的檔案；未指定 = settings.json。'globalConfig' = ~/.claude.json（只在 user scope 存在） */
+  storageFile?: 'globalConfig';
 }
 
 /** Schema 陣列元素 — key + 完整 schema + UI metadata */
@@ -196,6 +198,7 @@ interface BaseFieldMeta<NestedUnder extends string | undefined = undefined> {
   nestedUnder?: NestedUnder;
   dangerValues?: readonly string[];
   controlTypeOverride?: ControlType;
+  storageFile?: 'globalConfig';
 }
 
 function inferControlType(valueSchema: ValueSchema): ControlType | undefined {
@@ -235,6 +238,7 @@ function createField<
     nestedUnder: (meta.nestedUnder ?? undefined) as NestedUnder,
     dangerValues: meta.dangerValues,
     controlTypeOverride: meta.controlTypeOverride,
+    storageFile: meta.storageFile,
   };
 }
 
@@ -294,6 +298,9 @@ const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
 const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
 const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
 const THEME_OPTIONS = ['auto', 'dark', 'light', 'dark-daltonized', 'light-daltonized', 'dark-ansi', 'light-ansi'] as const;
+const ASK_USER_QUESTION_TIMEOUT_OPTIONS = ['60s', '5m', '10m', 'never'] as const;
+const DIFF_TOOL_OPTIONS = ['auto', 'terminal'] as const;
+const WORKFLOW_SIZE_GUIDELINE_OPTIONS = ['unrestricted', 'small', 'medium', 'large'] as const;
 
 const STRING_SCHEMA = stringValue();
 const STRING_ARRAY_SCHEMA = arrayValue(STRING_SCHEMA);
@@ -371,6 +378,9 @@ const FORCE_LOGIN_METHOD_VALUE_SCHEMA = stringValue(FORCE_LOGIN_METHOD_OPTIONS);
 const DISABLE_ONLY_VALUE_SCHEMA = stringValue(DISABLE_ONLY_OPTIONS);
 const DEFAULT_SHELL_VALUE_SCHEMA = stringValue(DEFAULT_SHELL_OPTIONS);
 const SPINNER_MODE_VALUE_SCHEMA = stringValue(SPINNER_MODE_OPTIONS);
+const ASK_USER_QUESTION_TIMEOUT_VALUE_SCHEMA = stringValue(ASK_USER_QUESTION_TIMEOUT_OPTIONS);
+const DIFF_TOOL_VALUE_SCHEMA = stringValue(DIFF_TOOL_OPTIONS);
+const WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA = stringValue(WORKFLOW_SIZE_GUIDELINE_OPTIONS);
 
 const SPINNER_VERBS_VALUE_SCHEMA = objectValue({
   mode: optional(SPINNER_MODE_VALUE_SCHEMA),
@@ -456,7 +466,7 @@ const STRING_OR_NULL_VALUE_SCHEMA = unionValue(STRING_SCHEMA, literalValue(null)
 const MODEL_OVERRIDES_VALUE_SCHEMA = recordValue(STRING_SCHEMA);
 const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 0, step: 1 });
 const FEEDBACK_SURVEY_RATE_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
-const MAX_SKILL_DESCRIPTION_CHARS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
+const SKILL_LISTING_MAX_DESC_CHARS_VALUE_SCHEMA = numberValue({ min: 1, step: 1 });
 const SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
 
 const WORKTREE_VALUE_SCHEMA = objectValue({
@@ -471,6 +481,7 @@ const AUTO_MODE_VALUE_SCHEMA = objectValue({
   allow: optional(STRING_ARRAY_SCHEMA),
   soft_deny: optional(STRING_ARRAY_SCHEMA),
   hard_deny: optional(STRING_ARRAY_SCHEMA),
+  classifyAllShell: optional(booleanValue()),
 });
 
 const VOICE_VALUE_SCHEMA = objectValue({
@@ -529,6 +540,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('fastModePerSessionOptIn', { default: false }),
     stringField('agent'),
     stringField('outputStyle'),
+    createField('workflowSizeGuideline', WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA, { default: 'unrestricted', storageFile: 'globalConfig' }),
     // Permission mode
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
@@ -543,8 +555,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('includeGitInstructions', { default: true }),
     booleanField('respectGitignore', { default: true }),
     // IDE integration
-    booleanField('autoConnectIde', { default: false }),
-    booleanField('autoInstallIdeExtension', { default: true }),
+    booleanField('autoConnectIde', { default: false, storageFile: 'globalConfig' }),
+    booleanField('autoInstallIdeExtension', { default: true, storageFile: 'globalConfig' }),
+    createField('diffTool', DIFF_TOOL_VALUE_SCHEMA, { default: 'auto', storageFile: 'globalConfig' }),
     // Updates & maintenance
     createField('autoUpdatesChannel', UPDATE_CHANNEL_VALUE_SCHEMA, { default: 'latest' }),
     stringField('minimumVersion'),
@@ -582,12 +595,15 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('inputNeededNotifEnabled', { default: false }),
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
-    booleanField('externalEditorContext', { default: false }),
+    createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object }),
+    booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
     booleanField('voiceEnabled', { default: false }),
     createField('voice', VOICE_VALUE_SCHEMA),
+    createField('askUserQuestionTimeout', ASK_USER_QUESTION_TIMEOUT_VALUE_SCHEMA, { default: 'never' }),
+    booleanField('permissionExplainerEnabled', { default: true, storageFile: 'globalConfig' }),
     // Agent teammates
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
-    createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String }),
+    createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String, storageFile: 'globalConfig' }),
   ],
 
   permissions: [
@@ -602,6 +618,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     }),
     booleanField('skipDangerousModePermissionPrompt', { default: false }),
     booleanField('useAutoModeDuringPlan', { default: false }),
+    booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),
     createField('allowedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('deniedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
@@ -638,7 +655,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('prUrlTemplate'),
     // Skills
     createField('skillOverrides', SKILL_OVERRIDES_VALUE_SCHEMA, { controlTypeOverride: Object }),
-    createField('maxSkillDescriptionChars', MAX_SKILL_DESCRIPTION_CHARS_VALUE_SCHEMA, { default: 1536 }),
+    createField('skillListingMaxDescChars', SKILL_LISTING_MAX_DESC_CHARS_VALUE_SCHEMA, { default: 1536 }),
     createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
     booleanField('disableSkillShellExecution', { default: false }),
     // Sessions & execution
@@ -647,6 +664,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
     stringField('plansDirectory', { default: '~/.claude/plans' }),
     createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
+    stringField('processWrapper'),
     // Sandbox
     createField('sandbox', SANDBOX_VALUE_SCHEMA),
     // Footer link patterns
@@ -659,6 +677,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('alwaysThinkingEnabled', { default: false }),
     booleanField('remoteControlAtStartup', { default: false }),
     booleanField('disableArtifact', { default: false }),
+    booleanField('enableArtifact'),
     booleanField('disableBundledSkills', { default: false }),
     booleanField('disableClaudeAiConnectors', { default: false }),
     booleanField('disableWorkflows', { default: false }),
@@ -685,6 +704,7 @@ interface RuntimeSettingFieldBase {
   nestedUnder: string | undefined;
   dangerValues?: readonly string[];
   controlTypeOverride?: ControlType;
+  storageFile?: 'globalConfig';
 }
 
 interface RuntimeFlatFieldSchema extends Omit<RuntimeSettingFieldBase, 'controlTypeOverride'> {
@@ -707,6 +727,7 @@ function buildFlatSchema(): Record<string, RuntimeFlatFieldSchema> {
         default: flatFieldBase.default,
         nestedUnder: flatFieldBase.nestedUnder,
         dangerValues: flatFieldBase.dangerValues,
+        storageFile: flatFieldBase.storageFile,
         section,
       };
     }
@@ -742,6 +763,13 @@ export function getSchemaDefault<T = unknown>(key: string): T | undefined {
   const field = FLAT_SCHEMA_BY_KEY[key] as { default?: unknown } | undefined;
   if (!field) throw new Error(`Schema key "${key}" not found`);
   return field.default as T | undefined;
+}
+
+/** 列出 storageFile='globalConfig' 的欄位 key（依官方文件存在 ~/.claude.json 而非 settings.json）。 */
+export function getGlobalConfigSettingKeys(): string[] {
+  return Object.entries(FLAT_SCHEMA_BY_KEY)
+    .filter(([, field]) => field.storageFile === 'globalConfig')
+    .map(([key]) => key);
 }
 
 export function getValueSchemaEnumOptions(valueSchema: ValueSchema): readonly string[] | undefined {

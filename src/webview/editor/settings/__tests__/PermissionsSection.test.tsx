@@ -48,6 +48,7 @@ describe('PermissionsSection — 渲染', () => {
       expect(screen.getByText('(disableBypassPermissionsMode)')).toBeTruthy();
       expect(screen.getByText('(skipDangerousModePermissionPrompt: false)')).toBeTruthy();
       expect(screen.getByText('(useAutoModeDuringPlan: false)')).toBeTruthy();
+      expect(screen.getByText('(classifyAllShell: false)')).toBeTruthy();
       expect(screen.getByText('(additionalDirectories)')).toBeTruthy();
       expect(screen.getByText('(enabledMcpjsonServers)')).toBeTruthy();
       expect(screen.getByText('(disabledMcpjsonServers)')).toBeTruthy();
@@ -188,6 +189,58 @@ describe('PermissionsSection — new settings 互動', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('useAutoModeDuringPlan');
+    });
+  });
+
+  // classifyAllShell — nestedUnder 'autoMode' (not 'permissions'); the write must land
+  // at exactly settings.autoMode.classifyAllShell, not a top-level key.
+  it('classifyAllShell 未設定 → checkbox unchecked（反映預設值 false）', async () => {
+    renderSection({});
+
+    await waitFor(() => {
+      const checkbox = screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }) as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+    });
+  });
+
+  it('classifyAllShell 未設定, toggle on → onSave("autoMode", { classifyAllShell: true })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoMode', { classifyAllShell: true });
+    });
+  });
+
+  it('既有 autoMode 物件下 toggle on → 保留既有欄位, onSave("autoMode", { ...既有, classifyAllShell: true })', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ autoMode: { environment: ['Source control: github.com/my-org'] } }, onSave);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoMode', {
+        environment: ['Source control: github.com/my-org'],
+        classifyAllShell: true,
+      });
+    });
+  });
+
+  it('autoMode.classifyAllShell=true, toggle off → onSave("autoMode", {})（值降回 default，非刪除整個 autoMode）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ autoMode: { classifyAllShell: true } }, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('autoMode', {});
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 });

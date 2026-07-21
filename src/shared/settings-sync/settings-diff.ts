@@ -69,6 +69,9 @@ export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
   'requiredMinimumVersion',   // "Managed settings only." text (not bracket)
   'requiredMaximumVersion',   // "Managed settings only." text (not bracket)
   'enforceAvailableModels',   // effectively managed-only
+  'forceLoginGatewayUrl',                    // managed-only: honored only at the managed policy tier
+  'sandbox.credentials.allowPlaintextInject', // managed-only: sandbox nested managed sub-key
+  'sandbox.network.tlsTerminate',             // managed-only: sandbox nested managed sub-key, experimental object shape
 ]);
 
 // ─── KNOWN_REPO_ONLY ──────────────────────────────────────────────────────────
@@ -102,6 +105,10 @@ export const KNOWN_REPO_ONLY: ReadonlySet<string> = new Set([
   // inverse case: docs lists disableAutoMode bare in "### Available settings"
   // only — the prefixed form is repo-only.
   'permissions.disableAutoMode',
+  // docs lists only the prefixed form `autoMode.classifyAllShell` — bare form
+  // is repo-only. Verified 2026-07-21 against
+  // https://code.claude.com/docs/en/settings.md.
+  'classifyAllShell',
 ]);
 
 // ─── parseSettingsDocs ────────────────────────────────────────────────────────

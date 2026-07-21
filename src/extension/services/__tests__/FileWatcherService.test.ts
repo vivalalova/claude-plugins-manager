@@ -25,17 +25,17 @@ describe('FileWatcherService', () => {
   });
 
   describe('watcher 初始化', () => {
-    it('建立 10 個 file watcher（6 home + 4 workspace）', () => {
+    it('建立 11 個 file watcher（7 home + 4 workspace）', () => {
       svc = new FileWatcherService();
-      // 6 home dir (5 files + 1 skills glob) + 4 workspace (3 files + 1 skills glob) = 10
-      expect(workspace.createFileSystemWatcher).toHaveBeenCalledTimes(10);
-      expect(mockFileWatchers).toHaveLength(10);
+      // 7 home dir (6 files + 1 skills glob) + 4 workspace (3 files + 1 skills glob) = 11
+      expect(workspace.createFileSystemWatcher).toHaveBeenCalledTimes(11);
+      expect(mockFileWatchers).toHaveLength(11);
     });
 
-    it('無 workspace 時只建立 6 個 home dir watcher', () => {
+    it('無 workspace 時只建立 7 個 home dir watcher', () => {
       workspace.workspaceFolders = undefined;
       svc = new FileWatcherService();
-      expect(workspace.createFileSystemWatcher).toHaveBeenCalledTimes(6);
+      expect(workspace.createFileSystemWatcher).toHaveBeenCalledTimes(7);
     });
   });
 
@@ -86,6 +86,17 @@ describe('FileWatcherService', () => {
 
       // watcher 4 = workspace .claude/settings.local.json
       mockFileWatchers[4].fireChange();
+      await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('~/.claude.json 變更也觸發 settings 事件（globalConfig 7 個 key 顯示值刷新）', async () => {
+      svc = new FileWatcherService();
+      const handler = vi.fn();
+      svc.onSettingsFilesChanged(handler);
+
+      // watcher 10 = ~/.claude.json（Settings 分類，setupWatchers() 最後新增）
+      mockFileWatchers[10].fireChange();
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
       expect(handler).toHaveBeenCalledTimes(1);
     });
@@ -235,8 +246,8 @@ describe('FileWatcherService', () => {
   describe('workspace folder 變更', () => {
     it('workspace folder 新增後重建 workspace watchers', async () => {
       svc = new FileWatcherService();
-      const initialCount = mockFileWatchers.length; // 10 (6 home + 4 workspace)
-      expect(initialCount).toBe(10);
+      const initialCount = mockFileWatchers.length; // 11 (7 home + 4 workspace)
+      expect(initialCount).toBe(11);
 
       // 模擬新增第二個 workspace folder
       workspace.workspaceFolders = [
@@ -248,16 +259,16 @@ describe('FileWatcherService', () => {
 
       // 舊的 4 個 workspace watcher 被 dispose
       // 新建 8 個 workspace watcher（2 folders × 4 patterns）
-      // 總共 = 10 (initial) + 8 (new workspace) = 18
+      // 總共 = 11 (initial) + 8 (new workspace) = 19
       const totalWatchers = mockFileWatchers.length;
-      expect(totalWatchers).toBe(18);
+      expect(totalWatchers).toBe(19);
 
       // 新的 workspace settings watcher 能觸發事件
       const handler = vi.fn();
       svc.onSettingsFilesChanged(handler);
       // 新 workspace watcher 順序：settings.json × 2, settings.local.json × 2, .mcp.json × 2, skills/**/* × 2
-      // watcher[10] = first folder settings.json (Settings)
-      mockFileWatchers[10].fireChange();
+      // watcher[11] = first folder settings.json (Settings)
+      mockFileWatchers[11].fireChange();
       await vi.advanceTimersByTimeAsync(FILE_WATCHER_DEBOUNCE_MS);
       expect(handler).toHaveBeenCalledTimes(1);
     });

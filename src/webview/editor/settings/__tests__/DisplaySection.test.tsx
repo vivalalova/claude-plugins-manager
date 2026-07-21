@@ -72,11 +72,11 @@ describe('DisplaySection — 渲染', () => {
     });
   });
 
-  it('顯示 18 個 checkbox（17 boolean toggle + excludeDefault；批次 S 加入 6 個 display boolean）', async () => {
+  it('顯示 19 個 checkbox（17 boolean toggle + excludeDefault + permissionExplainerEnabled；批次 S 加入 6 個 display boolean）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(18);
+      expect(checkboxes.length).toBe(19);
     });
   });
 
@@ -118,6 +118,9 @@ describe('DisplaySection — 渲染', () => {
       expect(screen.getByText('Disable Syntax Highlighting')).toBeTruthy();
       expect(screen.getByText('Teammate Default Model')).toBeTruthy();
       expect(screen.getByText('Voice Settings')).toBeTruthy();
+      expect(screen.getByText('Vim Insert Mode Remaps')).toBeTruthy();
+      expect(screen.getByText('Question Auto-Continue Timeout')).toBeTruthy();
+      expect(screen.getByText('Permission Explainer')).toBeTruthy();
     });
   });
 
@@ -279,6 +282,56 @@ describe('DisplaySection — 驗收條件', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('voice');
+    });
+  });
+
+  const VIM_REMAPS_PLACEHOLDER = 'e.g. { "jj": "<Esc>" }';
+
+  it('vimInsertModeRemaps dispatcher 渲染出控件（非 null）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER)).toBeTruthy();
+    });
+  });
+
+  it('vimInsertModeRemaps 輸入 JSON 並儲存 → onSave("vimInsertModeRemaps", parsedObject)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER));
+    const field = screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER), { target: { value: '{"jj":"<Esc>"}' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('vimInsertModeRemaps', { jj: '<Esc>' });
+    });
+  });
+
+  it('vimInsertModeRemaps 輸入非 record JSON → 不呼叫 onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    await waitFor(() => screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER));
+    const field = screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER), { target: { value: '["jj"]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+
+  it('vimInsertModeRemaps 有值, Reset → onDelete("vimInsertModeRemaps")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ vimInsertModeRemaps: { jj: '<Esc>' } }, vi.fn(), onDelete);
+
+    await waitFor(() => screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER));
+    const field = screen.getByPlaceholderText(VIM_REMAPS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('vimInsertModeRemaps');
     });
   });
 
@@ -846,5 +899,83 @@ describe('DisplaySection — 批次 S 互動（先紅）', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('axScreenReader', true);
     });
+  });
+
+  // permissionExplainerEnabled: default=true → unset→checked; click→onSave(key, false)
+  it('permissionExplainerEnabled 未設定 → checkbox checked（default true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const field = screen.getByText('Permission Explainer').closest('.settings-field') as HTMLElement;
+      const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('permissionExplainerEnabled 未設定, 點擊 → onSave("permissionExplainerEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => screen.getByText('Permission Explainer'));
+    const field = screen.getByText('Permission Explainer').closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('permissionExplainerEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // askUserQuestionTimeout: enum, default='never'
+  it('askUserQuestionTimeout 未設定 → combobox value 為空', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Question Auto-Continue Timeout' }) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+  });
+
+  it('選擇 askUserQuestionTimeout "5m" → onSave("askUserQuestionTimeout", "5m")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Question Auto-Continue Timeout' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Question Auto-Continue Timeout' }), { target: { value: '5m' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('askUserQuestionTimeout', '5m');
+    });
+  });
+
+  it('askUserQuestionTimeout 選擇 never（=default）→ onDelete("askUserQuestionTimeout")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ askUserQuestionTimeout: '5m' }, onSave, onDelete);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Question Auto-Continue Timeout' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Question Auto-Continue Timeout' }), { target: { value: 'never' } });
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('askUserQuestionTimeout');
+      expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// storageFile=globalConfig 欄位在 project scope 完全不渲染（先紅）
+// 這 3 個 key（externalEditorContext/permissionExplainerEnabled/teammateDefaultModel）
+// 依官方文件只存在 ~/.claude.json（user 層級），project/local scope 不該顯示。
+// ---------------------------------------------------------------------------
+
+describe('DisplaySection — globalConfig 欄位 scope 隔離（先紅）', () => {
+  it('scope=project → externalEditorContext/permissionExplainerEnabled/teammateDefaultModel 完全不渲染', async () => {
+    renderSection(
+      { externalEditorContext: true, permissionExplainerEnabled: false, teammateDefaultModel: 'sonnet' },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+    );
+
+    await waitFor(() => expect(screen.getByText('View Mode')).toBeTruthy());
+
+    expect(screen.queryByText('External Editor Context')).toBeNull();
+    expect(screen.queryByText('Permission Explainer')).toBeNull();
+    expect(screen.queryByText('Teammate Default Model')).toBeNull();
+    expect(screen.queryByText('(externalEditorContext: false)')).toBeNull();
   });
 });

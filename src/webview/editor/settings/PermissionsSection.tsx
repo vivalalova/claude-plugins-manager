@@ -5,6 +5,7 @@ import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagInput } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { ObjectFieldEditor } from './components/ObjectFieldEditor';
+import { getSchemaFieldBindings } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Constants（internal only — defaultMode 已移至 schema general section）
@@ -452,6 +453,26 @@ export function PermissionsSection({
         onSave={onSave}
         onDelete={onDelete}
       />
+
+      {/* classifyAllShell — nestedUnder autoMode, bindings resolved generically via getSchemaFieldBindings
+          (same nestedUnder mechanism SchemaSection uses; this section just renders it by hand like the rest) */}
+      {(() => {
+        const binding = getSchemaFieldBindings('classifyAllShell', { scope, settings, onSave, onDelete });
+        if (!binding) return null;
+        return (
+          <BooleanToggle
+            label={t('settings.permissions.classifyAllShell.label')}
+            description={t('settings.permissions.classifyAllShell.description')}
+            value={binding.value as boolean | undefined}
+            settingKey="classifyAllShell"
+            defaultValue={false}
+            overriddenScope={binding.overriddenScope}
+            disabled={saving}
+            onSave={binding.onSave}
+            onDelete={binding.onDelete}
+          />
+        );
+      })()}
 
       {/* enabledMcpjsonServers */}
       <TagInput
