@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   buildSkillRegistryUrl,
   parseSkillRegistryHtml,
+  parseSkillRegistrySearchJson,
   readSkillRegistryCache,
   writeSkillRegistryCache,
 } from '../skillRegistrySupport';
@@ -38,14 +39,48 @@ describe('skillRegistrySupport', () => {
       expect(url).toBe(`${SKILL_REGISTRY_URL}/hot`);
     });
 
-    it('有 query 時加 ?q=...', () => {
+    it('有 query 時改走 /api/search（sort 不適用）', () => {
       const url = buildSkillRegistryUrl('trending', 'search term');
-      expect(url).toBe(`${SKILL_REGISTRY_URL}/trending?q=search%20term`);
+      expect(url).toBe(`${SKILL_REGISTRY_URL}/api/search?q=search%20term`);
     });
 
     it('query 含特殊字元時正確 encode', () => {
       const url = buildSkillRegistryUrl('all-time', 'a&b=c');
-      expect(url).toBe(`${SKILL_REGISTRY_URL}/?q=a%26b%3Dc`);
+      expect(url).toBe(`${SKILL_REGISTRY_URL}/api/search?q=a%26b%3Dc`);
+    });
+  });
+
+  describe('parseSkillRegistrySearchJson', () => {
+    it('正常解析 search API JSON', () => {
+      const json = JSON.stringify({
+        query: 'design',
+        searchType: 'fuzzy',
+        skills: [
+          { id: 'user/repo/skill-1', skillId: 'skill-1', name: 'My Skill', installs: 1500, source: 'user/repo' },
+        ],
+      });
+
+      const result = parseSkillRegistrySearchJson(json);
+
+      expect(result).toEqual([
+        {
+          rank: 1,
+          name: 'My Skill',
+          repo: 'user/repo',
+          installs: '1.5K',
+          url: `${SKILL_REGISTRY_URL}/user/repo/skill-1`,
+        },
+      ]);
+    });
+
+    it('skills 陣列缺失時拋錯', () => {
+      expect(() => parseSkillRegistrySearchJson('{"error":"Query must be at least 2 characters"}')).toThrow(
+        'Failed to parse skills.sh search API',
+      );
+    });
+
+    it('非 JSON 回應時拋錯', () => {
+      expect(() => parseSkillRegistrySearchJson('<html></html>')).toThrow();
     });
   });
 

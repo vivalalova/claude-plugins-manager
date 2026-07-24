@@ -13,6 +13,7 @@ import type { SpawnError } from '../utils/spawnRunner';
 import {
   buildSkillRegistryUrl,
   parseSkillRegistryHtml,
+  parseSkillRegistrySearchJson,
   readSkillRegistryCache,
   writeSkillRegistryCache,
 } from './skillRegistrySupport';
@@ -179,11 +180,14 @@ export class SkillService {
 
   /** 從 skills.sh 取得 registry 列表（4 小時 file-based cache） */
   async fetchRegistry(sort: RegistrySort, query?: string): Promise<RegistrySkill[]> {
-    const cacheKey = `${sort}:${query ?? ''}`;
+    // search API 對 <2 字元回 400，退回未過濾的排行榜
+    const trimmed = query?.trim();
+    const effectiveQuery = trimmed && trimmed.length >= 2 ? trimmed : undefined;
+    const cacheKey = `${sort}:${effectiveQuery ?? ''}`;
     const cached = await readSkillRegistryCache(this.registryCachePath, cacheKey);
     if (cached) return cached;
 
-    const url = buildSkillRegistryUrl(sort, query);
+    const url = buildSkillRegistryUrl(sort, effectiveQuery);
 
     const response = await fetch(url, {
       headers: { 'User-Agent': 'claude-plugins-manager' },
@@ -197,8 +201,10 @@ export class SkillService {
       );
     }
 
-    const html = await response.text();
-    const data = parseSkillRegistryHtml(html);
+    const body = await response.text();
+    const data = effectiveQuery
+      ? parseSkillRegistrySearchJson(body)
+      : parseSkillRegistryHtml(body);
     await writeSkillRegistryCache(
       this.registryCachePath,
       this.registryCacheWriteQueue,

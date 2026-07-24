@@ -15,14 +15,19 @@ interface RegistryCacheFile {
   [cacheKey: string]: RegistryCacheEntry;
 }
 
+/** 組出 skills.sh 抓取 URL：無 query 走排行榜頁、有 query 走 search API */
 export function buildSkillRegistryUrl(sort: RegistrySort, query?: string): string {
-  const encodedQuery = query ? `?q=${encodeURIComponent(query)}` : '';
-  if (sort === 'all-time') {
-    return `${SKILL_REGISTRY_URL}/${encodedQuery}`;
+  // 搜尋走 JSON API：SSR HTML 不再內嵌查詢結果，且 API 搜尋不分 sort
+  if (query) {
+    return `${SKILL_REGISTRY_URL}/api/search?q=${encodeURIComponent(query)}`;
   }
-  return `${SKILL_REGISTRY_URL}/${sort}${encodedQuery}`;
+  if (sort === 'all-time') {
+    return `${SKILL_REGISTRY_URL}/`;
+  }
+  return `${SKILL_REGISTRY_URL}/${sort}`;
 }
 
+/** 解析排行榜頁 SSR HTML 內嵌的 initialSkills */
 export function parseSkillRegistryHtml(html: string): RegistrySkill[] {
   // Next.js RSC 將資料嵌入 __next_f.push([1,"..."]) 的 JS 字串中，
   // 雙引號被 escape 為 \"，因此 key 格式為 \"initialSkills\":[...]
@@ -46,13 +51,28 @@ export function parseSkillRegistryHtml(html: string): RegistrySkill[] {
     };
     return escapeMap[ch] ?? ch;
   });
-  const items = JSON.parse(jsonStr) as Array<{
-    source: string;
-    skillId: string;
-    name: string;
-    installs: number;
-  }>;
+  return toRegistrySkills(JSON.parse(jsonStr) as RegistryApiItem[]);
+}
 
+/** 解析 /api/search 的 JSON 回應 */
+export function parseSkillRegistrySearchJson(json: string): RegistrySkill[] {
+  const parsed = JSON.parse(json) as { skills?: RegistryApiItem[] };
+  if (!Array.isArray(parsed.skills)) {
+    throw new Error(
+      'Failed to parse skills.sh search API: skills array not found. The API response may have changed.',
+    );
+  }
+  return toRegistrySkills(parsed.skills);
+}
+
+interface RegistryApiItem {
+  source: string;
+  skillId: string;
+  name: string;
+  installs: number;
+}
+
+function toRegistrySkills(items: RegistryApiItem[]): RegistrySkill[] {
   return items.map((item, index) => ({
     rank: index + 1,
     name: item.name,
@@ -62,6 +82,7 @@ export function parseSkillRegistryHtml(html: string): RegistrySkill[] {
   }));
 }
 
+/** 讀取 registry file cache，過期或不存在回 null */
 export async function readSkillRegistryCache(
   registryCachePath: string,
   key: string,
@@ -82,6 +103,7 @@ export async function readSkillRegistryCache(
   }
 }
 
+/** 寫入 registry file cache（失敗靜默，不影響主流程） */
 export function writeSkillRegistryCache(
   registryCachePath: string,
   registryCacheWriteQueue: WriteQueue,

@@ -163,6 +163,15 @@ const SAMPLE_REGISTRY_EMPTY_HTML = `<!DOCTYPE html><html><head></head><body>
 <script>self.__next_f.push([1,"17:[\\"$\\",\\"$L1f\\",null,{\\"initialSkills\\":[],\\"otherProp\\":true}]"])</script>
 </body></html>`;
 
+// 真實格式：skills.sh 搜尋走 /api/search JSON API（SSR HTML 不再內嵌查詢結果）
+const SAMPLE_SEARCH_API_JSON = JSON.stringify({
+  query: 'browser',
+  searchType: 'fuzzy',
+  skills: [
+    { id: 'vercel-labs/agent-browser/agent-browser', skillId: 'agent-browser', name: 'agent-browser', installs: 52300, source: 'vercel-labs/agent-browser' },
+  ],
+});
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -617,10 +626,24 @@ describe('SkillService', () => {
       expect(fetchMock).toHaveBeenCalledWith('https://skills.sh/hot', expect.any(Object));
     });
 
-    it('query → append ?q=keyword', async () => {
+    it('query → 走 /api/search 解析 JSON', async () => {
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_SEARCH_API_JSON) });
+      const result = await service.fetchRegistry('all-time', 'browser');
+      expect(fetchMock).toHaveBeenCalledWith('https://skills.sh/api/search?q=browser', expect.any(Object));
+      expect(result).toEqual([
+        { rank: 1, name: 'agent-browser', repo: 'vercel-labs/agent-browser', installs: '52.3K', url: 'https://skills.sh/vercel-labs/agent-browser/agent-browser' },
+      ]);
+    });
+
+    it('query 不足 2 字元 → 退回 sort 頁（API 會 400）', async () => {
       fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve(SAMPLE_REGISTRY_HTML) });
-      await service.fetchRegistry('all-time', 'browser');
-      expect(fetchMock).toHaveBeenCalledWith('https://skills.sh/?q=browser', expect.any(Object));
+      await service.fetchRegistry('all-time', 'b');
+      expect(fetchMock).toHaveBeenCalledWith('https://skills.sh/', expect.any(Object));
+    });
+
+    it('search API 回傳無 skills 陣列 → 拋錯', async () => {
+      fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve('{"error":"oops"}') });
+      await expect(service.fetchRegistry('all-time', 'browser')).rejects.toThrow('Failed to parse skills.sh search API');
     });
 
     it('空 initialSkills → 回傳 []', async () => {
