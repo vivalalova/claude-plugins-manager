@@ -18,12 +18,11 @@
 ## Diff（`diffEnvVars`，`src/shared/settings-sync/settings-diff.ts`）
 
 - `envGaps`：docs 有、`getKnownEnvVarNames()` 無 — 候選新增到 registry
-- `envRemoved`：`getKnownEnvVarNames()` 有、docs 無 — 候選從 registry 移除（先核實：可能只是被併入其他變數的 prose 說明，非真的棄用）
+- `envRemoved`：`getKnownEnvVarNames()` 有、docs 無，已扣掉 `KNOWN_ENV_REPO_ONLY`（SSOT 在 `settings-diff.ts`：docs 記在別頁或僅 prose 提及的已知常態）— 剩下的是白名單未收的新案例，逐筆回 docs 原文核實後才是候選移除（可能又是併入其他變數的 prose 說明，該補進白名單而非刪 registry）
 - 兩者皆確定性偵測，無 user-useful 判斷；哪些該同步進 registry 由使用者確認（見 SKILL.md Step 2）
 
 ## i18n
 
-- Category labels：`settings.env.category.{model|auth|effort|timeout|feature|telemetry}`
 - Per-var descriptions：`settings.env.knownVars.{VARNAME}.description`
 
 ## Rules

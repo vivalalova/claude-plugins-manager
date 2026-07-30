@@ -35,7 +35,7 @@ const DETECT_SCHEMA = {
       items: { type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
       description: 'env var names documented but missing from src/shared/known-env-vars.ts, each with its docs description text',
     },
-    envRemoved: { type: 'array', items: { type: 'string' }, description: 'env var names in known-env-vars.ts no longer documented' },
+    envRemoved: { type: 'array', items: { type: 'string' }, description: 'env var names in known-env-vars.ts no longer documented (minus KNOWN_ENV_REPO_ONLY) — candidates for registry removal, never auto-applied' },
     counts: {
       type: 'object',
       properties: {

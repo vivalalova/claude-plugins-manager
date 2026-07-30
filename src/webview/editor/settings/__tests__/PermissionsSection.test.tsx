@@ -111,17 +111,8 @@ describe('PermissionsSection — new settings 互動', () => {
     });
   });
 
-  it('permissions.disableAutoMode="disable", 選擇空值 → onSave("permissions", {})', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({ permissions: { disableAutoMode: 'disable' } }, onSave);
-
-    await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), { target: { value: '' } });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', {});
-    });
-  });
+  // nested 父物件「寫入後變空」的刪除契約集中在
+  // PermissionsSection.nestedParent.test.tsx（避免本檔超過 800 行上限）。
 
   it('disableBypassPermissionsMode 未設定, 選擇 disable → onSave("permissions", { disableBypassPermissionsMode: "disable" })', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
@@ -132,18 +123,6 @@ describe('PermissionsSection — new settings 互動', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('permissions', { disableBypassPermissionsMode: 'disable' });
-    });
-  });
-
-  it('permissions.disableBypassPermissionsMode="disable", 選擇空值 → onSave("permissions", {})', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({ permissions: { disableBypassPermissionsMode: 'disable' } }, onSave);
-
-    await waitFor(() => screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }), { target: { value: '' } });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', {});
     });
   });
 
@@ -230,19 +209,8 @@ describe('PermissionsSection — new settings 互動', () => {
     });
   });
 
-  it('autoMode.classifyAllShell=true, toggle off → onSave("autoMode", {})（值降回 default，非刪除整個 autoMode）', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ autoMode: { classifyAllShell: true } }, onSave, onDelete);
-
-    await waitFor(() => screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('autoMode', {});
-      expect(onDelete).not.toHaveBeenCalled();
-    });
-  });
+  // classifyAllShell 關閉導致 autoMode 變空的刪除契約見
+  // PermissionsSection.nestedParent.test.tsx
 });
 
 // ---------------------------------------------------------------------------

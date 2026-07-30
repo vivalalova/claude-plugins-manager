@@ -667,3 +667,78 @@ describe('checkSettingsDocsHealth', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+// ─── J. KNOWN_ENV_REPO_ONLY 白名單 + diffEnvVars 過濾（批次 R，先紅） ──────────
+//
+// 背景：有 10 個 env var 是 repo registry 有、官方 env-vars.md 不列（記在
+// settings.md 或別處）的已知常態，diffEnvVars 的 envRemoved 每次都會誤報它們。
+//
+// 契約（給執行者）：
+//   export const KNOWN_ENV_REPO_ONLY: ReadonlySet<string>
+//   diffEnvVars 內部**預設就套用** KNOWN_ENV_REPO_ONLY 過濾 envRemoved，
+//   簽名維持 (docsEnvKeys, registryEnvNames) 兩參數 — 不要仿 diffKeys 改成
+//   由呼叫端傳入第三參數，否則下面的兩參數呼叫永遠過不了。
+//
+// 紅因設計：KNOWN_ENV_REPO_ONLY 用 namespace import 取值，避免 named import
+// 在 export 尚未存在時整檔 link error（那會讓紅因變成模組錯誤而非斷言失敗）。
+
+import * as settingsDiffModule from '../settings-diff';
+
+const diffMod = settingsDiffModule as unknown as { KNOWN_ENV_REPO_ONLY?: ReadonlySet<string> };
+
+const ENV_REPO_ONLY_VARS = [
+  'CLAUDE_PROJECT_DIR',
+  'DISABLE_BUG_COMMAND',
+  'NODE_EXTRA_CA_CERTS',
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
+  'OTEL_EXPORTER_OTLP_HEADERS',
+  'OTEL_EXPORTER_OTLP_PROTOCOL',
+  'OTEL_LOGS_EXPORTER',
+  'OTEL_LOGS_EXPORT_INTERVAL',
+  'OTEL_METRICS_EXPORTER',
+  'OTEL_METRIC_EXPORT_INTERVAL',
+];
+
+describe('KNOWN_ENV_REPO_ONLY constant', () => {
+  it('is exported as a Set-like with .has', () => {
+    expect(typeof diffMod.KNOWN_ENV_REPO_ONLY?.has).toBe('function');
+  });
+
+  it.each(ENV_REPO_ONLY_VARS)('contains "%s"', (name) => {
+    expect(diffMod.KNOWN_ENV_REPO_ONLY?.has(name)).toBe(true);
+  });
+
+  it('contains exactly the 10 documented repo-only env vars', () => {
+    expect([...(diffMod.KNOWN_ENV_REPO_ONLY ?? [])].sort()).toEqual([...ENV_REPO_ONLY_VARS].sort());
+  });
+});
+
+describe('diffEnvVars — KNOWN_ENV_REPO_ONLY 過濾 envRemoved', () => {
+  it.each(ENV_REPO_ONLY_VARS)('registry 有 "%s"、docs 沒有 → 不進 envRemoved', (name) => {
+    const docsEnvKeys = new Set(['ANTHROPIC_API_KEY']);
+    const registryEnvNames = new Set(['ANTHROPIC_API_KEY', name]);
+    const { envRemoved } = diffEnvVars(docsEnvKeys, registryEnvNames);
+    expect(envRemoved).not.toContain(name);
+  });
+
+  it('白名單全部在 registry、docs 皆缺 → envRemoved 為空', () => {
+    const docsEnvKeys = new Set(['ANTHROPIC_API_KEY']);
+    const registryEnvNames = new Set(['ANTHROPIC_API_KEY', ...ENV_REPO_ONLY_VARS]);
+    const { envRemoved } = diffEnvVars(docsEnvKeys, registryEnvNames);
+    expect(envRemoved).toEqual([]);
+  });
+
+  it('白名單不影響真正的 stale var（仍被回報）', () => {
+    const docsEnvKeys = new Set(['ANTHROPIC_API_KEY']);
+    const registryEnvNames = new Set(['ANTHROPIC_API_KEY', 'CLAUDE_PROJECT_DIR', 'STALE_REGISTRY_ONLY_VAR']);
+    const { envRemoved } = diffEnvVars(docsEnvKeys, registryEnvNames);
+    expect(envRemoved).toEqual(['STALE_REGISTRY_ONLY_VAR']);
+  });
+
+  it('白名單不影響 envGaps 方向（docs 有、registry 缺 → 照樣回報）', () => {
+    const docsEnvKeys = new Set(['CLAUDE_PROJECT_DIR']);
+    const registryEnvNames = new Set<string>();
+    const { envGaps } = diffEnvVars(docsEnvKeys, registryEnvNames);
+    expect(envGaps).toEqual(['CLAUDE_PROJECT_DIR']);
+  });
+});

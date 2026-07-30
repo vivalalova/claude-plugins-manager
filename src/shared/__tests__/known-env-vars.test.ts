@@ -125,3 +125,40 @@ describe('getKnownEnvVarNames()', () => {
     expect(getKnownEnvVarNames().length).toBe(Object.keys(KNOWN_ENV_VARS).length);
   });
 });
+
+// ─── 批次 R：3 個新 env var ────────────────────────────────────────────────────
+//
+// 先紅測試：這 3 個 var 尚未加進 KNOWN_ENV_VARS。
+// 斷言 registry metadata（valueType / category / default）。
+// i18n description key 由 batch-r-i18n.test.ts 覆蓋。
+
+describe('批次 R — 新增 env var registry entries（先紅）', () => {
+  it('CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS：Number / limits / default 20', () => {
+    expect(getKnownEnvVar('CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS')).toMatchObject({
+      name: 'CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS',
+      valueType: Number,
+      category: 'limits',
+      default: '20',
+    });
+  });
+
+  it('CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH：Number / limits / default 3', () => {
+    expect(getKnownEnvVar('CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH')).toMatchObject({
+      name: 'CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH',
+      valueType: Number,
+      category: 'limits',
+      default: '3',
+    });
+  });
+
+  it('VERTEX_REGION_CLAUDE_5_OPUS：String，category 與既有 VERTEX_REGION_* 一致', () => {
+    // category 不寫死字面值：以既有 VERTEX_REGION_* entry 為權威來源（single source of truth）
+    const siblingCategory = getKnownEnvVar('VERTEX_REGION_CLAUDE_4_6_OPUS')?.category;
+    expect(siblingCategory).toBeTruthy();
+    expect(getKnownEnvVar('VERTEX_REGION_CLAUDE_5_OPUS')).toMatchObject({
+      name: 'VERTEX_REGION_CLAUDE_5_OPUS',
+      valueType: String,
+      category: siblingCategory,
+    });
+  });
+});

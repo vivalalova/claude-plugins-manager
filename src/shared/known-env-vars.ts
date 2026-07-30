@@ -440,6 +440,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'provider',
   },
+  VERTEX_REGION_CLAUDE_5_OPUS: {
+    name: 'VERTEX_REGION_CLAUDE_5_OPUS',
+    valueType: String,
+    category: 'provider',
+  },
   VERTEX_REGION_CLAUDE_HAIKU_4_5: {
     name: 'VERTEX_REGION_CLAUDE_HAIKU_4_5',
     valueType: String,
@@ -752,6 +757,18 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'limits',
     default: '200',
+  },
+  CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: {
+    name: 'CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS',
+    valueType: Number,
+    category: 'limits',
+    default: '20',
+  },
+  CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: {
+    name: 'CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH',
+    valueType: Number,
+    category: 'limits',
+    default: '3',
   },
   CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION: {
     name: 'CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION',

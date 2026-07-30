@@ -6,6 +6,7 @@ import { BooleanToggle, EnumDropdown, TagInput } from './components/SettingContr
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { ObjectFieldEditor } from './components/ObjectFieldEditor';
 import { getSchemaFieldBindings } from './components/SchemaSection';
+import { saveOrDeleteParent } from './components/nestedParent';
 
 // ---------------------------------------------------------------------------
 // Constants（internal only — defaultMode 已移至 schema general section）
@@ -323,7 +324,9 @@ export function PermissionsSection({
   const listRules: string[] = (perms[activeList] ?? []) as string[];
 
   const updatePermissions = (updatedPerms: ClaudeSettings['permissions']): void => {
-    void withSave(() => onSave('permissions', updatedPerms));
+    void withSave(() =>
+      saveOrDeleteParent('permissions', (updatedPerms ?? {}) as Record<string, unknown>, { onSave, onDelete }),
+    );
   };
 
   const handleAddRule = (rule: string): void => {

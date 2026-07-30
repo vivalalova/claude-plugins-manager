@@ -54,7 +54,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 腳本（`references/scripts/sync-settings.workflow.js`）兩個 phase，全唯讀：
 
-- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`。四個 diff 方向皆該 CLI 的確定性結果：`settingsGaps`/`removedKeys` 已扣掉 `KNOWN_EXCLUDED`/`KNOWN_REPO_ONLY`；`settingsGaps`、`envGaps` 每筆帶 docs 原文 description。CLI exit 1 → 報錯。
+- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`。四個 diff 方向皆該 CLI 的確定性結果：`settingsGaps`/`removedKeys` 已扣掉 `KNOWN_EXCLUDED`/`KNOWN_REPO_ONLY`，`envRemoved` 已扣掉 `KNOWN_ENV_REPO_ONLY`（docs 記在別頁或僅 prose 提及的 var）；`settingsGaps`、`envGaps` 每筆帶 docs 原文 description。CLI exit 1 → 報錯。
 - **Categorize（平行）**：對每個 `settingsGap`（`{key, description}`）把 description inline 餵給分類 agent，指派 section（用 surfaceMapHint）、判斷是否 `isObjectEditor`（需手寫 object editor）、標記 non-user-facing key 需加入 `KNOWN_EXCLUDED`。`removedKeys`、`envGaps`、`envRemoved` 原樣傳回，不走 LLM 分類——刪除/registry 變更判斷交回主迴圈確認。
 
 回傳：`categorized`（含 category + suggestedSection + isObjectEditor）、`userFacing`、`nonUserFacing`（需加 `KNOWN_EXCLUDED`）、`removedKeys`、`envGaps`、`envRemoved`、`counts`。
@@ -67,7 +67,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 - `nonUserFacing` 清單非空 → 提報使用者（僅供知悉，不 apply），確認後把各 key 加進 `KNOWN_EXCLUDED`；`userFacing` 若同時非空，兩份清單一起回報，apply 只對 `userFacing` 跑。
 - `removedKeys` 非空 → 提報使用者（repo schema 仍支援、但官方 docs 已不再列出的 key，可能是改名/棄用/文件遺漏——逐 key 回 docs 原文核實原因），**禁自動刪**；使用者確認要刪的 key 才走「Hard checklist」的刪 key 流程（含 UI/i18n/schema 移除，不清使用者既有 settings 檔）。
 - `envGaps` 非空 → 提報使用者（附各 var 的 docs description），確認後把各筆加進 `src/shared/known-env-vars.ts`。
-- `envRemoved` 非空 → 提報使用者（`known-env-vars.ts` 仍登記、但官方 docs 已不再列出的 var，同樣可能是改名/併入其他變數的 prose 說明——逐項回 docs 原文核實），確認後移除該 registry entry 及對應 i18n key。
+- `envRemoved` 非空 → 白名單未收的新案例（`known-env-vars.ts` 仍登記、但官方 docs 已不再列出的 var）。逐項回 docs 原文核實：若只是改名/併入其他變數的 prose 說明，補進 `KNOWN_ENV_REPO_ONLY` 而非刪 registry；確認真的棄用才提報使用者，確認後移除該 registry entry 及對應 i18n key。
 - `userFacing` 非空且 section 歸屬不明確 → `AskUserQuestion` 讓使用者確認。
 
 ## Step 3 — apply（主迴圈）
@@ -106,7 +106,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 - **scalar 高度自動化**：schema field + i18n + 自動渲染，均可一次到位。
 - **object editor 半自動**：schema 可自動，dispatcher case + editor 元件需人工；workflow 會標記 `isObjectEditor=true` 提醒。
-- **key 新增/移除可偵測**：`settingsGaps`（docs 有 repo 無）與 `removedKeys`（repo 有 docs 無，flat-field 粒度比對，已扣 `KNOWN_REPO_ONLY`）、`envGaps`/`envRemoved`（同方向比對 `known-env-vars.ts`）皆由 CLI 確定性偵測。
+- **key 新增/移除可偵測**：`settingsGaps`（docs 有 repo 無）與 `removedKeys`（repo 有 docs 無，flat-field 粒度比對，已扣 `KNOWN_REPO_ONLY`）、`envGaps`/`envRemoved`（同方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`）皆由 CLI 確定性偵測。
 - **`removedKeys` 僅涵蓋 non-object top-level 欄位**：object-kind 欄位（如 `sandbox`、`permissions`）整個從 docs 消失、或其巢狀 leaf 被 docs 移除，皆不會被 `removedKeys` 偵測到；新增方向（`settingsGaps`）則涵蓋巢狀 leaf。
 - **meta drift（default/enum/range 漂移）不偵測**：CLI 僅偵測 presence gap（新增/移除），不偵測既有 key 的 default/enum/range 變動。如需偵測 meta drift，需另行對照 schemastore 或 docs 手查。
 

@@ -3,6 +3,7 @@ import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { getFlatFieldSchema, getSectionFieldOrder, type FlatFieldSchema, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { getOverriddenScope } from './SettingControls';
+import { saveOrDeleteParent } from './nestedParent';
 import { SettingsSectionWrapper } from './SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,7 @@ export function getSchemaFieldBindings(
       onDelete: async (_k: string) => {
         const updated = { ...parent };
         delete updated[key];
-        await onSave(parentKey, updated);
+        await saveOrDeleteParent(parentKey, updated, { onSave, onDelete });
       },
       overriddenScope: getOverriddenScope(scope, drillParents(parentSettings, parentKey), key, value),
     } as ResolvedSchemaFieldBindings;

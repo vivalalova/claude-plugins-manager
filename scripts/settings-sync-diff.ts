@@ -32,6 +32,7 @@ import {
   checkSettingsDocsHealth,
   KNOWN_EXCLUDED,
   KNOWN_REPO_ONLY,
+  KNOWN_ENV_REPO_ONLY,
 } from '../src/shared/settings-sync/settings-diff';
 
 const execFileAsync = promisify(execFile);
@@ -119,7 +120,7 @@ async function main(): Promise<void> {
 
   // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
   const registryEnvNames = new Set(getKnownEnvVarNames());
-  const { envGaps: envGapNames, envRemoved } = diffEnvVars(envKeys, registryEnvNames);
+  const { envGaps: envGapNames, envRemoved } = diffEnvVars(envKeys, registryEnvNames, KNOWN_ENV_REPO_ONLY);
   const envGaps = envGapNames.map((name) => ({ name, description: envDescriptions.get(name) ?? '' }));
 
   const result = {

@@ -561,13 +561,17 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('defaultMode 選「not set」→ settings.set payload 不含 defaultMode key', async () => {
+  // defaultMode 是 fixture 中 permissions 的唯一 key → 清空後父物件變空，
+  // 依 nested 父物件契約走 onDelete('permissions') → protocol 發 settings.delete，
+  // 不再發 settings.set（避免寫回殘留 "permissions": {}）。
+  it('defaultMode 選「not set」且是 permissions 唯一 key → 發 settings.delete permissions，不發 settings.set', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
         permissions: { defaultMode: 'ask' },
       });
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
+      if (msg.type === 'settings.delete') return Promise.resolve(undefined);
       return Promise.resolve(null);
     });
 
@@ -578,10 +582,11 @@ describe('SettingsPage', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: '' } });
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBe(1);
-      expect(setCalls[0][0].value).not.toHaveProperty('defaultMode');
+      const deleteCalls = getCalls('settings.delete');
+      expect(deleteCalls.length).toBe(1);
+      expect(deleteCalls[0][0].key).toBe('permissions');
     });
+    expect(getCalls('settings.set').length).toBe(0);
   });
 
   it('settings.json defaultMode 為未知值 → 顯示「Current value: strict ⚠️」', async () => {

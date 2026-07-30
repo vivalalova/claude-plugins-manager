@@ -109,6 +109,40 @@ export const KNOWN_REPO_ONLY: ReadonlySet<string> = new Set([
   // is repo-only. Verified 2026-07-21 against
   // https://code.claude.com/docs/en/settings.md.
   'classifyAllShell',
+  // docs lists only the prefixed form `remote.defaultEnvironmentId` in
+  // "### Available settings" — bare form is repo-only. Verified 2026-07-30
+  // against https://code.claude.com/docs/en/settings.md.
+  'defaultEnvironmentId',
+]);
+
+// ─── KNOWN_ENV_REPO_ONLY ──────────────────────────────────────────────────────
+
+/**
+ * Env-var counterpart to KNOWN_REPO_ONLY: names the repo registry legitimately
+ * carries even though the official env-vars.md reference table never lists them
+ * as their own row (they are documented elsewhere — hooks/network/monitoring
+ * pages, or only in env-vars.md prose). Without this filter diffEnvVars' reverse
+ * direction reports all ten on every run.
+ *
+ * Each entry records where the var is currently documented; all verified
+ * 2026-07-30 against https://code.claude.com/docs/en/.
+ */
+export const KNOWN_ENV_REPO_ONLY: ReadonlySet<string> = new Set([
+  // hooks.md — injected into hook commands, not a user-set env var row
+  'CLAUDE_PROJECT_DIR',
+  // env-vars.md prose only: the DISABLE_FEEDBACK_COMMAND row notes "the older
+  // name is also accepted", so the legacy name has no row of its own
+  'DISABLE_BUG_COMMAND',
+  // network-config.md — Node's own CA bundle var, documented under proxy/TLS setup
+  'NODE_EXTRA_CA_CERTS',
+  // OTEL exporter/endpoint knobs: env-vars.md closing prose + monitoring-usage.md
+  'OTEL_EXPORTER_OTLP_ENDPOINT',
+  'OTEL_EXPORTER_OTLP_HEADERS',
+  'OTEL_EXPORTER_OTLP_PROTOCOL',
+  'OTEL_LOGS_EXPORTER',
+  'OTEL_LOGS_EXPORT_INTERVAL',
+  'OTEL_METRICS_EXPORTER',
+  'OTEL_METRIC_EXPORT_INTERVAL',
 ]);
 
 // ─── parseSettingsDocs ────────────────────────────────────────────────────────
@@ -315,12 +349,16 @@ export function diffKeys(
 /**
  * Return sorted arrays of:
  *   - envGaps: env var names documented but not in the repo registry
- *   - envRemoved: env var names in the repo registry but no longer documented
+ *   - envRemoved: env var names in the repo registry but no longer documented,
+ *     minus knownEnvRepoOnly (documented outside the env-vars.md table).
+ *     Mirrors diffKeys' caller-injected exclusion list; defaults to
+ *     KNOWN_ENV_REPO_ONLY so two-argument callers keep the filter.
  * No user-useful/triage judgment here — that's the skill's manual step.
  */
 export function diffEnvVars(
   docsEnvKeys: Set<string>,
   registryEnvNames: Set<string>,
+  knownEnvRepoOnly: ReadonlySet<string> = KNOWN_ENV_REPO_ONLY,
 ): { envGaps: string[]; envRemoved: string[] } {
   const envGaps: string[] = [];
   for (const name of docsEnvKeys) {
@@ -330,7 +368,7 @@ export function diffEnvVars(
 
   const envRemoved: string[] = [];
   for (const name of registryEnvNames) {
-    if (!docsEnvKeys.has(name)) envRemoved.push(name);
+    if (!docsEnvKeys.has(name) && !knownEnvRepoOnly.has(name)) envRemoved.push(name);
   }
   envRemoved.sort();
 

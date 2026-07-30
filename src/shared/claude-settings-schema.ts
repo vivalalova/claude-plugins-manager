@@ -433,12 +433,14 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     args: optional(STRING_ARRAY_SCHEMA),
   })),
   filesystem: optional(objectValue({
+    disabled: optional(booleanValue()),
     allowWrite: optional(STRING_ARRAY_SCHEMA),
     denyWrite: optional(STRING_ARRAY_SCHEMA),
     denyRead: optional(STRING_ARRAY_SCHEMA),
     allowRead: optional(STRING_ARRAY_SCHEMA),
   })),
   network: optional(objectValue({
+    strictAllowlist: optional(booleanValue()),
     allowedDomains: optional(STRING_ARRAY_SCHEMA),
     deniedDomains: optional(STRING_ARRAY_SCHEMA),
     allowUnixSockets: optional(STRING_ARRAY_SCHEMA),
@@ -482,6 +484,10 @@ const AUTO_MODE_VALUE_SCHEMA = objectValue({
   soft_deny: optional(STRING_ARRAY_SCHEMA),
   hard_deny: optional(STRING_ARRAY_SCHEMA),
   classifyAllShell: optional(booleanValue()),
+});
+
+const REMOTE_VALUE_SCHEMA = objectValue({
+  defaultEnvironmentId: optional(STRING_SCHEMA),
 });
 
 const VOICE_VALUE_SCHEMA = objectValue({
@@ -535,6 +541,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     arrayField('availableModels', STRING_SCHEMA),
     stringField('advisorModel'),
     arrayField('fallbackModel', STRING_SCHEMA),
+    booleanField('switchModelsOnFlag', { default: true }),
     createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA, { default: 'high' }),
     booleanField('fastMode', { default: false }),
     booleanField('fastModePerSessionOptIn', { default: false }),
@@ -597,6 +604,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
     createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object }),
     booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
+    booleanField('emojiCompletionEnabled', { default: true }),
     booleanField('voiceEnabled', { default: false }),
     createField('voice', VOICE_VALUE_SCHEMA),
     createField('askUserQuestionTimeout', ASK_USER_QUESTION_TIMEOUT_VALUE_SCHEMA, { default: 'never' }),
@@ -661,6 +669,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Sessions & execution
     createField('worktree', WORKTREE_VALUE_SCHEMA),
     createField('autoMode', AUTO_MODE_VALUE_SCHEMA),
+    stringField('defaultEnvironmentId', { nestedUnder: 'remote' }),
+    createField('remote', REMOTE_VALUE_SCHEMA),
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
     stringField('plansDirectory', { default: '~/.claude/plans' }),
     createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),

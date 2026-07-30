@@ -61,14 +61,11 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 ## Excluded from `removed` diff（反方向：repo 有、docs 無）
 
-`removedKeys` 方向（repo schema 有支援、但 docs 未列出）的排除 SSOT 是同檔的 `KNOWN_REPO_ONLY`，比對粒度為 flat-schema-registration（見 `collectRepoFlatFieldKeys`：只取非 object 頂層 flat field 的 bare/nestedUnder 形式；object-kind 欄位整類排除，不遞迴、也不留 bare key——docs 是否給 object 欄位本身一個 overview row 不一致，逐欄位判斷會長成無止盡清單，故整類結構性排除，不逐一列舉）：
+`removedKeys` 方向（repo schema 有支援、但 docs 未列出）的排除 SSOT 是同檔的 `KNOWN_REPO_ONLY`，比對粒度為 flat-schema-registration（見 `collectRepoFlatFieldKeys`：只取非 object 頂層 flat field 的 bare/nestedUnder 形式；object-kind 欄位整類排除，不遞迴、也不留 bare key——docs 是否給 object 欄位本身一個 overview row 不一致，逐欄位判斷會長成無止盡清單，故整類結構性排除，不逐一列舉）。
 
-| Key | 原因 |
-|-----|------|
-| `defaultMode`、`disableBypassPermissionsMode` | docs 只列 `permissions.` 前綴形式；bare 形式是 `nestedUnder` 雙形式展開的副產物 |
-| `permissions.disableAutoMode` | 反向：docs 只列 bare `disableAutoMode`；前綴形式是雙形式展開的副產物 |
+**機器強制排除清單（SSOT）在 code**：逐條內容與驗證證據看 `settings-diff.ts` 的 `KNOWN_REPO_ONLY`，此處不複寫。收錄型態為 `nestedUnder` 雙形式展開的副產物（docs 只列前綴或只列 bare 形式，另一形式即 repo-only）。
 
-新發現的 `removed` 真 false positive → 先確認是否屬「object-kind 欄位」這類結構性成因（若是，調整 `collectRepoFlatFieldKeys` 的判斷邏輯，不加清單）；只有 orthogonal 的個別情況（如上表的 nestedUnder 雙形式）才回 docs 原文核實後加進 `KNOWN_REPO_ONLY`（附驗證日期與依據）。禁堆排除清單掩蓋結構性誤報。
+新發現的 `removed` 真 false positive → 先確認是否屬「object-kind 欄位」這類結構性成因（若是，調整 `collectRepoFlatFieldKeys` 的判斷邏輯，不加清單）；只有 orthogonal 的個別情況（如上述 nestedUnder 雙形式）才回 docs 原文核實後加進 `KNOWN_REPO_ONLY`（附驗證日期與依據）。禁堆排除清單掩蓋結構性誤報。
 
 ## Rules
 

@@ -17,10 +17,12 @@ type SandboxBooleanKey =
   | 'allowAppleEvents'
   | 'failIfUnavailable';
 type SandboxFilesystemArrayKey = 'allowWrite' | 'denyWrite' | 'denyRead' | 'allowRead';
+type SandboxFilesystemBooleanKey = 'disabled';
 type SandboxNetworkArrayKey = 'allowedDomains' | 'deniedDomains' | 'allowUnixSockets' | 'allowMachLookup';
 type SandboxNetworkBooleanKey =
   | 'allowAllUnixSockets'
-  | 'allowLocalBinding';
+  | 'allowLocalBinding'
+  | 'strictAllowlist';
 type SandboxNetworkNumberKey = 'httpProxyPort' | 'socksProxyPort';
 
 interface SandboxEditorProps {
@@ -207,6 +209,10 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     void saveSandbox({ ...draft, filesystem: { ...draft.filesystem, [key]: items } });
   };
 
+  const updateFsBool = (key: SandboxFilesystemBooleanKey, val: boolean): void => {
+    void saveSandbox({ ...draft, filesystem: { ...draft.filesystem, [key]: val } });
+  };
+
   const updateNet = (key: string, val: unknown): void => {
     void saveSandbox({ ...draft, network: { ...draft.network, [key]: val } });
   };
@@ -238,9 +244,14 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     { key: 'denyRead', labelKey: 'filesystem.denyRead' },
   ];
 
+  const filesystemCheckboxes: Array<{ key: SandboxFilesystemBooleanKey; label: string }> = [
+    { key: 'disabled', label: tk('filesystem.disabled') },
+  ];
+
   const networkCheckboxes: Array<{ key: SandboxNetworkBooleanKey; label: string }> = [
     { key: 'allowAllUnixSockets', label: tk('network.allowAllUnixSockets') },
     { key: 'allowLocalBinding', label: tk('network.allowLocalBinding') },
+    { key: 'strictAllowlist', label: tk('network.strictAllowlist') },
   ];
 
   const networkTagLists: Array<{ key: SandboxNetworkArrayKey; labelKey: string }> = [
@@ -360,6 +371,15 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
               duplicate={tk(`${labelKey}.duplicate`)}
               saving={saving}
               onChange={(items) => updateFs(key, items)}
+            />
+          ))}
+          {filesystemCheckboxes.map(({ key, label }) => (
+            <SandboxCheckbox
+              key={key}
+              label={label}
+              checked={draft.filesystem?.[key] ?? false}
+              saving={saving}
+              onChange={(value) => updateFsBool(key, value)}
             />
           ))}
           {/* Network */}

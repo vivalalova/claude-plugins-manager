@@ -72,11 +72,11 @@ describe('DisplaySection — 渲染', () => {
     });
   });
 
-  it('顯示 19 個 checkbox（17 boolean toggle + excludeDefault + permissionExplainerEnabled；批次 S 加入 6 個 display boolean）', async () => {
+  it('顯示 20 個 checkbox（18 boolean toggle + excludeDefault + permissionExplainerEnabled；批次 S 加入 6 個、批次 R 加入 emojiCompletionEnabled）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(19);
+      expect(checkboxes.length).toBe(20);
     });
   });
 

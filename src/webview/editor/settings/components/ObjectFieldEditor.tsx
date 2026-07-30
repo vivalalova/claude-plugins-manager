@@ -236,6 +236,22 @@ export function ObjectFieldEditor({
           onDelete={async () => onDelete('autoMode')}
         />
       );
+    case 'remote':
+      return (
+        <TextSetting
+          label={t('settings.advanced.remote.label')}
+          description={t('settings.advanced.remote.description')}
+          value={settings.remote ? JSON.stringify(settings.remote) : undefined}
+          placeholder={t('settings.advanced.remote.placeholder')}
+          saveLabel={t('settings.advanced.remote.save')}
+          clearLabel={t('settings.advanced.remote.clear')}
+          settingKey="remote"
+          scope={scope}
+          overriddenScope={overriddenScope}
+          onSave={async (_key, value) => onSave('remote', parseJsonSettingValue('remote', value as string))}
+          onDelete={async () => onDelete('remote')}
+        />
+      );
     case 'vimInsertModeRemaps':
       return (
         <TextSetting

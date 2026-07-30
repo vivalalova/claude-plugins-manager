@@ -51,6 +51,7 @@ export interface ClaudeSettings {
   availableModels?: string[];
   advisorModel?: string;
   fallbackModel?: string[];
+  switchModelsOnFlag?: boolean;
   effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   fastMode?: boolean;
   fastModePerSessionOptIn?: boolean;
@@ -100,6 +101,7 @@ export interface ClaudeSettings {
   editorMode?: "normal" | "vim";
   vimInsertModeRemaps?: Record<string, string>;
   externalEditorContext?: boolean;
+  emojiCompletionEnabled?: boolean;
   voiceEnabled?: boolean;
   voice?: {
     enabled?: boolean;
@@ -233,6 +235,9 @@ export interface ClaudeSettings {
     hard_deny?: string[];
     classifyAllShell?: boolean;
   };
+  remote?: {
+    defaultEnvironmentId?: string;
+  };
   defaultShell?: "bash" | "powershell";
   plansDirectory?: string;
   sshConfigs?: {
@@ -259,12 +264,14 @@ export interface ClaudeSettings {
       args?: string[];
     };
     filesystem?: {
+      disabled?: boolean;
       allowWrite?: string[];
       denyWrite?: string[];
       denyRead?: string[];
       allowRead?: string[];
     };
     network?: {
+      strictAllowlist?: boolean;
       allowedDomains?: string[];
       deniedDomains?: string[];
       allowUnixSockets?: string[];

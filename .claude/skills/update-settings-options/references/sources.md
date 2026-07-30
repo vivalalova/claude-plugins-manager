@@ -8,7 +8,7 @@
 - 輸出：`{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`
   - `settingsGaps` / `envGaps`：docs 有、repo 無（每筆帶 docs description）
   - `removedKeys`：repo 有、docs 無（flat-field 粒度比對，見下）
-  - `envRemoved`：`known-env-vars.ts` 有、docs 無
+  - `envRemoved`：`known-env-vars.ts` 有、docs 無，已扣掉 `KNOWN_ENV_REPO_ONLY`（SSOT 在 `settings-diff.ts`；docs 在別頁或僅 prose 提及的 var）
 
 ## Schemastore（交叉檢查 fixture）
 
@@ -22,6 +22,7 @@
 - `src/shared/settings-sync/settings-diff.ts` → `KNOWN_EXCLUDED`：`settingsGaps`/`envGaps` 方向的機器強制排除清單（權威 SSOT）
 - `src/shared/settings-sync/settings-diff.ts` → `KNOWN_REPO_ONLY`：`removedKeys` 方向的機器強制排除清單（權威 SSOT，每條附驗證證據，僅收 orthogonal 個案）；`removed` diff 在 flat-field 粒度比對（`collectRepoFlatFieldKeys` — 只取非 object 頂層 flat field 的 bare/nestedUnder 形式；object-kind 欄位整類排除，不遞迴、也不留 bare key），結構性避免 container/leaf 誤報，不必逐欄位堆清單。代價：object-kind 欄位整個消失、或其巢狀 leaf 被 docs 移除，`removedKeys` 皆不偵測
 - `src/shared/known-env-vars.ts` → `KNOWN_ENV_VARS`：env var registry 單一來源，`envGaps`/`envRemoved` 據此比對
+- `src/shared/settings-sync/settings-diff.ts` → `KNOWN_ENV_REPO_ONLY`：`envRemoved` 方向的機器強制排除清單（權威 SSOT，附記各 var 實際被記在哪頁）
 - `src/webview/editor/settings/` 現有 section 實作
 - `src/shared/claude-settings-types.generated.ts` 由 schema 自動重生，禁手改、不列為來源
 
@@ -35,6 +36,6 @@
 - 同步進 repo schema 時，secondary（既有 section 實作）只補 literal enum、default、object shape
 - 刪除 key：移除 repo first-party support、tests、locale、CLAUDE.md 說明
 - 刪除 key：不修改使用者既有 settings 檔；unknown key 容忍保持
-- `removedKeys`/`envRemoved` 每筆先回 docs 原文核實（改名/棄用/併入 prose 說明/文件遺漏皆可能），非 CLI 一出結果就直接刪；核實後才提報使用者確認
+- `removedKeys`/`envRemoved` 出現的都是排除白名單未收的新案例，每筆先回 docs 原文核實（改名/棄用/併入 prose 說明/文件遺漏皆可能），非 CLI 一出結果就直接刪；核實出「docs 只是換地方記」→ 補白名單，確認真的棄用才提報使用者確認
 - docs 與 repo 衝突：回報列衝突點
 - 新 key 無 type 資訊時預設 `String`，object shape 保守處理
