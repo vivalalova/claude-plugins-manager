@@ -135,12 +135,11 @@ describe('SandboxEditor — credentials.files（先紅，批次 C）', () => {
 describe('SandboxEditor — credentials.envVars（先紅，批次 C）', () => {
   it('渲染 credentials.envVars 輸入區塊（section label 出現在 DOM 中）', async () => {
     renderEditor(undefined);
-    // RED: label not yet added. i18n key: settings.advanced.sandbox.credentials.envVars.label
+    // i18n key: settings.advanced.sandbox.credentials.envVars.label
+    // 用精確 label 文字：credentials.awsPairs 的說明文字也含「credential env var」，
+    // 寬鬆 regex 會撞到多個節點而讓 queryByText 拋錯。
     await waitFor(() => {
-      expect(
-        screen.queryByText(/credential.*env/i) ??
-          screen.queryByLabelText(/credential.*env/i),
-      ).not.toBeNull();
+      expect(screen.queryByText('Credential Env Vars')).not.toBeNull();
     });
   });
 
@@ -193,6 +192,63 @@ describe('SandboxEditor — credentials.envVars（先紅，批次 C）', () => {
     fireEvent.click(within(tag).getByRole('button'));
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('sandbox');
+    });
+  });
+
+  it('新增一個名稱不得重建既有 entry：mask／injectHosts 等選填欄位原封保留', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(
+      {
+        credentials: {
+          envVars: [{ name: 'MY_KEY_ID', mode: 'mask', injectHosts: ['sts.amazonaws.com'] }],
+          files: [{ path: '/run/secrets', mode: 'mask', maskDuplicates: true }],
+        },
+      } as ClaudeSettings['sandbox'],
+      onSave,
+    );
+
+    await waitFor(() => expect(screen.queryByText('MY_KEY_ID')).not.toBeNull());
+    const input = screen.getByPlaceholderText(/e\.g\..+AWS/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'MY_SECRET' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', expect.objectContaining({
+        credentials: expect.objectContaining({
+          envVars: [
+            { name: 'MY_KEY_ID', mode: 'mask', injectHosts: ['sts.amazonaws.com'] },
+            { name: 'MY_SECRET', mode: 'deny' },
+          ],
+          files: [{ path: '/run/secrets', mode: 'mask', maskDuplicates: true }],
+        }),
+      }));
+    });
+  });
+
+  it('刪除一個 credentials.files 名稱不得重建其餘 entry', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(
+      {
+        credentials: {
+          files: [
+            { path: '/run/secrets', mode: 'mask', maskDuplicates: true },
+            { path: '/etc/other', mode: 'deny' },
+          ],
+        },
+      } as ClaudeSettings['sandbox'],
+      onSave,
+    );
+
+    await waitFor(() => screen.getByText('/etc/other'));
+    const tag = screen.getByText('/etc/other').closest('.perm-rule-tag') as HTMLElement;
+    fireEvent.click(within(tag).getByRole('button'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', expect.objectContaining({
+        credentials: expect.objectContaining({
+          files: [{ path: '/run/secrets', mode: 'mask', maskDuplicates: true }],
+        }),
+      }));
     });
   });
 

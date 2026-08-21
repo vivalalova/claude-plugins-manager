@@ -69,9 +69,7 @@ export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
   'requiredMinimumVersion',   // "Managed settings only." text (not bracket)
   'requiredMaximumVersion',   // "Managed settings only." text (not bracket)
   'enforceAvailableModels',   // effectively managed-only
-  'forceLoginGatewayUrl',                    // managed-only: honored only at the managed policy tier
-  'sandbox.credentials.allowPlaintextInject', // managed-only: sandbox nested managed sub-key
-  'sandbox.network.tlsTerminate',             // managed-only: sandbox nested managed sub-key, experimental object shape
+  'forceLoginGatewayUrl',     // managed-only: honored only at the managed policy tier
 ]);
 
 // ─── KNOWN_REPO_ONLY ──────────────────────────────────────────────────────────

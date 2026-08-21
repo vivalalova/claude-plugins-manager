@@ -156,6 +156,12 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'model',
   },
 
+  ANTHROPIC_DEFAULT_MODEL: {
+    name: 'ANTHROPIC_DEFAULT_MODEL',
+    valueType: String,
+    category: 'model',
+  },
+
   // --- auth ---
   ANTHROPIC_API_KEY: {
     name: 'ANTHROPIC_API_KEY',
@@ -261,6 +267,27 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   MCP_OAUTH_CALLBACK_PORT: {
     name: 'MCP_OAUTH_CALLBACK_PORT',
     valueType: Number,
+    category: 'auth',
+  },
+
+  ANTHROPIC_FEDERATION_RULE_ID: {
+    name: 'ANTHROPIC_FEDERATION_RULE_ID',
+    valueType: String,
+    category: 'auth',
+  },
+  ANTHROPIC_ORGANIZATION_ID: {
+    name: 'ANTHROPIC_ORGANIZATION_ID',
+    valueType: String,
+    category: 'auth',
+  },
+  ANTHROPIC_PROFILE: {
+    name: 'ANTHROPIC_PROFILE',
+    valueType: String,
+    category: 'auth',
+  },
+  CLAUDE_CODE_DISABLE_MTLS_RELOAD_ON_STALE_CONNECTION: {
+    name: 'CLAUDE_CODE_DISABLE_MTLS_RELOAD_ON_STALE_CONNECTION',
+    valueType: Boolean,
     category: 'auth',
   },
 
@@ -482,6 +509,12 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'provider',
   },
 
+  ANTHROPIC_BEDROCK_REGION_PREFIX: {
+    name: 'ANTHROPIC_BEDROCK_REGION_PREFIX',
+    valueType: String,
+    category: 'provider',
+  },
+
   // --- effort ---
   CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING: {
     name: 'CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING',
@@ -668,6 +701,53 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     default: '10000',
   },
 
+  CLAUDE_BYTE_STREAM_IDLE_TIMEOUT_MS: {
+    name: 'CLAUDE_BYTE_STREAM_IDLE_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_GOAL_CHECKIN_MINUTES: {
+    name: 'CLAUDE_CODE_GOAL_CHECKIN_MINUTES',
+    valueType: Number,
+    category: 'timeout',
+    default: '30',
+  },
+  CLAUDE_CODE_USER_DIALOG_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_USER_DIALOG_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_WEBFETCH_CACHE_TTL_MS: {
+    name: 'CLAUDE_CODE_WEBFETCH_CACHE_TTL_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '900000',
+  },
+  CLAUDE_CODE_WORKFLOW_PREFIX_STAGGER_MS: {
+    name: 'CLAUDE_CODE_WORKFLOW_PREFIX_STAGGER_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '5000',
+  },
+  CLAUDE_SUBAGENT_BG_SHELL_MAX_MS: {
+    name: 'CLAUDE_SUBAGENT_BG_SHELL_MAX_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '3600000',
+  },
+  MCP_DISCOVERY_CACHE_MAX_STALE_S: {
+    name: 'MCP_DISCOVERY_CACHE_MAX_STALE_S',
+    valueType: Number,
+    category: 'timeout',
+    default: '14400',
+  },
+  MCP_DISCOVERY_CACHE_TTL_S: {
+    name: 'MCP_DISCOVERY_CACHE_TTL_S',
+    valueType: Number,
+    category: 'timeout',
+    default: '900',
+  },
+
   // --- limits ---
   CLAUDE_CODE_AUTO_COMPACT_WINDOW: {
     name: 'CLAUDE_CODE_AUTO_COMPACT_WINDOW',
@@ -780,6 +860,23 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'CLAUDE_CODE_RETRY_WATCHDOG',
     valueType: Boolean,
     category: 'limits',
+  },
+
+  CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: {
+    name: 'CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT',
+    valueType: Boolean,
+    category: 'limits',
+  },
+  CLAUDE_CODE_TOOL_MEMORY_LIMIT: {
+    name: 'CLAUDE_CODE_TOOL_MEMORY_LIMIT',
+    valueType: String,
+    category: 'limits',
+  },
+  MCP_DISCOVERY_CACHE_STRIKES: {
+    name: 'MCP_DISCOVERY_CACHE_STRIKES',
+    valueType: Number,
+    category: 'limits',
+    default: '1',
   },
 
   // --- feature ---
@@ -1353,6 +1450,47 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'feature',
   },
 
+  CLAUDE_CODE_ARTIFACT_COMMENTS: {
+    name: 'CLAUDE_CODE_ARTIFACT_COMMENTS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ARTIFACT_COMMENTS_AUTOREACT: {
+    name: 'CLAUDE_CODE_ARTIFACT_COMMENTS_AUTOREACT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_ADMIN_ENV_UNION: {
+    name: 'CLAUDE_CODE_DISABLE_ADMIN_ENV_UNION',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_PERMISSION_PROMPT_NOTIFY_HOOKS: {
+    name: 'CLAUDE_CODE_DISABLE_PERMISSION_PROMPT_NOTIFY_HOOKS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_TODO_TOOLS: {
+    name: 'CLAUDE_CODE_ENABLE_TODO_TOOLS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  MCP_DISCOVERY_CACHE: {
+    name: 'MCP_DISCOVERY_CACHE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  MCP_PROTOCOL_NEGOTIATION: {
+    name: 'MCP_PROTOCOL_NEGOTIATION',
+    valueType: String,
+    category: 'feature',
+  },
+  MCP_SDK_GENERATION: {
+    name: 'MCP_SDK_GENERATION',
+    valueType: String,
+    category: 'feature',
+  },
+
   // --- ui ---
   CLAUDE_CODE_AUTO_CONNECT_IDE: {
     name: 'CLAUDE_CODE_AUTO_CONNECT_IDE',
@@ -1461,6 +1599,24 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'ui',
   },
 
+  CLAUDE_AX_PREPARK_MS: {
+    name: 'CLAUDE_AX_PREPARK_MS',
+    valueType: Number,
+    category: 'ui',
+    default: '50',
+  },
+  CLAUDE_AX_STARTUP_QUIET_MS: {
+    name: 'CLAUDE_AX_STARTUP_QUIET_MS',
+    valueType: Number,
+    category: 'ui',
+    default: '3000',
+  },
+  CLAUDE_CODE_BS_AS_CTRL_BACKSPACE: {
+    name: 'CLAUDE_CODE_BS_AS_CTRL_BACKSPACE',
+    valueType: Boolean,
+    category: 'ui',
+  },
+
   // --- shell ---
   CLAUDE_CODE_SHELL: {
     name: 'CLAUDE_CODE_SHELL',
@@ -1515,6 +1671,23 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_PID: {
     name: 'CLAUDE_PID',
+    valueType: String,
+    category: 'shell',
+  },
+
+  CLAUDE_CODE_MESSAGING_SOCKET: {
+    name: 'CLAUDE_CODE_MESSAGING_SOCKET',
+    valueType: String,
+    category: 'shell',
+  },
+  CLAUDE_CODE_MESSAGING_TOKEN: {
+    name: 'CLAUDE_CODE_MESSAGING_TOKEN',
+    valueType: String,
+    category: 'shell',
+    sensitive: true,
+  },
+  CLAUDE_CODE_PROJECT_DIR_NAME: {
+    name: 'CLAUDE_CODE_PROJECT_DIR_NAME',
     valueType: String,
     category: 'shell',
   },

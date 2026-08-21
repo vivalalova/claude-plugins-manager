@@ -31,10 +31,12 @@ type _ClaudeSettingsCompileTimeChecks = [
   Assert<IsEqual<NonNullable<ClaudeSettings['statusLine']>['refreshInterval'], number | undefined>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['statusLine']>['hideVimModeIndicator'], boolean | undefined>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['worktree']>['symlinkDirectories'], string[] | undefined>>,
-  Assert<IsEqual<Extract<'bwrapPath', keyof NonNullable<ClaudeSettings['sandbox']>>, never>>,
-  Assert<IsEqual<Extract<'socatPath', keyof NonNullable<ClaudeSettings['sandbox']>>, never>>,
-  Assert<IsEqual<Extract<'allowManagedReadPathsOnly', keyof NonNullable<NonNullable<ClaudeSettings['sandbox']>['filesystem']>>, never>>,
-  Assert<IsEqual<Extract<'allowManagedDomainsOnly', keyof NonNullable<NonNullable<ClaudeSettings['sandbox']>['network']>>, never>>,
+  // Managed settings only：value shape 要容忍（不做 UI），型別上必須存在，
+  // 否則含這些 key 的既有設定檔會讓整個 sandbox 編輯區驗證失敗鎖死。
+  Assert<IsEqual<NonNullable<ClaudeSettings['sandbox']>['bwrapPath'], string | undefined>>,
+  Assert<IsEqual<NonNullable<ClaudeSettings['sandbox']>['socatPath'], string | undefined>>,
+  Assert<IsEqual<NonNullable<NonNullable<ClaudeSettings['sandbox']>['filesystem']>['allowManagedReadPathsOnly'], boolean | undefined>>,
+  Assert<IsEqual<NonNullable<NonNullable<ClaudeSettings['sandbox']>['network']>['allowManagedDomainsOnly'], boolean | undefined>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['spinnerVerbs']>['verbs'], string[]>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['companyAnnouncements']>, string[]>>,
   Assert<IsEqual<ClaudeSettings['hooks'], Record<string, Array<{ matcher?: string; hooks: HookCommand[] }>> | undefined>>,
@@ -216,7 +218,10 @@ describe('getSchemaDefault', () => {
   // so encoding one here would misstate docs. Verified 2026-07-21 against
   // https://code.claude.com/docs/en/settings.md ("When unset, the default
   // follows the feature's availability for your account").
-  const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set(['enableArtifact']);
+  // isolatePeerMachines: docs settings.md 該列沒有 **Default**: prose（`true` 只在 Example 欄），
+  // cross-session-messaging.md 明寫「Set isolatePeerMachines to true to require approval」＝
+  // opt-in，未設就不攔，因此不得編出 default。Verified 2026-08-21.
+  const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set(['enableArtifact', 'isolatePeerMachines']);
 
   it('所有 Boolean entry 都有 default 值（documented dynamic-default keys 除外）', () => {
     for (const [key, field] of Object.entries(flatSchema)) {

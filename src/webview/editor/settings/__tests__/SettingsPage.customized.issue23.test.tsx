@@ -357,6 +357,7 @@ describe('SettingsPage — issue #23 Object 欄位全覆蓋 guard', () => {
       spinnerVerbs:        { mode: 'append', verbs: ['Thinking'] },
       spinnerTipsOverride: { tips: ['Stay hydrated!'] },
       voice:               { enabled: true },
+      spellcheck:          { enabled: true, checker: 'hunspell' },
       vimInsertModeRemaps: { jj: '<Esc>' },
       allowedMcpServers:   [{ serverName: 'github' }],
       deniedMcpServers:    [{ serverName: 'filesystem' }],

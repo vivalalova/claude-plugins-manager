@@ -287,6 +287,7 @@ const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
 const TUI_OPTIONS = ['fullscreen', 'default'] as const;
 const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
+const KEYBINDING_FLAVOR_OPTIONS = ['classic', 'readline'] as const;
 const PREFERRED_NOTIF_CHANNEL_OPTIONS = ['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled'] as const;
 const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console'] as const;
 const DISABLE_ONLY_OPTIONS = ['disable'] as const;
@@ -298,7 +299,15 @@ const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
 const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
 const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
 const THEME_OPTIONS = ['auto', 'dark', 'light', 'dark-daltonized', 'light-daltonized', 'dark-ansi', 'light-ansi'] as const;
-const ASK_USER_QUESTION_TIMEOUT_OPTIONS = ['60s', '5m', '10m', 'never'] as const;
+/**
+ * 使用者對話框逾時檔位。由 `askUserQuestionTimeout`（display）與 `dialogExpiry`（general）
+ * 共用——兩者是同一組逾時選項，只有預設值不同（各自 field meta 上的 default），
+ * 故選項清單維持單一來源，禁複製第二份。
+ */
+const DIALOG_TIMEOUT_OPTIONS = ['60s', '5m', '10m', 'never'] as const;
+const CROSS_SESSION_INBOUND_OPTIONS = ['accept', 'hold', 'refuse'] as const;
+/** `spellcheck.checker` 選項；巢狀欄位不進 flat schema，故由 UI 直接匯入本常數（唯一來源）。 */
+export const SPELLCHECK_CHECKER_OPTIONS = ['aspell', 'hunspell', 'ispell'] as const;
 const DIFF_TOOL_OPTIONS = ['auto', 'terminal'] as const;
 const WORKFLOW_SIZE_GUIDELINE_OPTIONS = ['unrestricted', 'small', 'medium', 'large'] as const;
 
@@ -368,6 +377,7 @@ const TEAMMATE_MODE_VALUE_SCHEMA = stringValue(TEAMMATE_MODE_OPTIONS);
 const VIEW_MODE_VALUE_SCHEMA = stringValue(VIEW_MODE_OPTIONS);
 const TUI_VALUE_SCHEMA = stringValue(TUI_OPTIONS);
 const EDITOR_MODE_VALUE_SCHEMA = stringValue(EDITOR_MODE_OPTIONS);
+const KEYBINDING_FLAVOR_VALUE_SCHEMA = stringValue(KEYBINDING_FLAVOR_OPTIONS);
 const PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA = stringValue(PREFERRED_NOTIF_CHANNEL_OPTIONS);
 const WORKTREE_BASE_REF_VALUE_SCHEMA = stringValue(WORKTREE_BASE_REF_OPTIONS);
 const WORKTREE_BG_ISOLATION_VALUE_SCHEMA = stringValue(WORKTREE_BG_ISOLATION_OPTIONS);
@@ -378,9 +388,19 @@ const FORCE_LOGIN_METHOD_VALUE_SCHEMA = stringValue(FORCE_LOGIN_METHOD_OPTIONS);
 const DISABLE_ONLY_VALUE_SCHEMA = stringValue(DISABLE_ONLY_OPTIONS);
 const DEFAULT_SHELL_VALUE_SCHEMA = stringValue(DEFAULT_SHELL_OPTIONS);
 const SPINNER_MODE_VALUE_SCHEMA = stringValue(SPINNER_MODE_OPTIONS);
-const ASK_USER_QUESTION_TIMEOUT_VALUE_SCHEMA = stringValue(ASK_USER_QUESTION_TIMEOUT_OPTIONS);
+const DIALOG_TIMEOUT_VALUE_SCHEMA = stringValue(DIALOG_TIMEOUT_OPTIONS);
+const CROSS_SESSION_INBOUND_VALUE_SCHEMA = stringValue(CROSS_SESSION_INBOUND_OPTIONS);
 const DIFF_TOOL_VALUE_SCHEMA = stringValue(DIFF_TOOL_OPTIONS);
 const WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA = stringValue(WORKFLOW_SIZE_GUIDELINE_OPTIONS);
+
+const SPELLCHECK_VALUE_SCHEMA = objectValue({
+  enabled: optional(booleanValue()),
+  checker: optional(stringValue(SPELLCHECK_CHECKER_OPTIONS)),
+  language: optional(STRING_SCHEMA),
+  color: optional(STRING_SCHEMA),
+});
+
+const AUTO_COMPACT_WINDOW_VALUE_SCHEMA = numberValue({ min: 100000, max: 1000000, step: 1 });
 
 const SPINNER_VERBS_VALUE_SCHEMA = objectValue({
   mode: optional(SPINNER_MODE_VALUE_SCHEMA),
@@ -418,8 +438,17 @@ const FILE_SUGGESTION_VALUE_SCHEMA = objectValue({
 
 const SKILL_OVERRIDES_VALUE_SCHEMA = recordValue(SKILL_OVERRIDE_VALUE_SCHEMA);
 
+const CREDENTIAL_MODE_VALUE_SCHEMA = stringValue(['deny', 'mask'] as const);
+const EXTRACT_NO_MATCH_VALUE_SCHEMA = stringValue(['warn', 'deny', 'error'] as const);
+const CREDENTIAL_DECODE_VALUE_SCHEMA = literalValue('jwt');
+const SIGV4_POLICY_VALUE_SCHEMA = stringValue(['deny', 'passthrough'] as const);
+
 const SANDBOX_VALUE_SCHEMA = objectValue({
   enabled: optional(booleanValue()),
+  // Managed settings only（Linux/WSL2）：不做 first-party UI，只容忍既有設定檔的值，
+  // 否則 SandboxEditor 驗證整份 draft 時會把整個 sandbox 區鎖死。
+  bwrapPath: optional(STRING_SCHEMA),
+  socatPath: optional(STRING_SCHEMA),
   autoAllowBashIfSandboxed: optional(booleanValue()),
   excludedCommands: optional(STRING_ARRAY_SCHEMA),
   enableWeakerNetworkIsolation: optional(booleanValue()),
@@ -438,9 +467,13 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     denyWrite: optional(STRING_ARRAY_SCHEMA),
     denyRead: optional(STRING_ARRAY_SCHEMA),
     allowRead: optional(STRING_ARRAY_SCHEMA),
+    // Managed settings only：同上，只容忍不做 UI。
+    allowManagedReadPathsOnly: optional(booleanValue()),
   })),
   network: optional(objectValue({
     strictAllowlist: optional(booleanValue()),
+    // Managed settings only：同上，只容忍不做 UI。
+    allowManagedDomainsOnly: optional(booleanValue()),
     allowedDomains: optional(STRING_ARRAY_SCHEMA),
     deniedDomains: optional(STRING_ARRAY_SCHEMA),
     allowUnixSockets: optional(STRING_ARRAY_SCHEMA),
@@ -449,16 +482,44 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     httpProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     socksProxyPort: optional(numberValue({ min: 1, max: 65535, step: 1 })),
     allowMachLookup: optional(STRING_ARRAY_SCHEMA),
+    // Experimental 且 managed/user-tier only（無 first-party UI）：docs 只保證 {} 或
+    // caCertPath/caKeyPath，shape 仍會變動，故用寬鬆 string record 容忍而不精確建模。
+    tlsTerminate: optional(recordValue(STRING_SCHEMA)),
   })),
+  // Cross-field rules（extract 不可與 decode 並用、decode entry 的 onExtractNoMatch 只收 warn、
+  // awsPairs 只能指向 whole-value mask entry）由 Claude Code runtime 驗證，此 schema 語言無法表達。
   credentials: optional(objectValue({
     files: optional(arrayValue(objectValue({
       path: required(STRING_SCHEMA),
-      mode: required(literalValue('deny')),
+      mode: required(CREDENTIAL_MODE_VALUE_SCHEMA),
+      extract: optional(STRING_SCHEMA),
+      onExtractNoMatch: optional(EXTRACT_NO_MATCH_VALUE_SCHEMA),
+      decode: optional(CREDENTIAL_DECODE_VALUE_SCHEMA),
+      maskClaims: optional(STRING_ARRAY_SCHEMA),
+      // maskDuplicates 只在 files[] 有定義，envVars[] 沒有（依 docs，勿對稱化）
+      maskDuplicates: optional(booleanValue()),
+      injectHosts: optional(STRING_ARRAY_SCHEMA),
     }))),
     envVars: optional(arrayValue(objectValue({
       name: required(STRING_SCHEMA),
-      mode: required(literalValue('deny')),
+      mode: required(CREDENTIAL_MODE_VALUE_SCHEMA),
+      extract: optional(STRING_SCHEMA),
+      onExtractNoMatch: optional(EXTRACT_NO_MATCH_VALUE_SCHEMA),
+      decode: optional(CREDENTIAL_DECODE_VALUE_SCHEMA),
+      maskClaims: optional(STRING_ARRAY_SCHEMA),
+      injectHosts: optional(STRING_ARRAY_SCHEMA),
     }))),
+    awsPairs: optional(arrayValue(objectValue({
+      accessKeyIdVar: required(STRING_SCHEMA),
+      secretAccessKeyVar: required(STRING_SCHEMA),
+      sessionTokenVar: optional(STRING_SCHEMA),
+    }))),
+    allowPlaintextInject: optional(booleanValue()),
+    sigv4: optional(objectValue({
+      streaming: optional(SIGV4_POLICY_VALUE_SCHEMA),
+      presigned: optional(SIGV4_POLICY_VALUE_SCHEMA),
+      sigv4a: optional(SIGV4_POLICY_VALUE_SCHEMA),
+    })),
   })),
 });
 
@@ -547,7 +608,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('fastModePerSessionOptIn', { default: false }),
     stringField('agent'),
     stringField('outputStyle'),
-    createField('workflowSizeGuideline', WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA, { default: 'unrestricted', storageFile: 'globalConfig' }),
+    createField('workflowSizeGuideline', WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA, { default: 'medium', storageFile: 'globalConfig' }),
     // Permission mode
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
@@ -571,6 +632,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('cleanupPeriodDays', CLEANUP_PERIOD_DAYS_VALUE_SCHEMA, { default: 30 }),
     // Behavior
     booleanField('autoCompactEnabled', { default: true }),
+    createField('autoCompactWindow', AUTO_COMPACT_WINDOW_VALUE_SCHEMA),
+    createField('dialogExpiry', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: '5m' }),
     booleanField('fileCheckpointingEnabled', { default: true }),
   ],
 
@@ -602,16 +665,20 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('inputNeededNotifEnabled', { default: false }),
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
+    createField('keybindingFlavor', KEYBINDING_FLAVOR_VALUE_SCHEMA, { default: 'classic' }),
     createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object }),
     booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
     booleanField('emojiCompletionEnabled', { default: true }),
     booleanField('voiceEnabled', { default: false }),
     createField('voice', VOICE_VALUE_SCHEMA),
-    createField('askUserQuestionTimeout', ASK_USER_QUESTION_TIMEOUT_VALUE_SCHEMA, { default: 'never' }),
+    createField('askUserQuestionTimeout', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: 'never' }),
+    booleanField('promptSuggestionEnabled', { default: true }),
+    createField('spellcheck', SPELLCHECK_VALUE_SCHEMA),
     booleanField('permissionExplainerEnabled', { default: true, storageFile: 'globalConfig' }),
     // Agent teammates
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
     createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String, storageFile: 'globalConfig' }),
+    createField('crossSessionInbound', CROSS_SESSION_INBOUND_VALUE_SCHEMA),
   ],
 
   permissions: [
@@ -675,6 +742,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('plansDirectory', { default: '~/.claude/plans' }),
     createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
     stringField('processWrapper'),
+    booleanField('isolatePeerMachines'),
     // Sandbox
     createField('sandbox', SANDBOX_VALUE_SCHEMA),
     // Footer link patterns

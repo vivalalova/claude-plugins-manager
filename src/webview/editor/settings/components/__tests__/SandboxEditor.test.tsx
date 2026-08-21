@@ -464,7 +464,9 @@ describe('SandboxEditor — JSON 模式驗證', () => {
     await switchToJsonMode();
 
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
-    fireEvent.change(ta, { target: { value: '{"bwrapPath":"/tmp/bwrap"}' } });
+    // bwrapPath／allowManagedDomainsOnly 已改為 managed-only 容忍值（docs 有記載），
+    // 這裡改用真正未宣告的 key 才鎖得住「拒收未知 key」契約。
+    fireEvent.change(ta, { target: { value: '{"notASandboxKey":"x"}' } });
     const field = ta.closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
@@ -480,7 +482,7 @@ describe('SandboxEditor — JSON 模式驗證', () => {
     await switchToJsonMode();
 
     const ta = screen.getByPlaceholderText(SANDBOX_PLACEHOLDER);
-    fireEvent.change(ta, { target: { value: '{"network":{"allowManagedDomainsOnly":true}}' } });
+    fireEvent.change(ta, { target: { value: '{"network":{"notANetworkKey":true}}' } });
     const field = ta.closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 

@@ -71,7 +71,7 @@ describe('GeneralSection — 渲染', () => {
       expect(screen.getByText('(autoUpdatesChannel: latest)')).toBeTruthy();
       expect(screen.getByText('(minimumVersion)')).toBeTruthy();
       expect(screen.getByText('(diffTool: auto)')).toBeTruthy();
-      expect(screen.getByText('(workflowSizeGuideline: unrestricted)')).toBeTruthy();
+      expect(screen.getByText('(workflowSizeGuideline: medium)')).toBeTruthy();
     });
   });
 
@@ -669,12 +669,24 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     });
   });
 
-  it('workflowSizeGuideline 選擇 unrestricted（=default）→ onDelete("workflowSizeGuideline")', async () => {
+  it('workflowSizeGuideline 選擇 unrestricted（非 default）→ onSave 寫入 unrestricted', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ workflowSizeGuideline: 'small' }, onSave, onDelete);
     await waitFor(() => screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }), { target: { value: 'unrestricted' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('workflowSizeGuideline', 'unrestricted');
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('workflowSizeGuideline 選擇 medium（=docs default）→ onDelete("workflowSizeGuideline")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ workflowSizeGuideline: 'small' }, onSave, onDelete);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }), { target: { value: 'medium' } });
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('workflowSizeGuideline');
       expect(onSave).not.toHaveBeenCalled();
@@ -1231,6 +1243,6 @@ describe('GeneralSection — globalConfig 欄位 scope 隔離（先紅）', () =
     expect(screen.queryByText('(autoConnectIde: false)')).toBeNull();
     expect(screen.queryByText('(autoInstallIdeExtension: true)')).toBeNull();
     expect(screen.queryByText('(diffTool: auto)')).toBeNull();
-    expect(screen.queryByText('(workflowSizeGuideline: unrestricted)')).toBeNull();
+    expect(screen.queryByText('(workflowSizeGuideline: medium)')).toBeNull();
   });
 });

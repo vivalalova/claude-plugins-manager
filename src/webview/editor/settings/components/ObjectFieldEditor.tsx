@@ -8,6 +8,7 @@ import { StatusLineEditor } from './StatusLineEditor';
 import { SandboxEditor } from './SandboxEditor';
 import { CompanyAnnouncementsEditor } from './CompanyAnnouncementsEditor';
 import { SpinnerVerbsEditor, SpinnerTipsOverrideEditor } from './SpinnerEditors';
+import { SpellcheckEditor } from './SpellcheckEditor';
 import { parseJsonSettingValue } from '../jsonSettingValidation';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { SettingLabelText } from './SettingControls';
@@ -151,7 +152,10 @@ export function ObjectFieldEditor({
         />
       );
     case 'sandbox':
-      return <SandboxEditor sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />;
+      // key={scope}：SettingsPage 切 scope 不 remount，SandboxEditor 的 draft（awsPairs 半填列、
+      // JSON 模式文字）會跟著跨 scope 殘留並寫進使用者沒打算寫的 scope。以 key 重置整個
+      // sandbox editor（含模式切換與 JSON 草稿）——scope 換了草稿本來就不該延續。
+      return <SandboxEditor key={scope} sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />;
     case 'companyAnnouncements':
       return <CompanyAnnouncementsEditor scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
     case 'modelOverrides':
@@ -284,6 +288,8 @@ export function ObjectFieldEditor({
           onDelete={async () => onDelete('voice')}
         />
       );
+    case 'spellcheck':
+      return <SpellcheckEditor spellcheck={settings.spellcheck} onSave={onSave} onDelete={onDelete} />;
     case 'spinnerVerbs':
       return <SpinnerVerbsEditor scope={scope} value={settings.spinnerVerbs} onSave={onSave} onDelete={onDelete} />;
     case 'spinnerTipsOverride':

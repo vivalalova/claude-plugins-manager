@@ -70,6 +70,8 @@ export interface ClaudeSettings {
   minimumVersion?: string;
   cleanupPeriodDays?: number;
   autoCompactEnabled?: boolean;
+  autoCompactWindow?: number;
+  dialogExpiry?: "60s" | "5m" | "10m" | "never";
   fileCheckpointingEnabled?: boolean;
   viewMode?: "default" | "verbose" | "focus";
   tui?: "fullscreen" | "default";
@@ -99,6 +101,7 @@ export interface ClaudeSettings {
   agentPushNotifEnabled?: boolean;
   inputNeededNotifEnabled?: boolean;
   editorMode?: "normal" | "vim";
+  keybindingFlavor?: "classic" | "readline";
   vimInsertModeRemaps?: Record<string, string>;
   externalEditorContext?: boolean;
   emojiCompletionEnabled?: boolean;
@@ -109,9 +112,17 @@ export interface ClaudeSettings {
     autoSubmit?: boolean;
   };
   askUserQuestionTimeout?: "60s" | "5m" | "10m" | "never";
+  promptSuggestionEnabled?: boolean;
+  spellcheck?: {
+    enabled?: boolean;
+    checker?: "aspell" | "hunspell" | "ispell";
+    language?: string;
+    color?: string;
+  };
   permissionExplainerEnabled?: boolean;
   teammateMode?: "auto" | "in-process" | "tmux";
   teammateDefaultModel?: string | null;
+  crossSessionInbound?: "accept" | "hold" | "refuse";
   enableAllProjectMcpServers?: boolean;
   enabledMcpjsonServers?: string[];
   disabledMcpjsonServers?: string[];
@@ -249,8 +260,11 @@ export interface ClaudeSettings {
     startDirectory?: string;
   }[];
   processWrapper?: string;
+  isolatePeerMachines?: boolean;
   sandbox?: {
     enabled?: boolean;
+    bwrapPath?: string;
+    socatPath?: string;
     autoAllowBashIfSandboxed?: boolean;
     excludedCommands?: string[];
     enableWeakerNetworkIsolation?: boolean;
@@ -269,9 +283,11 @@ export interface ClaudeSettings {
       denyWrite?: string[];
       denyRead?: string[];
       allowRead?: string[];
+      allowManagedReadPathsOnly?: boolean;
     };
     network?: {
       strictAllowlist?: boolean;
+      allowManagedDomainsOnly?: boolean;
       allowedDomains?: string[];
       deniedDomains?: string[];
       allowUnixSockets?: string[];
@@ -280,16 +296,39 @@ export interface ClaudeSettings {
       httpProxyPort?: number;
       socksProxyPort?: number;
       allowMachLookup?: string[];
+      tlsTerminate?: Record<string, string>;
     };
     credentials?: {
       files?: {
         path: string;
-        mode: "deny";
+        mode: "deny" | "mask";
+        extract?: string;
+        onExtractNoMatch?: "warn" | "deny" | "error";
+        decode?: "jwt";
+        maskClaims?: string[];
+        maskDuplicates?: boolean;
+        injectHosts?: string[];
       }[];
       envVars?: {
         name: string;
-        mode: "deny";
+        mode: "deny" | "mask";
+        extract?: string;
+        onExtractNoMatch?: "warn" | "deny" | "error";
+        decode?: "jwt";
+        maskClaims?: string[];
+        injectHosts?: string[];
       }[];
+      awsPairs?: {
+        accessKeyIdVar: string;
+        secretAccessKeyVar: string;
+        sessionTokenVar?: string;
+      }[];
+      allowPlaintextInject?: boolean;
+      sigv4?: {
+        streaming?: "deny" | "passthrough";
+        presigned?: "deny" | "passthrough";
+        sigv4a?: "deny" | "passthrough";
+      };
     };
   };
   footerLinksRegexes?: {

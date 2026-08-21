@@ -68,10 +68,38 @@ describe('SchemaFieldRenderer', () => {
       expect(screen.getByText('Effort Level')).toBeTruthy();
       const select = screen.getByRole('combobox');
       expect(select).toBeTruthy();
-      expect(screen.getByText('high')).toBeTruthy();
-      expect(screen.getByText('medium')).toBeTruthy();
-      expect(screen.getByText('low')).toBeTruthy();
+      // options render i18n labels (settings.<section>.<key>.<optionValue>), not raw enum values
+      expect(screen.getByText('High')).toBeTruthy();
+      expect(screen.getByText('Medium')).toBeTruthy();
+      expect(screen.getByText('Low')).toBeTruthy();
       expect(screen.getByText('— not set —')).toBeTruthy();
+    });
+  });
+
+  it('enum options render i18n labels, not raw enum values', async () => {
+    renderField('editorMode', {
+      valueSchema: { kind: 'string', enum: ['normal', 'vim'] as const },
+      section: 'display',
+      controlType: String,
+    });
+    await waitFor(() => {
+      const options = Array.from(screen.getByRole('combobox').querySelectorAll('option'));
+      expect(options.map((o) => o.getAttribute('value'))).toEqual(['', 'normal', 'vim']);
+      // settings.display.editorMode.normal / .vim
+      expect(options.map((o) => o.textContent)).toEqual(['— not set —', 'Normal', 'Vim']);
+    });
+  });
+
+  it('enum option without an i18n label falls back to the raw value (never "undefined")', async () => {
+    // section 'advanced' has no settings.advanced.editorMode.* option labels
+    renderField('editorMode', {
+      valueSchema: { kind: 'string', enum: ['normal', 'vim'] as const },
+      section: 'advanced',
+      controlType: String,
+    });
+    await waitFor(() => {
+      const options = Array.from(screen.getByRole('combobox').querySelectorAll('option'));
+      expect(options.slice(1).map((o) => o.textContent)).toEqual(['normal', 'vim']);
     });
   });
 

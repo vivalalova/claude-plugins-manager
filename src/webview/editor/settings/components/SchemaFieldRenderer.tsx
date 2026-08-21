@@ -45,6 +45,13 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
     case String: {
       if (getValueSchemaEnumOptions(schema.valueSchema)) {
         const options = getSchemaEnumOptions(settingKey);
+        const optionLabels: Record<string, string> = {};
+        for (const option of options) {
+          // t() returns undefined for keys absent from the locale table; skip so
+          // EnumDropdown falls back to the raw enum value instead of rendering "undefined".
+          const optionLabel = tk(option) as string | undefined;
+          if (optionLabel) optionLabels[option] = optionLabel;
+        }
         const hasDangerValues = schema.dangerValues && schema.dangerValues.length > 0;
         const enumOnSave = hasDangerValues
           ? async (k: string, val: unknown) => {
@@ -75,7 +82,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
               description={tk('description')}
               value={value as string | undefined}
               knownValues={options}
-              knownLabels={{}}
+              knownLabels={optionLabels}
               notSetLabel={tk('notSet')}
               unknownTemplate={tk('unknown')}
               settingKey={settingKey}
