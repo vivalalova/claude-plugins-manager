@@ -79,6 +79,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'model',
   },
+  CLAUDE_CODE_SUBAGENT_MODEL_FORCE: {
+    name: 'CLAUDE_CODE_SUBAGENT_MODEL_FORCE',
+    valueType: String,
+    category: 'model',
+  },
 
   ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES: {
     name: 'ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES',
@@ -488,6 +493,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'provider',
   },
+  CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_DEFAULT: {
+    name: 'CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_DEFAULT',
+    valueType: Boolean,
+    category: 'provider',
+  },
   CLAUDE_CODE_SKIP_AWS_CRED_CACHE: {
     name: 'CLAUDE_CODE_SKIP_AWS_CRED_CACHE',
     valueType: Boolean,
@@ -505,6 +515,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   VERTEX_REGION_CLAUDE_FABLE_5: {
     name: 'VERTEX_REGION_CLAUDE_FABLE_5',
+    valueType: String,
+    category: 'provider',
+  },
+  VERTEX_REGION_CLAUDE_FABLE_5_1: {
+    name: 'VERTEX_REGION_CLAUDE_FABLE_5_1',
     valueType: String,
     category: 'provider',
   },
@@ -676,6 +691,17 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT',
     valueType: Number,
     category: 'timeout',
+  },
+  CLAUDE_CODE_AUTO_BACKGROUND_WORKER_CHECKIN_SECONDS: {
+    name: 'CLAUDE_CODE_AUTO_BACKGROUND_WORKER_CHECKIN_SECONDS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS: {
+    name: 'CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    deprecated: true,
   },
   CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: {
     name: 'CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS',
@@ -872,6 +898,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'limits',
   },
+  CLAUDE_CODE_TOOL_MEMORY_CGROUP_EXCLUDE: {
+    name: 'CLAUDE_CODE_TOOL_MEMORY_CGROUP_EXCLUDE',
+    valueType: String,
+    category: 'limits',
+  },
   MCP_DISCOVERY_CACHE_STRIKES: {
     name: 'MCP_DISCOVERY_CACHE_STRIKES',
     valueType: Number,
@@ -914,6 +945,31 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   CLAUDE_CODE_DISABLE_AGENT_VIEW: {
     name: 'CLAUDE_CODE_DISABLE_AGENT_VIEW',
     valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_CFC_PROMPT: {
+    name: 'CLAUDE_CODE_DISABLE_CFC_PROMPT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_PROMPT_CACHE_TTL: {
+    name: 'CLAUDE_CODE_PROMPT_CACHE_TTL',
+    valueType: String,
+    category: 'feature',
+  },
+  CLAUDE_CODE_RESTRICTED: {
+    name: 'CLAUDE_CODE_RESTRICTED',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_SEND_FEEDBACK: {
+    name: 'CLAUDE_CODE_SEND_FEEDBACK',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL: {
+    name: 'CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL',
+    valueType: String,
     category: 'feature',
   },
   CLAUDE_CODE_DISABLE_1M_CONTEXT: {
@@ -1693,6 +1749,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
 
   // --- telemetry ---
+  BETA_TRACING_ENDPOINT: {
+    name: 'BETA_TRACING_ENDPOINT',
+    valueType: String,
+    category: 'telemetry',
+  },
+  ENABLE_BETA_TRACING_DETAILED: {
+    name: 'ENABLE_BETA_TRACING_DETAILED',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: {
     name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
     valueType: Boolean,

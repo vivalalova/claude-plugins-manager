@@ -2,13 +2,15 @@
 
 ## Primary（官方 docs，確定性 CLI 解析）
 
-- Settings：`https://code.claude.com/docs/en/settings.md`（curl 取 Markdown，`parseSettingsDocs` 解析 key 清單）
+- Settings inventory：`https://code.claude.com/docs/en/settings-reference.md` 的 `## All settings` index（curl 取 Markdown，`parseSettingsDocs` 只解析同頁 linked key 與第二欄 description）
+- Settings background：`https://code.claude.com/docs/en/settings.md` 僅提供 overview/precedence 背景，不作 key inventory
 - Env vars：`https://code.claude.com/docs/en/env-vars.md`（curl 取 Markdown，`parseEnvDocs` 解析 env var 名稱）
 - 偵測入口：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）
 - 輸出：`{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`
-  - `settingsGaps` / `envGaps`：docs 有、repo 無（每筆帶 docs description）
-  - `removedKeys`：repo 有、docs 無（flat-field 粒度比對，見下）
-  - `envRemoved`：`known-env-vars.ts` 有、docs 無，已扣掉 `KNOWN_ENV_REPO_ONLY`（SSOT 在 `settings-diff.ts`；docs 在別頁或僅 prose 提及的 var）
+- `settingsGaps`：docs 有、repo 無（每筆帶 All settings index 的 description 與 scope）
+- `envGaps`：docs 有、registry 無（每筆帶 docs description）
+- `removedKeys`：repo 有、docs 無（flat-field 粒度比對，見下）
+- `envRemoved`：`known-env-vars.ts` 有、docs 無，已扣掉 `KNOWN_ENV_REPO_ONLY`（SSOT 在 `settings-diff.ts`；docs 在別頁或僅 prose 提及的 var）
 
 ## Schemastore（交叉檢查 fixture）
 

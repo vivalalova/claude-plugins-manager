@@ -361,6 +361,8 @@ describe('SettingsPage — issue #23 Object 欄位全覆蓋 guard', () => {
       vimInsertModeRemaps: { jj: '<Esc>' },
       allowedMcpServers:   [{ serverName: 'github' }],
       deniedMcpServers:    [{ serverName: 'filesystem' }],
+      modelPicker:         { options: [{ model: 'sonnet' }] },
+      modelSettings:       { sonnet: { effortLevel: 'high' } },
       modelOverrides:      { 'claude-opus-4-6': 'custom-arn' },
       statusLine:          { type: 'command', command: 'echo hi' },
       subagentStatusLine:  { type: 'command', command: 'echo sub' },

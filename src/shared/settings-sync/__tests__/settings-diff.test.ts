@@ -36,6 +36,7 @@ import {
 
 const FIXTURES_DIR = resolve(__dirname, 'fixtures');
 const settingsMd = readFileSync(resolve(FIXTURES_DIR, 'settings.md'), 'utf8');
+const settingsReferenceMd = readFileSync(resolve(FIXTURES_DIR, 'settings-reference.md'), 'utf8');
 const envVarsMd = readFileSync(resolve(FIXTURES_DIR, 'env-vars.md'), 'utf8');
 const snapshotRaw = JSON.parse(readFileSync(resolve(FIXTURES_DIR, 'repo-keys.snapshot.json'), 'utf8')) as { keys: string[] };
 const SNAPSHOT_KEYS: Set<string> = new Set(snapshotRaw.keys);
@@ -246,6 +247,58 @@ describe('parseSettingsDocs — section/prefix mapping', () => {
   });
 });
 
+// ─── D2. settings-reference.md All settings index ────────────────────────────
+
+describe('parseSettingsDocs — settings-reference.md All settings index', () => {
+  it('parses linked top-level and dotted keys with their descriptions', () => {
+    const { keys, descriptions, scopes } = parseSettingsDocs(settingsReferenceMd);
+
+    expect(keys).toEqual(new Set([
+      'advisorModel',
+      'model',
+      'permissions.allow',
+      'sandbox.enabled',
+      'sandbox.credentials.files',
+      'attribution.commit',
+      'managedByScope',
+    ]));
+    expect(descriptions.get('advisorModel')).toBe('Pick the model used by the advisor');
+    expect(descriptions.get('sandbox.credentials.files')).toBe('Block reads of credential files with an escaped \\| pipe');
+    expect(scopes.get('advisorModel')).toBe('Any file');
+    expect(scopes.get('managedByScope')).toBe('Managed');
+  });
+
+  it('excludes managed-marker rows and links that are not same-page setting anchors', () => {
+    const { keys } = parseSettingsDocs(settingsReferenceMd);
+
+    expect(keys.has('managedOnly')).toBe(false);
+    expect(keys.has('externalLink')).toBe(false);
+    expect(keys.has('not-a-setting')).toBe(false);
+  });
+
+  it('stops inventory at the next level-two heading and ignores detailed tables', () => {
+    const { keys } = parseSettingsDocs(settingsReferenceMd);
+
+    expect(keys.has('detailTableKey')).toBe(false);
+  });
+
+  it('does not fall back to legacy rows when the All settings heading is missing', () => {
+    const missingHeading = settingsReferenceMd.replace('## All settings', '## Settings overview');
+    const { keys } = parseSettingsDocs(missingHeading);
+
+    expect(keys).toEqual(new Set());
+    expect(checkSettingsDocsHealth(keys).ok).toBe(false);
+  });
+
+  it('returns no keys when the All settings table is missing', () => {
+    const missingTable = '## All settings\n\nSettings are listed elsewhere.\n\n## Model and responses\n';
+    const { keys } = parseSettingsDocs(missingTable);
+
+    expect(keys).toEqual(new Set());
+    expect(checkSettingsDocsHealth(keys).ok).toBe(false);
+  });
+});
+
 // ─── E. KNOWN_EXCLUDED contents ──────────────────────────────────────────────
 
 describe('KNOWN_EXCLUDED constant', () => {
@@ -262,6 +315,11 @@ describe('KNOWN_EXCLUDED constant', () => {
     'requiredMinimumVersion',
     'requiredMaximumVersion',
     'enforceAvailableModels',
+    'allowAllClaudeAiMcps',
+    'allowedChannelPlugins',
+    'sandbox.filesystem.allowManagedReadPathsOnly',
+    'enabledPlugins',
+    'includeCoAuthoredBy',
   ])('contains "%s"', (key) => {
     expect(KNOWN_EXCLUDED.has(key)).toBe(true);
   });

@@ -26,6 +26,10 @@ type _ClaudeSettingsCompileTimeChecks = [
   Assert<IsEqual<ClaudeSettings['teammateDefaultModel'], string | null | undefined>>,
   Assert<IsEqual<ClaudeSettings['voice'], { enabled?: boolean; mode?: 'hold' | 'tap'; autoSubmit?: boolean } | undefined>>,
   Assert<IsEqual<ClaudeSettings['forceLoginOrgUUID'], string | string[] | undefined>>,
+  Assert<IsEqual<ClaudeSettings['modelPicker'], { options: Array<{ model: string; label?: string; description?: string }>; replaceBuiltInOptions?: boolean } | undefined>>,
+  Assert<IsEqual<ClaudeSettings['modelSettings'], Record<string, { effortLevel: 'low' | 'medium' | 'high' | 'xhigh' }> | undefined>>,
+  Assert<IsEqual<ClaudeSettings['promptCacheTtl'], '5m' | '1h' | undefined>>,
+  Assert<IsEqual<ClaudeSettings['subagentPromptCacheTtl'], '5m' | '1h' | undefined>>,
   Assert<IsEqual<ClaudeSettings['sshConfigs'], Array<{ id: string; name: string; sshHost: string; sshPort?: number; sshIdentityFile?: string; startDirectory?: string }> | undefined>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['permissions']>['disableBypassPermissionsMode'], 'disable' | undefined>>,
   Assert<IsEqual<NonNullable<ClaudeSettings['statusLine']>['refreshInterval'], number | undefined>>,
@@ -198,6 +202,10 @@ describe('getSchemaDefault', () => {
     expect(getSchemaDefault('externalEditorContext')).toBe(false);
     expect(getSchemaDefault('autoConnectIde')).toBe(false);
     expect(getSchemaDefault('autoInstallIdeExtension')).toBe(true);
+    expect(getSchemaDefault('autoContinueAtUsageLimit')).toBe(true);
+    expect(getSchemaDefault('desktopSessionCleanupPeriodDays')).toBe(0);
+    expect(getSchemaDefault('feedbackDrafts')).toBe('notify');
+    expect(getSchemaDefault('terminalTitleFromRename')).toBe(true);
     expect(getSchemaDefault('disableAgentView')).toBe(false);
     expect(getSchemaDefault('disableRemoteControl')).toBe(false);
     expect(getSchemaDefault('skillListingMaxDescChars')).toBe(1536);
@@ -207,6 +215,8 @@ describe('getSchemaDefault', () => {
   it('無 default 的 key 回傳 undefined', () => {
     expect(getSchemaDefault('model')).toBeUndefined();
     expect(getSchemaDefault('language')).toBeUndefined();
+    expect(getSchemaDefault('enableWorkflows')).toBeUndefined();
+    expect(getSchemaDefault('syncClaudeAiSkills')).toBeUndefined();
   });
 
   it('不存在的 key → 拋出 Error', () => {
@@ -221,7 +231,12 @@ describe('getSchemaDefault', () => {
   // isolatePeerMachines: docs settings.md 該列沒有 **Default**: prose（`true` 只在 Example 欄），
   // cross-session-messaging.md 明寫「Set isolatePeerMachines to true to require approval」＝
   // opt-in，未設就不攔，因此不得編出 default。Verified 2026-08-21.
-  const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set(['enableArtifact', 'isolatePeerMachines']);
+  const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set([
+    'enableArtifact',
+    'isolatePeerMachines',
+    'enableWorkflows',
+    'syncClaudeAiSkills',
+  ]);
 
   it('所有 Boolean entry 都有 default 值（documented dynamic-default keys 除外）', () => {
     for (const [key, field] of Object.entries(flatSchema)) {

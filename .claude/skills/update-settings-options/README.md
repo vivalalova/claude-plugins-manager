@@ -1,12 +1,12 @@
 # update-settings-options
 
-Keep the extension's settings surface in sync with **which settings Claude Code currently has** — sourced from the official docs `code.claude.com/docs/en/settings.md`, detected by a deterministic CLI.
+Keep the extension's settings surface in sync with **which settings Claude Code currently has** — use the `## All settings` index in `https://code.claude.com/docs/en/settings-reference.md` as the primary key/description inventory. The `settings.md` page is background for overview and precedence, not inventory; gaps are detected by a deterministic CLI.
 
 ## How it works
 
 A **workflow** runs discovery (read-only); the main loop decides, edits, and verifies. See `SKILL.md` for the full flow.
 
-1. **Detect**: run `scripts/settings-sync-diff.ts` (curl live docs → parse → diff against repo schema → JSON output)
+1. **Detect**: run `scripts/settings-sync-diff.ts` (curl the settings-reference All settings index and env-vars docs → parse → diff against repo schema → JSON output)
 2. **Categorize** (parallel): classify each gap by section + isObjectEditor
 3. **Apply** (main loop): add schema field + i18n (3 languages) + tests; `SchemaFieldRenderer` auto-renders scalars; object editor keys need a dispatcher case in `ObjectFieldEditor.tsx`
 

@@ -28,8 +28,17 @@ const SECTION_PREFIX: Record<string, string | null> = {
 /** Keys in the Permission section that stay top-level (no prefix). */
 const PERMISSION_SECTION_TOP_LEVEL = new Set(['skipDangerousModePermissionPrompt']);
 
-/** Regex matching a valid JSON key in the first table cell: `| \`key\` |` */
+/** Regex matching a legacy settings key in the first table cell: `| \`key\` |`. */
 const KEY_ROW_RE = /^\|\s*`([^`]+)`/;
+
+/** Regex matching the linked first cell in the settings reference index. */
+const REFERENCE_KEY_ROW_RE = /^\|\s*\[\s*`([^`]+)`\s*\]\(#[A-Za-z0-9_.-]+\)\s*(?:\||$)/;
+
+/** The reference inventory starts at this exact level-two heading. */
+const REFERENCE_HEADING_RE = /^##(?!#)\s+All settings\s*$/i;
+
+/** A level-two heading ends the reference inventory section. */
+const LEVEL_TWO_HEADING_RE = /^##(?!#)\s+/;
 
 /** Regex matching the bracket managed-only marker. */
 const MANAGED_BRACKET_RE = /\([^)]*[Mm]anaged settings only[^)]*\)/;
@@ -40,17 +49,184 @@ const HEADING_RE = /^#{2,}\s+(.+)$/;
 /** Match env var rows: first column must be `UPPER_CASE`. */
 const ENV_VAR_ROW_RE = /^\|\s*`([A-Z][A-Z0-9_]*)`/;
 
+type ParsedSettingsDocs = {
+  keys: Set<string>;
+  descriptions: Map<string, string>;
+  scopes: Map<string, string>;
+};
+
+/**
+ * Split a markdown table row without treating an escaped pipe (`\\|`) as a
+ * cell boundary. This intentionally handles only the pipe escaping needed by
+ * the docs tables, not the full Markdown grammar.
+ */
+function splitMarkdownTableRow(line: string): string[] {
+  const cells: string[] = [];
+  let cell = '';
+  let precedingBackslashes = 0;
+
+  for (const character of line) {
+    if (character === '|' && precedingBackslashes % 2 === 0) {
+      cells.push(cell);
+      cell = '';
+      precedingBackslashes = 0;
+      continue;
+    }
+
+    cell += character;
+    if (character === '\\') {
+      precedingBackslashes += 1;
+    } else {
+      precedingBackslashes = 0;
+    }
+  }
+
+  cells.push(cell);
+  return cells;
+}
+
+/** Return table cells without the optional leading/trailing empty cells. */
+function normalizedTableCells(line: string): string[] {
+  const cells = splitMarkdownTableRow(line).map((cell) => cell.trim());
+  if (cells[0] === '') cells.shift();
+  if (cells[cells.length - 1] === '') cells.pop();
+  return cells;
+}
+
 /**
  * Extract the description cell (2nd markdown-table column) from a table row.
- * Row shape is always `| key | description | ...optional extra columns... |`,
- * so the description is always at split-by-'|' index 2 regardless of how many
- * trailing columns (e.g. "Example") the table has.
  * Returns '' when the row has no description cell — never throws.
+ *
+ * Row shape is `| key | description | ...optional extra columns... |`.
  */
 function extractRowDescription(line: string): string {
-  const cells = line.split('|');
+  const cells = splitMarkdownTableRow(line);
   const raw = cells[2];
   return raw ? raw.trim() : '';
+}
+
+/**
+ * Parse the linked-key inventory from settings-reference.md.
+ * Only the table immediately following the `## All settings` heading is read.
+ */
+function parseSettingsReferenceDocs(md: string): ParsedSettingsDocs {
+  const keys = new Set<string>();
+  const descriptions = new Map<string, string>();
+  const scopes = new Map<string, string>();
+  const lines = md.split('\n');
+  const headingIndex = lines.findIndex((line) => REFERENCE_HEADING_RE.test(line.trimEnd()));
+
+  if (headingIndex < 0) return { keys, descriptions, scopes };
+
+  let sectionEnd = lines.length;
+  for (let index = headingIndex + 1; index < lines.length; index++) {
+    if (LEVEL_TWO_HEADING_RE.test(lines[index].trimEnd())) {
+      sectionEnd = index;
+      break;
+    }
+  }
+
+  let headerIndex = -1;
+  for (let index = headingIndex + 1; index + 1 < sectionEnd; index++) {
+    const cells = normalizedTableCells(lines[index]);
+    if (
+      cells.length === 4 &&
+      cells[0].toLowerCase() === 'key' &&
+      cells[1].toLowerCase() === 'description' &&
+      cells[2].toLowerCase() === 'topic' &&
+      cells[3].toLowerCase() === 'scope' &&
+      normalizedTableCells(lines[index + 1]).length === 4 &&
+      normalizedTableCells(lines[index + 1]).every((cell) => /^:?-{3,}:?$/.test(cell))
+    ) {
+      headerIndex = index;
+      break;
+    }
+  }
+
+  if (headerIndex < 0) return { keys, descriptions, scopes };
+
+  for (let index = headerIndex + 2; index < sectionEnd; index++) {
+    const line = lines[index].trimEnd();
+    if (!line.trim() || !line.startsWith('|')) break;
+
+    const keyMatch = REFERENCE_KEY_ROW_RE.exec(line);
+    if (!keyMatch) continue;
+
+    const rawKey = keyMatch[1];
+    if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(rawKey)) continue;
+
+    const cells = normalizedTableCells(line);
+    const description = cells[1] ?? extractRowDescription(line);
+    if (MANAGED_BRACKET_RE.test(description)) continue;
+
+    keys.add(rawKey);
+    descriptions.set(rawKey, description);
+    scopes.set(rawKey, cells[3] ?? '');
+  }
+
+  return { keys, descriptions, scopes };
+}
+
+/** Parse the legacy settings.md heading/table layout used by frozen fixtures. */
+function parseLegacySettingsDocs(md: string): ParsedSettingsDocs {
+  const keys = new Set<string>();
+  const descriptions = new Map<string, string>();
+  const scopes = new Map<string, string>();
+  let currentPrefix: string | null = null; // null = excluded section
+
+  for (const rawLine of md.split('\n')) {
+    const line = rawLine.trimEnd();
+
+    // Detect any heading level (##, ###, ####, …)
+    const headingMatch = HEADING_RE.exec(line);
+    if (headingMatch) {
+      const sectionName = headingMatch[1].trim().toLowerCase();
+      currentPrefix = SECTION_PREFIX[sectionName] ?? null;
+      continue;
+    }
+
+    // Skip if current section is excluded
+    if (currentPrefix === null) continue;
+
+    // Try to parse a key from the first cell
+    const keyMatch = KEY_ROW_RE.exec(line);
+    if (!keyMatch) continue;
+
+    const rawKey = keyMatch[1];
+
+    // Skip keys that aren't valid identifier-like strings (e.g. path prefixes like "/", "~/", "./")
+    // A valid settings key starts with a letter, optionally followed by letters/digits/dots/underscores.
+    if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(rawKey)) continue;
+
+    // Skip bracket managed-only keys
+    if (MANAGED_BRACKET_RE.test(line)) continue;
+
+    // Apply prefix — with exception for skipDangerousModePermissionPrompt in Permission section
+    let effectiveKey: string;
+    if (currentPrefix === 'permissions.' && PERMISSION_SECTION_TOP_LEVEL.has(rawKey)) {
+      effectiveKey = rawKey;
+    } else {
+      effectiveKey = currentPrefix + rawKey;
+    }
+
+    keys.add(effectiveKey);
+    descriptions.set(effectiveKey, extractRowDescription(line));
+  }
+
+  return { keys, descriptions, scopes };
+}
+
+/**
+ * Extract a settings key set from either the current reference index or the
+ * legacy fixture layout. Live callers select `reference` explicitly; the
+ * linked-row signal keeps direct fixture calls backwards-compatible.
+ */
+export function parseSettingsDocs(
+  md: string,
+  format: 'reference' | 'legacy' = md.split('\n').some((line) => REFERENCE_KEY_ROW_RE.test(line)) ? 'reference' : 'legacy',
+): ParsedSettingsDocs {
+  if (format === 'reference') return parseSettingsReferenceDocs(md);
+  return parseLegacySettingsDocs(md);
 }
 
 // ─── KNOWN_EXCLUDED ───────────────────────────────────────────────────────────
@@ -61,6 +237,37 @@ function extractRowDescription(line: string): string {
  * they appear in docs or snapshot.
  */
 export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
+  // Managed-only settings already documented in the surface map. The current
+  // reference index puts this classification in its Scope column rather than
+  // repeating "Managed settings only" in the description.
+  'allowAllClaudeAiMcps',
+  'allowManagedHooksOnly',
+  'allowManagedMcpServersOnly',
+  'allowManagedPermissionRulesOnly',
+  'allowedChannelPlugins',
+  'blockedMarketplaces',
+  'channelsEnabled',
+  'claudeMd',
+  'forceRemoteSettingsRefresh',
+  'parentSettingsBehavior',
+  'pluginSuggestionMarketplaces',
+  'pluginTrustMessage',
+  'strictKnownMarketplaces',
+  'strictPluginOnlyCustomization',
+  'wslInheritsWindowsSettings',
+  'sandbox.bwrapPath',
+  'sandbox.socatPath',
+  'sandbox.filesystem.allowManagedReadPathsOnly',
+  'sandbox.network.allowManagedDomainsOnly',
+  'sandbox.enabledPlatforms',
+  // Plugin-internal settings are managed by the extension's plugin UI.
+  'enabledPlugins',
+  'extraKnownMarketplaces',
+  'skippedMarketplaces',
+  'skippedPlugins',
+  'pluginConfigs',
+  // Deprecated settings are not first-party settings surface anymore.
+  'includeCoAuthoredBy',
   'policyHelper',             // "Only honored from MDM" — no bracket marker
   'ultracode',                // session-only, not read from settings.json
   'autoDreamEnabled',         // undocumented
@@ -70,6 +277,22 @@ export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
   'requiredMaximumVersion',   // "Managed settings only." text (not bracket)
   'enforceAvailableModels',   // effectively managed-only
   'forceLoginGatewayUrl',     // managed-only: honored only at the managed policy tier
+  'browserExternalPageTools',
+  'disableBrowserExternalNavigation',
+  'disableCommandPluginSources',
+  'disableDesktopLocalSessions',
+  'disableMobileSimulatorTools',
+  'disableSideloadFlags',
+  'managedSourcesBehavior',
+  'modelPricing',
+  'policyHelper.path',
+  'policyHelper.refreshIntervalMs',
+  'policyHelper.timeoutMs',
+  'sshHostAllowlist',
+  'strictPluginOnlyCustomization.agents',
+  'strictPluginOnlyCustomization.hooks',
+  'strictPluginOnlyCustomization.mcp',
+  'strictPluginOnlyCustomization.skills',
 ]);
 
 // ─── KNOWN_REPO_ONLY ──────────────────────────────────────────────────────────
@@ -142,59 +365,6 @@ export const KNOWN_ENV_REPO_ONLY: ReadonlySet<string> = new Set([
   'OTEL_METRICS_EXPORTER',
   'OTEL_METRIC_EXPORT_INTERVAL',
 ]);
-
-// ─── parseSettingsDocs ────────────────────────────────────────────────────────
-
-/**
- * Parse settings.md → Set of effective JSON keys + per-key description text.
- * Section→prefix applied; bracket managed-only keys excluded.
- */
-export function parseSettingsDocs(md: string): { keys: Set<string>; descriptions: Map<string, string> } {
-  const keys = new Set<string>();
-  const descriptions = new Map<string, string>();
-  let currentPrefix: string | null = null; // null = excluded section
-
-  for (const rawLine of md.split('\n')) {
-    const line = rawLine.trimEnd();
-
-    // Detect any heading level (##, ###, ####, …)
-    const headingMatch = HEADING_RE.exec(line);
-    if (headingMatch) {
-      const sectionName = headingMatch[1].trim().toLowerCase();
-      currentPrefix = SECTION_PREFIX[sectionName] ?? null;
-      continue;
-    }
-
-    // Skip if current section is excluded
-    if (currentPrefix === null) continue;
-
-    // Try to parse a key from the first cell
-    const keyMatch = KEY_ROW_RE.exec(line);
-    if (!keyMatch) continue;
-
-    const rawKey = keyMatch[1];
-
-    // Skip keys that aren't valid identifier-like strings (e.g. path prefixes like "/", "~/", "./")
-    // A valid settings key starts with a letter, optionally followed by letters/digits/dots/underscores.
-    if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(rawKey)) continue;
-
-    // Skip bracket managed-only keys
-    if (MANAGED_BRACKET_RE.test(line)) continue;
-
-    // Apply prefix — with exception for skipDangerousModePermissionPrompt in Permission section
-    let effectiveKey: string;
-    if (currentPrefix === 'permissions.' && PERMISSION_SECTION_TOP_LEVEL.has(rawKey)) {
-      effectiveKey = rawKey;
-    } else {
-      effectiveKey = currentPrefix + rawKey;
-    }
-
-    keys.add(effectiveKey);
-    descriptions.set(effectiveKey, extractRowDescription(line));
-  }
-
-  return { keys, descriptions };
-}
 
 // ─── parseEnvDocs ─────────────────────────────────────────────────────────────
 
@@ -390,14 +560,14 @@ const SETTINGS_SENTINELS = ['model', 'env', 'permissions.allow', 'sandbox.enable
  */
 export function checkSettingsDocsHealth(settingsKeys: Set<string>): { ok: boolean; reason?: string } {
   if (settingsKeys.size === 0) {
-    return { ok: false, reason: 'settings.md produced zero keys — likely a parse failure or empty content' };
+    return { ok: false, reason: 'settings-reference.md produced zero keys — likely a parse failure or empty content' };
   }
   if (settingsKeys.size < SETTINGS_HEALTH_THRESHOLD) {
-    return { ok: false, reason: `settings.md produced only ${settingsKeys.size} keys (threshold: ${SETTINGS_HEALTH_THRESHOLD}) — content may be truncated or malformed` };
+    return { ok: false, reason: `settings-reference.md produced only ${settingsKeys.size} keys (threshold: ${SETTINGS_HEALTH_THRESHOLD}) — content may be truncated or malformed` };
   }
   for (const sentinel of SETTINGS_SENTINELS) {
     if (!settingsKeys.has(sentinel)) {
-      return { ok: false, reason: `settings.md missing sentinel key '${sentinel}' — section heading may have been renamed` };
+      return { ok: false, reason: `settings-reference.md missing sentinel key '${sentinel}' — inventory may be truncated or malformed` };
     }
   }
   return { ok: true };

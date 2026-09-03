@@ -1600,3 +1600,51 @@ describe('AdvancedSection — 批次 S 互動（先紅）', () => {
     });
   });
 });
+
+describe('AdvancedSection — settings sync controls', () => {
+  it('renders enableWorkflows, feedbackDrafts, syncClaudeAiSkills, and terminalTitleFromRename', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect(screen.getByText('Enable Workflows')).toBeTruthy();
+      expect(screen.getByText('Feedback Drafts')).toBeTruthy();
+      expect(screen.getByText('Sync Claude.ai Skills')).toBeTruthy();
+      expect(screen.getByText('Terminal Title From Rename')).toBeTruthy();
+    });
+  });
+
+  it('enableWorkflows unset toggles on without inventing a default', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const checkbox = await screen.findByRole('checkbox', { name: 'Enable Workflows' });
+    expect((checkbox as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('enableWorkflows', true));
+  });
+
+  it('feedbackDrafts dropdown saves the selected enum value', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const select = await screen.findByRole('combobox', { name: 'Feedback Drafts' });
+    expect((select as HTMLSelectElement).value).toBe('');
+    fireEvent.change(select, { target: { value: 'quiet' } });
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('feedbackDrafts', 'quiet'));
+  });
+
+  it('syncClaudeAiSkills unset toggles on and terminalTitleFromRename defaults on', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const syncSkills = await screen.findByRole('checkbox', { name: 'Sync Claude.ai Skills' });
+    const titleFromRename = await screen.findByRole('checkbox', { name: 'Terminal Title From Rename' });
+    expect((syncSkills as HTMLInputElement).checked).toBe(false);
+    expect((titleFromRename as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(syncSkills);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('syncClaudeAiSkills', true));
+  });
+});

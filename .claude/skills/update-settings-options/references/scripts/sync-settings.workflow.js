@@ -26,8 +26,8 @@ const DETECT_SCHEMA = {
   properties: {
     settingsGaps: {
       type: 'array',
-      items: { type: 'object', properties: { key: { type: 'string' }, description: { type: 'string' } } },
-      description: 'doc keys missing from repo schema (already filtered by KNOWN_EXCLUDED), each with its docs description text',
+      items: { type: 'object', properties: { key: { type: 'string' }, description: { type: 'string' }, scope: { type: 'string' } } },
+      description: 'doc keys missing from repo schema (already filtered by KNOWN_EXCLUDED), each with its docs description and reference-index scope',
     },
     removedKeys: { type: 'array', items: { type: 'string' }, description: 'repo schema keys no longer documented (flat-field grain, already filtered by KNOWN_REPO_ONLY) — candidates for the delete-key flow, never auto-applied' },
     envGaps: {
@@ -132,6 +132,7 @@ const categorized = await parallel(detected.settingsGaps.map(gap => () =>
       'REASON ONLY: the key and its docs description are inline below. Do NOT use Bash, Write, Read, WebSearch, or an advisor. Emit the StructuredOutput classification directly.',
       'Key: ' + JSON.stringify(gap.key),
       'Docs description: ' + JSON.stringify(gap.description),
+      'Docs scope: ' + JSON.stringify(gap.scope ?? ''),
       'If the key is dotted (e.g. "sandbox.foo", "permissions.bar", "attribution.baz"), it is a nested child — classify by the parent object\'s role and note that in the rationale.',
       'Set isObjectEditor=true if the key likely maps to a complex object value needing a bespoke editor (e.g. array-of-objects). Boolean/string/enum/number keys → isObjectEditor=false.',
       'If category is managed-only/plugin-internal/deprecated/meta, set suggestedSection="" — it will be added to KNOWN_EXCLUDED instead of synced to UI.',

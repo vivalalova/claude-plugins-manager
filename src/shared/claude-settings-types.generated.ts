@@ -49,6 +49,19 @@ export type HookCommand = {
 export interface ClaudeSettings {
   model?: string;
   availableModels?: string[];
+  modelPicker?: {
+    options: {
+      model: string;
+      label?: string;
+      description?: string;
+    }[];
+    replaceBuiltInOptions?: boolean;
+  };
+  modelSettings?: Record<string, {
+    effortLevel: "low" | "medium" | "high" | "xhigh";
+  }>;
+  promptCacheTtl?: "5m" | "1h";
+  subagentPromptCacheTtl?: "5m" | "1h";
   advisorModel?: string;
   fallbackModel?: string[];
   switchModelsOnFlag?: boolean;
@@ -69,6 +82,8 @@ export interface ClaudeSettings {
   autoUpdatesChannel?: "stable" | "latest";
   minimumVersion?: string;
   cleanupPeriodDays?: number;
+  desktopSessionCleanupPeriodDays?: number;
+  autoContinueAtUsageLimit?: boolean;
   autoCompactEnabled?: boolean;
   autoCompactWindow?: number;
   dialogExpiry?: "60s" | "5m" | "10m" | "never";
@@ -76,6 +91,8 @@ export interface ClaudeSettings {
   viewMode?: "default" | "verbose" | "focus";
   tui?: "fullscreen" | "default";
   theme?: "auto" | "dark" | "light" | "dark-daltonized" | "light-daltonized" | "dark-ansi" | "light-ansi";
+  timeFormat?: string;
+  timeZone?: string;
   autoScrollEnabled?: boolean;
   syntaxHighlightingDisabled?: boolean;
   prefersReducedMotion?: boolean;
@@ -223,6 +240,7 @@ export interface ClaudeSettings {
     type: "command";
     command: string;
   };
+  terminalTitleFromRename?: boolean;
   attribution?: {
     commit?: string;
     pr?: string;
@@ -233,6 +251,7 @@ export interface ClaudeSettings {
   skillListingMaxDescChars?: number;
   skillListingBudgetFraction?: number;
   disableSkillShellExecution?: boolean;
+  syncClaudeAiSkills?: boolean;
   worktree?: {
     sparsePaths?: string[];
     symlinkDirectories?: string[];
@@ -348,6 +367,8 @@ export interface ClaudeSettings {
   disableBundledSkills?: boolean;
   disableClaudeAiConnectors?: boolean;
   disableWorkflows?: boolean;
+  enableWorkflows?: boolean;
+  feedbackDrafts?: "notify" | "quiet" | "off";
   workflowKeywordTriggerEnabled?: boolean;
   companyAnnouncements?: string[];
   claudeMdExcludes?: string[];

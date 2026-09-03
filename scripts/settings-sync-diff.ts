@@ -1,15 +1,15 @@
 #!/usr/bin/env npx tsx
 /**
- * CLI: fetch live settings.md + env-vars.md from docs, compare against repo schema,
- * and output a JSON report of gaps.
+ * CLI: fetch the live settings-reference.md inventory + env-vars.md from docs,
+ * compare against repo schema, and output a JSON report of gaps.
  *
  * Usage:
  *   npx tsx scripts/settings-sync-diff.ts
- *   npx tsx scripts/settings-sync-diff.ts --settings-md ./path/to/settings.md --env-vars-md ./path/to/env-vars.md
+ *   npx tsx scripts/settings-sync-diff.ts --settings-md ./path/to/settings-reference.md --env-vars-md ./path/to/env-vars.md
  *
  * Exit code:
  *   0 = OK
- *   1 = env-vars health check failed, or fetch error
+ *   1 = settings/env-vars health check failed, or fetch error
  */
 
 import { execFile } from 'child_process';
@@ -37,7 +37,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 
-const SETTINGS_MD_URL = 'https://code.claude.com/docs/en/settings.md';
+const SETTINGS_REFERENCE_MD_URL = 'https://code.claude.com/docs/en/settings-reference.md';
 const ENV_VARS_MD_URL = 'https://code.claude.com/docs/en/env-vars.md';
 
 // ─── CLI argument parsing ──────────────────────────────────────────────────────
@@ -80,13 +80,17 @@ async function main(): Promise<void> {
   const { settingsMdPath, envVarsMdPath } = parseArgs();
 
   // Load docs content
-  const [settingsMd, envVarsMd] = await Promise.all([
-    loadContent(settingsMdPath, SETTINGS_MD_URL),
+  const [settingsReferenceMd, envVarsMd] = await Promise.all([
+    loadContent(settingsMdPath, SETTINGS_REFERENCE_MD_URL),
     loadContent(envVarsMdPath, ENV_VARS_MD_URL),
   ]);
 
   // Parse docs
-  const { keys: docsKeys, descriptions: settingsDescriptions } = parseSettingsDocs(settingsMd);
+  const {
+    keys: docsKeys,
+    descriptions: settingsDescriptions,
+    scopes: settingsScopes,
+  } = parseSettingsDocs(settingsReferenceMd, 'reference');
   const { keys: envKeys, descriptions: envDescriptions } = parseEnvDocs(envVarsMd);
 
   // Health check — fail-fast on suspicious settings docs
@@ -116,7 +120,11 @@ async function main(): Promise<void> {
     repoFlatFieldKeys,
     KNOWN_REPO_ONLY,
   );
-  const settingsGaps = settingsGapKeys.map((key) => ({ key, description: settingsDescriptions.get(key) ?? '' }));
+  const settingsGaps = settingsGapKeys.map((key) => ({
+    key,
+    description: settingsDescriptions.get(key) ?? '',
+    scope: settingsScopes.get(key) ?? '',
+  }));
 
   // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
   const registryEnvNames = new Set(getKnownEnvVarNames());

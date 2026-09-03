@@ -1246,3 +1246,82 @@ describe('GeneralSection — globalConfig 欄位 scope 隔離（先紅）', () =
     expect(screen.queryByText('(workflowSizeGuideline: medium)')).toBeNull();
   });
 });
+
+describe('GeneralSection — settings sync controls', () => {
+  const MODEL_PICKER_PLACEHOLDER = 'e.g. {"options":[{"model":"sonnet"}]}';
+  const MODEL_SETTINGS_PLACEHOLDER = 'e.g. {"sonnet":{"effortLevel":"high"}}';
+
+  it('renders new scalar controls and both object editors', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect(screen.getByText('Auto-Continue At Usage Limit')).toBeTruthy();
+      expect(screen.getByText('Desktop Session Cleanup Period')).toBeTruthy();
+      expect(screen.getByText('Model Picker')).toBeTruthy();
+      expect(screen.getByText('Model Settings')).toBeTruthy();
+      expect(screen.getByText('Prompt Cache TTL')).toBeTruthy();
+      expect(screen.getByText('Subagent Prompt Cache TTL')).toBeTruthy();
+      expect(screen.getByPlaceholderText(MODEL_PICKER_PLACEHOLDER)).toBeTruthy();
+      expect(screen.getByPlaceholderText(MODEL_SETTINGS_PLACEHOLDER)).toBeTruthy();
+    });
+  });
+
+  it('new fixed defaults are applied, while object editors remain unset', async () => {
+    renderSection();
+
+    await waitFor(() => {
+      expect((screen.getByRole('checkbox', { name: 'Auto-Continue At Usage Limit' }) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByRole('spinbutton', { name: 'Desktop Session Cleanup Period' }) as HTMLInputElement).placeholder).toBe('0');
+    });
+  });
+
+  it('modelPicker JSON save parses and saves the object', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = await screen.findByPlaceholderText(MODEL_PICKER_PLACEHOLDER);
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: '{"options":[{"model":"sonnet","label":"Sonnet"}]}' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('modelPicker', { options: [{ model: 'sonnet', label: 'Sonnet' }] });
+    });
+  });
+
+  it('modelPicker with a value can be reset through onDelete', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ modelPicker: { options: [{ model: 'sonnet' }] } }, vi.fn(), onDelete);
+
+    const input = await screen.findByPlaceholderText(MODEL_PICKER_PLACEHOLDER);
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('modelPicker'));
+  });
+
+  it('modelSettings JSON save parses and saves the record', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = await screen.findByPlaceholderText(MODEL_SETTINGS_PLACEHOLDER);
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: '{"sonnet":{"effortLevel":"xhigh"}}' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('modelSettings', { sonnet: { effortLevel: 'xhigh' } });
+    });
+  });
+
+  it('modelSettings with a value can be reset through onDelete', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ modelSettings: { sonnet: { effortLevel: 'high' } } }, vi.fn(), onDelete);
+
+    const input = await screen.findByPlaceholderText(MODEL_SETTINGS_PLACEHOLDER);
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('modelSettings'));
+  });
+});

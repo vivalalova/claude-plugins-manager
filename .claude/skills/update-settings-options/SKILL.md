@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Workflow, AskUserQuestion
 
 # update-settings-options
 
-讓 extension 的 settings surface（schema + 衍生 types + UI + i18n + tests + docs + env registry）跟上 **Claude Code 目前有哪些設定選項**——以官方 docs `code.claude.com/docs/en/settings.md` 為準，由確定性 CLI 偵測 gap。
+讓 extension 的 settings surface（schema + 衍生 types + UI + i18n + tests + docs + env registry）跟上 **Claude Code 目前有哪些設定選項**——以官方 `settings-reference.md` 的 All settings index 作為 key/description inventory，由確定性 CLI 偵測 gap。
 
 ## Trigger
 
@@ -26,7 +26,8 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Workflow, AskUserQuestion
 
 ## Source of truth
 
-- **primary**：官方 docs `code.claude.com/docs/en/settings.md`（直接 curl 取 Markdown，確定性 parse）
+- **settings inventory**：官方 docs `https://code.claude.com/docs/en/settings-reference.md` 的 `## All settings` index（直接 curl 取 Markdown，只解析 linked key 與 description）
+- **background**：官方 docs `https://code.claude.com/docs/en/settings.md` 僅作 overview/precedence 背景，不作 settings inventory
 - **env vars**：官方 docs `code.claude.com/docs/en/env-vars.md`（同上）
 - **偵測 CLI**：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）。exit 1 = health failure 或 fetch error，workflow 即報錯。
 - **fail-fast**：CLI exit 1 → workflow throw，不 fallback
@@ -54,8 +55,8 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 腳本（`references/scripts/sync-settings.workflow.js`）兩個 phase，全唯讀：
 
-- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`。四個 diff 方向皆該 CLI 的確定性結果：`settingsGaps`/`removedKeys` 已扣掉 `KNOWN_EXCLUDED`/`KNOWN_REPO_ONLY`，`envRemoved` 已扣掉 `KNOWN_ENV_REPO_ONLY`（docs 記在別頁或僅 prose 提及的 var）；`settingsGaps`、`envGaps` 每筆帶 docs 原文 description。CLI exit 1 → 報錯。
-- **Categorize（平行）**：對每個 `settingsGap`（`{key, description}`）把 description inline 餵給分類 agent，指派 section（用 surfaceMapHint）、判斷是否 `isObjectEditor`（需手寫 object editor）、標記 non-user-facing key 需加入 `KNOWN_EXCLUDED`。`removedKeys`、`envGaps`、`envRemoved` 原樣傳回，不走 LLM 分類——刪除/registry 變更判斷交回主迴圈確認。
+- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`。四個 diff 方向皆該 CLI 的確定性結果：`settingsGaps`/`removedKeys` 已扣掉 `KNOWN_EXCLUDED`/`KNOWN_REPO_ONLY`，`envRemoved` 已扣掉 `KNOWN_ENV_REPO_ONLY`（docs 記在別頁或僅 prose 提及的 var）；`settingsGaps` 每筆帶 All settings index 的 key、description、scope，`envGaps` 每筆帶 docs 原文 description。CLI exit 1 → 報錯。
+- **Categorize（平行）**：對每個 `settingsGap`（`{key, description, scope}`）把 description 與 scope inline 餵給分類 agent，指派 section（用 surfaceMapHint）、判斷是否 `isObjectEditor`（需手寫 object editor）、標記 non-user-facing key 需加入 `KNOWN_EXCLUDED`。`removedKeys`、`envGaps`、`envRemoved` 原樣傳回，不走 LLM 分類——刪除/registry 變更判斷交回主迴圈確認。
 
 回傳：`categorized`（含 category + suggestedSection + isObjectEditor）、`userFacing`、`nonUserFacing`（需加 `KNOWN_EXCLUDED`）、`removedKeys`、`envGaps`、`envRemoved`、`counts`。
 
@@ -112,7 +113,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 ## Hard checklist
 
-- 新 key：先確認在 docs 哪張表——「Global config settings」表的 key 存 `~/.claude.json`，schema field 必標 `storageFile: 'globalConfig'`（判定細節見 `references/surface-map.md`）
+- 新 key：先確認 `settings-reference.md` All settings index 的 Topic/Scope；Global config key 存 `~/.claude.json`，schema field 必標 `storageFile: 'globalConfig'`（判定細節見 `references/surface-map.md`）
 - 新 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
 - docs 有 default：補 key hint / default hint
 - 刪 key：移除 first-party support，**不清使用者既有 settings 檔**（unknown key 容忍保留）

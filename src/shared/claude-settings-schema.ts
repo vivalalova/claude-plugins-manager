@@ -299,6 +299,9 @@ const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
 const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
 const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
 const THEME_OPTIONS = ['auto', 'dark', 'light', 'dark-daltonized', 'light-daltonized', 'dark-ansi', 'light-ansi'] as const;
+const FEEDBACK_DRAFTS_OPTIONS = ['notify', 'quiet', 'off'] as const;
+const MODEL_SETTINGS_EFFORT_LEVEL_OPTIONS = ['low', 'medium', 'high', 'xhigh'] as const;
+const PROMPT_CACHE_TTL_OPTIONS = ['5m', '1h'] as const;
 /**
  * 使用者對話框逾時檔位。由 `askUserQuestionTimeout`（display）與 `dialogExpiry`（general）
  * 共用——兩者是同一組逾時選項，只有預設值不同（各自 field meta 上的 default），
@@ -314,6 +317,19 @@ const WORKFLOW_SIZE_GUIDELINE_OPTIONS = ['unrestricted', 'small', 'medium', 'lar
 const STRING_SCHEMA = stringValue();
 const STRING_ARRAY_SCHEMA = arrayValue(STRING_SCHEMA);
 const STRING_RECORD_SCHEMA = recordValue(STRING_SCHEMA);
+
+const MODEL_PICKER_VALUE_SCHEMA = objectValue({
+  options: required(arrayValue(objectValue({
+    model: required(STRING_SCHEMA),
+    label: optional(STRING_SCHEMA),
+    description: optional(STRING_SCHEMA),
+  }))),
+  replaceBuiltInOptions: optional(booleanValue()),
+});
+
+const MODEL_SETTINGS_VALUE_SCHEMA = recordValue(objectValue({
+  effortLevel: required(stringValue(MODEL_SETTINGS_EFFORT_LEVEL_OPTIONS)),
+}));
 
 const MCP_SERVER_MATCH_SCHEMA = unionValue(
   objectValue({ serverName: required(STRING_SCHEMA) }),
@@ -600,6 +616,10 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Model & reasoning
     stringField('model'),
     arrayField('availableModels', STRING_SCHEMA),
+    createField('modelPicker', MODEL_PICKER_VALUE_SCHEMA),
+    createField('modelSettings', MODEL_SETTINGS_VALUE_SCHEMA),
+    createField('promptCacheTtl', stringValue(PROMPT_CACHE_TTL_OPTIONS)),
+    createField('subagentPromptCacheTtl', stringValue(PROMPT_CACHE_TTL_OPTIONS)),
     stringField('advisorModel'),
     arrayField('fallbackModel', STRING_SCHEMA),
     booleanField('switchModelsOnFlag', { default: true }),
@@ -630,7 +650,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('autoUpdatesChannel', UPDATE_CHANNEL_VALUE_SCHEMA, { default: 'latest' }),
     stringField('minimumVersion'),
     createField('cleanupPeriodDays', CLEANUP_PERIOD_DAYS_VALUE_SCHEMA, { default: 30 }),
+    createField('desktopSessionCleanupPeriodDays', numberValue({ min: 0, step: 1 }), { default: 0 }),
     // Behavior
+    booleanField('autoContinueAtUsageLimit', { default: true }),
     booleanField('autoCompactEnabled', { default: true }),
     createField('autoCompactWindow', AUTO_COMPACT_WINDOW_VALUE_SCHEMA),
     createField('dialogExpiry', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: '5m' }),
@@ -642,6 +664,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
     createField('tui', TUI_VALUE_SCHEMA),
     createField('theme', THEME_VALUE_SCHEMA, { default: 'dark' }),
+    stringField('timeFormat', { default: 'auto' }),
+    stringField('timeZone'),
     booleanField('autoScrollEnabled', { default: true }),
     booleanField('syntaxHighlightingDisabled', { default: false }),
     booleanField('prefersReducedMotion', { default: false }),
@@ -725,6 +749,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('statusLine', STATUS_LINE_VALUE_SCHEMA),
     createField('subagentStatusLine', SUBAGENT_STATUS_LINE_VALUE_SCHEMA),
     createField('fileSuggestion', FILE_SUGGESTION_VALUE_SCHEMA),
+    booleanField('terminalTitleFromRename', { default: true }),
     // Git & attribution
     createField('attribution', ATTRIBUTION_VALUE_SCHEMA),
     stringField('prUrlTemplate'),
@@ -733,6 +758,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('skillListingMaxDescChars', SKILL_LISTING_MAX_DESC_CHARS_VALUE_SCHEMA, { default: 1536 }),
     createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
     booleanField('disableSkillShellExecution', { default: false }),
+    booleanField('syncClaudeAiSkills'),
     // Sessions & execution
     createField('worktree', WORKTREE_VALUE_SCHEMA),
     createField('autoMode', AUTO_MODE_VALUE_SCHEMA),
@@ -759,6 +785,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('disableBundledSkills', { default: false }),
     booleanField('disableClaudeAiConnectors', { default: false }),
     booleanField('disableWorkflows', { default: false }),
+    booleanField('enableWorkflows'),
+    createField('feedbackDrafts', stringValue(FEEDBACK_DRAFTS_OPTIONS), { default: 'notify' }),
     booleanField('workflowKeywordTriggerEnabled', { default: true }),
     // Enterprise & misc
     createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),

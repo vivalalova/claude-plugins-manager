@@ -87,6 +87,28 @@ describe('getKnownEnvVar()', () => {
   it('returns undefined for unknown var', () => {
     expect(getKnownEnvVar('NOT_A_REAL_VAR')).toBeUndefined();
   });
+
+  it.each([
+    ['BETA_TRACING_ENDPOINT', String, 'telemetry'],
+    ['CLAUDE_CODE_AUTO_BACKGROUND_WORKER_CHECKIN_SECONDS', Number, 'timeout'],
+    ['CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_DEFAULT', Boolean, 'provider'],
+    ['CLAUDE_CODE_DISABLE_CFC_PROMPT', Boolean, 'feature'],
+    ['CLAUDE_CODE_PROMPT_CACHE_TTL', String, 'feature'],
+    ['CLAUDE_CODE_RESTRICTED', Boolean, 'feature'],
+    ['CLAUDE_CODE_SEND_FEEDBACK', Boolean, 'feature'],
+    ['CLAUDE_CODE_SUBAGENT_MODEL_FORCE', String, 'model'],
+    ['CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL', String, 'feature'],
+    ['CLAUDE_CODE_TOOL_MEMORY_CGROUP_EXCLUDE', String, 'limits'],
+    ['CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS', Number, 'timeout'],
+    ['ENABLE_BETA_TRACING_DETAILED', Boolean, 'telemetry'],
+    ['VERTEX_REGION_CLAUDE_FABLE_5_1', String, 'provider'],
+  ] as const)('%s has the documented type and category', (name, valueType, category) => {
+    expect(getKnownEnvVar(name)).toMatchObject({ name, valueType, category });
+  });
+
+  it('marks the removed streaming first-byte timeout variable as deprecated', () => {
+    expect(getKnownEnvVar('CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS')?.deprecated).toBe(true);
+  });
 });
 
 describe('getKnownEnvVarsByCategory()', () => {

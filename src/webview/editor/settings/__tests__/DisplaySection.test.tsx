@@ -142,6 +142,30 @@ describe('DisplaySection — 渲染', () => {
 // ---------------------------------------------------------------------------
 
 describe('DisplaySection — 驗收條件', () => {
+  it('renders and saves the freeform timeFormat setting', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const input = await screen.findByRole('textbox', { name: 'Time Format' });
+    const field = input.closest('.settings-field') as HTMLElement;
+    expect((input as HTMLInputElement).value).toBe('');
+    fireEvent.change(input, { target: { value: '%Y-%m-%d %H:%M' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('timeFormat', '%Y-%m-%d %H:%M'));
+  });
+
+  it('timeZone with a value can be cleared through onDelete', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ timeZone: 'UTC' }, vi.fn(), onDelete);
+
+    const input = await screen.findByRole('textbox', { name: 'Time Zone' });
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('timeZone'));
+  });
+
   it('showThinkingSummaries 未設定, 點擊 → onSave("showThinkingSummaries", true)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);

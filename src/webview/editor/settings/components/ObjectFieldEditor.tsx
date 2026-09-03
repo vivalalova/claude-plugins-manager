@@ -77,8 +77,9 @@ function FooterLinksRegexesEditor({ value, onSave, onDelete }: FooterLinksRegexe
 
 // ---------------------------------------------------------------------------
 // ObjectFieldEditor — single source of truth for object-typed field editors.
-// Shared by AdvancedSection / DisplaySection / PermissionsSection (inline within
-// their sections) and the Customized tab (inline per customized object field).
+// Shared by GeneralSection / AdvancedSection / DisplaySection / PermissionsSection
+// (inline within their sections) and the Customized tab (inline per customized
+// object field).
 // ---------------------------------------------------------------------------
 
 /**
@@ -115,6 +116,38 @@ export function ObjectFieldEditor({
   const { t } = useI18n();
 
   switch (settingKey) {
+    case 'modelPicker':
+      return (
+        <TextSetting
+          label={t('settings.general.modelPicker.label')}
+          description={t('settings.general.modelPicker.description')}
+          value={settings.modelPicker ? JSON.stringify(settings.modelPicker) : undefined}
+          placeholder={t('settings.general.modelPicker.placeholder')}
+          saveLabel={t('settings.common.save')}
+          clearLabel={t('settings.common.clear')}
+          settingKey="modelPicker"
+          scope={scope}
+          overriddenScope={overriddenScope}
+          onSave={async (_key, value) => onSave('modelPicker', parseJsonSettingValue('modelPicker', value as string))}
+          onDelete={async () => onDelete('modelPicker')}
+        />
+      );
+    case 'modelSettings':
+      return (
+        <TextSetting
+          label={t('settings.general.modelSettings.label')}
+          description={t('settings.general.modelSettings.description')}
+          value={settings.modelSettings ? JSON.stringify(settings.modelSettings) : undefined}
+          placeholder={t('settings.general.modelSettings.placeholder')}
+          saveLabel={t('settings.common.save')}
+          clearLabel={t('settings.common.clear')}
+          settingKey="modelSettings"
+          scope={scope}
+          overriddenScope={overriddenScope}
+          onSave={async (_key, value) => onSave('modelSettings', parseJsonSettingValue('modelSettings', value as string))}
+          onDelete={async () => onDelete('modelSettings')}
+        />
+      );
     case 'attribution':
       return <AttributionEditor attribution={settings.attribution} onSave={onSave} onDelete={onDelete} />;
     case 'statusLine':
