@@ -6,7 +6,7 @@
 // 值」（known → 選到 default 也寫）。與 PermissionsSection.test.tsx 的 R4a/R4b 正例配對。
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { PermissionsSection } from '../PermissionsSection';
 import { ToastProvider } from '../../../components/Toast';
@@ -82,5 +82,64 @@ describe('PermissionsSection — enableAllProjectMcpServers 繼承感知判別�
       expect(onDelete).toHaveBeenCalledWith('enableAllProjectMcpServers');
       expect(onSave).not.toHaveBeenCalled();
     });
+  });
+});
+
+// #32 — disableAutoMode／disableBypassPermissionsMode 兩個手刻下拉接上繼承判斷：
+// 本層未設時 '' 選項顯示「Inherited from {scope}」，本層有設且上層有設時顯示覆寫徽章；寫入仍走 updatePermissions。
+describe.each(['disableAutoMode', 'disableBypassPermissionsMode'] as const)('PermissionsSection — %s 繼承顯示（#32）', (key) => {
+  const getSelect = (): HTMLSelectElement => document.getElementById(key) as HTMLSelectElement;
+  const emptyOptionText = (): string => (getSelect().querySelector('option[value=""]') as HTMLOptionElement).textContent ?? '';
+
+  it(`B21 project、本層未設、user permissions.${key}=disable → '' 選項顯示 Inherited from User`, async () => {
+    renderSection({}, vi.fn(), vi.fn(), 'project', { user: { permissions: { [key]: 'disable' } } });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    expect(emptyOptionText()).toMatch(/Inherited from User/);
+  });
+
+  it(`B21 local、project 設 ${key}、user 未設 → Inherited from Project`, async () => {
+    renderSection({}, vi.fn(), vi.fn(), 'local', { project: { permissions: { [key]: 'disable' } }, user: {} });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    expect(emptyOptionText()).toMatch(/Inherited from Project/);
+  });
+
+  it(`B21（守衛）上層都沒設 ${key} → '' 選項不含 Inherited from`, async () => {
+    renderSection({}, vi.fn(), vi.fn(), 'project', { user: { permissions: { allow: ['Bash(ls:*)'] } } });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    expect(emptyOptionText()).not.toMatch(/Inherited from/);
+  });
+
+  it(`B22 本層 ${key}=disable 且 user 有設 → 欄位顯示 Overrides User`, async () => {
+    renderSection({ permissions: { [key]: 'disable' } }, vi.fn(), vi.fn(), 'project', { user: { permissions: { [key]: 'disable' } } });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    const field = getSelect().closest('.settings-field') as HTMLElement;
+    expect(within(field).getByText('Overrides User')).toBeTruthy();
+  });
+
+  it(`B23（守衛）上層有設時選 disable → onSave(permissions, {...perms, ${key}:'disable'})`, async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { allow: ['Bash(ls:*)'] } }, onSave, vi.fn(), 'project', { user: { permissions: { [key]: 'disable' } } });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    fireEvent.change(getSelect(), { target: { value: 'disable' } });
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash(ls:*)'], [key]: 'disable' }));
+  });
+
+  it(`B23（守衛）上層有設時選 '' → onSave(permissions, 剩餘物件)，不寫頂層 ${key}`, async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { allow: ['Bash(ls:*)'], [key]: 'disable' } }, onSave, vi.fn(), 'project', { user: { permissions: { [key]: 'disable' } } });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    fireEvent.change(getSelect(), { target: { value: '' } });
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash(ls:*)'] }));
+    expect(onSave).not.toHaveBeenCalledWith(key, expect.anything());
+  });
+
+  it(`B23（守衛）${key} 是 permissions 唯一 key、上層有設時選 '' → onDelete(permissions)`, async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { [key]: 'disable' } }, onSave, onDelete, 'project', { user: { permissions: { [key]: 'disable' } } });
+    await waitFor(() => expect(getSelect()).toBeTruthy());
+    fireEvent.change(getSelect(), { target: { value: '' } });
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('permissions'));
+    expect(onDelete).not.toHaveBeenCalledWith(key);
   });
 });

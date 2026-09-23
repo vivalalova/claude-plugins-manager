@@ -3,7 +3,8 @@ import { useI18n } from '../../../i18n/I18nContext';
 import { toErrorMessage } from '../../../../shared/errorUtils';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { childEffectiveScopes, getFlatFieldSchema, isScopeEffective, resolveEffectiveScopes, type EffectiveScopes, type ValueSchema } from '../../../../shared/claude-settings-schema';
-import { SettingLabelText } from './SettingControls';
+import { PARENT_SCOPES, SettingLabelText } from './SettingControls';
+import type { ParentSettings } from './SchemaSection';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { validateJsonSettingValue } from '../jsonSettingValidation';
 
@@ -38,6 +39,7 @@ interface AwsPairDraft {
 interface SandboxEditorProps {
   sandbox: ClaudeSettings['sandbox'];
   scope: PluginScope;
+  parentSettings: ParentSettings | undefined;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -93,6 +95,30 @@ function isSandboxChildEffective(path: string, scope: PluginScope): boolean {
   return isScopeEffective({ effectiveScopes: resolveEffectiveScopes(`sandbox.${path}`) }, scope);
 }
 
+/**
+ * sandbox 布林子設定（dotted path，如 `network.allowLocalBinding`）從父層繼承到的值。
+ * 沿 PARENT_SCOPES 由近到遠找第一個「該子設定在那層生效、且設了布林值」的父層；
+ * 父層快照未知（undefined）或都沒設時回 undefined（顯示維持 false）。
+ */
+function resolveSandboxInheritedBool(
+  scope: PluginScope,
+  parentSettings: ParentSettings | undefined,
+  path: string,
+): { scope: PluginScope; value: boolean } | undefined {
+  if (parentSettings === undefined) return undefined;
+  for (const parent of PARENT_SCOPES[scope]) {
+    if (!isSandboxChildEffective(path, parent)) continue;
+    let node: unknown = parentSettings[parent]?.sandbox;
+    for (const part of path.split('.')) {
+      node = node !== null && typeof node === 'object' && !Array.isArray(node)
+        ? (node as Record<string, unknown>)[part]
+        : undefined;
+    }
+    if (typeof node === 'boolean') return { scope: parent, value: node };
+  }
+  return undefined;
+}
+
 function hasVisibleContent(value: unknown, schema: ValueSchema | undefined, inherited: EffectiveScopes | undefined, scope: PluginScope): boolean {
   if (!isScopeEffective({ effectiveScopes: inherited }, scope)) return false;
   if (value === undefined) return false;
@@ -119,14 +145,27 @@ export function hasVisibleSandboxContent(sandbox: ClaudeSettings['sandbox'], sco
 // Inline sub-components
 // ---------------------------------------------------------------------------
 
-function SandboxCheckbox({ label, checked, saving, onChange }: {
-  label: string; checked: boolean; saving: boolean;
+function SandboxCheckbox({ label, value, inherited, saving, onChange }: {
+  label: string; value: boolean | undefined;
+  inherited: { scope: PluginScope; value: boolean } | undefined;
+  saving: boolean;
   onChange: (v: boolean) => void;
 }): React.ReactElement {
+  const { t } = useI18n();
+  // 本層有設以本層為準；未設才吃父層繼承值並標出來源。點擊寫入＝顯示值取反。
+  const inheritedShown = value === undefined ? inherited : undefined;
+  const checked = value ?? inheritedShown?.value ?? false;
   return (
     <label className="hooks-toggle-label" style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, marginBottom: 4 }}>
       <input type="checkbox" checked={checked} onChange={() => onChange(!checked)} disabled={saving} />
       {label}
+      {inheritedShown && (
+        <span className="settings-field-description" style={{ margin: 0 }}>
+          {t('settings.advanced.sandbox.inheritedFrom', {
+            scope: t(`settings.scope.${inheritedShown.scope}` as Parameters<typeof t>[0]),
+          })}
+        </span>
+      )}
     </label>
   );
 }
@@ -473,7 +512,7 @@ export function mergeCredentialEntries<T extends { mode: 'deny' | 'mask' }>(
 // SandboxEditor
 // ---------------------------------------------------------------------------
 
-export function SandboxEditor({ sandbox, scope, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
+export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
   const [mode, setMode] = useState<SandboxMode>('structured');
@@ -661,7 +700,8 @@ export function SandboxEditor({ sandbox, scope, onSave, onDelete }: SandboxEdito
             <SandboxCheckbox
               key={key}
               label={label}
-              checked={draft[key] ?? false}
+              value={draft[key]}
+              inherited={resolveSandboxInheritedBool(scope, parentSettings, key)}
               saving={saving}
               onChange={(value) => updateBool(key, value)}
             />
@@ -692,7 +732,8 @@ export function SandboxEditor({ sandbox, scope, onSave, onDelete }: SandboxEdito
             <SandboxCheckbox
               key={key}
               label={label}
-              checked={draft.filesystem?.[key] ?? false}
+              value={draft.filesystem?.[key]}
+              inherited={resolveSandboxInheritedBool(scope, parentSettings, `filesystem.${key}`)}
               saving={saving}
               onChange={(value) => updateFsBool(key, value)}
             />
@@ -717,7 +758,8 @@ export function SandboxEditor({ sandbox, scope, onSave, onDelete }: SandboxEdito
             <SandboxCheckbox
               key={key}
               label={label}
-              checked={draft.network?.[key] ?? false}
+              value={draft.network?.[key]}
+              inherited={resolveSandboxInheritedBool(scope, parentSettings, `network.${key}`)}
               saving={saving}
               onChange={(value) => updateNet(key, value)}
             />

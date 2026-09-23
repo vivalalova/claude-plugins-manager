@@ -322,6 +322,15 @@ export function PermissionsSection({
 
   const perms = settings.permissions ?? {};
   const mcpServersBinding = getSchemaFieldBindings('enableAllProjectMcpServers', { scope, settings, parentSettings, onSave, onDelete });
+  // 兩個 disable 下拉：繼承標示與覆寫徽章取自 getSchemaFieldBindings（nestedUnder 'permissions'）；
+  // 寫入仍走 updatePermissions（保留本元件的整包 permissions 寫法）。兩者在所有 scope 可見，拿不到即 schema 缺格。
+  const disableModeBinding = (key: 'disableAutoMode' | 'disableBypassPermissionsMode') => {
+    const binding = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete });
+    if (!binding) throw new Error(`Schema field "${key}" not visible for scope "${scope}"`);
+    return binding;
+  };
+  const disableAutoModeBinding = disableModeBinding('disableAutoMode');
+  const disableBypassBinding = disableModeBinding('disableBypassPermissionsMode');
   const additionalDirs: string[] = perms.additionalDirectories ?? [];
   const enabledMcpjsonServers: string[] = settings.enabledMcpjsonServers ?? [];
   const disabledMcpjsonServers: string[] = settings.disabledMcpjsonServers ?? [];
@@ -406,7 +415,8 @@ export function PermissionsSection({
       )}
 
       <EnumDropdown
-        inherited={{ kind: 'none' }}
+        inherited={disableAutoModeBinding.inherited}
+        overriddenScope={disableAutoModeBinding.overriddenScope}
         label={t('settings.permissions.disableAutoMode.label')}
         description={t('settings.permissions.disableAutoMode.description')}
         value={perms.disableAutoMode}
@@ -427,7 +437,8 @@ export function PermissionsSection({
       />
 
       <EnumDropdown
-        inherited={{ kind: 'none' }}
+        inherited={disableBypassBinding.inherited}
+        overriddenScope={disableBypassBinding.overriddenScope}
         label={t('settings.permissions.disableBypassPermissionsMode.label')}
         description={t('settings.permissions.disableBypassPermissionsMode.description')}
         value={perms.disableBypassPermissionsMode}

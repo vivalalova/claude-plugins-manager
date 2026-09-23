@@ -10,6 +10,7 @@ import { SandboxEditor } from './SandboxEditor';
 import { CompanyAnnouncementsEditor } from './CompanyAnnouncementsEditor';
 import { SpinnerVerbsEditor, SpinnerTipsOverrideEditor } from './SpinnerEditors';
 import { SpellcheckEditor } from './SpellcheckEditor';
+import { VoiceEditor } from './VoiceEditor';
 import { parseJsonSettingValue } from '../jsonSettingValidation';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { SettingLabelText } from './SettingControls';
@@ -202,7 +203,7 @@ export function ObjectFieldEditor({
       // key={scope}：SettingsPage 切 scope 不 remount，SandboxEditor 的 draft（awsPairs 半填列、
       // JSON 模式文字）會跟著跨 scope 殘留並寫進使用者沒打算寫的 scope。以 key 重置整個
       // sandbox editor（含模式切換與 JSON 草稿）——scope 換了草稿本來就不該延續。
-      return <SandboxEditor key={scope} sandbox={settings.sandbox} scope={scope} onSave={onSave} onDelete={onDelete} />;
+      return <SandboxEditor key={scope} sandbox={settings.sandbox} scope={scope} parentSettings={parentSettings} onSave={onSave} onDelete={onDelete} />;
     case 'companyAnnouncements':
       return <CompanyAnnouncementsEditor scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
     case 'modelOverrides':
@@ -327,22 +328,8 @@ export function ObjectFieldEditor({
         />
       );
     case 'voice':
-      return (
-        <TextSetting
-          inherited={{ kind: 'none' }}
-          label={t('settings.display.voice.label')}
-          description={t('settings.display.voice.description')}
-          value={settings.voice ? JSON.stringify(settings.voice) : undefined}
-          placeholder={t('settings.display.voice.placeholder')}
-          saveLabel={t('settings.common.save')}
-          clearLabel={t('settings.common.clear')}
-          settingKey="voice"
-          scope={scope}
-          overriddenScope={overriddenScope}
-          onSave={async (_key, value) => onSave('voice', JSON.parse(value as string))}
-          onDelete={async () => onDelete('voice')}
-        />
-      );
+      // key={scope}：元件層防禦，同一實例換 scope 時重置草稿，避免未存修改寫進別的 scope
+      return <VoiceEditor key={scope} voice={settings.voice} onSave={onSave} onDelete={onDelete} overriddenScope={overriddenScope} />;
     case 'spellcheck':
       return <SpellcheckEditor spellcheck={settings.spellcheck} onSave={onSave} onDelete={onDelete} />;
     case 'spinnerVerbs':
