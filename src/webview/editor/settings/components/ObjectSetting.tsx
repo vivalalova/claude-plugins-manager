@@ -1,4 +1,5 @@
 import React, { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import type { PluginScope } from '../../../../shared/types';
 import { SettingLabelText } from './SettingControls';
 
 interface ObjectSettingProps {
@@ -7,6 +8,7 @@ interface ObjectSettingProps {
   settingKey: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  overriddenScope?: PluginScope;
 }
 
 export function ObjectSetting({
@@ -15,11 +17,12 @@ export function ObjectSetting({
   settingKey,
   children,
   actions,
+  overriddenScope,
 }: ObjectSettingProps): React.ReactElement {
   return (
     <div className="settings-field">
       <label className="settings-label">
-        <SettingLabelText label={label} settingKey={settingKey} />
+        <SettingLabelText label={label} settingKey={settingKey} overriddenScope={overriddenScope} />
       </label>
       {description && <p className="settings-field-description">{description}</p>}
       {children}

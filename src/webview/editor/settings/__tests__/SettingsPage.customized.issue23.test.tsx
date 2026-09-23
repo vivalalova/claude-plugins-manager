@@ -283,7 +283,7 @@ describe('SettingsPage — issue #23 display/MCP object 欄位 inline', () => {
     });
   });
 
-  it('#23-d2 voice 有值 → inline 顯示 JSON 編輯控件，無跳轉按鈕', async () => {
+  it('#23-d2 voice 有值 → inline 顯示結構化編輯控件（#29），無跳轉按鈕', async () => {
     mockSettings({ voice: { enabled: true, mode: 'tap' } });
     renderPage();
 
@@ -291,8 +291,10 @@ describe('SettingsPage — issue #23 display/MCP object 欄位 inline', () => {
     clickCustomized();
 
     await waitFor(() => {
-      // voice TextSetting 的 placeholder 出現 → inline 已渲染
-      expect(screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }')).toBeTruthy();
+      // VoiceEditor 的控件出現且回填既有值 → inline 已渲染
+      expect((document.getElementById('voice-enabled') as HTMLInputElement | null)?.checked).toBe(true);
+      expect((document.getElementById('voice-mode') as HTMLSelectElement | null)?.value).toBe('tap');
+      expect(document.getElementById('voice-autoSubmit')).not.toBeNull();
       expectNoJumpButtons();
     });
   });
