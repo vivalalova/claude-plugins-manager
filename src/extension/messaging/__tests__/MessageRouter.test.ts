@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as vscode from 'vscode';
 import { MessageRouter } from '../MessageRouter';
 import type { MarketplaceService } from '../../services/MarketplaceService';
 import type { PluginService } from '../../services/PluginService';
@@ -692,6 +693,89 @@ describe('MessageRouter', () => {
 
       expect(getFallback).toHaveBeenCalledTimes(1);
       expect(posted).toEqual([{ type: 'response', requestId: 'r-fb', data: fallback }]);
+    });
+
+    // #33 C3：子欄位寫入 request 原樣分派到 service
+    it('settings.setNested → 呼叫 setNestedSetting(scope, parentKey, childKey, value)，回應 data 為 undefined', async () => {
+      const setNested = vi.fn().mockResolvedValue(undefined);
+      services.settings.setNestedSetting = setNested;
+
+      await router.handle(
+        {
+          type: 'settings.setNested', requestId: 'r-sn', scope: 'project',
+          parentKey: 'permissions', childKey: 'defaultMode', value: 'plan',
+        } as RequestMessage,
+        post,
+      );
+
+      expect(setNested).toHaveBeenCalledWith('project', 'permissions', 'defaultMode', 'plan');
+      expect(posted).toEqual([{ type: 'response', requestId: 'r-sn', data: undefined }]);
+    });
+
+    it('settings.deleteNested → 呼叫 deleteNestedSetting(scope, parentKey, childKey)，回應 data 為 undefined', async () => {
+      const deleteNested = vi.fn().mockResolvedValue(undefined);
+      services.settings.deleteNestedSetting = deleteNested;
+
+      await router.handle(
+        {
+          type: 'settings.deleteNested', requestId: 'r-dn', scope: 'local',
+          parentKey: 'env', childKey: 'FOO',
+        } as RequestMessage,
+        post,
+      );
+
+      expect(deleteNested).toHaveBeenCalledWith('local', 'env', 'FOO');
+      expect(posted).toEqual([{ type: 'response', requestId: 'r-dn', data: undefined }]);
+    });
+
+    it('settings.setNested：service 拋錯（F3a 父 key 形狀不符）→ 回 error message', async () => {
+      services.settings.setNestedSetting = vi.fn().mockRejectedValue(new Error('permissions is not an object'));
+
+      await router.handle(
+        {
+          type: 'settings.setNested', requestId: 'r-sn-err', scope: 'user',
+          parentKey: 'permissions', childKey: 'defaultMode', value: 'plan',
+        } as RequestMessage,
+        post,
+      );
+
+      expect(posted).toEqual([{ type: 'error', requestId: 'r-sn-err', error: 'permissions is not an object' }]);
+    });
+
+    // #33 C13（E4）：建初始檔收回 SettingsFileService 的同檔佇列，router 不再自行 stat／writeFile
+    describe('settings.openInEditor', () => {
+      const win = vscode.window as unknown as Record<string, unknown>;
+      afterEach(() => {
+        delete win.showTextDocument;
+      });
+
+      it('先 await ensureSettingsFile(scope) 再 showTextDocument，且不呼叫 workspace.fs.writeFile', async () => {
+        const order: string[] = [];
+        let releaseEnsure!: () => void;
+        const ensure = vi.fn().mockImplementation(() => new Promise<void>((r) => {
+          releaseEnsure = () => { order.push('ensure-done'); r(); };
+        }));
+        const show = vi.fn().mockImplementation(async () => { order.push('show'); });
+        services.settings.ensureSettingsFile = ensure;
+        services.settings.getSettingsPath = vi.fn().mockReturnValue('/ws/.claude/settings.json');
+        win.showTextDocument = show;
+
+        const handled = router.handle(
+          { type: 'settings.openInEditor', requestId: 'r-oe', scope: 'project' } as RequestMessage,
+          post,
+        );
+        await new Promise((r) => setTimeout(r, 0));
+        expect(ensure).toHaveBeenCalledWith('project');
+        expect(show).not.toHaveBeenCalled();
+
+        releaseEnsure();
+        await handled;
+
+        expect(order).toEqual(['ensure-done', 'show']);
+        expect(show).toHaveBeenCalledTimes(1);
+        expect(vscode.workspace.fs.writeFile).not.toHaveBeenCalled();
+        expect(posted).toEqual([{ type: 'response', requestId: 'r-oe', data: undefined }]);
+      });
     });
   });
 

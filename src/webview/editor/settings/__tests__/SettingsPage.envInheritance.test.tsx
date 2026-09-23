@@ -34,13 +34,16 @@ const renderPage = () => renderWithI18n(<ToastProvider><SettingsPage /></ToastPr
 const getCalls = (type: string): any[][] =>
   mockSendRequest.mock.calls.filter((c: any[]) => c[0]?.type === type);
 
-/** 本層 env 寫入呼叫（settings.set key=env）的 value 清單，依呼叫順序。 */
+/** 本層 env 子欄位寫入（settings.setNested parentKey=env），依呼叫順序轉成 { 變數名: 值 }。 */
 const envSetValues = (): Record<string, string>[] =>
-  getCalls('settings.set').filter((c) => c[0]?.key === 'env').map((c) => c[0].value as Record<string, string>);
+  getCalls('settings.setNested')
+    .filter((c) => c[0]?.parentKey === 'env')
+    .map((c) => ({ [c[0].childKey as string]: c[0].value as string }));
 
-const envWriteCount = (): number =>
-  getCalls('settings.set').filter((c) => c[0]?.key === 'env').length
-  + getCalls('settings.delete').filter((c) => c[0]?.key === 'env').length;
+const envDeletedKeys = (): string[] =>
+  getCalls('settings.deleteNested').filter((c) => c[0]?.parentKey === 'env').map((c) => c[0].childKey as string);
+
+const envWriteCount = (): number => envSetValues().length + envDeletedKeys().length;
 
 const getEnvCheckbox = (name: string): HTMLInputElement => {
   const label = screen.getAllByText(name).map((el) => el.closest('label')).find((l) => l?.querySelector('input[type="checkbox"]'));
@@ -76,6 +79,17 @@ const installMock = (state: MockState): void => {
       }
       return Promise.resolve(undefined);
     }
+    if (msg.type === 'settings.setNested' || msg.type === 'settings.deleteNested') {
+      if (msg.scope === 'project') {
+        const { parentKey, childKey } = msg as unknown as { parentKey: string; childKey: string };
+        const parent = { ...((state.project[parentKey] as Record<string, unknown>) ?? {}) };
+        if (msg.type === 'settings.setNested') parent[childKey] = msg.value;
+        else delete parent[childKey];
+        const { [parentKey]: _, ...rest } = state.project;
+        state.project = Object.keys(parent).length > 0 ? { ...rest, [parentKey]: parent } : rest;
+      }
+      return Promise.resolve(undefined);
+    }
     return Promise.resolve(null);
   });
 };
@@ -106,7 +120,7 @@ describe('SettingsPage — env 已知變數繼承感知（#28 三入口）', () 
     mockOnPushMessage.mockImplementation(() => () => {});
   });
 
-  it('B5 搜尋入口：project、本層未設、user env.X=1 → 顯示勾選 → 取消（預設值）→ settings.set env 含 X=0', async () => {
+  it('B5 搜尋入口：project、本層未設、user env.X=1 → 顯示勾選 → 取消（預設值）→ settings.setNested env.X=0', async () => {
     installMock({ user: { env: { [X]: '1' } }, project: {} });
     renderPage();
     await switchToProject();
@@ -120,7 +134,7 @@ describe('SettingsPage — env 已知變數繼承感知（#28 三入口）', () 
     });
   });
 
-  it('B6 已自訂入口：project env.X=1、user env.X=1 → 取消（預設值）→ settings.set env 含 X=0', async () => {
+  it('B6 已自訂入口：project env.X=1、user env.X=1 → 取消（預設值）→ settings.setNested env.X=0', async () => {
     installMock({ user: { env: { [X]: '1' } }, project: { env: { [X]: '1' } } });
     const { container } = renderPage();
     await switchToProject();
@@ -170,6 +184,7 @@ describe('SettingsPage — env 已知變數繼承感知（#28 三入口）', () 
     await waitFor(() => expect(envWriteCount()).toBeGreaterThan(before));
     const after = envSetValues().slice(setBefore);
     expect(after.every((v) => v === undefined || !(X in v))).toBe(true);
+    expect(envDeletedKeys()).toContain(X);
   });
 
   it('B11 初次翻轉：上層 settings.get 延後 resolve → 先顯示預設（未勾），resolve 後顯示繼承值（勾）', async () => {
@@ -231,6 +246,7 @@ describe('SettingsPage — env 已知變數繼承感知（#28 三入口）', () 
       const after = envSetValues().slice(setBefore);
       expect(after.some((v) => v?.[X] === '0')).toBe(true);
     });
-    expect(getCalls('settings.delete').some((c) => c[0]?.key === 'env')).toBe(false);
+    expect(envDeletedKeys()).not.toContain(X);
+    expect(getCalls('settings.set').some((c) => c[0]?.key === 'env')).toBe(false);
   });
 });

@@ -36,6 +36,40 @@ function resolveEnvInherited(
   return inherited;
 }
 
+/** env 變數寫入只帶該變數名的一格（F1→A）；兩個函式都取自同一次 render，scope 綁在發出當下 */
+type EnvNestedWriters = Pick<SectionProps, 'onSaveNested' | 'onDeleteNested'>;
+
+/** 包住一次寫入並回報是否成功（控制項據此決定要不要清草稿） */
+type EnvWriteRunner = (write: () => Promise<void>) => Promise<boolean>;
+
+function createEnvWriters({ onSaveNested, onDeleteNested }: EnvNestedWriters, run: EnvWriteRunner) {
+  return {
+    save: (key: string, value: unknown): Promise<boolean> =>
+      run(() => onSaveNested('env', key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))),
+    // 先寫新名再刪舊名：中間態是新舊並存；新名失敗就不刪舊名
+    rename: (oldKey: string, newKey: string, value: string): Promise<boolean> =>
+      run(async () => {
+        await onSaveNested('env', newKey, value);
+        await onDeleteNested('env', oldKey);
+      }),
+    remove: (key: string): Promise<boolean> => run(() => onDeleteNested('env', key)),
+  };
+}
+
+/** withSave 版的 runner：成功才回 true（失敗已由 withSave 顯示 toast） */
+function useEnvWriteRunner(): { saving: boolean; run: EnvWriteRunner } {
+  const { saving, withSave } = useSettingSave();
+  const run: EnvWriteRunner = async (write) => {
+    let saved = false;
+    await withSave(async () => {
+      await write();
+      saved = true;
+    });
+    return saved;
+  };
+  return { saving, run };
+}
+
 const VALID_KEY_RE = /^[A-Z0-9_]+$/;
 
 function normalizeEnvEntryDraft(key: string, value: string): { key: string; value: string } {
@@ -432,16 +466,15 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 // EnvSection
 // ---------------------------------------------------------------------------
 
-interface EnvObjectEditorProps {
+interface EnvObjectEditorProps extends EnvNestedWriters {
   scope: PluginScope;
   parentSettings: ParentSettings | undefined;
   currentEnv: Record<string, string>;
-  onSaveEnv: (updatedEnv: Record<string, string>) => Promise<void>;
 }
 
-function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveEnv }: EnvObjectEditorProps): React.ReactElement {
+function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDeleteNested }: EnvObjectEditorProps): React.ReactElement {
   const { t } = useI18n();
-  const { saving, withSave } = useSettingSave();
+  const { saving, run } = useEnvWriteRunner();
   const knownVarsByType = useMemo(() => getKnownEnvVarsByValueType(), []);
   const knownNames = useMemo(() => new Set(getKnownEnvVarNames()), []);
 
@@ -450,30 +483,7 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveEnv }: EnvOb
     [currentEnv, knownNames],
   );
 
-  const updateEnv = async (updatedEnv: Record<string, string>): Promise<boolean> => {
-    let saved = false;
-    await withSave(async () => {
-      await onSaveEnv(updatedEnv);
-      saved = true;
-    });
-    return saved;
-  };
-
-  // Adapter: bridge per-key save/delete to whole-env-object update
-  const envOnSave = async (key: string, value: unknown): Promise<boolean> => {
-    const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
-    return updateEnv({ ...currentEnv, [key]: strVal });
-  };
-
-  const envOnRename = async (oldKey: string, newKey: string, value: string): Promise<boolean> => {
-    const { [oldKey]: _, ...rest } = currentEnv;
-    return updateEnv({ ...rest, [newKey]: value });
-  };
-
-  const envOnDelete = async (key: string): Promise<boolean> => {
-    const { [key]: _, ...rest } = currentEnv;
-    return updateEnv(rest);
-  };
+  const { save: envOnSave, rename: envOnRename, remove: envOnDelete } = createEnvWriters({ onSaveNested, onDeleteNested }, run);
 
   const envOnSaveVoid = async (key: string, value: unknown): Promise<void> => {
     await envOnSave(key, value);
@@ -483,9 +493,7 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveEnv }: EnvOb
     await envOnDelete(key);
   };
 
-  const handleAdd = async (key: string, value: string): Promise<boolean> => {
-    return updateEnv({ ...currentEnv, [key]: value });
-  };
+  const handleAdd = (key: string, value: string): Promise<boolean> => envOnSave(key, value);
 
   // --- Render helpers per valueType ---
 
@@ -629,7 +637,7 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveEnv }: EnvOb
   );
 }
 
-export function EnvSection({ scope, settings, parentSettings, onSave, onDelete }: SectionProps): React.ReactElement {
+export function EnvSection({ scope, settings, parentSettings, onSave, onDelete, onSaveNested, onDeleteNested }: SectionProps): React.ReactElement {
   const currentEnv = useMemo<Record<string, string>>(
     () => (settings.env as Record<string, string>) ?? {},
     [settings.env],
@@ -643,6 +651,8 @@ export function EnvSection({ scope, settings, parentSettings, onSave, onDelete }
       parentSettings={parentSettings}
       onSave={onSave}
       onDelete={onDelete}
+      onSaveNested={onSaveNested}
+      onDeleteNested={onDeleteNested}
       renderCustom={(key) => {
         if (key !== 'env') return null;
         return (
@@ -650,7 +660,8 @@ export function EnvSection({ scope, settings, parentSettings, onSave, onDelete }
             scope={scope}
             parentSettings={parentSettings}
             currentEnv={currentEnv}
-            onSaveEnv={(updatedEnv) => onSave('env', updatedEnv)}
+            onSaveNested={onSaveNested}
+            onDeleteNested={onDeleteNested}
           />
         );
       }}
@@ -662,37 +673,32 @@ export function EnvSection({ scope, settings, parentSettings, onSave, onDelete }
 // EnvFieldRenderer — for use in search results
 // ---------------------------------------------------------------------------
 
-export interface EnvFieldRendererProps {
+export interface EnvFieldRendererProps extends EnvNestedWriters {
   envKey: string;
   currentEnv: Record<string, string>;
   scope: PluginScope;
   parentSettings: ParentSettings | undefined;
-  onEnvChange: (updatedEnv: Record<string, string>) => Promise<void>;
   saving?: boolean;
 }
+
+/** 搜尋列與已自訂的已知變數列不上鎖：錯誤直接拋回控制項 */
+const runUnlocked: EnvWriteRunner = async (write) => {
+  await write();
+  return true;
+};
 
 export function EnvFieldRenderer({
   envKey,
   currentEnv,
   scope,
   parentSettings,
-  onEnvChange,
+  onSaveNested,
+  onDeleteNested,
   saving = false,
 }: EnvFieldRendererProps): React.ReactElement | null {
   const { t } = useI18n();
   const knownVar = getKnownEnvVar(envKey);
-
-  const envOnSave = async (key: string, value: unknown): Promise<boolean> => {
-    const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
-    await onEnvChange({ ...currentEnv, [key]: strVal });
-    return true;
-  };
-
-  const envOnDelete = async (key: string): Promise<boolean> => {
-    const { [key]: _, ...rest } = currentEnv;
-    await onEnvChange(rest);
-    return true;
-  };
+  const { save: envOnSave, remove: envOnDelete } = createEnvWriters({ onSaveNested, onDeleteNested }, runUnlocked);
 
   const getDescription = (key: string): string | null => {
     const known = getKnownEnvVar(key);
@@ -796,39 +802,15 @@ export function EnvFieldRenderer({
 // no listing of unset known vars.
 // ---------------------------------------------------------------------------
 
-interface CustomizedEnvEditorProps {
+interface CustomizedEnvEditorProps extends EnvNestedWriters {
   scope: PluginScope;
   parentSettings: ParentSettings | undefined;
   currentEnv: Record<string, string>;
-  onSaveEnv: (updatedEnv: Record<string, string>) => Promise<void>;
 }
 
-export function CustomizedEnvEditor({ scope, parentSettings, currentEnv, onSaveEnv }: CustomizedEnvEditorProps): React.ReactElement {
-  const { saving, withSave } = useSettingSave();
-
-  const updateEnv = async (updatedEnv: Record<string, string>): Promise<boolean> => {
-    let saved = false;
-    await withSave(async () => {
-      await onSaveEnv(updatedEnv);
-      saved = true;
-    });
-    return saved;
-  };
-
-  const envOnSave = async (key: string, value: unknown): Promise<boolean> => {
-    const strVal = typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
-    return updateEnv({ ...currentEnv, [key]: strVal });
-  };
-
-  const envOnRename = async (oldKey: string, newKey: string, value: string): Promise<boolean> => {
-    const { [oldKey]: _, ...rest } = currentEnv;
-    return updateEnv({ ...rest, [newKey]: value });
-  };
-
-  const envOnDelete = async (key: string): Promise<boolean> => {
-    const { [key]: _, ...rest } = currentEnv;
-    return updateEnv(rest);
-  };
+export function CustomizedEnvEditor({ scope, parentSettings, currentEnv, onSaveNested, onDeleteNested }: CustomizedEnvEditorProps): React.ReactElement {
+  const { saving, run } = useEnvWriteRunner();
+  const { save: envOnSave, rename: envOnRename, remove: envOnDelete } = createEnvWriters({ onSaveNested, onDeleteNested }, run);
 
   const existingKeys = Object.keys(currentEnv);
 
@@ -842,7 +824,8 @@ export function CustomizedEnvEditor({ scope, parentSettings, currentEnv, onSaveE
             currentEnv={currentEnv}
             scope={scope}
             parentSettings={parentSettings}
-            onEnvChange={onSaveEnv}
+            onSaveNested={onSaveNested}
+            onDeleteNested={onDeleteNested}
             saving={saving}
           />
         ) : (

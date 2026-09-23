@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach, type Mock } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { PermissionsSection } from '../PermissionsSection';
@@ -16,6 +16,14 @@ vi.mock('../../../vscode', () => ({
   setGlobalState: vi.fn().mockResolvedValue(undefined),
   initGlobalState: vi.fn().mockResolvedValue({}),
 }));
+
+// #33：巢狀子欄位（permissions.*、autoMode.*）改走 onSaveNested／onDeleteNested，每個 test 重建
+let onSaveNested: Mock;
+let onDeleteNested: Mock;
+beforeEach(() => {
+  onSaveNested = vi.fn().mockResolvedValue(undefined);
+  onDeleteNested = vi.fn().mockResolvedValue(undefined);
+});
 
 const renderSection = (
   settings: Record<string, unknown> = {},
@@ -32,6 +40,8 @@ const renderSection = (
         parentSettings={parentSettings as any}
         onSave={onSave}
         onDelete={onDelete}
+        onSaveNested={onSaveNested}
+        onDeleteNested={onDeleteNested}
       />
     </ToastProvider>,
   );
@@ -107,7 +117,7 @@ describe('PermissionsSection — 渲染', () => {
 });
 
 describe('PermissionsSection — new settings 互動', () => {
-  it('disableAutoMode 未設定, 選擇 disable → onSave("permissions", { disableAutoMode: "disable" })', async () => {
+  it('disableAutoMode 未設定, 選擇 disable → onSaveNested("permissions", "disableAutoMode", "disable")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -115,14 +125,15 @@ describe('PermissionsSection — new settings 互動', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), { target: { value: 'disable' } });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { disableAutoMode: 'disable' });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'disableAutoMode', 'disable');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   // nested 父物件「寫入後變空」的刪除契約集中在
   // PermissionsSection.nestedParent.test.tsx（避免本檔超過 800 行上限）。
 
-  it('disableBypassPermissionsMode 未設定, 選擇 disable → onSave("permissions", { disableBypassPermissionsMode: "disable" })', async () => {
+  it('disableBypassPermissionsMode 未設定, 選擇 disable → onSaveNested("permissions", "disableBypassPermissionsMode", "disable")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -130,8 +141,9 @@ describe('PermissionsSection — new settings 互動', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Disable Bypass Permissions Mode' }), { target: { value: 'disable' } });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { disableBypassPermissionsMode: 'disable' });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'disableBypassPermissionsMode', 'disable');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('skipDangerousModePermissionPrompt 未設定, toggle on → onSave("skipDangerousModePermissionPrompt", true)', async () => {
@@ -209,7 +221,7 @@ describe('PermissionsSection — new settings 互動', () => {
     });
   });
 
-  it('classifyAllShell 未設定, toggle on → onSave("autoMode", { classifyAllShell: true })', async () => {
+  it('classifyAllShell 未設定, toggle on → onSaveNested("autoMode", "classifyAllShell", true)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
@@ -217,11 +229,12 @@ describe('PermissionsSection — new settings 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('autoMode', { classifyAllShell: true });
+      expect(onSaveNested).toHaveBeenCalledWith('autoMode', 'classifyAllShell', true);
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('既有 autoMode 物件下 toggle on → 保留既有欄位, onSave("autoMode", { ...既有, classifyAllShell: true })', async () => {
+  it('既有 autoMode 物件下 toggle on → 只送子欄位 onSaveNested("autoMode", "classifyAllShell", true)，不整包寫回', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ autoMode: { environment: ['Source control: github.com/my-org'] } }, onSave);
 
@@ -229,11 +242,9 @@ describe('PermissionsSection — new settings 互動', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Classify All Shell Commands' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('autoMode', {
-        environment: ['Source control: github.com/my-org'],
-        classifyAllShell: true,
-      });
+      expect(onSaveNested).toHaveBeenCalledWith('autoMode', 'classifyAllShell', true);
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   // classifyAllShell 關閉導致 autoMode 變空的刪除契約見
@@ -245,7 +256,7 @@ describe('PermissionsSection — new settings 互動', () => {
 // ---------------------------------------------------------------------------
 
 describe('PermissionsSection — additionalDirectories 互動', () => {
-  it('新增目錄 → onSave("permissions", { ...existingPerms, additionalDirectories: [..., newDir] })', async () => {
+  it('新增目錄 → onSaveNested("permissions", "additionalDirectories", [..., newDir])', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { additionalDirectories: ['~/docs'] } }, onSave);
 
@@ -255,13 +266,11 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     fireEvent.click(within(addDirInput.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', {
-        additionalDirectories: ['~/docs', '~/projects'],
-      });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'additionalDirectories', ['~/docs', '~/projects']);
     });
   });
 
-  it('保留現有 permissions 欄位（merge）', async () => {
+  it('既有其他 permissions 子欄位時只送 additionalDirectories 一格（不整包寫回）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { allow: ['Bash'], additionalDirectories: [] } }, onSave);
 
@@ -271,14 +280,12 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     fireEvent.click(within(addDirInput2.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', {
-        allow: ['Bash'],
-        additionalDirectories: ['~/data'],
-      });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'additionalDirectories', ['~/data']);
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('刪除目錄 → onSave("permissions", { ...existingPerms, additionalDirectories: [remaining] })', async () => {
+  it('刪除目錄 → onSaveNested("permissions", "additionalDirectories", [remaining])', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { additionalDirectories: ['~/docs', '~/projects'] } }, onSave);
 
@@ -286,9 +293,7 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove ~/docs' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', {
-        additionalDirectories: ['~/projects'],
-      });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'additionalDirectories', ['~/projects']);
     });
   });
 
@@ -305,6 +310,7 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     await waitFor(() => {
       expect(screen.getByText('Directory already added')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
     });
   });
 });
@@ -470,6 +476,7 @@ describe('PermissionsSection — rule form 互動', () => {
 
     await waitFor(() => {
       expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
     });
   });
 
@@ -492,7 +499,7 @@ describe('PermissionsSection — rule form 互動', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash(npm test)'] });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'allow', ['Bash(npm test)']);
     });
   });
 
@@ -517,6 +524,7 @@ describe('PermissionsSection — rule form 互動', () => {
     await waitFor(() => {
       expect(within(form).getByText('Rule already exists')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
     });
   });
 
@@ -560,6 +568,7 @@ describe('PermissionsSection — rule form 互動', () => {
     await waitFor(() => {
       expect(within(form).getByText('Rule already exists')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
     });
   });
 });
@@ -574,9 +583,9 @@ describe('PermissionsSection — rule form 互動', () => {
 
 describe('PermissionsSection — permissions 並發寫入防護', () => {
   it('第一個 permissions 寫入 in-flight 時，disableBypassPermissionsMode select 應被 disabled', async () => {
-    // mock onSave 回傳永遠 pending 的 promise，模擬寫入 in-flight
-    const onSave = vi.fn().mockReturnValue(new Promise<void>(() => {}));
-    renderSection({}, onSave);
+    // 子欄位寫入回傳永遠 pending 的 promise，模擬寫入 in-flight
+    onSaveNested.mockReturnValue(new Promise<void>(() => {}));
+    renderSection({});
 
     // 操作 disableAutoMode → 觸發 PermissionsSection.updatePermissions → saving=true
     await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
@@ -584,10 +593,10 @@ describe('PermissionsSection — permissions 並發寫入防護', () => {
       target: { value: 'disable' },
     });
 
-    // 確認 onSave 被呼叫一次且仍 pending（precondition）
+    // 確認子欄位寫入被呼叫一次且仍 pending（precondition）
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-      expect(onSave).toHaveBeenCalledWith('permissions', { disableAutoMode: 'disable' });
+      expect(onSaveNested).toHaveBeenCalledTimes(1);
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'disableAutoMode', 'disable');
     });
 
     // fix 前：disableBypassPermissionsMode 沒有 disabled → 此斷言紅
@@ -599,8 +608,8 @@ describe('PermissionsSection — permissions 並發寫入防護', () => {
   });
 
   it('第一個 permissions 寫入 in-flight 時，additionalDirectories Add 按鈕應被 disabled', async () => {
-    const onSave = vi.fn().mockReturnValue(new Promise<void>(() => {}));
-    renderSection({}, onSave);
+    onSaveNested.mockReturnValue(new Promise<void>(() => {}));
+    renderSection({});
 
     await waitFor(() => screen.getByRole('combobox', { name: 'Disable Auto Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Disable Auto Mode' }), {
@@ -608,7 +617,7 @@ describe('PermissionsSection — permissions 並發寫入防護', () => {
     });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSaveNested).toHaveBeenCalledTimes(1);
     });
 
     // 在 input 填值，確保 Add 按鈕的 disabled 狀態來自 saving 而非 empty input
@@ -765,7 +774,7 @@ describe('PermissionsSection — sub-tab 行為 regression guard', () => {
     });
   });
 
-  it('[guard] Allow tab 新增規則 → onSave("permissions", { allow: [newRule] })', async () => {
+  it('[guard] Allow tab 新增規則 → onSaveNested("permissions", "allow", [newRule])', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = renderSection({}, onSave);
 
@@ -777,11 +786,11 @@ describe('PermissionsSection — sub-tab 行為 regression guard', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash'] });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'allow', ['Bash']);
     });
   });
 
-  it('[guard] Allow tab 刪除規則 → onSave("permissions", { allow: [] })', async () => {
+  it('[guard] Allow tab 刪除規則 → onSaveNested("permissions", "allow", [])（F5：清空寫 []）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { allow: ['Bash'] } }, onSave);
 
@@ -789,7 +798,7 @@ describe('PermissionsSection — sub-tab 行為 regression guard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { allow: [] });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'allow', []);
     });
   });
 

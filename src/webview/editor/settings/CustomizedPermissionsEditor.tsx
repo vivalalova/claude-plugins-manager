@@ -4,6 +4,7 @@ import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { TagInput } from './components/SettingControls';
 import { PermissionRuleListEditor } from './PermissionsSection';
+import type { SectionProps } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // CustomizedPermissionsEditor
@@ -13,7 +14,7 @@ import { PermissionRuleListEditor } from './PermissionsSection';
 
 interface CustomizedPermissionsEditorProps {
   perms: ClaudeSettings['permissions'];
-  onSavePermissions: (updatedPerms: ClaudeSettings['permissions']) => Promise<void>;
+  onSaveNested: SectionProps['onSaveNested'];
   scope: PluginScope;
   disabled?: boolean;
 }
@@ -36,7 +37,7 @@ export function hasVisiblePermissionsContent(perms: ClaudeSettings['permissions'
 
 export function CustomizedPermissionsEditor({
   perms,
-  onSavePermissions,
+  onSaveNested,
   scope,
   disabled,
 }: CustomizedPermissionsEditorProps): React.ReactElement | null {
@@ -56,12 +57,12 @@ export function CustomizedPermissionsEditor({
 
   const handleAdd = (list: PermissionsList, rule: string): void => {
     const current = (safePerms[list] ?? []) as string[];
-    void withSave(() => onSavePermissions({ ...safePerms, [list]: [...current, rule] }));
+    void withSave(() => onSaveNested('permissions', list, [...current, rule]));
   };
 
   const handleDelete = (list: PermissionsList, rule: string): void => {
     const current = (safePerms[list] ?? []) as string[];
-    void withSave(() => onSavePermissions({ ...safePerms, [list]: current.filter((r) => r !== rule) }));
+    void withSave(() => onSaveNested('permissions', list, current.filter((r) => r !== rule)));
   };
 
   const additionalDirs: string[] = safePerms.additionalDirectories ?? [];
@@ -95,7 +96,7 @@ export function CustomizedPermissionsEditor({
           duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
           settingKey="additionalDirectories"
           disabled={isDisabled}
-          onSave={async (_key, value) => onSavePermissions({ ...safePerms, additionalDirectories: value as string[] })}
+          onSave={async (_key, value) => onSaveNested('permissions', 'additionalDirectories', value as string[])}
         />
       )}
     </div>

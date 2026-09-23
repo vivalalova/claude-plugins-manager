@@ -152,6 +152,10 @@ export class MessageRouter {
         return this.settings.setSetting(message.scope, message.key, message.value);
       case 'settings.delete':
         return this.settings.deleteSetting(message.scope, message.key);
+      case 'settings.setNested':
+        return this.settings.setNestedSetting(message.scope, message.parentKey, message.childKey, message.value);
+      case 'settings.deleteNested':
+        return this.settings.deleteNestedSetting(message.scope, message.parentKey, message.childKey);
       case 'settings.getGlobalConfigFallback':
         return this.settings.getGlobalConfigFallbackValues();
       case 'hooks.checkFilePaths':
@@ -241,20 +245,8 @@ export class MessageRouter {
 
       case 'settings.openInEditor': {
         const filePath = this.settings.getSettingsPath(message.scope);
-        const uri = vscode.Uri.file(filePath);
-        try {
-          await vscode.workspace.fs.stat(uri);
-        } catch {
-          // 檔案不存在 → 先確保父目錄存在，再建立含 $schema + hooks 的初始檔案
-          const parentUri = vscode.Uri.file(path.dirname(filePath));
-          await vscode.workspace.fs.createDirectory(parentUri);
-          const initial = JSON.stringify({
-            $schema: 'https://json.schemastore.org/claude-code-settings.json',
-            hooks: {},
-          }, null, 2) + '\n';
-          await vscode.workspace.fs.writeFile(uri, Buffer.from(initial, 'utf-8'));
-        }
-        await vscode.window.showTextDocument(uri);
+        await this.settings.ensureSettingsFile(message.scope);
+        await vscode.window.showTextDocument(vscode.Uri.file(filePath));
         return;
       }
 

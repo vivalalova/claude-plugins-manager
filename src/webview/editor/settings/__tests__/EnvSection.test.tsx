@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach, type Mock } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { isSensitiveKey, EnvSection, EnvFieldRenderer } from '../EnvSection';
@@ -19,14 +19,30 @@ vi.mock('../../../vscode', () => ({
   initGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
+// #33（F1→A）：env 變數為子欄位，寫入走 onSaveNested('env', 變數名, 值)／onDeleteNested('env', 變數名)；
+// 整包 onSave('env', …) 不得再被呼叫。onDeleteNested 每個 test 重建。
+let onDeleteNested: Mock;
+let onSaveTopLevel: Mock;
+beforeEach(() => {
+  onDeleteNested = vi.fn().mockResolvedValue(undefined);
+  onSaveTopLevel = vi.fn().mockResolvedValue(undefined);
+});
+
 const renderEnvSection = (
   settings: Record<string, unknown> = {},
-  onSave = vi.fn().mockResolvedValue(undefined),
+  onSaveNested: Mock = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <EnvSection scope={scope} settings={settings} onSave={onSave} />
+      <EnvSection
+        scope={scope}
+        settings={settings}
+        onSave={onSaveTopLevel}
+        onDelete={vi.fn().mockResolvedValue(undefined)}
+        onSaveNested={onSaveNested}
+        onDeleteNested={onDeleteNested}
+      />
     </ToastProvider>,
   );
 
@@ -143,9 +159,9 @@ describe('EnvSection — 全列表渲染', () => {
 // ---------------------------------------------------------------------------
 
 describe('EnvSection — Boolean adapter', () => {
-  it('toggle checkbox → onSave 把 boolean 轉為 "1"/"0"', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEnvSection({}, onSave);
+  it('toggle checkbox → onSaveNested 把 boolean 轉為 "1"/"0"', async () => {
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({}, onSaveNested);
 
     await waitFor(() => screen.getByText('DISABLE_TELEMETRY'));
 
@@ -156,7 +172,7 @@ describe('EnvSection — Boolean adapter', () => {
     fireEvent.click(checkbox);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ DISABLE_TELEMETRY: '1' }));
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'DISABLE_TELEMETRY', '1');
     });
   });
 
@@ -176,9 +192,9 @@ describe('EnvSection — Boolean adapter', () => {
 // ---------------------------------------------------------------------------
 
 describe('EnvSection — String adapter', () => {
-  it('TextSetting Save → onSave 包含正確的 env object', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { container } = renderEnvSection({}, onSave);
+  it('TextSetting Save → onSaveNested 包含正確的 env object', async () => {
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({}, onSaveNested);
 
     await waitFor(() => screen.getByText('ANTHROPIC_MODEL'));
 
@@ -190,13 +206,13 @@ describe('EnvSection — String adapter', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ ANTHROPIC_MODEL: 'claude-opus-4-6' }));
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'ANTHROPIC_MODEL', 'claude-opus-4-6');
     });
   });
 
   it('Clear → 從 env 移除 key', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'test' } }, onSave);
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'test' } }, onSaveNested);
 
     await waitFor(() => {
       expect(container.querySelector('#ANTHROPIC_MODEL')).toBeTruthy();
@@ -208,13 +224,13 @@ describe('EnvSection — String adapter', () => {
     fireEvent.click(clearBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.not.objectContaining({ ANTHROPIC_MODEL: expect.anything() }));
+      expect(onDeleteNested).toHaveBeenCalledWith('env', 'ANTHROPIC_MODEL');
     });
   });
 
   it('Clear 保存失敗 → 保留原本 input 值', async () => {
-    const onSave = vi.fn().mockRejectedValue(new Error('write failed'));
-    const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'test' } }, onSave);
+    onDeleteNested.mockRejectedValue(new Error('write failed'));
+    const { container } = renderEnvSection({ env: { ANTHROPIC_MODEL: 'test' } });
 
     await waitFor(() => {
       expect(container.querySelector('#ANTHROPIC_MODEL')).toBeTruthy();
@@ -226,15 +242,15 @@ describe('EnvSection — String adapter', () => {
     fireEvent.click(clearBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onDeleteNested).toHaveBeenCalledTimes(1);
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(input.value).toBe('test');
   });
 
   it('custom env 新增保存失敗 → 保留使用者輸入', async () => {
-    const onSave = vi.fn().mockRejectedValue(new Error('write failed'));
-    const { container } = renderEnvSection({}, onSave);
+    const onSaveNested = vi.fn().mockRejectedValue(new Error('write failed'));
+    const { container } = renderEnvSection({}, onSaveNested);
 
     await waitFor(() => expect(container.querySelector('.env-add-form')).toBeTruthy());
     const form = container.querySelector('.env-add-form') as HTMLElement;
@@ -246,7 +262,7 @@ describe('EnvSection — String adapter', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', { NEW_VAR: 'new_value' });
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'NEW_VAR', 'new_value');
     });
     expect(keyInput.value).toBe('NEW_VAR');
     expect(valueInput.value).toBe('new_value');
@@ -295,9 +311,9 @@ describe('EnvSection — Sensitive field', () => {
     });
   });
 
-  it('Sensitive field Save → onSave 包含正確的 env object', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { container } = renderEnvSection({}, onSave);
+  it('Sensitive field Save → onSaveNested 包含正確的 env object', async () => {
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({}, onSaveNested);
 
     await waitFor(() => {
       expect(container.querySelector('#env-ANTHROPIC_API_KEY')).toBeTruthy();
@@ -311,13 +327,13 @@ describe('EnvSection — Sensitive field', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ ANTHROPIC_API_KEY: 'sk-live-456' }));
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'ANTHROPIC_API_KEY', 'sk-live-456');
     });
   });
 
   it('Sensitive field Clear → 從 env 移除 key', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { container } = renderEnvSection({ env: { ANTHROPIC_API_KEY: 'sk-123' } }, onSave);
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({ env: { ANTHROPIC_API_KEY: 'sk-123' } }, onSaveNested);
 
     await waitFor(() => {
       expect(container.querySelector('#env-ANTHROPIC_API_KEY')).toBeTruthy();
@@ -330,7 +346,7 @@ describe('EnvSection — Sensitive field', () => {
     fireEvent.click(clearBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.not.objectContaining({ ANTHROPIC_API_KEY: expect.anything() }));
+      expect(onDeleteNested).toHaveBeenCalledWith('env', 'ANTHROPIC_API_KEY');
     });
   });
 });
@@ -350,8 +366,8 @@ describe('EnvSection — Custom vars', () => {
   });
 
   it('AddEnvForm: 新增 custom var', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEnvSection({}, onSave);
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({}, onSaveNested);
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
@@ -364,15 +380,15 @@ describe('EnvSection — Custom vars', () => {
     fireEvent.click(screen.getByText('Add'));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', { NEW_VAR: 'new_value' });
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'NEW_VAR', 'new_value');
     });
     expect(keyInput.value).toBe('');
     expect(valueInput.value).toBe('');
   });
 
   it('duplicate key → 顯示錯誤', async () => {
-    const onSave = vi.fn();
-    renderEnvSection({ env: { EXISTING: 'val' } }, onSave);
+    const onSaveNested = vi.fn();
+    renderEnvSection({ env: { EXISTING: 'val' } }, onSaveNested);
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
@@ -386,13 +402,13 @@ describe('EnvSection — Custom vars', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Key already exists')).toBeTruthy();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
     });
   });
 
   it('lowercase key → 顯示 invalid key 錯誤', async () => {
-    const onSave = vi.fn();
-    renderEnvSection({}, onSave);
+    const onSaveNested = vi.fn();
+    renderEnvSection({}, onSaveNested);
 
     await waitFor(() => screen.getByPlaceholderText('VARIABLE_NAME'));
 
@@ -406,7 +422,7 @@ describe('EnvSection — Custom vars', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Key must contain only A-Z, 0-9, _')).toBeTruthy();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
     });
   });
 
@@ -418,9 +434,9 @@ describe('EnvSection — Custom vars', () => {
     expect(addBtn.disabled).toBe(true);
   });
 
-  it('Custom field rename → 一次保存最終 env，舊 key 不會被帶回', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+  it('Custom field rename（F1a）→ 先 setNested 新名、再 deleteNested 舊名', async () => {
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSaveNested);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
@@ -434,16 +450,18 @@ describe('EnvSection — Custom vars', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-      expect(onSave).toHaveBeenCalledWith('env', {
-        NEW_KEY: 'new-value',
-      });
+      expect(onSaveNested).toHaveBeenCalledTimes(1);
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'NEW_KEY', 'new-value');
+      expect(onDeleteNested).toHaveBeenCalledTimes(1);
+      expect(onDeleteNested).toHaveBeenCalledWith('env', 'OLD_KEY');
     });
+    expect(onSaveNested.mock.invocationCallOrder[0]).toBeLessThan(onDeleteNested.mock.invocationCallOrder[0]);
+    expect(onSaveTopLevel).not.toHaveBeenCalled();
   });
 
-  it('Custom field rename 保存失敗 → 不送出部分刪除 payload', async () => {
-    const onSave = vi.fn().mockRejectedValueOnce(new Error('write failed'));
-    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+  it('Custom field rename 新名寫入失敗 → 不刪舊名（不會兩者皆無）', async () => {
+    const onSaveNested = vi.fn().mockRejectedValueOnce(new Error('write failed'));
+    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSaveNested);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
@@ -458,18 +476,20 @@ describe('EnvSection — Custom vars', () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-      expect(onSave).toHaveBeenCalledWith('env', { NEW_KEY: 'new-value' });
+      expect(onSaveNested).toHaveBeenCalledTimes(1);
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'NEW_KEY', 'new-value');
     });
-    expect(onSave).toHaveBeenCalledTimes(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onSaveNested).toHaveBeenCalledTimes(1);
+    expect(onDeleteNested).not.toHaveBeenCalled();
   });
 
   it('Custom field rename 保存中 → 其他 env 控制項 disabled，避免舊 env 快照覆蓋 rename', async () => {
     let resolveSave!: () => void;
-    const onSave = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+    const onSaveNested = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
       resolveSave = resolve;
     }));
-    const { container } = renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+    const { container } = renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSaveNested);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
@@ -481,7 +501,7 @@ describe('EnvSection — Custom vars', () => {
     fireEvent.change(keyInput, { target: { value: 'NEW_KEY' } });
     fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onSaveNested).toHaveBeenCalledTimes(1));
 
     const numberInput = container.querySelector('#MAX_THINKING_TOKENS') as HTMLInputElement;
     fireEvent.change(numberInput, { target: { value: '8000' } });
@@ -491,17 +511,18 @@ describe('EnvSection — Custom vars', () => {
       expect(numberSaveButton.disabled).toBe(true);
     });
     fireEvent.click(numberSaveButton);
-    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSaveNested).toHaveBeenCalledTimes(1);
 
     resolveSave();
     await waitFor(() => {
+      expect(onDeleteNested).toHaveBeenCalledWith('env', 'OLD_KEY');
       expect(numberSaveButton.disabled).toBe(false);
     });
   });
 
   it('Custom field rename 到既有 key → 顯示錯誤且不得覆蓋原值', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEnvSection({ env: { OLD_KEY: 'old-value', EXISTING_KEY: 'keep-value' } }, onSave);
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({ env: { OLD_KEY: 'old-value', EXISTING_KEY: 'keep-value' } }, onSaveNested);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
@@ -517,13 +538,14 @@ describe('EnvSection — Custom vars', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Key already exists')).toBeTruthy();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
+      expect(onDeleteNested).not.toHaveBeenCalled();
     });
   });
 
   it('Custom field rename 成空 key → 顯示錯誤且不得送出', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSave);
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    renderEnvSection({ env: { OLD_KEY: 'old-value' } }, onSaveNested);
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('OLD_KEY')).toBeTruthy();
@@ -537,8 +559,19 @@ describe('EnvSection — Custom vars', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Key must contain only A-Z, 0-9, _')).toBeTruthy();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSaveNested).not.toHaveBeenCalled();
+      expect(onDeleteNested).not.toHaveBeenCalled();
     });
+  });
+
+  it('AC5（F1→A）Custom field Clear 唯一變數 → onDeleteNested("env", 變數名)，不整包寫回 env: {}', async () => {
+    renderEnvSection({ env: { ONLY_VAR: 'v' } });
+
+    const row = (await screen.findByDisplayValue('ONLY_VAR')).closest('.env-custom-row') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Clear' }));
+
+    await waitFor(() => expect(onDeleteNested).toHaveBeenCalledWith('env', 'ONLY_VAR'));
+    expect(onSaveTopLevel).not.toHaveBeenCalled();
   });
 });
 
@@ -547,9 +580,9 @@ describe('EnvSection — Custom vars', () => {
 // ---------------------------------------------------------------------------
 
 describe('EnvSection — Number adapter', () => {
-  it('NumberSetting Save → onSave 含 string 值', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { container } = renderEnvSection({}, onSave);
+  it('NumberSetting Save → onSaveNested 含 string 值', async () => {
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderEnvSection({}, onSaveNested);
 
     await waitFor(() => {
       expect(container.querySelector('#MAX_THINKING_TOKENS')).toBeTruthy();
@@ -563,21 +596,24 @@ describe('EnvSection — Number adapter', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('env', expect.objectContaining({ MAX_THINKING_TOKENS: '8000' }));
+      expect(onSaveNested).toHaveBeenCalledWith('env', 'MAX_THINKING_TOKENS', '8000');
     });
   });
 });
 
 describe('EnvFieldRenderer — 搜尋結果保存契約', () => {
   it('clear 失敗時不清空本地輸入', async () => {
-    const onEnvChange = vi.fn().mockRejectedValue(new Error('write failed'));
+    onDeleteNested.mockRejectedValue(new Error('write failed'));
+    const onSaveNested = vi.fn().mockResolvedValue(undefined);
     renderWithI18n(
       <ToastProvider>
         <EnvFieldRenderer
           envKey="ANTHROPIC_MODEL"
           currentEnv={{ ANTHROPIC_MODEL: 'claude-opus' }}
           scope="user"
-          onEnvChange={onEnvChange}
+          parentSettings={undefined}
+          onSaveNested={onSaveNested}
+          onDeleteNested={onDeleteNested}
         />
       </ToastProvider>,
     );
@@ -586,7 +622,7 @@ describe('EnvFieldRenderer — 搜尋結果保存契約', () => {
     fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
-      expect(onEnvChange).toHaveBeenCalledWith({});
+      expect(onDeleteNested).toHaveBeenCalledWith('env', 'ANTHROPIC_MODEL');
       expect(screen.getByDisplayValue('claude-opus')).toBeTruthy();
     });
   });

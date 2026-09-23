@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach, type Mock } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { GeneralSection } from '../GeneralSection';
@@ -19,6 +19,14 @@ vi.mock('../../../vscode', () => ({
   initGlobalState: vi.fn().mockResolvedValue({}),
 }));
 
+// #33：nestedUnder 欄位改走 onSaveNested／onDeleteNested，每個 test 重建
+let onSaveNested: Mock;
+let onDeleteNested: Mock;
+beforeEach(() => {
+  onSaveNested = vi.fn().mockResolvedValue(undefined);
+  onDeleteNested = vi.fn().mockResolvedValue(undefined);
+});
+
 const renderSection = (
   settings: Record<string, unknown> = {},
   onSave = vi.fn().mockResolvedValue(undefined),
@@ -28,7 +36,15 @@ const renderSection = (
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <GeneralSection scope={scope} settings={settings as any} parentSettings={parentSettings as any} onSave={onSave} onDelete={onDelete} />
+      <GeneralSection
+        scope={scope}
+        settings={settings as any}
+        parentSettings={parentSettings as any}
+        onSave={onSave}
+        onDelete={onDelete}
+        onSaveNested={onSaveNested}
+        onDeleteNested={onDeleteNested}
+      />
     </ToastProvider>,
   );
 
@@ -1074,37 +1090,37 @@ describe('GeneralSection — defaultMode（nested under permissions）', () => {
     });
   });
 
-  it('選 "auto" → onSave("permissions", { defaultMode: "auto" })', async () => {
+  it('選 "auto" → onSaveNested("permissions", "defaultMode", "auto")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
     await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'auto' } });
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { defaultMode: 'auto' });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'defaultMode', 'auto');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('現有 permissions 有 allow → 選 "plan" → merge 不破壞其他欄位', async () => {
+  it('現有 permissions 有 allow → 選 "plan" → 只送 defaultMode 一格（不整包寫回）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { allow: ['Bash'], defaultMode: 'default' } }, onSave);
     await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'plan' } });
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { allow: ['Bash'], defaultMode: 'plan' });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'defaultMode', 'plan');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('選 "not set"（""）→ onSave("permissions", { ...perms, 不含 defaultMode })', async () => {
+  it('選 "not set"（""）→ onDeleteNested("permissions", "defaultMode")，其他子欄位不經 webview 寫回', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { defaultMode: 'plan', allow: ['Bash'] } }, onSave);
     await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: '' } });
     await waitFor(() => {
-      const [key, value] = onSave.mock.calls[0] as [string, Record<string, unknown>];
-      expect(key).toBe('permissions');
-      expect(value).not.toHaveProperty('defaultMode');
-      expect(value).toHaveProperty('allow', ['Bash']);
+      expect(onDeleteNested).toHaveBeenCalledWith('permissions', 'defaultMode');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('選 bypassPermissions → 顯示 ConfirmDialog，取消不呼叫 onSave', async () => {
@@ -1115,9 +1131,10 @@ describe('GeneralSection — defaultMode（nested under permissions）', () => {
     await waitFor(() => screen.getByText('Bypass Permissions'));
     fireEvent.click(screen.getByText('Cancel'));
     await waitFor(() => expect(onSave).not.toHaveBeenCalled());
+    expect(onSaveNested).not.toHaveBeenCalled();
   });
 
-  it('選 bypassPermissions → 確認後 onSave("permissions", { defaultMode: "bypassPermissions" })', async () => {
+  it('選 bypassPermissions → 確認後 onSaveNested("permissions", "defaultMode", "bypassPermissions")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
     await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
@@ -1125,7 +1142,7 @@ describe('GeneralSection — defaultMode（nested under permissions）', () => {
     await waitFor(() => screen.getByText('Bypass Permissions'));
     fireEvent.click(screen.getByText('Confirm'));
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissions', { defaultMode: 'bypassPermissions' });
+      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'defaultMode', 'bypassPermissions');
     });
   });
 

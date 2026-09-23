@@ -190,15 +190,17 @@ describe('SettingsPage', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: 'dontAsk' } });
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls).toHaveLength(1);
-      expect(setCalls[0][0]).toMatchObject({
-        type: 'settings.set',
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls).toHaveLength(1);
+      expect(nestedCalls[0][0]).toMatchObject({
+        type: 'settings.setNested',
         scope: 'user',
-        key: 'permissions',
-        value: { defaultMode: 'dontAsk' },
+        parentKey: 'permissions',
+        childKey: 'defaultMode',
+        value: 'dontAsk',
       });
     });
+    expect(getCalls('settings.set')).toHaveLength(0);
   });
 
   it('點擊切換到 Project scope → 重新 fetch settings', async () => {
@@ -382,7 +384,7 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊規則 × 按鈕 → settings.set 不含該規則', async () => {
+  it('點擊規則 × 按鈕 → settings.setNested permissions.allow 不含該規則', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -402,14 +404,14 @@ describe('SettingsPage', () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBe(1);
-      const { value } = setCalls[0][0];
-      expect(value.allow).toEqual(['WebSearch']);
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBe(1);
+      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: ['WebSearch'] });
     });
+    expect(getCalls('settings.set')).toHaveLength(0);
   });
 
-  it('刪除最後一條規則 → settings.set payload 含 allow: []', async () => {
+  it('刪除最後一條規則 → settings.setNested permissions.allow 為 []（F5）', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -428,13 +430,13 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByLabelText('Remove rule WebSearch'));
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBe(1);
-      expect(setCalls[0][0].value.allow).toEqual([]);
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBe(1);
+      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: [] });
     });
   });
 
-  it('新增 ToolName 規則 → settings.set 含新規則', async () => {
+  it('新增 ToolName 規則 → settings.setNested permissions.allow 含新規則', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -456,9 +458,10 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Add Rule'));
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBe(1);
-      expect(setCalls[0][0].value.allow).toContain('WebFetch');
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBe(1);
+      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'allow' });
+      expect(nestedCalls[0][0].value).toContain('WebFetch');
     });
   });
 
@@ -485,6 +488,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Rule already exists')).toBeTruthy();
       expect(getCalls('settings.set').length).toBe(0);
+      expect(getCalls('settings.setNested').length).toBe(0);
     });
   });
 
@@ -505,9 +509,9 @@ describe('SettingsPage', () => {
     fireEvent.change(defaultModeSelect, { target: { value: 'dontAsk' } });
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBe(1);
-      expect(setCalls[0][0].value.defaultMode).toBe('dontAsk');
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBe(1);
+      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'defaultMode', value: 'dontAsk' });
     });
   });
 
@@ -534,6 +538,7 @@ describe('SettingsPage', () => {
 
     await waitFor(() => {
       expect(getCalls('settings.set').length).toBe(0);
+      expect(getCalls('settings.setNested').length).toBe(0);
     });
   });
 
@@ -555,16 +560,14 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Confirm'));
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBe(1);
-      expect(setCalls[0][0].value.defaultMode).toBe('bypassPermissions');
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBe(1);
+      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'defaultMode', value: 'bypassPermissions' });
     });
   });
 
-  // defaultMode 是 fixture 中 permissions 的唯一 key → 清空後父物件變空，
-  // 依 nested 父物件契約走 onDelete('permissions') → protocol 發 settings.delete，
-  // 不再發 settings.set（避免寫回殘留 "permissions": {}）。
-  it('defaultMode 選「not set」且是 permissions 唯一 key → 發 settings.delete permissions，不發 settings.set', async () => {
+  // #33：清子欄位一律發 settings.deleteNested；父物件變空刪整個 permissions 由擴展端完成。
+  it('defaultMode 選「not set」且是 permissions 唯一 key → 發 settings.deleteNested，不發 settings.set／settings.delete', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -582,11 +585,12 @@ describe('SettingsPage', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Default Mode' }), { target: { value: '' } });
 
     await waitFor(() => {
-      const deleteCalls = getCalls('settings.delete');
-      expect(deleteCalls.length).toBe(1);
-      expect(deleteCalls[0][0].key).toBe('permissions');
+      const nestedCalls = getCalls('settings.deleteNested');
+      expect(nestedCalls.length).toBe(1);
+      expect(nestedCalls[0][0]).toMatchObject({ scope: 'user', parentKey: 'permissions', childKey: 'defaultMode' });
     });
     expect(getCalls('settings.set').length).toBe(0);
+    expect(getCalls('settings.delete').length).toBe(0);
   });
 
   it('settings.json defaultMode 為未知值 → 顯示「Current value: strict ⚠️」', async () => {

@@ -15,7 +15,7 @@
  * 800 行上限。
  */
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach, type Mock } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
 import { ToastProvider } from '../../../components/Toast';
@@ -39,6 +39,14 @@ afterEach(() => {
 
 type SectionComponent = typeof DisplaySection;
 
+// #33：nestedUnder 欄位改走 onSaveNested／onDeleteNested，每個 test 重建
+let onSaveNested: Mock;
+let onDeleteNested: Mock;
+beforeEach(() => {
+  onSaveNested = vi.fn().mockResolvedValue(undefined);
+  onDeleteNested = vi.fn().mockResolvedValue(undefined);
+});
+
 const renderSection = (
   Section: SectionComponent,
   settings: Record<string, unknown> = {},
@@ -47,7 +55,14 @@ const renderSection = (
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <Section scope="user" settings={settings as any} onSave={onSave} onDelete={onDelete} />
+      <Section
+        scope="user"
+        settings={settings as any}
+        onSave={onSave}
+        onDelete={onDelete}
+        onSaveNested={onSaveNested}
+        onDeleteNested={onDeleteNested}
+      />
     </ToastProvider>,
   );
 
@@ -157,12 +172,10 @@ describe('批次 R — switchModelsOnFlag（general section，先紅）', () => 
 // ---------------------------------------------------------------------------
 // defaultEnvironmentId — advanced / string / nestedUnder 'remote'
 //
-// nestedUnder 欄位的 binding 由 getSchemaFieldBindings 統一處理：寫入走
-// onSave('remote', { ...既有 remote, defaultEnvironmentId: value })。
-// 刪除分兩路（拍板契約）：
-//   - 刪掉子 key 後父物件變空 → onDelete('remote')，不留殘留 "remote": {}
-//   - 父物件還有其他 key → onSave('remote', 剩餘物件)
-// 漏加 nestedUnder → 會寫成 onSave('defaultEnvironmentId', …) 頂層，CLI 讀不到。
+// nestedUnder 欄位的 binding 由 getSchemaFieldBindings 統一處理（#33）：寫入走
+// onSaveNested('remote', 'defaultEnvironmentId', value)，刪除走 onDeleteNested('remote', 'defaultEnvironmentId')，
+// 不論父物件是否因此變空；「變空刪父 key」由擴展端負責（檔案層斷言在 service 層與 SettingsPage.nestedConcurrency）。
+// 漏加 nestedUnder → 會寫成頂層 defaultEnvironmentId，CLI 讀不到。
 // ---------------------------------------------------------------------------
 
 describe('批次 R — defaultEnvironmentId（advanced section，nestedUnder remote，先紅）', () => {
@@ -181,7 +194,7 @@ describe('批次 R — defaultEnvironmentId（advanced section，nestedUnder rem
     });
   });
 
-  it('未設定, 輸入並儲存 → onSave("remote", { defaultEnvironmentId: "env-1" })', async () => {
+  it('未設定, 輸入並儲存 → onSaveNested("remote", "defaultEnvironmentId", "env-1")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection(AdvancedSection, {}, onSave);
 
@@ -191,11 +204,12 @@ describe('批次 R — defaultEnvironmentId（advanced section，nestedUnder rem
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('remote', { defaultEnvironmentId: 'env-1' });
+      expect(onSaveNested).toHaveBeenCalledWith('remote', 'defaultEnvironmentId', 'env-1');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('既有 remote 其他欄位保留（不被覆蓋）', async () => {
+  it('既有 remote 其他欄位時只送子欄位一格（不整包寫回）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection(AdvancedSection, { remote: { somethingElse: 'keep-me' } }, onSave);
 
@@ -205,11 +219,12 @@ describe('批次 R — defaultEnvironmentId（advanced section，nestedUnder rem
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('remote', { somethingElse: 'keep-me', defaultEnvironmentId: 'env-1' });
+      expect(onSaveNested).toHaveBeenCalledWith('remote', 'defaultEnvironmentId', 'env-1');
     });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('已設定且是父物件唯一 key, Reset → onDelete("remote")（父物件變空 → 整個刪掉，不留 "remote": {}）', async () => {
+  it('已設定且是父物件唯一 key, Reset → onDeleteNested("remote", "defaultEnvironmentId")（不在 webview 刪整個 remote）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection(AdvancedSection, { remote: { defaultEnvironmentId: 'env-1' } }, onSave, onDelete);
@@ -220,12 +235,13 @@ describe('批次 R — defaultEnvironmentId（advanced section，nestedUnder rem
     fireEvent.click(within(fieldByKeyHint(HINT)).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('remote');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onDeleteNested).toHaveBeenCalledWith('remote', 'defaultEnvironmentId');
     });
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('父物件還有其他 key 時 Reset → onSave("remote", 剩餘物件)（非空父物件行為不變）', async () => {
+  it('父物件還有其他 key 時 Reset → 同樣只 onDeleteNested 該子欄位', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection(
@@ -239,8 +255,9 @@ describe('批次 R — defaultEnvironmentId（advanced section，nestedUnder rem
     fireEvent.click(within(fieldByKeyHint(HINT)).getByRole('button', { name: /Reset/ }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('remote', { somethingElse: 'keep-me' });
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDeleteNested).toHaveBeenCalledWith('remote', 'defaultEnvironmentId');
     });
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

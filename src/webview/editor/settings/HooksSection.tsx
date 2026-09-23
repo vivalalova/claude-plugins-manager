@@ -445,7 +445,7 @@ export function HooksFieldEditor({ scope, settings }: HooksFieldEditorProps): Re
 // HooksSection
 // ---------------------------------------------------------------------------
 
-export function HooksSection({ scope, settings, parentSettings, onSave, onDelete }: SectionProps): React.ReactElement {
+export function HooksSection({ scope, settings, parentSettings, onSave, onDelete, onSaveNested, onDeleteNested }: SectionProps): React.ReactElement {
   return (
     <SchemaSection
       section="hooks"
@@ -454,6 +454,8 @@ export function HooksSection({ scope, settings, parentSettings, onSave, onDelete
       parentSettings={parentSettings}
       onSave={onSave}
       onDelete={onDelete}
+      onSaveNested={onSaveNested}
+      onDeleteNested={onDeleteNested}
       renderCustom={(key) =>
         key === 'hooks' ? <HooksFieldEditor scope={scope} settings={settings} /> : null
       }

@@ -416,9 +416,9 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     });
   });
 
-  it('13. inline permissions → 輸入規則並新增 → sendRequest settings.set 含更新後 allow', async () => {
+  it('13. inline permissions → 輸入規則並新增 → sendRequest settings.setNested permissions.allow 含更新後清單', async () => {
     // inline 新增規則：allow 已有 'Bash'（清單可見），再輸入 "WebFetch" 按 Add Rule
-    // → settings.set permissions.allow 含 'Bash' 和 'WebFetch'
+    // → settings.setNested(permissions, allow) 值含 'Bash' 和 'WebFetch'
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
@@ -440,16 +440,17 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     fireEvent.click(within(allowEditor).getByRole('button', { name: 'Add Rule' }));
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBeGreaterThanOrEqual(1);
-      const lastCall = setCalls[setCalls.length - 1][0];
-      expect(lastCall.key).toBe('permissions');
-      expect((lastCall.value as { allow: string[] }).allow).toContain('WebFetch');
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBeGreaterThanOrEqual(1);
+      const lastCall = nestedCalls[nestedCalls.length - 1][0];
+      expect(lastCall).toMatchObject({ parentKey: 'permissions', childKey: 'allow' });
+      expect(lastCall.value as string[]).toEqual(['Bash', 'WebFetch']);
     });
+    expect(getCalls('settings.set')).toHaveLength(0);
   });
 
-  it('14. [RED] inline permissions → 點刪除規則 → sendRequest settings.set 移除該規則', async () => {
-    // inline 刪除：permissions.allow=['Bash'] → 點 × → settings.set permissions.allow=[]
+  it('14. inline permissions → 點刪除規則 → sendRequest settings.setNested permissions.allow 移除該規則', async () => {
+    // inline 刪除：permissions.allow=['Bash'] → 點 × → settings.setNested(permissions, allow, [])（F5）
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
@@ -468,12 +469,12 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBeGreaterThanOrEqual(1);
-      const lastCall = setCalls[setCalls.length - 1][0];
-      expect(lastCall.key).toBe('permissions');
-      expect((lastCall.value as { allow: string[] }).allow).not.toContain('Bash');
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBeGreaterThanOrEqual(1);
+      const lastCall = nestedCalls[nestedCalls.length - 1][0];
+      expect(lastCall).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: [] });
     });
+    expect(getCalls('settings.set')).toHaveLength(0);
   });
 
   it('15. [RED] additionalDirectories-only → badge=1，inline 顯示目錄內容', async () => {
@@ -536,7 +537,7 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     });
   });
 
-  it('18. [RED] P1 吞錯 reproduction：settings.set 失敗 → 出現 error toast', async () => {
+  it('18. [RED] P1 吞錯 reproduction：子欄位寫入失敗 → 出現 error toast', async () => {
     // P1 根因：onSavePermissions=(p)=>void fieldOnSave('permissions',p) 丟棄 async promise
     // CustomizedPermissionsEditor.handleAdd 再包 Promise.resolve(onSavePermissions(...)) = 已 resolved
     // withSave 的 catch 收不到 settings.set reject → addToast 不觸發 → 使用者看不到錯誤
@@ -545,7 +546,7 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
-      if (msg.type === 'settings.set') return Promise.reject(new Error('boom'));
+      if (msg.type === 'settings.set' || msg.type === 'settings.setNested') return Promise.reject(new Error('boom'));
       return Promise.resolve(null);
     });
 
@@ -567,10 +568,9 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     });
   });
 
-  it('19. [guard] nested key 不遺失：刪除 allow 規則後 defaultMode 仍在 payload', async () => {
-    // 驗 handleDelete 的 spread 邏輯：{...safePerms,[list]:filtered}
-    // safePerms 含 defaultMode:'plan'，刪掉 allow['Bash'] 後 payload 仍須含 defaultMode
-    // 若執行者誤改成 {[list]:filtered} 不 spread，此 test 紅
+  it('19. [guard] nested key 不遺失：刪除 allow 規則只送 allow 一格，不整包寫回 permissions', async () => {
+    // #33：同父物件的 defaultMode 由擴展端讀最新檔案保留；webview 若仍整包 settings.set permissions，
+    // 就可能用舊快照蓋掉其他子欄位 → 此 test 紅
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -589,15 +589,13 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
 
     await waitFor(() => {
-      const setCalls = getCalls('settings.set');
-      expect(setCalls.length).toBeGreaterThanOrEqual(1);
-      const lastCall = setCalls[setCalls.length - 1][0];
-      expect(lastCall.key).toBe('permissions');
-      // nested key defaultMode 必須保留在 payload
-      expect((lastCall.value as { defaultMode: string }).defaultMode).toBe('plan');
-      // allow 已移除 Bash
-      expect((lastCall.value as { allow: string[] }).allow).not.toContain('Bash');
+      const nestedCalls = getCalls('settings.setNested');
+      expect(nestedCalls.length).toBeGreaterThanOrEqual(1);
+      const lastCall = nestedCalls[nestedCalls.length - 1][0];
+      expect(lastCall).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: [] });
     });
+    expect(getCalls('settings.set').some((c) => c[0]?.key === 'permissions')).toBe(false);
+    expect(getCalls('settings.deleteNested').some((c) => c[0]?.childKey === 'defaultMode')).toBe(false);
   });
 
   // test 20（saving 期間 disabled）はスキップ：

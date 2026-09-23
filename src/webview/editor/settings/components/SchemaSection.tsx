@@ -3,7 +3,7 @@ import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { getFlatFieldSchema, getSectionFieldOrder, isScopeEffective, type FlatFieldSchema, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { resolveInherited, type Inherited } from './SettingControls';
-import { saveOrDeleteParent } from './nestedParent';
+import type { NestedParentKey } from '../../../../shared/nestedSettings';
 import { SettingsSectionWrapper } from './SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
@@ -19,6 +19,10 @@ export interface SectionProps {
   parentSettings: ParentSettings | undefined;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
+  /** 巢狀父物件只改一格（`settings.setNested`）；webview 不展開父物件整包寫回 */
+  onSaveNested: (parentKey: NestedParentKey, childKey: string, value: unknown) => Promise<void>;
+  /** 巢狀父物件只刪一格（`settings.deleteNested`）；父物件變空由擴展端刪父 key */
+  onDeleteNested: (parentKey: NestedParentKey, childKey: string) => Promise<void>;
 }
 
 /**
@@ -69,14 +73,17 @@ export function getSchemaFieldBindings(
     parentSettings,
     onSave,
     onDelete,
-  }: Pick<SectionProps, 'scope' | 'settings' | 'onSave' | 'onDelete'> & { parentSettings: ParentSettings | undefined },
+    onSaveNested,
+    onDeleteNested,
+  }: Pick<SectionProps, 'scope' | 'settings' | 'onSave' | 'onDelete' | 'onSaveNested' | 'onDeleteNested'> & { parentSettings: ParentSettings | undefined },
 ): ResolvedSchemaFieldBindings | null {
   const schema = getFlatFieldSchema(key) as FlatFieldSchema | undefined;
   if (!schema) return null;
   if (!isFieldVisibleForScope(schema, scope)) return null;
 
   if (schema.nestedUnder) {
-    const parentKey = schema.nestedUnder;
+    // flat schema 的 nestedUnder 型別是 string；字面值集合即 NestedParentKey（schema 衍生）
+    const parentKey = schema.nestedUnder as NestedParentKey;
     const parent = ((settings as Record<string, unknown>)[parentKey] ?? {}) as Record<string, unknown>;
     const value = parent[key];
     const parents = drillParents(parentSettings, parentKey);
@@ -86,12 +93,10 @@ export function getSchemaFieldBindings(
       schema,
       value,
       onSave: async (_k: string, newValue: unknown) => {
-        await onSave(parentKey, { ...parent, [key]: newValue });
+        await onSaveNested(parentKey, key, newValue);
       },
       onDelete: async (_k: string) => {
-        const updated = { ...parent };
-        delete updated[key];
-        await saveOrDeleteParent(parentKey, updated, { onSave, onDelete });
+        await onDeleteNested(parentKey, key);
       },
       overriddenScope: value !== undefined && inherited.kind === 'known' ? inherited.scope : undefined,
       inherited,
@@ -117,6 +122,8 @@ export function SchemaSection({
   parentSettings,
   onSave,
   onDelete,
+  onSaveNested,
+  onDeleteNested,
   renderCustom,
   headerContent,
 }: SchemaSectionProps): React.ReactElement {
@@ -127,7 +134,7 @@ export function SchemaSection({
       {headerContent}
 
       {fieldOrder.map((key) => {
-        const field = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete });
+        const field = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete, onSaveNested, onDeleteNested });
         if (!field) return null;
         const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope, inherited } = field;
 

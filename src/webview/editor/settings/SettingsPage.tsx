@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PageHeader } from '../../components/PageHeader';
@@ -13,6 +13,7 @@ import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, type SettingsSection, type FlatFieldSchema } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
+import { applyDeleteNested, applySetNested, isNestedParentShape, type NestedParentKey } from '../../../shared/nestedSettings';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
@@ -36,6 +37,8 @@ const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 
 /** 父層快照與其所屬 scope；forScope 不等於目前 scope 時快照不可用（視為未知）。 */
 type ParentSnapshot = { forScope: PluginScope | undefined; snapshots: ParentSettings | undefined };
+/** 目前畫面的設定資料與其所屬 scope；寫入回應只在 forScope 等於發出 scope 時套樂觀更新。 */
+type SettingsSnapshot = { forScope: PluginScope | undefined; data: ClaudeSettings };
 const SETTINGS_NAV_SECTIONS = getSettingsSections();
 
 /**
@@ -68,6 +71,8 @@ function collectCustomizedSchemaFields(
         parentSettings: undefined,
         onSave: noop,
         onDelete: noop,
+        onSaveNested: noop,
+        onDeleteNested: noop,
       });
       if (binding && isCustomizedValue(binding.value)) {
         // permissions 走更深的「有可見內容」判定（空子清單如 allow:[] 也要排除），
@@ -79,6 +84,17 @@ function collectCustomizedSchemaFields(
     }
   }
   return result;
+}
+
+/** scope 徽章數（已自訂 schema 欄位＋未知 key）的唯一算式 */
+function countCustomized(settings: ClaudeSettings, scope: PluginScope): number {
+  return collectCustomizedSchemaFields(settings, scope).length + getUnknownSettingsEntries(settings).length;
+}
+
+/** 巢狀 patch 只套在父 key 缺席或為 plain object 的資料上（形狀不符時 C0 會拋錯） */
+function canPatchNestedParent(settings: ClaudeSettings, parentKey: NestedParentKey): boolean {
+  const parent = (settings as Record<string, unknown>)[parentKey];
+  return parent === undefined || isNestedParentShape(parent);
 }
 
 type SettingsNavItem = SettingsSection | 'customized';
@@ -247,22 +263,27 @@ export function SettingsPage(): React.ReactElement {
       .catch(() => setHasWorkspace(false));
   }, []);
 
-  const loadSettings = useCallback(
-    () => sendRequest<ClaudeSettings>({ type: 'settings.get', scope }),
-    [scope],
-  );
+  const loadSettings = useCallback(async (): Promise<SettingsSnapshot> => {
+    const forScope = scope;
+    return { forScope, data: await sendRequest<ClaudeSettings>({ type: 'settings.get', scope: forScope }) };
+  }, [scope]);
 
   const {
-    data: settings,
+    data: snap,
     loading,
     error,
     setError,
-    setData: setSettings,
-  } = usePushSyncedResource<ClaudeSettings>({
-    initialData: {},
+    setData: setSnap,
+    refresh: refreshSettings,
+  } = usePushSyncedResource<SettingsSnapshot>({
+    initialData: { forScope: undefined, data: {} },
     load: loadSettings,
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
+  const settings = snap.data;
+  // 寫入回應在 await 之後才到，閉包裡的 snap／refresh 可能屬於切走前的 scope；回應時一律讀最新的
+  const latestRef = useRef({ snap, refreshSettings, scope });
+  latestRef.current = { snap, refreshSettings, scope };
 
   // Parent-scope snapshots feed the override badge and inheritance-aware delete decisions.
   // Loaded separately so the current-scope view never blocks on parent fetches.
@@ -316,51 +337,81 @@ export function SettingsPage(): React.ReactElement {
       sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'project' }),
       sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'local' }),
     ]);
-    const countFor = (s: PluginScope, scopeSettings: ClaudeSettings) =>
-      collectCustomizedSchemaFields(scopeSettings ?? {} as ClaudeSettings, s).length
-      + getUnknownSettingsEntries(scopeSettings ?? {} as ClaudeSettings).length;
     return {
-      project: countFor('project', projectSettings),
-      local: countFor('local', localSettings),
+      project: countCustomized(projectSettings ?? {} as ClaudeSettings, 'project'),
+      local: countCustomized(localSettings ?? {} as ClaudeSettings, 'local'),
     };
   }, [hasWorkspace]);
 
-  const { data: counts, setData: setCounts } = usePushSyncedResource<{ project: number; local: number }>({
+  const { data: counts, setData: setCounts, refresh: refreshCounts } = usePushSyncedResource<{ project: number; local: number }>({
     initialData: { project: 0, local: 0 },
     load: loadScopeCounts,
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
 
+  // 畫面資料（該 scope 最後一次載入＋已套用的寫入）同步進 counts，切走後徽章不停在寫入前的數字；
+  // counts 被較早發出的重讀覆寫時也重新對齊
+  useEffect(() => {
+    const s = snap.forScope;
+    if (loading || s !== scope || (s !== 'project' && s !== 'local')) return;
+    const n = countCustomized(snap.data, s);
+    setCounts((prev) => (prev[s] === n ? prev : { ...prev, [s]: n }));
+  }, [loading, scope, snap, counts, setCounts]);
+
+  /**
+   * 寫入成功後的畫面更新：只在畫面資料仍屬發出 scope 時套 patch（I4）；
+   * 已換成別的 scope 的資料 → 不套，改重讀徽章數（該 scope 的寫入不會再經畫面資料反映）。
+   */
+  const commitWrite = useCallback((issuedScope: PluginScope, patch: (data: ClaudeSettings) => ClaudeSettings): void => {
+    setSnap((prev) => {
+      if (prev.forScope !== issuedScope) return prev;
+      const data = patch(prev.data);
+      return data === prev.data ? prev : { ...prev, data };
+    });
+    if (latestRef.current.scope !== issuedScope && issuedScope !== 'user') void refreshCounts(false);
+  }, [setSnap, refreshCounts]);
+
+  /** 巢狀寫入的 patch：畫面上父 key 形狀不符（如外部改成字串）→ 不 patch、重讀對齊，不在 updater 內拋錯 */
+  const commitNestedWrite = useCallback((
+    issuedScope: PluginScope,
+    parentKey: NestedParentKey,
+    apply: (data: ClaudeSettings) => ClaudeSettings,
+  ): void => {
+    const { snap: latest, refreshSettings: refreshLatest } = latestRef.current;
+    if (latest.forScope === issuedScope && !canPatchNestedParent(latest.data, parentKey)) {
+      void refreshLatest(false);
+      return;
+    }
+    commitWrite(issuedScope, (data) => (canPatchNestedParent(data, parentKey) ? apply(data) : data));
+  }, [commitWrite]);
+
   const handleSave = useCallback(async (key: string, value: unknown): Promise<void> => {
     await sendRequest({ type: 'settings.set', scope, key, value });
-    setSettings((prev) => ({ ...prev, [key]: value }));
-    if (scope === 'project' || scope === 'local') {
-      const next = { ...settings, [key]: value };
-      setCounts((prev) => ({
-        ...prev,
-        [scope]: collectCustomizedSchemaFields(next, scope).length
-          + getUnknownSettingsEntries(next).length,
-      }));
-    }
-  }, [scope, setSettings, setCounts, settings]);
+    commitWrite(scope, (data) => ({ ...data, [key]: value }));
+  }, [scope, commitWrite]);
 
   const handleDelete = useCallback(async (key: string): Promise<void> => {
     await sendRequest({ type: 'settings.delete', scope, key });
-    setSettings((prev) => {
-      const rest = { ...prev } as Record<string, unknown>;
+    commitWrite(scope, (data) => {
+      const rest = { ...data } as Record<string, unknown>;
       delete rest[key];
       return rest as ClaudeSettings;
     });
-    if (scope === 'project' || scope === 'local') {
-      const next = { ...settings } as Record<string, unknown>;
-      delete next[key];
-      setCounts((prev) => ({
-        ...prev,
-        [scope]: collectCustomizedSchemaFields(next as ClaudeSettings, scope).length
-          + getUnknownSettingsEntries(next as ClaudeSettings).length,
-      }));
-    }
-  }, [scope, setSettings, setCounts, settings]);
+  }, [scope, commitWrite]);
+
+  const handleSaveNested = useCallback(async (parentKey: NestedParentKey, childKey: string, value: unknown): Promise<void> => {
+    await sendRequest({ type: 'settings.setNested', scope, parentKey, childKey, value });
+    commitNestedWrite(scope, parentKey, (data) =>
+      applySetNested(data as Record<string, unknown>, parentKey, childKey, value).next as ClaudeSettings);
+  }, [scope, commitNestedWrite]);
+
+  const handleDeleteNested = useCallback(async (parentKey: NestedParentKey, childKey: string): Promise<void> => {
+    await sendRequest({ type: 'settings.deleteNested', scope, parentKey, childKey });
+    commitNestedWrite(scope, parentKey, (data) => {
+      const { next, changed } = applyDeleteNested(data as Record<string, unknown>, parentKey, childKey);
+      return changed ? next as ClaudeSettings : data;
+    });
+  }, [scope, commitNestedWrite]);
 
   const handleScopeClick = (s: PluginScope): void => {
     if (s !== 'user' && !hasWorkspace) return;
@@ -381,10 +432,9 @@ export function SettingsPage(): React.ReactElement {
     [scope, settings],
   );
 
-  const unknownCount = useMemo(
-    () => getUnknownSettingsEntries(settings).length,
-    [settings],
-  );
+  // 目前 scope 的徽章數：畫面資料確定屬於目前 scope 時由它推導，否則（載入中、載入失敗、過渡幀）用 counts
+  const currentCount = useMemo(() => countCustomized(settings, scope), [settings, scope]);
+  const currentCountReady = !loading && snap.forScope === scope;
 
   const page = (
     <div className="page-container settings-page settings-page--fixed-shell">
@@ -394,7 +444,7 @@ export function SettingsPage(): React.ReactElement {
       <div className="settings-scope-tabs settings-scope-tabs--fixed">
         {SCOPES.map((s) => {
           const disabled = s !== 'user' && !hasWorkspace;
-          const count = s === 'project' ? counts.project : s === 'local' ? counts.local : 0;
+          const count = s === 'user' ? 0 : s === scope && currentCountReady ? currentCount : counts[s];
           return (
             <button
               key={s}
@@ -469,7 +519,7 @@ export function SettingsPage(): React.ReactElement {
           {error && (
             <ErrorBanner message={`${t('settings.error.load')}: ${error}`} onDismiss={() => setError(null)} />
           )}
-          {!loading && !error && isSearching && (
+          {!loading && !error && snap.forScope === scope && isSearching && (
             <SettingsSectionWrapper>
               {searchResults.length === 0 ? (
                 <p className="settings-search-empty">{t('settings.search.noResults')}</p>
@@ -490,7 +540,8 @@ export function SettingsPage(): React.ReactElement {
                             currentEnv={currentEnv}
                             scope={scope}
                             parentSettings={parentSettings}
-                            onEnvChange={(updatedEnv) => handleSave('env', updatedEnv)}
+                            onSaveNested={handleSaveNested}
+                            onDeleteNested={handleDeleteNested}
                           />
                         </div>
                       );
@@ -503,6 +554,8 @@ export function SettingsPage(): React.ReactElement {
                       parentSettings,
                       onSave: handleSave,
                       onDelete: handleDelete,
+                      onSaveNested: handleSaveNested,
+                      onDeleteNested: handleDeleteNested,
                     });
                     if (!fieldBindings) return null;
                     const { schema, value, onSave, onDelete, overriddenScope, inherited } = fieldBindings;
@@ -526,7 +579,7 @@ export function SettingsPage(): React.ReactElement {
               )}
             </SettingsSectionWrapper>
           )}
-          {!loading && !error && !isSearching && (
+          {!loading && !error && snap.forScope === scope && !isSearching && (
             <>
               {activeNav === 'permissions' && (
                 <PermissionsSection
@@ -535,6 +588,8 @@ export function SettingsPage(): React.ReactElement {
                   parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onSaveNested={handleSaveNested}
+                  onDeleteNested={handleDeleteNested}
                 />
               )}
               {activeNav === 'env' && (
@@ -544,6 +599,8 @@ export function SettingsPage(): React.ReactElement {
                   parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onSaveNested={handleSaveNested}
+                  onDeleteNested={handleDeleteNested}
                 />
               )}
               {activeNav === 'hooks' && (
@@ -553,6 +610,8 @@ export function SettingsPage(): React.ReactElement {
                   parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onSaveNested={handleSaveNested}
+                  onDeleteNested={handleDeleteNested}
                 />
               )}
               {activeNav === 'general' && (
@@ -562,6 +621,8 @@ export function SettingsPage(): React.ReactElement {
                   parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onSaveNested={handleSaveNested}
+                  onDeleteNested={handleDeleteNested}
                 />
               )}
               {activeNav === 'display' && (
@@ -571,6 +632,8 @@ export function SettingsPage(): React.ReactElement {
                   parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onSaveNested={handleSaveNested}
+                  onDeleteNested={handleDeleteNested}
                 />
               )}
               {activeNav === 'advanced' && (
@@ -580,6 +643,8 @@ export function SettingsPage(): React.ReactElement {
                   parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
+                  onSaveNested={handleSaveNested}
+                  onDeleteNested={handleDeleteNested}
                 />
               )}
               {activeNav === 'advanced' && (
@@ -591,7 +656,7 @@ export function SettingsPage(): React.ReactElement {
                 />
               )}
               {activeNav === 'customized' && (
-                customizedFields.length === 0 && unknownCount === 0 ? (
+                currentCount === 0 ? (
                   <SettingsSectionWrapper>
                     <p className="settings-search-empty">{t('settings.customized.empty')}</p>
                   </SettingsSectionWrapper>
@@ -605,6 +670,8 @@ export function SettingsPage(): React.ReactElement {
                           parentSettings,
                           onSave: handleSave,
                           onDelete: handleDelete,
+                          onSaveNested: handleSaveNested,
+                          onDeleteNested: handleDeleteNested,
                         });
                         if (!fieldBindings) return null;
                         const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope, inherited } = fieldBindings;
@@ -618,7 +685,7 @@ export function SettingsPage(): React.ReactElement {
                               {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <CustomizedPermissionsEditor
                                 perms={value as ClaudeSettings['permissions'] ?? {}}
-                                onSavePermissions={(p) => fieldOnSave('permissions', p)}
+                                onSaveNested={handleSaveNested}
                                 scope={scope}
                               />
                             </div>
@@ -634,7 +701,8 @@ export function SettingsPage(): React.ReactElement {
                                 scope={scope}
                                 parentSettings={parentSettings}
                                 currentEnv={(value as Record<string, string>) ?? {}}
-                                onSaveEnv={(e) => fieldOnSave('env', e)}
+                                onSaveNested={handleSaveNested}
+                                onDeleteNested={handleDeleteNested}
                               />
                             </div>
                           );

@@ -29,11 +29,11 @@ export class WriteQueue {
 export class KeyedWriteQueue {
   private queues = new Map<string, Promise<void>>();
 
-  /** 將非同步操作排入指定 key 的佇列。 */
-  enqueue(key: string, fn: () => Promise<void>): Promise<void> {
+  /** 將非同步操作排入指定 key 的佇列並回傳其結果；任務內禁 await 同 key 的 enqueue（自我死結）。 */
+  enqueue<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const prev = this.queues.get(key) ?? Promise.resolve();
     const task = prev.then(fn);
-    this.queues.set(key, task.catch(() => {}));
+    this.queues.set(key, task.then(() => undefined, () => undefined));
     return task;
   }
 }

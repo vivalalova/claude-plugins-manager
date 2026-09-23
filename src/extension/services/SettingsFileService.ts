@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { readFile, mkdir } from 'fs/promises';
+import { readFile, mkdir, access } from 'fs/promises';
 import { dirname, join } from 'path';
 import { parseFrontmatter } from '../utils/frontmatter';
 import { NoWorkspaceError } from '../utils/workspace';
@@ -20,12 +20,35 @@ import {
   getGlobalConfigSettingKeys,
 } from '../../shared/claude-settings-schema';
 import {
+  applyDeleteNested,
+  applySetNested,
+  type NestedApplyResult,
+  type NestedParentKey,
+} from '../../shared/nestedSettings';
+import {
   CLAUDE_JSON_PATH,
   INSTALLED_PLUGINS_PATH,
   MARKETPLACES_DIR,
   KNOWN_MARKETPLACES_PATH,
   USER_SETTINGS_PATH,
 } from '../paths';
+
+/** 把巢狀純函式的結果只寫回父 key（其他頂層 key 與檔案 key 順序不動），回傳是否需要寫檔 */
+function writeBackNestedParent(
+  settings: Record<string, unknown>,
+  parentKey: NestedParentKey,
+  { next, changed }: NestedApplyResult,
+): boolean {
+  if (!changed) {
+    return false;
+  }
+  if (Object.hasOwn(next, parentKey)) {
+    settings[parentKey] = next[parentKey];
+  } else {
+    delete settings[parentKey];
+  }
+  return true;
+}
 
 /**
  * 直接讀寫 Claude Code 設定檔的共用 service。
@@ -83,21 +106,29 @@ export class SettingsFileService {
    * 不做跨 scope 合併；檔案不存在回傳 {}。
    * scope='user' 時額外以 ~/.claude.json（globalConfig）覆蓋 storageFile='globalConfig' 的 key：
    * 存在則覆蓋、不存在則刪除（避免 settings.json 殘留舊值誤導 UI）。
+   * 讀取與寫入同排該檔佇列，回應順序＝請求順序；enqueue 前不可有 await。
+   * user scope 在任務內巢狀持有 ~/.claude.json 佇列，settings 檔佇列要等疊合完才放行。
    */
   async getSettings(scope: PluginScope): Promise<Record<string, unknown>> {
-    const settings = await readJsonFile<Record<string, unknown>>(this.getSettingsPath(scope), {});
-    if (scope !== 'user') {
-      return settings;
-    }
-    const globalConfig = await readJsonFile<Record<string, unknown>>(CLAUDE_JSON_PATH, {});
-    for (const key of getGlobalConfigSettingKeys()) {
-      if (key in globalConfig) {
-        settings[key] = globalConfig[key];
-      } else {
-        delete settings[key];
+    const path = this.getSettingsPath(scope);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      const settings = await readJsonFile<Record<string, unknown>>(path, {});
+      if (scope !== 'user') {
+        return settings;
       }
-    }
-    return settings;
+      const globalConfig = await this.settingsWriteQueues.enqueue(
+        CLAUDE_JSON_PATH,
+        () => readJsonFile<Record<string, unknown>>(CLAUDE_JSON_PATH, {}),
+      );
+      for (const key of getGlobalConfigSettingKeys()) {
+        if (key in globalConfig) {
+          settings[key] = globalConfig[key];
+        } else {
+          delete settings[key];
+        }
+      }
+      return settings;
+    });
   }
 
   /**
@@ -146,6 +177,58 @@ export class SettingsFileService {
       }
       delete settings[key];
       return true;
+    });
+  }
+
+  /**
+   * 只設定 `settings[parentKey][childKey]`，在同檔佇列內以檔案最新內容為準；父 key 缺席時建立。
+   * 父 key 存在但不是 plain object → 拋錯、不寫檔。
+   */
+  async setNestedSetting(scope: PluginScope, parentKey: NestedParentKey, childKey: string, value: unknown): Promise<void> {
+    this.assertNestedParentInSettingsFile(scope, parentKey);
+    return this.updateScopedSettingsFile(scope, (settings) =>
+      writeBackNestedParent(settings, parentKey, applySetNested(settings, parentKey, childKey, value)),
+    );
+  }
+
+  /**
+   * 只刪除 `settings[parentKey][childKey]`；父物件因此變空時同一任務內連父 key 一起刪。
+   * 父 key 或子 key 不存在 → 不寫檔；父 key 存在但不是 plain object → 拋錯。
+   */
+  async deleteNestedSetting(scope: PluginScope, parentKey: NestedParentKey, childKey: string): Promise<void> {
+    this.assertNestedParentInSettingsFile(scope, parentKey);
+    return this.updateScopedSettingsFile(scope, (settings) =>
+      writeBackNestedParent(settings, parentKey, applyDeleteNested(settings, parentKey, childKey)),
+    );
+  }
+
+  /** 子欄位寫入只實作在 settings.json 路徑；globalConfig（~/.claude.json）的父 key 明確拒絕 */
+  private assertNestedParentInSettingsFile(scope: PluginScope, parentKey: string): void {
+    if (scope === 'user' && getFlatFieldSchema(parentKey)?.storageFile === 'globalConfig') {
+      throw new Error(`Nested write is not supported for globalConfig key '${parentKey}'`);
+    }
+  }
+
+  /**
+   * 檔案不存在時建立含 $schema + hooks 的初始 settings 檔；已存在（含內容無法解析）一律不動。
+   * 走同檔佇列，排在前面的寫入完成後才判斷存在與否。
+   */
+  async ensureSettingsFile(scope: PluginScope): Promise<void> {
+    const path = this.getSettingsPath(scope);
+    return this.settingsWriteQueues.enqueue(path, async () => {
+      try {
+        await access(path);
+        return;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw err;
+        }
+      }
+      await mkdir(dirname(path), { recursive: true });
+      await writeJsonFileAtomic(path, {
+        $schema: 'https://json.schemastore.org/claude-code-settings.json',
+        hooks: {},
+      });
     });
   }
 

@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
-import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagInput } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { ObjectFieldEditor } from './components/ObjectFieldEditor';
-import { getSchemaFieldBindings, type ParentSettings } from './components/SchemaSection';
-import { saveOrDeleteParent } from './components/nestedParent';
+import { getSchemaFieldBindings, type SectionProps } from './components/SchemaSection';
 import { getSchemaDefault } from '../../../shared/claude-settings-schema';
 
 // ---------------------------------------------------------------------------
@@ -296,21 +294,15 @@ export function PermissionRuleListEditor({
 // PermissionsSection
 // ---------------------------------------------------------------------------
 
-interface PermissionsSectionProps {
-  scope: PluginScope;
-  settings: ClaudeSettings;
-  parentSettings: ParentSettings | undefined;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
-}
-
 export function PermissionsSection({
   scope,
   settings,
   parentSettings,
   onSave,
   onDelete,
-}: PermissionsSectionProps): React.ReactElement {
+  onSaveNested,
+  onDeleteNested,
+}: SectionProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
 
@@ -321,11 +313,12 @@ export function PermissionsSection({
   }, [scope]);
 
   const perms = settings.permissions ?? {};
-  const mcpServersBinding = getSchemaFieldBindings('enableAllProjectMcpServers', { scope, settings, parentSettings, onSave, onDelete });
+  const bindingProps = { scope, settings, parentSettings, onSave, onDelete, onSaveNested, onDeleteNested };
+  const mcpServersBinding = getSchemaFieldBindings('enableAllProjectMcpServers', bindingProps);
   // 兩個 disable 下拉：繼承標示與覆寫徽章取自 getSchemaFieldBindings（nestedUnder 'permissions'）；
-  // 寫入仍走 updatePermissions（保留本元件的整包 permissions 寫法）。兩者在所有 scope 可見，拿不到即 schema 缺格。
+  // 寫入走本元件的 saveChild／deleteChild（共用 saving 鎖）。兩者在所有 scope 可見，拿不到即 schema 缺格。
   const disableModeBinding = (key: 'disableAutoMode' | 'disableBypassPermissionsMode') => {
-    const binding = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete });
+    const binding = getSchemaFieldBindings(key, bindingProps);
     if (!binding) throw new Error(`Schema field "${key}" not visible for scope "${scope}"`);
     return binding;
   };
@@ -336,20 +329,21 @@ export function PermissionsSection({
   const disabledMcpjsonServers: string[] = settings.disabledMcpjsonServers ?? [];
   const listRules: string[] = (perms[activeList] ?? []) as string[];
 
-  const updatePermissions = (updatedPerms: ClaudeSettings['permissions']): void => {
-    void withSave(() =>
-      saveOrDeleteParent('permissions', (updatedPerms ?? {}) as Record<string, unknown>, { onSave, onDelete }),
-    );
+  // permissions 子欄位只寫一格；section 共用 saving 鎖，同頁不會並發寫同一父物件
+  const saveChild = (childKey: string, value: unknown): void => {
+    void withSave(() => onSaveNested('permissions', childKey, value));
+  };
+
+  const deleteChild = (childKey: string): void => {
+    void withSave(() => onDeleteNested('permissions', childKey));
   };
 
   const handleAddRule = (rule: string): void => {
-    const updated = { ...perms, [activeList]: [...listRules, rule] };
-    updatePermissions(updated);
+    saveChild(activeList, [...listRules, rule]);
   };
 
   const handleDeleteRule = (rule: string): void => {
-    const updated = { ...perms, [activeList]: listRules.filter((r) => r !== rule) };
-    updatePermissions(updated);
+    saveChild(activeList, listRules.filter((r) => r !== rule));
   };
 
   const listTabs: { id: PermissionsList; label: string }[] = [
@@ -395,7 +389,7 @@ export function PermissionsSection({
         settingKey="additionalDirectories"
         disabled={saving}
         onSave={async (_key, value) => {
-          updatePermissions({ ...perms, additionalDirectories: value as string[] });
+          saveChild('additionalDirectories', value as string[]);
         }}
       />
 
@@ -427,12 +421,10 @@ export function PermissionsSection({
         settingKey="disableAutoMode"
         disabled={saving}
         onSave={async (_key, value) => {
-          updatePermissions({ ...perms, disableAutoMode: value as 'disable' });
+          saveChild('disableAutoMode', value);
         }}
         onDelete={async () => {
-          const updated = { ...perms };
-          delete (updated as Record<string, unknown>).disableAutoMode;
-          updatePermissions(updated);
+          deleteChild('disableAutoMode');
         }}
       />
 
@@ -449,19 +441,17 @@ export function PermissionsSection({
         settingKey="disableBypassPermissionsMode"
         disabled={saving}
         onSave={async (_key, value) => {
-          updatePermissions({ ...perms, disableBypassPermissionsMode: value as 'disable' });
+          saveChild('disableBypassPermissionsMode', value);
         }}
         onDelete={async () => {
-          const updated = { ...perms };
-          delete (updated as Record<string, unknown>).disableBypassPermissionsMode;
-          updatePermissions(updated);
+          deleteChild('disableBypassPermissionsMode');
         }}
       />
 
       {/* 以下三個 boolean 經 getSchemaFieldBindings 解析（nestedUnder 與 scope 可見性與 SchemaSection 同一機制），
           僅在該 key 會生效的 scope 顯示 */}
       {(['skipDangerousModePermissionPrompt', 'useAutoModeDuringPlan', 'classifyAllShell'] as const).map((key) => {
-        const binding = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete });
+        const binding = getSchemaFieldBindings(key, bindingProps);
         if (!binding) return null;
         return (
           <BooleanToggle

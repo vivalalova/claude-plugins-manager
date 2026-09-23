@@ -32,6 +32,8 @@ describe('getSchemaFieldBindings — scope 過濾', () => {
       parentSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
+      onSaveNested: async () => {},
+      onDeleteNested: async () => {},
     });
     expect(result).toBeNull();
   });
@@ -43,6 +45,8 @@ describe('getSchemaFieldBindings — scope 過濾', () => {
       parentSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
+      onSaveNested: async () => {},
+      onDeleteNested: async () => {},
     });
     expect(result).not.toBeNull();
     expect(result?.value).toBe(true);
@@ -91,6 +95,8 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
       parentSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
+      onSaveNested: async () => {},
+      onDeleteNested: async () => {},
     });
     expect(result).toBeNull();
   });
@@ -102,6 +108,8 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
       parentSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
+      onSaveNested: async () => {},
+      onDeleteNested: async () => {},
     });
     expect(result).toBeNull();
   });
@@ -113,6 +121,8 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
       parentSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
+      onSaveNested: async () => {},
+      onDeleteNested: async () => {},
     });
     expect(result).not.toBeNull();
     expect(result?.value).toBe(false);
@@ -125,6 +135,8 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
       parentSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
+      onSaveNested: async () => {},
+      onDeleteNested: async () => {},
     });
     expect(result).toBeNull();
   });
