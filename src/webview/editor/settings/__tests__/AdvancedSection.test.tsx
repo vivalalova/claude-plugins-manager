@@ -370,6 +370,13 @@ describe('AdvancedSection — forceLoginMethod EnumDropdown', () => {
     expect(select.value).toBe('__unknown__');
     expect(screen.getByText('Current value: sso ⚠️')).toBeTruthy();
   });
+
+  it('選項含 gateway', () => {
+    renderSection({});
+    const select = screen.getByRole('combobox', { name: 'Force Login Method' }) as HTMLSelectElement;
+    const values = within(select).getAllByRole('option').map((o) => (o as HTMLOptionElement).value);
+    expect(values).toContain('gateway');
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -131,7 +131,7 @@ export interface ClaudeSettings {
   promptSuggestionEnabled?: boolean;
   spellcheck?: {
     enabled?: boolean;
-    checker?: "aspell" | "hunspell" | "ispell";
+    checker?: "aspell" | "hunspell" | "ispell" | "auto";
     language?: string;
     color?: string;
   };
@@ -146,7 +146,7 @@ export interface ClaudeSettings {
     allow?: string[];
     deny?: string[];
     ask?: string[];
-    defaultMode?: "default" | "acceptEdits" | "plan" | "dontAsk" | "auto" | "bypassPermissions" | "delegate";
+    defaultMode?: "default" | "acceptEdits" | "plan" | "auto" | "dontAsk" | "bypassPermissions" | "manual";
     disableBypassPermissionsMode?: "disable";
     disableAutoMode?: "disable";
     additionalDirectories?: string[];
@@ -214,7 +214,7 @@ export interface ClaudeSettings {
   }[]>;
   httpHookAllowedEnvVars?: string[];
   allowedHttpHookUrls?: string[];
-  forceLoginMethod?: "claudeai" | "console";
+  forceLoginMethod?: "claudeai" | "console" | "gateway";
   forceLoginOrgUUID?: string | string[];
   apiKeyHelper?: string;
   awsCredentialExport?: string;

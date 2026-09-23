@@ -92,7 +92,7 @@ export function SpellcheckEditor({ spellcheck, onSave, onDelete }: SpellcheckEdi
           onChange={(e) => setDraft((prev) => ({ ...prev, checker: e.target.value as SpellcheckChecker | '' }))}
           disabled={saving}
         >
-          <option value="">{tk('checker.auto')}</option>
+          <option value="">{tk('checker.unset')}</option>
           {SPELLCHECK_CHECKER_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>{tk(`checker.${opt}`)}</option>
           ))}

@@ -91,10 +91,24 @@ describe('spellcheck — editor 行為', () => {
     });
   });
 
-  it('checker 下拉含 auto（空值）＋三個 checker 選項', async () => {
+  it('checker 下拉含空值＋auto／aspell／hunspell／ispell 四個選項', async () => {
     renderDispatcher({} as ClaudeSettings);
     const select = document.getElementById('spellcheck-checker') as HTMLSelectElement;
-    expect(Array.from(select.options).map((o) => o.value)).toEqual(['', 'aspell', 'hunspell', 'ispell']);
+    const values = Array.from(select.options).map((o) => o.value);
+    expect(values[0]).toBe('');
+    expect(values.slice(1).sort()).toEqual(['aspell', 'auto', 'hunspell', 'ispell']);
+  });
+
+  it('空值選項文案沿用原「自動偵測」文字；auto 選項文案為 "auto"；兩者不同', async () => {
+    renderDispatcher({} as ClaudeSettings);
+    const select = document.getElementById('spellcheck-checker') as HTMLSelectElement;
+    const options = Array.from(select.options);
+    const unsetOption = options.find((o) => o.value === '')!;
+    const autoOption = options.find((o) => o.value === 'auto');
+    expect(autoOption).toBeTruthy();
+    expect(autoOption!.textContent).toBe('auto');
+    expect(unsetOption.textContent).toBe('Auto (detect installed checker)');
+    expect(unsetOption.textContent).not.toBe(autoOption!.textContent);
   });
 
   it('填入欄位並 Save → onSave("spellcheck", 只含已填欄位的物件)', async () => {

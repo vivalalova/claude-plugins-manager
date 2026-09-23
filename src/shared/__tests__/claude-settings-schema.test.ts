@@ -176,7 +176,7 @@ describe('getSchemaEnumOptions', () => {
     expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux', 'iterm2']);
     expect(getSchemaEnumOptions('editorMode')).toEqual(['normal', 'vim']);
     expect(getSchemaEnumOptions('preferredNotifChannel')).toEqual(['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled']);
-    expect(getSchemaEnumOptions('forceLoginMethod')).toEqual(['claudeai', 'console']);
+    expect(getSchemaEnumOptions('forceLoginMethod')).toEqual(['claudeai', 'console', 'gateway']);
   });
 
   it('不存在的 key → 拋出 Error', () => {

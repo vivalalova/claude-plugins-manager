@@ -1128,6 +1128,38 @@ describe('GeneralSection — defaultMode（nested under permissions）', () => {
       expect(onSave).toHaveBeenCalledWith('permissions', { defaultMode: 'bypassPermissions' });
     });
   });
+
+  it('選項依官方 docs 順序排列，含 manual、不含 delegate', async () => {
+    renderSection();
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    const select = screen.getByRole('combobox', { name: 'Default Mode' }) as HTMLSelectElement;
+    const values = within(select).getAllByRole('option').map((o) => (o as HTMLOptionElement).value);
+    expect(values).toEqual(['', 'default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions', 'manual']);
+  });
+
+  it('manual 選項顯示新 i18n key 的文字（非 raw key、非空字串）', async () => {
+    renderSection();
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    const select = screen.getByRole('combobox', { name: 'Default Mode' }) as HTMLSelectElement;
+    const manualOption = within(select).getAllByRole('option').find((o) => (o as HTMLOptionElement).value === 'manual') as HTMLOptionElement;
+    expect(manualOption).toBeTruthy();
+    expect(manualOption.textContent).not.toBe('');
+    expect(manualOption.textContent).not.toBe('settings.general.defaultMode.manual');
+    // 其餘選項標籤皆首字大寫（Default／Plan／Auto…）；缺 i18n key 時會 fallback 成原始值 'manual'（小寫）
+    expect(manualOption.textContent).not.toBe('manual');
+  });
+
+  it('既有值為未知的 "delegate" → select 顯示 __unknown__ 警告，且不因 render 觸發 onSave／onDelete', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ permissions: { defaultMode: 'delegate' } }, onSave, onDelete);
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    const select = screen.getByRole('combobox', { name: 'Default Mode' }) as HTMLSelectElement;
+    expect(select.value).toBe('__unknown__');
+    expect(screen.getByText('Current value: delegate ⚠️')).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------

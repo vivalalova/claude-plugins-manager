@@ -298,7 +298,7 @@ function recordField<
   return createField(key, recordValue(value), meta);
 }
 
-const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const;
+const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions', 'manual'] as const;
 const EFFORT_LEVEL_OPTIONS = ['xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux', 'iterm2'] as const;
@@ -306,7 +306,7 @@ const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
 const TUI_OPTIONS = ['fullscreen', 'default'] as const;
 const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
 const PREFERRED_NOTIF_CHANNEL_OPTIONS = ['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled'] as const;
-const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console'] as const;
+const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console', 'gateway'] as const;
 const DISABLE_ONLY_OPTIONS = ['disable'] as const;
 const DEFAULT_SHELL_OPTIONS = ['bash', 'powershell'] as const;
 const SPINNER_MODE_OPTIONS = ['append', 'replace'] as const;
@@ -327,7 +327,7 @@ const PROMPT_CACHE_TTL_OPTIONS = ['5m', '1h'] as const;
 const DIALOG_TIMEOUT_OPTIONS = ['60s', '5m', '10m', 'never'] as const;
 const CROSS_SESSION_INBOUND_OPTIONS = ['accept', 'hold', 'refuse'] as const;
 /** `spellcheck.checker` 選項；巢狀欄位不進 flat schema，故由 UI 直接匯入本常數（唯一來源）。 */
-export const SPELLCHECK_CHECKER_OPTIONS = ['aspell', 'hunspell', 'ispell'] as const;
+export const SPELLCHECK_CHECKER_OPTIONS = ['aspell', 'hunspell', 'ispell', 'auto'] as const;
 const DIFF_TOOL_OPTIONS = ['auto', 'terminal'] as const;
 const WORKFLOW_SIZE_GUIDELINE_OPTIONS = ['unrestricted', 'small', 'medium', 'large'] as const;
 
