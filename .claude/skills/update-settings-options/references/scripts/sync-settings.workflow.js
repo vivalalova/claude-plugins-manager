@@ -22,7 +22,7 @@ export const meta = {
 
 const DETECT_SCHEMA = {
   type: 'object',
-  required: ['settingsGaps', 'removedKeys', 'envGaps', 'envRemoved', 'defaultDrift', 'storageDrift', 'counts', 'health'],
+  required: ['settingsGaps', 'removedKeys', 'envGaps', 'envRemoved', 'defaultDrift', 'storageDrift', 'scopeDrift', 'counts', 'health'],
   properties: {
     settingsGaps: {
       type: 'array',
@@ -46,6 +46,11 @@ const DETECT_SCHEMA = {
       items: { type: 'object', properties: { key: { type: 'string' }, docsScope: { type: 'string' }, repoStorageFile: { type: 'string' } } },
       description: 'keys whose index Scope (Global config = ~/.claude.json) disagrees with schema storageFile',
     },
+    scopeDrift: {
+      type: 'array',
+      items: { type: 'object', properties: { key: { type: 'string' }, docsScope: { type: 'string' }, repoEffectiveScopes: {}, kind: { type: 'string' } } },
+      description: 'keys (incl. object children by dotted path) whose index Scope (User or managed / User, local, or managed / Any file) disagrees with schema effectiveScopes (kind: mismatch | unrecognized)',
+    },
     counts: {
       type: 'object',
       properties: {
@@ -58,6 +63,7 @@ const DETECT_SCHEMA = {
         envRemoved: { type: 'number' },
         defaultDrift: { type: 'number' },
         storageDrift: { type: 'number' },
+        scopeDrift: { type: 'number' },
       },
     },
     health: {
@@ -111,7 +117,7 @@ if (!detected) {
 // health is guaranteed ok: CLI calls process.exit(1) on failure, producing no JSON output.
 // A parsed `detected` therefore always has health.ok === true.
 
-log(`Detect: ${detected.counts.settingsGaps} settings gaps · ${detected.counts.removedKeys} removed keys · ${detected.counts.envGaps} env gaps · ${detected.counts.envRemoved} env removed · ${detected.counts.defaultDrift} default drift · ${detected.counts.storageDrift} storage drift · ${detected.counts.docsKeys} docs keys · ${detected.counts.repoKeys} repo keys`)
+log(`Detect: ${detected.counts.settingsGaps} settings gaps · ${detected.counts.removedKeys} removed keys · ${detected.counts.envGaps} env gaps · ${detected.counts.envRemoved} env removed · ${detected.counts.defaultDrift} default drift · ${detected.counts.storageDrift} storage drift · ${detected.counts.scopeDrift} scope drift · ${detected.counts.docsKeys} docs keys · ${detected.counts.repoKeys} repo keys`)
 
 if (detected.settingsGaps.length === 0) {
   log('No settings gaps — skipping Categorize phase.')
@@ -124,6 +130,7 @@ if (detected.settingsGaps.length === 0) {
     envRemoved: detected.envRemoved,
     defaultDrift: detected.defaultDrift,
     storageDrift: detected.storageDrift,
+    scopeDrift: detected.scopeDrift,
     counts: detected.counts,
   }
 }
@@ -175,5 +182,6 @@ return {
   envRemoved: detected.envRemoved,
   defaultDrift: detected.defaultDrift,
   storageDrift: detected.storageDrift,
+  scopeDrift: detected.scopeDrift,
   counts: detected.counts,
 }

@@ -1,10 +1,11 @@
 /**
  * Meta drift between settings-reference.md and the repo schema for keys both
  * sides already have: schema `default` vs each entry's `**Default**` bullet,
- * and `storageFile` vs the index Scope column.
+ * `storageFile` vs the index Scope column, and `effectiveScopes` vs the same column.
  */
 
-import type { FlatFieldSchema } from '../claude-settings-schema';
+import { USER_AND_LOCAL_SCOPES, USER_SCOPE_ONLY, childEffectiveScopes } from '../claude-settings-schema';
+import type { EffectiveScope, EffectiveScopes, FlatFieldSchema, ValueSchema } from '../claude-settings-schema';
 
 const DETAIL_HEADING_RE = /^###\s+`([^`]+)`\s*$/;
 const HEADING_RE = /^#{1,6}\s/;
@@ -145,6 +146,69 @@ export function diffStorage(
   }
 
   return drift.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+export type ScopeDrift = {
+  key: string;
+  docsScope: string;
+  repoEffectiveScopes: EffectiveScopes | undefined;
+  kind: 'mismatch' | 'unrecognized';
+};
+
+/** Index Scope → expected `effectiveScopes`; `null` = not compared (Managed／Global config). */
+const DOCS_SCOPE_TO_EFFECTIVE: ReadonlyMap<string, readonly EffectiveScope[] | undefined | null> = new Map([
+  ['Any file', undefined],
+  ['User or managed', USER_SCOPE_ONLY],
+  ['User, local, or managed', USER_AND_LOCAL_SCOPES],
+  ['Managed', null],
+  [GLOBAL_CONFIG_SCOPE, null],
+]);
+
+function sameScopes(a: EffectiveScopes | undefined, b: EffectiveScopes | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.length === b.length && a.every((scope) => b.includes(scope));
+}
+
+/**
+ * Keys (flat and object children, by dotted path) whose index Scope and repo
+ * `effectiveScopes` disagree; children inherit their nearest ancestor's registration.
+ */
+export function diffScopes(
+  flatSchemas: Record<string, FlatFieldSchema>,
+  docsScopes: Map<string, string>,
+): ScopeDrift[] {
+  const drift = new Map<string, ScopeDrift>();
+
+  const check = (docsKey: string, docsScope: string, repo: EffectiveScopes | undefined): void => {
+    if (!DOCS_SCOPE_TO_EFFECTIVE.has(docsScope)) {
+      drift.set(docsKey, { key: docsKey, docsScope, repoEffectiveScopes: repo, kind: 'unrecognized' });
+      return;
+    }
+    const expected = DOCS_SCOPE_TO_EFFECTIVE.get(docsScope);
+    if (expected === null) return;
+    if (!sameScopes(expected, repo)) {
+      drift.set(docsKey, { key: docsKey, docsScope, repoEffectiveScopes: repo, kind: 'mismatch' });
+    }
+  };
+
+  const walk = (prefix: string, schema: ValueSchema, inherited: EffectiveScopes | undefined): void => {
+    if (schema.kind !== 'object') return;
+    for (const [name, property] of Object.entries(schema.properties)) {
+      const path = `${prefix}.${name}`;
+      const resolved = childEffectiveScopes(property, inherited);
+      const docsScope = docsScopes.get(path);
+      if (docsScope !== undefined) check(path, docsScope, resolved);
+      walk(path, property.schema, resolved);
+    }
+  };
+
+  for (const [key, field] of Object.entries(flatSchemas)) {
+    const found = lookupDocs(key, field, docsScopes);
+    if (found) check(found[0], found[1], field.effectiveScopes);
+    walk(key, field.valueSchema, field.effectiveScopes);
+  }
+
+  return [...drift.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
 /**

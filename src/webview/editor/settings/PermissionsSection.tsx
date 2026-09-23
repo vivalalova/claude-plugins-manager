@@ -438,45 +438,26 @@ export function PermissionsSection({
         }}
       />
 
-      <BooleanToggle
-        label={t('settings.permissions.skipDangerousModePermissionPrompt.label')}
-        description={t('settings.permissions.skipDangerousModePermissionPrompt.description')}
-        value={settings.skipDangerousModePermissionPrompt}
-        settingKey="skipDangerousModePermissionPrompt"
-        defaultValue={getSchemaDefault<boolean>('skipDangerousModePermissionPrompt')}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      <BooleanToggle
-        label={t('settings.permissions.useAutoModeDuringPlan.label')}
-        description={t('settings.permissions.useAutoModeDuringPlan.description')}
-        value={settings.useAutoModeDuringPlan}
-        settingKey="useAutoModeDuringPlan"
-        defaultValue={getSchemaDefault<boolean>('useAutoModeDuringPlan')}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
-
-      {/* classifyAllShell — nestedUnder autoMode, bindings resolved generically via getSchemaFieldBindings
-          (same nestedUnder mechanism SchemaSection uses; this section just renders it by hand like the rest) */}
-      {(() => {
-        const binding = getSchemaFieldBindings('classifyAllShell', { scope, settings, onSave, onDelete });
+      {/* 以下三個 boolean 經 getSchemaFieldBindings 解析（nestedUnder 與 scope 可見性與 SchemaSection 同一機制），
+          僅在該 key 會生效的 scope 顯示 */}
+      {(['skipDangerousModePermissionPrompt', 'useAutoModeDuringPlan', 'classifyAllShell'] as const).map((key) => {
+        const binding = getSchemaFieldBindings(key, { scope, settings, onSave, onDelete });
         if (!binding) return null;
         return (
           <BooleanToggle
-            label={t('settings.permissions.classifyAllShell.label')}
-            description={t('settings.permissions.classifyAllShell.description')}
+            key={key}
+            label={t(`settings.permissions.${key}.label`)}
+            description={t(`settings.permissions.${key}.description`)}
             value={binding.value as boolean | undefined}
-            settingKey="classifyAllShell"
-            defaultValue={getSchemaDefault<boolean>('classifyAllShell')}
+            settingKey={key}
+            defaultValue={getSchemaDefault<boolean>(key)}
             overriddenScope={binding.overriddenScope}
             disabled={saving}
             onSave={binding.onSave}
             onDelete={binding.onDelete}
           />
         );
-      })()}
+      })}
 
       {/* enabledMcpjsonServers */}
       <TagInput

@@ -51,6 +51,8 @@ export interface RecordValueSchema<Value extends ValueSchema = ValueSchema> {
 export interface ObjectProperty<Schema extends ValueSchema = ValueSchema, Optional extends boolean = boolean> {
   schema: Schema;
   optional: Optional;
+  /** 可生效的存檔位置；未指定 = 繼承最近祖先的登錄 */
+  effectiveScopes?: EffectiveScopes;
 }
 
 export interface ObjectValueSchema<Properties extends Record<string, ObjectProperty> = Record<string, ObjectProperty>> {
@@ -110,6 +112,15 @@ export type InferValueSchema<Schema extends ValueSchema> =
                   ? InferValueSchema<Members[number]>
                   : never;
 
+/** 可登錄的生效 scope；managed 一律生效，不列入 */
+export type EffectiveScope = 'user' | 'local';
+export type EffectiveScopes = readonly EffectiveScope[];
+
+/** docs Scope `User or managed` */
+export const USER_SCOPE_ONLY: EffectiveScopes = ['user'];
+/** docs Scope `User, local, or managed` */
+export const USER_AND_LOCAL_SCOPES: EffectiveScopes = ['user', 'local'];
+
 export interface SettingFieldSchema<
   Value extends ValueSchema = ValueSchema,
   NestedUnder extends string | undefined = string | undefined,
@@ -126,6 +137,8 @@ export interface SettingFieldSchema<
   controlTypeOverride?: ControlType;
   /** 該 key 實際存放的檔案；未指定 = settings.json。'globalConfig' = ~/.claude.json（只在 user scope 存在） */
   storageFile?: 'globalConfig';
+  /** 可生效的存檔位置；未指定 = 任何 settings 檔都生效 */
+  effectiveScopes?: EffectiveScopes;
 }
 
 /** Schema 陣列元素 — key + 完整 schema + UI metadata */
@@ -189,8 +202,11 @@ function required<Schema extends ValueSchema>(schema: Schema): ObjectProperty<Sc
   return { schema, optional: false };
 }
 
-function optional<Schema extends ValueSchema>(schema: Schema): ObjectProperty<Schema, true> {
-  return { schema, optional: true };
+function optional<Schema extends ValueSchema>(
+  schema: Schema,
+  meta: { effectiveScopes?: EffectiveScopes } = {},
+): ObjectProperty<Schema, true> {
+  return meta.effectiveScopes ? { schema, optional: true, effectiveScopes: meta.effectiveScopes } : { schema, optional: true };
 }
 
 interface BaseFieldMeta<NestedUnder extends string | undefined = undefined> {
@@ -199,6 +215,7 @@ interface BaseFieldMeta<NestedUnder extends string | undefined = undefined> {
   dangerValues?: readonly string[];
   controlTypeOverride?: ControlType;
   storageFile?: 'globalConfig';
+  effectiveScopes?: EffectiveScopes;
 }
 
 function inferControlType(valueSchema: ValueSchema): ControlType | undefined {
@@ -239,6 +256,7 @@ function createField<
     dangerValues: meta.dangerValues,
     controlTypeOverride: meta.controlTypeOverride,
     storageFile: meta.storageFile,
+    effectiveScopes: meta.effectiveScopes,
   };
 }
 
@@ -470,15 +488,15 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
   enableWeakerNetworkIsolation: optional(booleanValue()),
   enableWeakerNestedSandbox: optional(booleanValue()),
   allowUnsandboxedCommands: optional(booleanValue()),
-  allowAppleEvents: optional(booleanValue()),
+  allowAppleEvents: optional(booleanValue(), { effectiveScopes: USER_SCOPE_ONLY }),
   failIfUnavailable: optional(booleanValue()),
   ignoreViolations: optional(recordValue(STRING_ARRAY_SCHEMA)),
   ripgrep: optional(objectValue({
     command: required(STRING_SCHEMA),
     args: optional(STRING_ARRAY_SCHEMA),
-  })),
+  }), { effectiveScopes: USER_SCOPE_ONLY }),
   filesystem: optional(objectValue({
-    disabled: optional(booleanValue()),
+    disabled: optional(booleanValue(), { effectiveScopes: USER_SCOPE_ONLY }),
     allowWrite: optional(STRING_ARRAY_SCHEMA),
     denyWrite: optional(STRING_ARRAY_SCHEMA),
     denyRead: optional(STRING_ARRAY_SCHEMA),
@@ -487,7 +505,7 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     allowManagedReadPathsOnly: optional(booleanValue()),
   })),
   network: optional(objectValue({
-    strictAllowlist: optional(booleanValue()),
+    strictAllowlist: optional(booleanValue(), { effectiveScopes: USER_SCOPE_ONLY }),
     // Managed settings only：同上，只容忍不做 UI。
     allowManagedDomainsOnly: optional(booleanValue()),
     allowedDomains: optional(STRING_ARRAY_SCHEMA),
@@ -500,7 +518,7 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
     allowMachLookup: optional(STRING_ARRAY_SCHEMA),
     // Experimental 且 managed/user-tier only（無 first-party UI）：docs 只保證 {} 或
     // caCertPath/caKeyPath，shape 仍會變動，故用寬鬆 string record 容忍而不精確建模。
-    tlsTerminate: optional(recordValue(STRING_SCHEMA)),
+    tlsTerminate: optional(recordValue(STRING_SCHEMA), { effectiveScopes: USER_SCOPE_ONLY }),
   })),
   // Cross-field rules（extract 不可與 decode 並用、decode entry 的 onExtractNoMatch 只收 warn、
   // awsPairs 只能指向 whole-value mask entry）由 Claude Code runtime 驗證，此 schema 語言無法表達。
@@ -529,13 +547,13 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
       accessKeyIdVar: required(STRING_SCHEMA),
       secretAccessKeyVar: required(STRING_SCHEMA),
       sessionTokenVar: optional(STRING_SCHEMA),
-    }))),
-    allowPlaintextInject: optional(booleanValue()),
+    })), { effectiveScopes: USER_SCOPE_ONLY }),
+    allowPlaintextInject: optional(booleanValue(), { effectiveScopes: USER_SCOPE_ONLY }),
     sigv4: optional(objectValue({
       streaming: optional(SIGV4_POLICY_VALUE_SCHEMA),
       presigned: optional(SIGV4_POLICY_VALUE_SCHEMA),
       sigv4a: optional(SIGV4_POLICY_VALUE_SCHEMA),
-    })),
+    }), { effectiveScopes: USER_SCOPE_ONLY }),
   })),
 });
 
@@ -616,7 +634,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Model & reasoning
     stringField('model'),
     arrayField('availableModels', STRING_SCHEMA),
-    createField('modelPicker', MODEL_PICKER_VALUE_SCHEMA),
+    createField('modelPicker', MODEL_PICKER_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     createField('modelSettings', MODEL_SETTINGS_VALUE_SCHEMA),
     createField('promptCacheTtl', stringValue(PROMPT_CACHE_TTL_OPTIONS)),
     createField('subagentPromptCacheTtl', stringValue(PROMPT_CACHE_TTL_OPTIONS)),
@@ -651,12 +669,12 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('autoUpdatesChannel', UPDATE_CHANNEL_VALUE_SCHEMA, { default: 'latest' }),
     stringField('minimumVersion'),
     createField('cleanupPeriodDays', CLEANUP_PERIOD_DAYS_VALUE_SCHEMA, { default: 30 }),
-    createField('desktopSessionCleanupPeriodDays', numberValue({ min: 0, step: 1 }), { default: 0 }),
+    createField('desktopSessionCleanupPeriodDays', numberValue({ min: 0, step: 1 }), { default: 0, effectiveScopes: USER_SCOPE_ONLY }),
     // Behavior
-    booleanField('autoContinueAtUsageLimit', { default: true }),
+    booleanField('autoContinueAtUsageLimit', { default: true, effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('autoCompactEnabled', { default: true }),
     createField('autoCompactWindow', AUTO_COMPACT_WINDOW_VALUE_SCHEMA),
-    createField('dialogExpiry', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: '5m' }),
+    createField('dialogExpiry', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: '5m', effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('fileCheckpointingEnabled', { default: true }),
   ],
 
@@ -691,14 +709,14 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
     createField('keybindingFlavor', KEYBINDING_FLAVOR_VALUE_SCHEMA),
-    createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object }),
+    createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
     booleanField('emojiCompletionEnabled', { default: true }),
     booleanField('voiceEnabled'),
     createField('voice', VOICE_VALUE_SCHEMA),
-    createField('askUserQuestionTimeout', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: 'never' }),
+    createField('askUserQuestionTimeout', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: 'never', effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('promptSuggestionEnabled', { default: true }),
-    createField('spellcheck', SPELLCHECK_VALUE_SCHEMA),
+    createField('spellcheck', SPELLCHECK_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('permissionExplainerEnabled', { default: true, storageFile: 'globalConfig' }),
     // Agent teammates
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'in-process' }),
@@ -716,9 +734,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('disableBypassPermissionsMode', DISABLE_ONLY_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
     }),
-    booleanField('skipDangerousModePermissionPrompt', { default: false }),
-    booleanField('useAutoModeDuringPlan', { default: true }),
-    booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false }),
+    booleanField('skipDangerousModePermissionPrompt', { default: false, effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('useAutoModeDuringPlan', { default: true, effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false, effectiveScopes: USER_SCOPE_ONLY }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),
     createField('allowedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
     createField('deniedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
@@ -759,21 +777,21 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('skillListingMaxDescChars', SKILL_LISTING_MAX_DESC_CHARS_VALUE_SCHEMA, { default: 1536 }),
     createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
     booleanField('disableSkillShellExecution', { default: false }),
-    booleanField('syncClaudeAiSkills'),
+    booleanField('syncClaudeAiSkills', { effectiveScopes: USER_AND_LOCAL_SCOPES }),
     // Sessions & execution
     createField('worktree', WORKTREE_VALUE_SCHEMA),
-    createField('autoMode', AUTO_MODE_VALUE_SCHEMA),
+    createField('autoMode', AUTO_MODE_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     stringField('defaultEnvironmentId', { nestedUnder: 'remote' }),
     createField('remote', REMOTE_VALUE_SCHEMA),
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
     stringField('plansDirectory', { default: '~/.claude/plans' }),
-    createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object }),
-    stringField('processWrapper'),
+    createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
+    stringField('processWrapper', { effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('isolatePeerMachines'),
     // Sandbox
     createField('sandbox', SANDBOX_VALUE_SCHEMA),
     // Footer link patterns
-    createField('footerLinksRegexes', FOOTER_LINKS_REGEXES_VALUE_SCHEMA, { controlTypeOverride: Object }),
+    createField('footerLinksRegexes', FOOTER_LINKS_REGEXES_VALUE_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
     // Opt-outs & feature toggles
     booleanField('disableAgentView', { default: false }),
     booleanField('disableRemoteControl', { default: false }),
@@ -786,7 +804,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('disableClaudeAiConnectors', { default: false }),
     booleanField('disableWorkflows', { default: false }),
     booleanField('enableWorkflows'),
-    createField('feedbackDrafts', stringValue(FEEDBACK_DRAFTS_OPTIONS), { default: 'notify' }),
+    createField('feedbackDrafts', stringValue(FEEDBACK_DRAFTS_OPTIONS), { default: 'notify', effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('workflowKeywordTriggerEnabled', { default: true }),
     // Enterprise & misc
     createField('companyAnnouncements', COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA, { controlTypeOverride: Object }),
@@ -811,6 +829,7 @@ interface RuntimeSettingFieldBase {
   dangerValues?: readonly string[];
   controlTypeOverride?: ControlType;
   storageFile?: 'globalConfig';
+  effectiveScopes?: EffectiveScopes;
 }
 
 interface RuntimeFlatFieldSchema extends Omit<RuntimeSettingFieldBase, 'controlTypeOverride'> {
@@ -834,6 +853,7 @@ function buildFlatSchema(): Record<string, RuntimeFlatFieldSchema> {
         nestedUnder: flatFieldBase.nestedUnder,
         dangerValues: flatFieldBase.dangerValues,
         storageFile: flatFieldBase.storageFile,
+        effectiveScopes: flatFieldBase.effectiveScopes,
         section,
       };
     }
@@ -900,4 +920,43 @@ export function getSchemaEnumOptions(key: string): readonly string[] {
     throw new Error(`Schema key "${key}" is not an enum with options`);
   }
   return options;
+}
+
+type ScopeMeta = { effectiveScopes?: EffectiveScopes; storageFile?: 'globalConfig' };
+
+/** 欄位在該 scope 是否生效：globalConfig 只在 user；有 effectiveScopes 登錄則依登錄；否則任何 scope 都生效。 */
+export function isScopeEffective(meta: ScopeMeta, scope: EffectiveScope | 'project'): boolean {
+  if (meta.storageFile === 'globalConfig') return scope === 'user';
+  return meta.effectiveScopes ? (meta.effectiveScopes as readonly string[]).includes(scope) : true;
+}
+
+/**
+ * 子層 effectiveScopes 登錄；未登錄（`undefined`）即繼承最近祖先的登錄。
+ * 這是「child without its own effectiveScopes inherits nearest ancestor's」規則的唯一實作，
+ * 供 resolveEffectiveScopes、settings-meta-drift 的 diffScopes walk、SandboxEditor 共用。
+ */
+export function childEffectiveScopes(
+  property: { effectiveScopes?: EffectiveScopes },
+  inherited: EffectiveScopes | undefined,
+): EffectiveScopes | undefined {
+  return property.effectiveScopes ?? inherited;
+}
+
+/**
+ * 依 dotted path（頂層 key 或 object 子設定，如 `sandbox.network.strictAllowlist`）
+ * 解析 effectiveScopes 登錄；子層未登錄即繼承最近祖先。key 不存在拋錯（fail-fast）。
+ */
+export function resolveEffectiveScopes(path: string): EffectiveScopes | undefined {
+  const [head, ...rest] = path.split('.');
+  const field = FLAT_SCHEMA_BY_KEY[head];
+  if (!field) throw new Error(`Schema key "${head}" not found`);
+  let resolved = field.effectiveScopes;
+  let schema: ValueSchema = field.valueSchema;
+  for (const segment of rest) {
+    const property = schema.kind === 'object' ? schema.properties[segment] : undefined;
+    if (!property) throw new Error(`Schema path "${path}" not found`);
+    resolved = childEffectiveScopes(property, resolved);
+    schema = property.schema;
+  }
+  return resolved;
 }

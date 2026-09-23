@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
-import { getFlatFieldSchema, getSectionFieldOrder, type FlatFieldSchema, type SettingsSection } from '../../../../shared/claude-settings-schema';
+import { getFlatFieldSchema, getSectionFieldOrder, isScopeEffective, type FlatFieldSchema, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { getOverriddenScope } from './SettingControls';
 import { saveOrDeleteParent } from './nestedParent';
@@ -48,9 +48,9 @@ interface ResolvedSchemaFieldBindings {
   overriddenScope?: PluginScope;
 }
 
-/** globalConfig 欄位（存在 ~/.claude.json）只在 user scope 可見；其餘欄位不受限制。 */
+/** 欄位只在會生效的 scope 可見（globalConfig 與 effectiveScopes 登錄，見 isScopeEffective）。 */
 export function isFieldVisibleForScope(schema: FlatFieldSchema, scope: PluginScope): boolean {
-  return !(schema.storageFile === 'globalConfig' && scope !== 'user');
+  return isScopeEffective(schema, scope);
 }
 
 export function getSchemaFieldBindings(

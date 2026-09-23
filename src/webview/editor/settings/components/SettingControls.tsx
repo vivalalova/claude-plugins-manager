@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import { useSettingSave } from '../hooks/useSettingSave';
 import type { PluginScope } from '../../../../shared/types';
+import { getFlatFieldSchema, isScopeEffective } from '../../../../shared/claude-settings-schema';
 
 // ---------------------------------------------------------------------------
 // Override helpers
@@ -22,6 +23,7 @@ export const PARENT_SCOPES: Record<PluginScope, readonly PluginScope[]> = {
  * 僅當本層實際有設定值（value !== undefined）才算覆寫——與 shouldShowReset 同一口徑：
  * 本層沒值＝沒設定（不顯示 Reset 鈕），是繼承而非覆寫，不該掛 override badge。
  * parentSettings 已 drill 到對照層級（巢狀欄位傳父物件，頂層欄位傳 scope 根）。
+ * 該 key 在父層 scope 不生效（見 isScopeEffective）時跳過該層：那份值 Claude Code 不讀。
  */
 export function getOverriddenScope(
   scope: PluginScope,
@@ -30,7 +32,9 @@ export function getOverriddenScope(
   value: unknown,
 ): PluginScope | undefined {
   if (value === undefined) return undefined;
+  const schema = getFlatFieldSchema(key);
   for (const parent of PARENT_SCOPES[scope]) {
+    if (schema && !isScopeEffective(schema, parent)) continue;
     const ps = parentSettings[parent];
     if (ps && key in ps) return parent;
   }

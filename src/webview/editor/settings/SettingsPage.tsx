@@ -20,6 +20,7 @@ import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { getSchemaFieldBindings, isFieldVisibleForScope, type ParentSettings } from './components/SchemaSection';
 import { PARENT_SCOPES, OverrideBadge } from './components/SettingControls';
 import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
+import { hasVisibleSandboxContent } from './components/SandboxEditor';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -32,7 +33,8 @@ const SETTINGS_NAV_SECTIONS = getSettingsSections();
  * 是否視為「已自訂」的實質內容：undefined、空物件 {}、空陣列 [] 都不算。
  * 空容器（env:{}/hooks:{}/availableModels:[] 等）對應編輯器畫不出可操作項，
  * 計入 badge 會造成「計數說有、面板空白」矛盾——與 shouldShowReset 同精神（有值才算）。
- * permissions 因空子清單（{allow:[]}）需更深判定，另由 hasVisiblePermissionsContent 處理。
+ * permissions 因空子清單（{allow:[]}）需更深判定，另由 hasVisiblePermissionsContent 處理；
+ * sandbox 只計該 scope 生效的子設定，另由 hasVisibleSandboxContent 處理。
  */
 function isCustomizedValue(value: unknown): boolean {
   if (value === undefined) return false;
@@ -62,6 +64,7 @@ function collectCustomizedSchemaFields(
         // permissions 走更深的「有可見內容」判定（空子清單如 allow:[] 也要排除），
         // 與 CustomizedPermissionsEditor 共用單一來源，避免計入 badge 卻畫不出面板。
         if (key === 'permissions' && !hasVisiblePermissionsContent(settings.permissions)) continue;
+        if (key === 'sandbox' && !hasVisibleSandboxContent(settings.sandbox, scope)) continue;
         result.push({ key, section });
       }
     }

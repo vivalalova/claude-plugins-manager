@@ -38,6 +38,7 @@ import {
   parseSettingsDetails,
   diffDefaults,
   diffStorage,
+  diffScopes,
   KNOWN_DEFAULT_EQUIVALENT,
 } from '../src/shared/settings-sync/settings-meta-drift';
 
@@ -143,6 +144,7 @@ async function main(): Promise<void> {
   }));
   const defaultDrift = diffDefaults(flatSchemas, docsDefaults, KNOWN_DEFAULT_EQUIVALENT);
   const storageDrift = diffStorage(flatSchemas, settingsScopes);
+  const scopeDrift = diffScopes(flatSchemas, settingsScopes);
 
   // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
   const registryEnvNames = new Set(getKnownEnvVarNames());
@@ -156,6 +158,7 @@ async function main(): Promise<void> {
     envRemoved,
     defaultDrift,
     storageDrift,
+    scopeDrift,
     counts: {
       docsKeys: docsKeys.size,
       repoKeys: repoKeys.size,
@@ -166,6 +169,7 @@ async function main(): Promise<void> {
       envRemoved: envRemoved.length,
       defaultDrift: defaultDrift.length,
       storageDrift: storageDrift.length,
+      scopeDrift: scopeDrift.length,
     },
     health,
   };

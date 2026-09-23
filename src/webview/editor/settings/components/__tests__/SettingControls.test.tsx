@@ -4,7 +4,7 @@
 import React from 'react';
 import { afterEach, describe, it, expect } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { SettingLabelText } from '../SettingControls';
+import { SettingLabelText, getOverriddenScope } from '../SettingControls';
 
 afterEach(() => {
   cleanup();
@@ -35,5 +35,44 @@ describe('SettingLabelText', () => {
 
     rerender(<SettingLabelText label="Language" settingKey="language" defaultValue="" />);
     expect(screen.getByText('(language)')).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #24 — getOverriddenScope 必須跳過「該 key 在該父層不生效」的 scope，不能只看
+// parentSettings 裡有沒有這個 key（project 檔案裡即使寫了 user+local-only 的
+// key，那份值本來就不會被 Claude Code 讀到，override badge 不該指向它）。
+// ---------------------------------------------------------------------------
+
+describe('getOverriddenScope — #24 跳過不生效的父層 scope', () => {
+  it('（回歸錨）未受限 key：project 有值 → local 視角回報 project 覆寫', () => {
+    // model 未登錄 effectiveScopes，行為不受本次改動影響。
+    const result = getOverriddenScope(
+      'local',
+      { project: { model: 'x' }, user: { model: 'y' } },
+      'model',
+      'z',
+    );
+    expect(result).toBe('project');
+  });
+
+  it('useAutoModeDuringPlan（user+local）：project 有值但不生效 → local 視角跳過 project，回報 user', () => {
+    const result = getOverriddenScope(
+      'local',
+      { project: { useAutoModeDuringPlan: false }, user: { useAutoModeDuringPlan: true } },
+      'useAutoModeDuringPlan',
+      true,
+    );
+    expect(result).toBe('user');
+  });
+
+  it('useAutoModeDuringPlan：project 有值、user 沒有值 → local 視角完全跳過 project，回報 undefined', () => {
+    const result = getOverriddenScope(
+      'local',
+      { project: { useAutoModeDuringPlan: false } },
+      'useAutoModeDuringPlan',
+      true,
+    );
+    expect(result).toBeUndefined();
   });
 });

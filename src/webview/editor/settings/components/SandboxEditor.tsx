@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import { toErrorMessage } from '../../../../shared/errorUtils';
-import type { ClaudeSettings } from '../../../../shared/types';
+import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
+import { childEffectiveScopes, getFlatFieldSchema, isScopeEffective, resolveEffectiveScopes, type EffectiveScopes, type ValueSchema } from '../../../../shared/claude-settings-schema';
 import { SettingLabelText } from './SettingControls';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { validateJsonSettingValue } from '../jsonSettingValidation';
@@ -36,6 +37,7 @@ interface AwsPairDraft {
 
 interface SandboxEditorProps {
   sandbox: ClaudeSettings['sandbox'];
+  scope: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -84,6 +86,33 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
   }
 
   return Object.keys(clean).length === 0 ? undefined : clean as SandboxValue;
+}
+
+/** sandbox 子設定（dotted path，不含 `sandbox.`）在該 scope 是否生效。 */
+function isSandboxChildEffective(path: string, scope: PluginScope): boolean {
+  return isScopeEffective({ effectiveScopes: resolveEffectiveScopes(`sandbox.${path}`) }, scope);
+}
+
+function hasVisibleContent(value: unknown, schema: ValueSchema | undefined, inherited: EffectiveScopes | undefined, scope: PluginScope): boolean {
+  if (!isScopeEffective({ effectiveScopes: inherited }, scope)) return false;
+  if (value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (value === null || typeof value !== 'object') return true;
+  const properties = schema?.kind === 'object' ? schema.properties : undefined;
+  return Object.entries(value).some(([key, child]) => {
+    const property = properties?.[key];
+    return hasVisibleContent(child, property?.schema, property ? childEffectiveScopes(property, inherited) : inherited, scope);
+  });
+}
+
+/**
+ * sandbox 在該 scope 是否有畫得出來的內容：不生效的子設定（含巢狀）不算，
+ * 供設定頁「已自訂」計數判定，與 SandboxEditor 的隱藏規則同一來源（effectiveScopes）。
+ */
+export function hasVisibleSandboxContent(sandbox: ClaudeSettings['sandbox'], scope: PluginScope): boolean {
+  const field = getFlatFieldSchema('sandbox');
+  if (!field) throw new Error('Schema key "sandbox" not found');
+  return hasVisibleContent(sandbox, field.valueSchema, field.effectiveScopes, scope);
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +473,7 @@ export function mergeCredentialEntries<T extends { mode: 'deny' | 'mask' }>(
 // SandboxEditor
 // ---------------------------------------------------------------------------
 
-export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
+export function SandboxEditor({ sandbox, scope, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
   const [mode, setMode] = useState<SandboxMode>('structured');
@@ -512,7 +541,8 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     void saveSandbox({ ...draft, credentials: { ...draft.credentials, awsPairs } });
   };
 
-  const generalCheckboxes: Array<{ key: SandboxBooleanKey; label: string }> = [
+  // 不生效 scope 的子設定控件不顯示；既有值留在 draft，其他控件存檔時原樣帶回。JSON 模式不過濾。
+  const generalCheckboxes = ([
     { key: 'enabled', label: tk('enabled') },
     { key: 'autoAllowBashIfSandboxed', label: tk('autoAllowBash') },
     { key: 'enableWeakerNetworkIsolation', label: tk('weakerNetwork') },
@@ -520,7 +550,7 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     { key: 'allowUnsandboxedCommands', label: tk('allowUnsandboxed') },
     { key: 'allowAppleEvents', label: tk('allowAppleEvents') },
     { key: 'failIfUnavailable', label: tk('failIfUnavailable') },
-  ];
+  ] satisfies Array<{ key: SandboxBooleanKey; label: string }>).filter(({ key }) => isSandboxChildEffective(key, scope));
 
   const filesystemTagLists: Array<{ key: SandboxFilesystemArrayKey; labelKey: string }> = [
     { key: 'allowWrite', labelKey: 'filesystem.allowWrite' },
@@ -529,15 +559,15 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
     { key: 'denyRead', labelKey: 'filesystem.denyRead' },
   ];
 
-  const filesystemCheckboxes: Array<{ key: SandboxFilesystemBooleanKey; label: string }> = [
+  const filesystemCheckboxes = ([
     { key: 'disabled', label: tk('filesystem.disabled') },
-  ];
+  ] satisfies Array<{ key: SandboxFilesystemBooleanKey; label: string }>).filter(({ key }) => isSandboxChildEffective(`filesystem.${key}`, scope));
 
-  const networkCheckboxes: Array<{ key: SandboxNetworkBooleanKey; label: string }> = [
+  const networkCheckboxes = ([
     { key: 'allowAllUnixSockets', label: tk('network.allowAllUnixSockets') },
     { key: 'allowLocalBinding', label: tk('network.allowLocalBinding') },
     { key: 'strictAllowlist', label: tk('network.strictAllowlist') },
-  ];
+  ] satisfies Array<{ key: SandboxNetworkBooleanKey; label: string }>).filter(({ key }) => isSandboxChildEffective(`network.${key}`, scope));
 
   const networkTagLists: Array<{ key: SandboxNetworkArrayKey; labelKey: string }> = [
     { key: 'allowedDomains', labelKey: 'network.allowedDomains' },
@@ -725,13 +755,15 @@ export function SandboxEditor({ sandbox, onSave, onDelete }: SandboxEditorProps)
             saving={saving}
             onChange={updateCredentialEnvVars}
           />
-          <SandboxAwsPairsEditor
-            pairs={draft.credentials?.awsPairs ?? []}
-            envVars={draft.credentials?.envVars ?? []}
-            saving={saving}
-            tk={tk}
-            onChange={updateCredentialAwsPairs}
-          />
+          {isSandboxChildEffective('credentials.awsPairs', scope) && (
+            <SandboxAwsPairsEditor
+              pairs={draft.credentials?.awsPairs ?? []}
+              envVars={draft.credentials?.envVars ?? []}
+              saving={saving}
+              tk={tk}
+              onChange={updateCredentialAwsPairs}
+            />
+          )}
 
           {/* Clear */}
           {sandbox && (

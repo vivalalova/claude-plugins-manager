@@ -29,10 +29,11 @@ const renderEditor = (
   sandbox: ClaudeSettings['sandbox'] = undefined,
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
+  scope: 'user' | 'project' | 'local' = 'user',
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <SandboxEditor sandbox={sandbox} onSave={onSave} onDelete={onDelete} />
+      <SandboxEditor sandbox={sandbox} scope={scope} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 

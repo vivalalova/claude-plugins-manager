@@ -30,7 +30,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Workflow, AskUserQuestion
 - **meta（default / 存放檔）**：同頁每個 `` ### `key` `` 條目的 `* **Default**:` bullet，與索引表 Scope 欄
 - **background**：官方 docs `https://code.claude.com/docs/en/settings.md` 僅作 overview/precedence 背景，不作 settings inventory
 - **env vars**：官方 docs `code.claude.com/docs/en/env-vars.md`（同上）
-- **偵測 CLI**：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）。exit 1 = fetch error、health failure（含索引表找不到）或半數以上 key 解析不到 Default，workflow 即報錯；此時先修 parser（`settings-diff.ts` / `settings-meta-drift.ts`）並補重現該版面的測試，再重跑。
+- **偵測 CLI**：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）。exit 1 = fetch error、health failure（含索引表找不到）或半數以上 key 解析不到 Default，workflow 即中止並回報；此時先修 parser（`settings-diff.ts` / `settings-meta-drift.ts`）並補重現該版面的測試，再重跑。
 - **fail-fast**：CLI exit 1 → workflow throw，不 fallback
 
 細節見 `references/sources.md`。
@@ -56,21 +56,22 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 腳本（`references/scripts/sync-settings.workflow.js`）兩個 phase，全唯讀：
 
-- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, counts, health }`，全是 CLI 的確定性結果：
+- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, scopeDrift, counts, health }`，全是 CLI 的確定性結果：
   - `settingsGaps`：docs 有、repo 無，已扣 `KNOWN_EXCLUDED` 與 Scope=`Managed`；每筆帶 key、description、topic、scope
   - `removedKeys`：repo 有、docs 無，已扣 `KNOWN_REPO_ONLY`
   - `envGaps` / `envRemoved`：同上兩方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`；`envGaps` 帶 docs description
   - `defaultDrift`：兩邊都有的 key，schema `default` 與 docs `**Default**` 不符。`kind` 四種：`mismatch`（docs 給了明確值、repo 不同或沒給）、`repoDefaultDocsUnset`（docs 說 unset、repo 有給值，已扣 `KNOWN_DEFAULT_EQUIVALENT`）、`conditional`（docs 寫「`A`, or `B` when …」、repo 有給值）、`unparsed`（docs 文字既非 unset 也非開頭的 JSON literal）
   - `storageDrift`：索引 Scope=`Global config`（存 `~/.claude.json`）與 schema `storageFile: 'globalConfig'` 不一致
+  - `scopeDrift`：索引 Scope（`User or managed`／`User, local, or managed`／`Any file`）與 schema `effectiveScopes` 不一致，含 object 子設定（dotted path，子層未登錄即繼承父層）。`kind`：`mismatch`／`unrecognized`（Scope 文字不在 `settings-meta-drift.ts` 的 `DOCS_SCOPE_TO_EFFECTIVE`；`Managed`／`Global config` 認得但不比對）
 - **Categorize（平行）**：對每個 `settingsGap` 把 description、topic、scope inline 餵給分類 agent，指派 section、判斷 `isObjectEditor`、標記 non-user-facing。其餘欄位原樣傳回，不走 LLM——判斷交回主迴圈。
 
-回傳：`categorized`、`userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`counts`。
+回傳：`categorized`、`userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`scopeDrift`、`counts`。
 
 > 要改 workflow 邏輯：編輯該 `.js` 檔後重跑；前次 workflow run 的 `runId` 可帶入 `Workflow({ resumeFromRunId })` 命中快取，跳過已完成的 phase。不要把腳本貼進對話。
 
 ## Step 2 — 確認或 early exit
 
-- `userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift` 全空 → 報告同步完成並 **END**。
+- `userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`scopeDrift` 全空 → 報告同步完成並 **END**。
 - `nonUserFacing` 清單非空 → 提報使用者（僅供知悉，不 apply），確認後把各 key 加進 `KNOWN_EXCLUDED`；`userFacing` 若同時非空，兩份清單一起回報，apply 只對 `userFacing` 跑。
 - `removedKeys` 非空 → 提報使用者（repo schema 仍支援、但官方 docs 已不再列出的 key，可能是改名/棄用/文件遺漏——逐 key 回 docs 原文核實原因），**禁自動刪**；使用者確認要刪的 key 才走「Hard checklist」的刪 key 流程（含 UI/i18n/schema 移除，不清使用者既有 settings 檔）。
 - `envGaps` 非空 → 提報使用者（附各 var 的 docs description），確認後把各筆加進 `src/shared/known-env-vars.ts`。
@@ -82,6 +83,11 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
   - `unparsed` → 讀原文判斷後，擴充 `parseDocsDefault` 認得這種寫法並補測試（修 schema 無法讓它消失）
   - 只認 `**Default**` bullet；條目內的 JSON 範例值不是預設值
 - `storageDrift` 非空 → 依索引表 Scope 修 `storageFile`：`Global config` 加 `'globalConfig'`，其餘拿掉（寫入 settings.json）。
+- `scopeDrift` 非空 → 修 schema 的 `effectiveScopes`：
+  - `mismatch` → 依索引表 Scope 登錄：`User or managed`＝`USER_SCOPE_ONLY`、`User, local, or managed`＝`USER_AND_LOCAL_SCOPES`、`Any file`＝拿掉登錄
+  - object 子設定 → 登錄在 `optional(schema, { effectiveScopes })`，未登錄即繼承父層
+  - 有 `nestedUnder` 的 dotted key（如 `autoMode.classifyAllShell`、`permissions.*`）→ 登錄在該扁平欄位的 meta，不登在 object 子屬性上
+  - `unrecognized` → 回 docs 讀 Scope 定義，擴充 `DOCS_SCOPE_TO_EFFECTIVE` 並補測試
 - `userFacing` 非空且 section 歸屬不明確 → `AskUserQuestion` 讓使用者確認。
 
 ## Step 3 — apply（主迴圈）
@@ -97,7 +103,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 1. `src/shared/claude-settings-schema.ts` — 在目標 section 陣列的對應主題群組加 field（`booleanField` / `stringField` / `createField`）。
 2. `npm run generate:settings-types` 重生 `claude-settings-types.generated.ts`（禁手改）。
 3. i18n — `en.ts`、`ja.ts`、`zh-TW.ts` 各加 `settings.<section>.<key>.label` / `.description`（enum 另加每個選項值 key）。
-4. 測試先紅後綠（save / delete / toggle + 設定頁 render 出該 key 控件）。
+4. 測試先紅後綠（save / delete / toggle + 設定頁 render 出該 key 控制項）。
 5. scalar 不需寫 render code — `SchemaFieldRenderer` 依 schema 自動渲染。
 
 ### object editor（isObjectEditor=true）
@@ -114,7 +120,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 ### 完成關卡
 
 1. `npm run verify` 全綠（含 check:schema Phase 4 i18n-completeness + generate --check）。
-2. 重跑 `npx tsx scripts/settings-sync-diff.ts` 確認 `settingsGaps`、`defaultDrift`、`storageDrift` 歸 0。
+2. 重跑 `npx tsx scripts/settings-sync-diff.ts` 確認 `settingsGaps`、`defaultDrift`、`storageDrift`、`scopeDrift` 歸 0。
 
 ## 能力邊界
 
@@ -123,11 +129,14 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 - **key 新增/移除可偵測**：`settingsGaps`（docs 有 repo 無）與 `removedKeys`（repo 有 docs 無，flat-field 粒度比對，已扣 `KNOWN_REPO_ONLY`）、`envGaps`/`envRemoved`（同方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`）皆由 CLI 確定性偵測。
 - **`removedKeys` 僅涵蓋 non-object top-level 欄位**：object-kind 欄位（如 `sandbox`、`permissions`）整個從 docs 消失、或其巢狀 leaf 被 docs 移除，皆不會被 `removedKeys` 偵測到；新增方向（`settingsGaps`）則涵蓋巢狀 leaf。
 - **default / 存放檔漂移可偵測**：`defaultDrift` 涵蓋 non-object flat field，`storageDrift` 涵蓋全部 flat field。
+- **生效 scope 漂移可偵測**：`scopeDrift` 涵蓋全部 flat field 與 object 子設定；設定頁在不生效的 scope 隱藏該控制項（JSON 模式不過濾）。
 - **enum 選項與 type／range 漂移不偵測**：docs 的 `**Type**` bullet 格式不一（有的列選項、有的「one of:」後接清單），尚未解析；新增 enum key 或 docs 改選項時，手動對照該 key 條目的 Type。
 
 ## Hard checklist
 
 - 新 key：先確認索引表的 Topic/Scope；Global config key 存 `~/.claude.json`，schema field 必標 `storageFile: 'globalConfig'`（判定細節見 `references/surface-map.md`）
+- 新 key：索引表 Scope 為 `User or managed`／`User, local, or managed` → schema field（或 object 子設定）必登錄 `effectiveScopes`
+- 手寫 render 的控制項須走共用可見性判定並補非 user scope 的 render 測試（見 `references/surface-map.md` 三條 render path）
 - 新 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
 - default 只抄該 key 條目的 `**Default**` bullet；寫 unset 且沒說等效行為 → 不給 `default`
 - 刪 key：移除 first-party support，**不清使用者既有 settings 檔**（unknown key 容忍保留）
@@ -145,7 +154,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 ## Output contract
 
-最終回報必列：新增 key、刪除 key（來自 `removedKeys` 且經使用者確認者）、修正 default／存放檔的 key（來自 `defaultDrift`/`storageDrift`，附修前修後）、non-user-facing keys（已加 `KNOWN_EXCLUDED`）、env var 新增/移除、受影響 section、驗證結果、CLI 各 counts 最終數。
+最終回報必列：新增 key、刪除 key（來自 `removedKeys` 且經使用者確認者）、修正 default／存放檔／生效 scope 的 key（來自 `defaultDrift`/`storageDrift`/`scopeDrift`，附修前修後）、non-user-facing keys（已加 `KNOWN_EXCLUDED`）、env var 新增/移除、受影響 section、驗證結果、CLI 各 counts 最終數。
 
 ## References
 

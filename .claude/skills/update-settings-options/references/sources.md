@@ -7,9 +7,9 @@
 - Settings background：`https://code.claude.com/docs/en/settings.md` 僅提供 overview/precedence 背景，不作 key inventory
 - Env vars：`https://code.claude.com/docs/en/env-vars.md`（curl 取 Markdown，`parseEnvDocs` 解析 env var 名稱）
 - 偵測入口：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）
-- 輸出：`{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, counts, health }`
+- 輸出：`{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, scopeDrift, counts, health }`
 - `settingsGaps`：docs 有、repo 無，已扣 Scope=`Managed`（每筆帶索引表的 description、topic、scope）
-- `defaultDrift` / `storageDrift`：兩邊都有的 key，default（僅 non-object flat field）或存放檔（全部 flat field）不一致（判讀見 SKILL.md Step 2；`repoDefaultDocsUnset` 的已核實等效清單是 `settings-meta-drift.ts` 的 `KNOWN_DEFAULT_EQUIVALENT`，以 docs Default 原文為鍵，docs 改寫即重新浮出）
+- `defaultDrift` / `storageDrift` / `scopeDrift`：兩邊都有的 key，default（僅 non-object flat field）、存放檔（全部 flat field）或生效 scope（含 object 子設定，對 schema `effectiveScopes`）不一致（判讀見 SKILL.md Step 2；`repoDefaultDocsUnset` 的已核實等效清單是 `settings-meta-drift.ts` 的 `KNOWN_DEFAULT_EQUIVALENT`，以 docs Default 原文為鍵，docs 改寫即重新浮出）
 - `envGaps`：docs 有、registry 無（每筆帶 docs description）
 - `removedKeys`：repo 有、docs 無（flat-field 粒度比對，見下）
 - `envRemoved`：`known-env-vars.ts` 有、docs 無，已扣掉 `KNOWN_ENV_REPO_ONLY`（SSOT 在 `settings-diff.ts`；docs 在別頁或僅 prose 提及的 var）

@@ -58,11 +58,18 @@ describe('sandbox editor draft × scope', () => {
     expect(input(0, 'accessKeyIdVar').value).toBe('A');
   });
 
-  it('切 scope 後半填的 draft 列不殘留到新 scope', () => {
-    const { rerender } = render({}, 'user');
-    fireEvent.click(screen.getByRole('button', { name: 'Add pair' }));
-    fireEvent.change(input(0, 'accessKeyIdVar'), { target: { value: 'HALF' } });
-    expect(rowCount()).toBe(1);
+  // 原本用 awsPairs rowCount 驗證切 scope 後 draft 不殘留；#24 後 awsPairs 編輯器在
+  // project scope 因 effectiveScopes 直接隱藏，rowCount() 在 project 恆為 0——
+  // 若用它斷言會「不論有沒有真的 reset 都通過」，測不出東西。改用 JSON 模式的
+  // 未存檔草稿驗證同一個「scope 換了必須整個重置」的機制（ObjectFieldEditor 對
+  // sandbox 傳 key={scope} 強制 remount）。
+  it('切 scope 後 JSON 模式未存檔草稿不殘留到新 scope', () => {
+    const { rerender } = render({ sandbox: { enabled: true } }, 'user');
+    // 切到 JSON 模式並鍵入未存檔的草稿
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+    const jsonTextarea = document.getElementById('sandbox-json') as HTMLTextAreaElement;
+    fireEvent.change(jsonTextarea, { target: { value: '{"enabled":false,"__UNSAVED_DRAFT__":true}' } });
+    expect(jsonTextarea.value).toContain('__UNSAVED_DRAFT__');
 
     rerender(
       <I18nProvider locale="en">
@@ -77,6 +84,32 @@ describe('sandbox editor draft × scope', () => {
       </ToastProvider>
       </I18nProvider>,
     );
-    expect(rowCount()).toBe(0);
+
+    // 新 scope 重新掛載：回到 Structured 模式（未保留 JSON 模式與未存檔草稿）
+    expect(document.getElementById('sandbox-json')).toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Enable Sandbox' })).toBeTruthy();
+  });
+
+  // ObjectFieldEditor 把 scope prop 原樣傳給 SandboxEditor；#24 gated 控件
+  // （user-only）須隨 scope 顯隱，錨在 ObjectFieldEditor 這層而非只在 SandboxEditor。
+  it('scope prop 原樣傳遞：user 顯示 gated 控件，project 隱藏', () => {
+    const { rerender } = render({ sandbox: { enabled: true } }, 'user');
+    expect(screen.getByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeTruthy();
+
+    rerender(
+      <I18nProvider locale="en">
+      <ToastProvider>
+        <ObjectFieldEditor
+          settingKey="sandbox"
+          scope="project"
+          settings={{ sandbox: { enabled: true } }}
+          onSave={vi.fn().mockResolvedValue(undefined)}
+          onDelete={vi.fn().mockResolvedValue(undefined)}
+        />
+      </ToastProvider>
+      </I18nProvider>,
+    );
+
+    expect(screen.queryByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeNull();
   });
 });

@@ -2,7 +2,7 @@
 
 ## 儲存檔判定（section 歸屬前先做）
 
-先從 `settings-reference.md` 索引表讀 key 的 Topic/Scope；**Global config key 存 `~/.claude.json` 而非 `settings.json`**——寫進 settings.json 會被 Claude Code 靜默忽略。這類 key 在 schema field 必須標 `storageFile: 'globalConfig'`（讀寫由 `SettingsFileService` 分流到 `~/.claude.json`，僅 user scope 顯示），漏標＝UI 開關 no-op silent bug。既有 key 的標記是否仍對，CLI 的 `storageDrift` 會比對。`settings.md` 僅供 overview/precedence 背景核對。
+先從 `settings-reference.md` 索引表讀 key 的 Topic/Scope；**Global config key 存 `~/.claude.json` 而非 `settings.json`**——寫進 settings.json 會被 Claude Code 靜默忽略。這類 key 在 schema field 必須標 `storageFile: 'globalConfig'`（讀寫由 `SettingsFileService` 分流到 `~/.claude.json`，僅 user scope 顯示），漏標＝UI 開關 no-op silent bug。既有 key 的標記是否仍對，CLI 的 `storageDrift` 會比對。Scope 為 `User or managed`／`User, local, or managed` 的 key（含 object 子設定）在 schema 登錄 `effectiveScopes`，設定頁在不生效的 scope 隱藏，CLI 的 `scopeDrift` 會比對。`settings.md` 僅供 overview/precedence 背景核對。
 
 ## Section mapping
 
@@ -28,7 +28,7 @@
 
 - **scalar → `SchemaFieldRenderer`**：`general`/`display`/`advanced` 的 boolean/string/enum/number field，schema 驅動自動渲染。無需寫 render code。
 - **object key → `ObjectFieldEditor` dispatcher**：`controlType === Object` 的 field，dispatcher 中需有對應 `case`。實作細節見 SKILL.md Step 3。
-- **`PermissionsSection` 全手寫**：`permissions`/`hooks`/`env` 相關 key，renderer 在各自 section `.tsx`，不走 `SchemaFieldRenderer`。
+- **`PermissionsSection` 全手寫**：`permissions`/`hooks`/`env` 相關 key，renderer 在各自 section `.tsx`，不走 `SchemaFieldRenderer`。手寫渲染的可見性要自行走共用判定（`getSchemaFieldBindings`／`isFieldVisibleForScope`，或 sandbox 子欄位走 `SandboxEditor` 的 `isScopeEffective` 檢查）並補非 user scope 的 render 測試；只登錄 `effectiveScopes` 不會讓手寫控制項跟著隱藏。
 
 ## Anti-direction 分類
 

@@ -188,7 +188,7 @@ export function ObjectFieldEditor({
       // key={scope}：SettingsPage 切 scope 不 remount，SandboxEditor 的 draft（awsPairs 半填列、
       // JSON 模式文字）會跟著跨 scope 殘留並寫進使用者沒打算寫的 scope。以 key 重置整個
       // sandbox editor（含模式切換與 JSON 草稿）——scope 換了草稿本來就不該延續。
-      return <SandboxEditor key={scope} sandbox={settings.sandbox} onSave={onSave} onDelete={onDelete} />;
+      return <SandboxEditor key={scope} sandbox={settings.sandbox} scope={scope} onSave={onSave} onDelete={onDelete} />;
     case 'companyAnnouncements':
       return <CompanyAnnouncementsEditor scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
     case 'modelOverrides':

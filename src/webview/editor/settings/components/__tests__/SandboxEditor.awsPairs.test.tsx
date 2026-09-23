@@ -43,10 +43,11 @@ const renderEditor = (
   sandbox: ClaudeSettings['sandbox'] = undefined,
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
+  scope: 'user' | 'project' | 'local' = 'user',
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <SandboxEditor sandbox={sandbox} onSave={onSave} onDelete={onDelete} />
+      <SandboxEditor sandbox={sandbox} scope={scope} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -358,6 +359,7 @@ describe('SandboxEditor — credentials.awsPairs draft 保留 / 無意義存檔'
               awsPairs: [{ accessKeyIdVar: 'MY_KEY_ID', secretAccessKeyVar: 'MY_SECRET', sessionTokenVar: 'MY_TOKEN' }],
             },
           } as ClaudeSettings['sandbox']}
+          scope="user"
           onSave={onSave}
           onDelete={vi.fn()}
         />
