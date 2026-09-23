@@ -65,6 +65,7 @@ export function UnknownSettingsSection({
       </div>
       {unknownEntries.map(([key, value]) => (
         <TextSetting
+          inherited={{ kind: 'none' }}
           key={key}
           label={key}
           value={serializeValue(value)}

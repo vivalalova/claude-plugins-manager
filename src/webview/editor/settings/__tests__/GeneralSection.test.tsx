@@ -1340,6 +1340,66 @@ describe('GeneralSection — alwaysThinkingEnabled（Extended Thinking，#25）'
   });
 });
 
+// ---------------------------------------------------------------------------
+// #26 — 上層 scope 有設值時，選到「等於本層 default」的值不該被當成「沒設定」而
+// 靜默刪除（R1/R2/R2b/R9）。
+// ---------------------------------------------------------------------------
+
+describe('GeneralSection — alwaysThinkingEnabled 繼承感知（#26 R1/R2/R2b）', () => {
+  const getField = () =>
+    screen.getByText('(alwaysThinkingEnabled: true)').closest('.settings-field') as HTMLElement;
+
+  it('R1：project scope，own=false，父層(user)=false（非 default）→ 點擊 → onSave(key, true)（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ alwaysThinkingEnabled: false }, onSave, onDelete, 'project', { user: { alwaysThinkingEnabled: false } });
+    await waitFor(() => getField());
+    fireEvent.click(within(getField()).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', true);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('R2：同一父層資料，own 未設 → checkbox 顯示未勾選（繼承父層 false，今日顯示已勾）', async () => {
+    renderSection({}, vi.fn(), vi.fn(), 'project', { user: { alwaysThinkingEnabled: false } });
+    await waitFor(() => {
+      const cb = within(getField()).getByRole('checkbox') as HTMLInputElement;
+      expect(cb.checked).toBe(false);
+    });
+  });
+
+  it('R2b（rule C）：project scope，own=false，父層(user)=true（等於 default）→ 點擊 → onSave(key, true)（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ alwaysThinkingEnabled: false }, onSave, onDelete, 'project', { user: { alwaysThinkingEnabled: true } });
+    await waitFor(() => getField());
+    fireEvent.click(within(getField()).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', true);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('GeneralSection — cleanupPeriodDays 繼承感知（#26 R9）', () => {
+  it('project scope，own 未設，父層(user)=10（非 default 30）→ 輸入 30（=default）並儲存 → onSave("cleanupPeriodDays", 30)（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete, 'project', { user: { cleanupPeriodDays: 10 } });
+
+    await waitFor(() => screen.getByPlaceholderText('30'));
+    const cleanupField = screen.getByPlaceholderText('30').closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '30' } });
+    fireEvent.click(within(cleanupField).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('cleanupPeriodDays', 30);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
+
 describe('GeneralSection — settings sync controls', () => {
   const MODEL_PICKER_PLACEHOLDER = 'e.g. {"options":[{"model":"sonnet"}]}';
   const MODEL_SETTINGS_PLACEHOLDER = 'e.g. {"sonnet":{"effortLevel":"high"}}';

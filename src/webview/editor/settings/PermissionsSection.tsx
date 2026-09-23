@@ -5,7 +5,7 @@ import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { BooleanToggle, EnumDropdown, TagInput } from './components/SettingControls';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { ObjectFieldEditor } from './components/ObjectFieldEditor';
-import { getSchemaFieldBindings } from './components/SchemaSection';
+import { getSchemaFieldBindings, type ParentSettings } from './components/SchemaSection';
 import { saveOrDeleteParent } from './components/nestedParent';
 import { getSchemaDefault } from '../../../shared/claude-settings-schema';
 
@@ -299,6 +299,7 @@ export function PermissionRuleListEditor({
 interface PermissionsSectionProps {
   scope: PluginScope;
   settings: ClaudeSettings;
+  parentSettings: ParentSettings | undefined;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -306,6 +307,7 @@ interface PermissionsSectionProps {
 export function PermissionsSection({
   scope,
   settings,
+  parentSettings,
   onSave,
   onDelete,
 }: PermissionsSectionProps): React.ReactElement {
@@ -319,6 +321,7 @@ export function PermissionsSection({
   }, [scope]);
 
   const perms = settings.permissions ?? {};
+  const mcpServersBinding = getSchemaFieldBindings('enableAllProjectMcpServers', { scope, settings, parentSettings, onSave, onDelete });
   const additionalDirs: string[] = perms.additionalDirectories ?? [];
   const enabledMcpjsonServers: string[] = settings.enabledMcpjsonServers ?? [];
   const disabledMcpjsonServers: string[] = settings.disabledMcpjsonServers ?? [];
@@ -388,17 +391,22 @@ export function PermissionsSection({
       />
 
       {/* enableAllProjectMcpServers */}
-      <BooleanToggle
-        label={t('settings.permissions.enableAllProjectMcpServers.label')}
-        description={t('settings.permissions.enableAllProjectMcpServers.description')}
-        value={settings.enableAllProjectMcpServers}
-        settingKey="enableAllProjectMcpServers"
-        defaultValue={getSchemaDefault<boolean>('enableAllProjectMcpServers')}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+      {mcpServersBinding && (
+        <BooleanToggle
+          label={t('settings.permissions.enableAllProjectMcpServers.label')}
+          description={t('settings.permissions.enableAllProjectMcpServers.description')}
+          value={mcpServersBinding.value as boolean | undefined}
+          settingKey="enableAllProjectMcpServers"
+          defaultValue={getSchemaDefault<boolean>('enableAllProjectMcpServers')}
+          overriddenScope={mcpServersBinding.overriddenScope}
+          inherited={mcpServersBinding.inherited}
+          onSave={mcpServersBinding.onSave}
+          onDelete={mcpServersBinding.onDelete}
+        />
+      )}
 
       <EnumDropdown
+        inherited={{ kind: 'none' }}
         label={t('settings.permissions.disableAutoMode.label')}
         description={t('settings.permissions.disableAutoMode.description')}
         value={perms.disableAutoMode}
@@ -419,6 +427,7 @@ export function PermissionsSection({
       />
 
       <EnumDropdown
+        inherited={{ kind: 'none' }}
         label={t('settings.permissions.disableBypassPermissionsMode.label')}
         description={t('settings.permissions.disableBypassPermissionsMode.description')}
         value={perms.disableBypassPermissionsMode}
@@ -441,7 +450,7 @@ export function PermissionsSection({
       {/* 以下三個 boolean 經 getSchemaFieldBindings 解析（nestedUnder 與 scope 可見性與 SchemaSection 同一機制），
           僅在該 key 會生效的 scope 顯示 */}
       {(['skipDangerousModePermissionPrompt', 'useAutoModeDuringPlan', 'classifyAllShell'] as const).map((key) => {
-        const binding = getSchemaFieldBindings(key, { scope, settings, onSave, onDelete });
+        const binding = getSchemaFieldBindings(key, { scope, settings, parentSettings, onSave, onDelete });
         if (!binding) return null;
         return (
           <BooleanToggle
@@ -452,6 +461,7 @@ export function PermissionsSection({
             settingKey={key}
             defaultValue={getSchemaDefault<boolean>(key)}
             overriddenScope={binding.overriddenScope}
+            inherited={binding.inherited}
             disabled={saving}
             onSave={binding.onSave}
             onDelete={binding.onDelete}
@@ -492,10 +502,10 @@ export function PermissionsSection({
       />
 
       {/* allowedMcpServers */}
-      <ObjectFieldEditor settingKey="allowedMcpServers" scope={scope} settings={settings} onSave={onSave} onDelete={onDelete} />
+      <ObjectFieldEditor settingKey="allowedMcpServers" scope={scope} settings={settings} parentSettings={parentSettings} onSave={onSave} onDelete={onDelete} />
 
       {/* deniedMcpServers */}
-      <ObjectFieldEditor settingKey="deniedMcpServers" scope={scope} settings={settings} onSave={onSave} onDelete={onDelete} />
+      <ObjectFieldEditor settingKey="deniedMcpServers" scope={scope} settings={settings} parentSettings={parentSettings} onSave={onSave} onDelete={onDelete} />
 
     </SettingsSectionWrapper>
   );

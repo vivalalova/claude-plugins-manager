@@ -18,7 +18,7 @@ import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
 import { getSchemaFieldBindings, isFieldVisibleForScope, type ParentSettings } from './components/SchemaSection';
-import { PARENT_SCOPES, OverrideBadge } from './components/SettingControls';
+import { PARENT_SCOPES, OverrideBadge, type Inherited } from './components/SettingControls';
 import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
 import { hasVisibleSandboxContent } from './components/SandboxEditor';
 
@@ -27,6 +27,9 @@ import { hasVisibleSandboxContent } from './components/SandboxEditor';
 // ---------------------------------------------------------------------------
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
+
+/** 父層快照與其所屬 scope；forScope 不等於目前 scope 時快照不可用（視為未知）。 */
+type ParentSnapshot = { forScope: PluginScope | undefined; snapshots: ParentSettings | undefined };
 const SETTINGS_NAV_SECTIONS = getSettingsSections();
 
 /**
@@ -54,9 +57,9 @@ function collectCustomizedSchemaFields(
       const binding = getSchemaFieldBindings(key, {
         scope,
         settings,
-        // Only binding.value is used for inclusion; parentSettings (the overriddenScope source)
-        // is irrelevant here — counting cares about the current scope only.
-        parentSettings: {},
+        // Only binding.value is used for inclusion; inheritance stays unknown here —
+        // counting cares about the current scope only.
+        parentSettings: undefined,
         onSave: noop,
         onDelete: noop,
       });
@@ -154,6 +157,7 @@ function renderSchemaResultRow({
   value,
   scope,
   overriddenScope,
+  inherited,
   onSave,
   onDelete,
   onNavigate,
@@ -166,6 +170,7 @@ function renderSchemaResultRow({
   value: unknown;
   scope: PluginScope;
   overriddenScope?: PluginScope;
+  inherited: Inherited;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
   onNavigate: () => void;
@@ -193,6 +198,7 @@ function renderSchemaResultRow({
         value={value}
         scope={scope}
         overriddenScope={overriddenScope}
+        inherited={inherited}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -252,24 +258,33 @@ export function SettingsPage(): React.ReactElement {
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
 
-  // Parent-scope snapshots feed the override badge (nearest-overridden layer).
+  // Parent-scope snapshots feed the override badge and inheritance-aware delete decisions.
   // Loaded separately so the current-scope view never blocks on parent fetches.
-  const loadParentSettings = useCallback(async (): Promise<ParentSettings> => {
-    const parents = PARENT_SCOPES[scope];
-    if (parents.length === 0) return {};
-    const results = await Promise.all(
-      parents.map((s) => sendRequest<ClaudeSettings>({ type: 'settings.get', scope: s })),
-    );
-    const map: ParentSettings = {};
-    parents.forEach((s, i) => { map[s] = results[i]; });
-    return map;
+  // 快照標記所屬 scope：切 scope 後新快照到達前、或載入失敗時，一律視為未知（undefined）。
+  const loadParentSettings = useCallback(async (): Promise<ParentSnapshot> => {
+    const forScope = scope;
+    const parents = PARENT_SCOPES[forScope];
+    if (parents.length === 0) return { forScope, snapshots: {} };
+    try {
+      const results = await Promise.all(
+        parents.map((s) => sendRequest<ClaudeSettings>({ type: 'settings.get', scope: s })),
+      );
+      const map: ParentSettings = {};
+      parents.forEach((s, i) => { map[s] = results[i]; });
+      return { forScope, snapshots: map };
+    } catch {
+      return { forScope, snapshots: undefined };
+    }
   }, [scope]);
 
-  const { data: parentSettings } = usePushSyncedResource<ParentSettings>({
-    initialData: {},
+  const { data: parentSnapshot, loading: parentLoading } = usePushSyncedResource<ParentSnapshot>({
+    initialData: { forScope: undefined, snapshots: undefined },
     load: loadParentSettings,
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
+  // scope 切換觸發的載入中（parentLoading）代表可能有更新一輪的 fetch 在途；即便舊快照的
+  // forScope 剛好等於目前 scope（如 A→B→A），也不能當成已就緒——否則會誤用切走前的舊資料。
+  const parentSettings = !parentLoading && parentSnapshot.forScope === scope ? parentSnapshot.snapshots : undefined;
 
   const loadScopeCounts = useCallback(async (): Promise<{ project: number; local: number }> => {
     if (!hasWorkspace) {
@@ -467,7 +482,7 @@ export function SettingsPage(): React.ReactElement {
                       onDelete: handleDelete,
                     });
                     if (!fieldBindings) return null;
-                    const { schema, value, onSave, onDelete, overriddenScope } = fieldBindings;
+                    const { schema, value, onSave, onDelete, overriddenScope, inherited } = fieldBindings;
                     const sectionLabel = t(`settings.nav.${field.section}` as Parameters<typeof t>[0]);
                     return renderSchemaResultRow({
                       fieldKey: field.key,
@@ -478,6 +493,7 @@ export function SettingsPage(): React.ReactElement {
                       value,
                       scope,
                       overriddenScope,
+                      inherited,
                       onSave,
                       onDelete,
                       onNavigate: () => { setSearchQuery(''); setActiveNav(field.section as SettingsNavItem); },
@@ -493,6 +509,7 @@ export function SettingsPage(): React.ReactElement {
                 <PermissionsSection
                   scope={scope}
                   settings={settings}
+                  parentSettings={parentSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                 />
@@ -567,7 +584,7 @@ export function SettingsPage(): React.ReactElement {
                           onDelete: handleDelete,
                         });
                         if (!fieldBindings) return null;
-                        const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = fieldBindings;
+                        const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope, inherited } = fieldBindings;
                         const sectionLabel = t(`settings.nav.${section}` as Parameters<typeof t>[0]);
                         const fieldLabel = t(`settings.${section}.${key}.label` as Parameters<typeof t>[0]) || key;
 
@@ -617,6 +634,7 @@ export function SettingsPage(): React.ReactElement {
                                 settingKey={key}
                                 scope={scope}
                                 settings={settings}
+                                parentSettings={parentSettings}
                                 overriddenScope={overriddenScope}
                                 onSave={fieldOnSave}
                                 onDelete={fieldOnDelete}
@@ -633,6 +651,7 @@ export function SettingsPage(): React.ReactElement {
                           value,
                           scope,
                           overriddenScope,
+                          inherited,
                           onSave: fieldOnSave,
                           onDelete: fieldOnDelete,
                           onNavigate: () => setActiveNav(section as SettingsNavItem),

@@ -32,6 +32,7 @@ const renderField = (
         schema={schema}
         value={value}
         scope="user"
+        inherited={{ kind: 'none' }}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -210,6 +211,7 @@ describe('SchemaFieldRenderer — override indicator', () => {
           value={value}
           scope="project"
           overriddenScope={overriddenScope}
+          inherited={{ kind: 'none' }}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onDelete={vi.fn().mockResolvedValue(undefined)}
         />

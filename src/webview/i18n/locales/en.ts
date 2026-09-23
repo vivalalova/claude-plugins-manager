@@ -804,6 +804,7 @@ export const en = {
   'settings.common.minError': 'Must be at least {min}',
   'settings.common.maxError': 'Must be at most {max}',
   'settings.common.overrides': 'Overrides {scope}',
+  'settings.common.inheritedFrom': 'Inherited from {scope}: {value}',
   // Unknown settings
   'settings.unknown.title': 'Unrecognized Settings',
   'settings.unknown.description': 'Keys found in settings.json but not defined in schema',

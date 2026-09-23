@@ -22,10 +22,17 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
+  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <PermissionsSection scope={scope} settings={settings as any} onSave={onSave} onDelete={onDelete} />
+      <PermissionsSection
+        scope={scope}
+        settings={settings as any}
+        parentSettings={parentSettings as any}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
     </ToastProvider>,
   );
 
@@ -658,6 +665,42 @@ describe('PermissionsSection — enableAllProjectMcpServers 互動', () => {
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('enableAllProjectMcpServers');
       expect(onSave).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #26 — useAutoModeDuringPlan / enableAllProjectMcpServers 繼承感知（R4）
+// ---------------------------------------------------------------------------
+
+describe('PermissionsSection — useAutoModeDuringPlan 繼承感知（#26 R4a）', () => {
+  it('local scope，own=false，父層(user)=false（非 default true）→ 點擊 → onSave("useAutoModeDuringPlan", true)（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ useAutoModeDuringPlan: false }, onSave, onDelete, 'local', { user: { useAutoModeDuringPlan: false } });
+
+    await waitFor(() => screen.getByRole('checkbox', { name: /^Use Auto Mode During Plan/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Use Auto Mode During Plan/ }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('useAutoModeDuringPlan', true);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('PermissionsSection — enableAllProjectMcpServers 繼承感知（#26 R4b）', () => {
+  it('project scope，own=true，父層(user)=true（非 default false）→ 關閉 → onSave("enableAllProjectMcpServers", false)（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enableAllProjectMcpServers: true }, onSave, onDelete, 'project', { user: { enableAllProjectMcpServers: true } });
+
+    await waitFor(() => screen.getByRole('checkbox', { name: /^Enable All Project MCP Servers/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Enable All Project MCP Servers/ }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('enableAllProjectMcpServers', false);
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 });

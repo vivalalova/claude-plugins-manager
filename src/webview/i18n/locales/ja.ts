@@ -1061,6 +1061,7 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.common.minError': '{min} 以上にしてください',
   'settings.common.maxError': '{max} 以下にしてください',
   'settings.common.overrides': '{scope} を上書き',
+  'settings.common.inheritedFrom': '{scope} から継承：{value}',
   // Unknown settings
   'settings.unknown.title': '未定義の設定',
   'settings.unknown.description': 'settings.json に存在するがスキーマに定義されていないキー',

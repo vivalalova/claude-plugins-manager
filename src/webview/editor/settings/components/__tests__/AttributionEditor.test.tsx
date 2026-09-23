@@ -7,6 +7,7 @@ import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithI18n } from '../../../../__test-utils__/renderWithProviders';
 import { ToastProvider } from '../../../../components/Toast';
 import { AttributionEditor } from '../AttributionEditor';
+import type { Inherited } from '../SettingControls';
 import type { ClaudeSettings } from '../../../../../shared/types';
 
 vi.mock('../../../../vscode', () => ({ vscode: { postMessage: vi.fn() } }));
@@ -29,10 +30,16 @@ const renderEditor = (
   attribution: ClaudeSettings['attribution'] = undefined,
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
+  inheritedSessionUrl: Inherited = { kind: 'none' },
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <AttributionEditor attribution={attribution} onSave={onSave} onDelete={onDelete} />
+      <AttributionEditor
+        attribution={attribution}
+        onSave={onSave}
+        onDelete={onDelete}
+        inheritedSessionUrl={inheritedSessionUrl}
+      />
     </ToastProvider>,
   );
 
@@ -241,6 +248,83 @@ describe('AttributionEditor — sessionUrl checkbox（先紅，批次 C）', () 
         // onDelete called instead
         expect(onSave).not.toHaveBeenCalled();
       }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R8/R8b/R8c（#26）— sessionUrl 的「等於 default(true) 才刪」規則要看 inheritedSessionUrl，
+// 不能只看本層 attribution.sessionUrl 是否為 undefined。
+// ---------------------------------------------------------------------------
+
+describe('AttributionEditor — sessionUrl 繼承感知（#26 R8）', () => {
+  it('R8：own={commit}（sessionUrl 未設）+ 父層(user) known sessionUrl:false → checkbox 顯示未勾選（今日為勾選）', async () => {
+    renderEditor(
+      { commit: 'c' } as ClaudeSettings['attribution'],
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      { kind: 'known', scope: 'user', value: false },
+    );
+    await waitFor(() => {
+      const cb =
+        (screen.queryByRole('checkbox', { name: /session.url/i }) ??
+         screen.queryByRole('checkbox', { name: /sessionUrl/i })) as HTMLInputElement | null;
+      expect(cb).not.toBeNull();
+      expect(cb!.checked).toBe(false);
+    });
+  });
+
+  it('R8：勾選後儲存 → onSave("attribution", {commit:"c", sessionUrl:true})（父層 known，非 default 靜默刪）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(
+      { commit: 'c' } as ClaudeSettings['attribution'],
+      onSave,
+      vi.fn().mockResolvedValue(undefined),
+      { kind: 'known', scope: 'user', value: false },
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: /session.url/i }) ??
+        screen.queryByRole('checkbox', { name: /sessionUrl/i }),
+      ).not.toBeNull(),
+    );
+    const cb =
+      (screen.queryByRole('checkbox', { name: /session.url/i }) ??
+       screen.queryByRole('checkbox', { name: /sessionUrl/i })) as HTMLElement;
+    fireEvent.click(cb);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('attribution', { commit: 'c', sessionUrl: true });
+    });
+  });
+
+  it('R8b：同樣父層 known，未動 checkbox 直接儲存 → onSave("attribution", {commit:"c"})（不寫 sessionUrl，維持繼承）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(
+      { commit: 'c' } as ClaudeSettings['attribution'],
+      onSave,
+      vi.fn().mockResolvedValue(undefined),
+      { kind: 'known', scope: 'user', value: false },
+    );
+    await waitFor(() => screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('attribution', { commit: 'c' });
+    });
+  });
+
+  it('R8c：無父層（none），own={commit:"c", sessionUrl:true} 儲存 → onSave("attribution", {commit:"c"})（今日行為，維持不變）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(
+      { commit: 'c', sessionUrl: true } as ClaudeSettings['attribution'],
+      onSave,
+      vi.fn().mockResolvedValue(undefined),
+      { kind: 'none' },
+    );
+    await waitFor(() => screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('attribution', { commit: 'c' });
     });
   });
 });

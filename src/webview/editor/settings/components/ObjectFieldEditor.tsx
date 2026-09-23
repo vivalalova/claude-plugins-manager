@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
+import { drillParents, type ParentSettings } from './SchemaSection';
 import { getAllFlatFieldSchemas } from '../../../../shared/claude-settings-schema';
-import { TextSetting } from './SettingControls';
+import { TextSetting, resolveInherited } from './SettingControls';
 import { AttributionEditor } from './AttributionEditor';
 import { StatusLineEditor } from './StatusLineEditor';
 import { SandboxEditor } from './SandboxEditor';
@@ -100,6 +101,7 @@ interface ObjectFieldEditorProps {
   settingKey: string;
   scope: PluginScope;
   settings: ClaudeSettings;
+  parentSettings: ParentSettings | undefined;
   overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
@@ -109,6 +111,7 @@ export function ObjectFieldEditor({
   settingKey,
   scope,
   settings,
+  parentSettings,
   overriddenScope,
   onSave,
   onDelete,
@@ -119,6 +122,7 @@ export function ObjectFieldEditor({
     case 'modelPicker':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.general.modelPicker.label')}
           description={t('settings.general.modelPicker.description')}
           value={settings.modelPicker ? JSON.stringify(settings.modelPicker) : undefined}
@@ -135,6 +139,7 @@ export function ObjectFieldEditor({
     case 'modelSettings':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.general.modelSettings.label')}
           description={t('settings.general.modelSettings.description')}
           value={settings.modelSettings ? JSON.stringify(settings.modelSettings) : undefined}
@@ -149,12 +154,20 @@ export function ObjectFieldEditor({
         />
       );
     case 'attribution':
-      return <AttributionEditor attribution={settings.attribution} onSave={onSave} onDelete={onDelete} />;
+      return (
+        <AttributionEditor
+          attribution={settings.attribution}
+          inheritedSessionUrl={resolveInherited(scope, drillParents(parentSettings, 'attribution'), 'sessionUrl', 'attribution')}
+          onSave={onSave}
+          onDelete={onDelete}
+        />
+      );
     case 'statusLine':
       return <StatusLineEditor statusLine={settings.statusLine} onSave={onSave} onDelete={onDelete} />;
     case 'subagentStatusLine':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.subagentStatusLine.label')}
           description={t('settings.advanced.subagentStatusLine.description')}
           value={settings.subagentStatusLine?.command}
@@ -171,6 +184,7 @@ export function ObjectFieldEditor({
     case 'fileSuggestion':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.fileSuggestion.label')}
           description={t('settings.advanced.fileSuggestion.description')}
           value={settings.fileSuggestion?.command}
@@ -194,6 +208,7 @@ export function ObjectFieldEditor({
     case 'modelOverrides':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.modelOverrides.label')}
           description={t('settings.advanced.modelOverrides.description')}
           value={settings.modelOverrides ? JSON.stringify(settings.modelOverrides) : undefined}
@@ -210,6 +225,7 @@ export function ObjectFieldEditor({
     case 'skillOverrides':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.skillOverrides.label')}
           description={t('settings.advanced.skillOverrides.description')}
           value={settings.skillOverrides ? JSON.stringify(settings.skillOverrides) : undefined}
@@ -226,6 +242,7 @@ export function ObjectFieldEditor({
     case 'worktree':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.worktree.label')}
           description={t('settings.advanced.worktree.description')}
           value={settings.worktree ? JSON.stringify(settings.worktree) : undefined}
@@ -242,6 +259,7 @@ export function ObjectFieldEditor({
     case 'sshConfigs':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.sshConfigs.label')}
           description={t('settings.advanced.sshConfigs.description')}
           value={settings.sshConfigs ? JSON.stringify(settings.sshConfigs) : undefined}
@@ -260,6 +278,7 @@ export function ObjectFieldEditor({
     case 'autoMode':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.autoMode.label')}
           description={t('settings.advanced.autoMode.description')}
           value={settings.autoMode ? JSON.stringify(settings.autoMode) : undefined}
@@ -276,6 +295,7 @@ export function ObjectFieldEditor({
     case 'remote':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.advanced.remote.label')}
           description={t('settings.advanced.remote.description')}
           value={settings.remote ? JSON.stringify(settings.remote) : undefined}
@@ -292,6 +312,7 @@ export function ObjectFieldEditor({
     case 'vimInsertModeRemaps':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.display.vimInsertModeRemaps.label')}
           description={t('settings.display.vimInsertModeRemaps.description')}
           value={settings.vimInsertModeRemaps ? JSON.stringify(settings.vimInsertModeRemaps) : undefined}
@@ -308,6 +329,7 @@ export function ObjectFieldEditor({
     case 'voice':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.display.voice.label')}
           description={t('settings.display.voice.description')}
           value={settings.voice ? JSON.stringify(settings.voice) : undefined}
@@ -330,6 +352,7 @@ export function ObjectFieldEditor({
     case 'allowedMcpServers':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.permissions.allowedMcpServers.label')}
           description={t('settings.permissions.allowedMcpServers.description')}
           value={settings.allowedMcpServers ? JSON.stringify(settings.allowedMcpServers) : undefined}
@@ -346,6 +369,7 @@ export function ObjectFieldEditor({
     case 'deniedMcpServers':
       return (
         <TextSetting
+          inherited={{ kind: 'none' }}
           label={t('settings.permissions.deniedMcpServers.label')}
           description={t('settings.permissions.deniedMcpServers.description')}
           value={settings.deniedMcpServers ? JSON.stringify(settings.deniedMcpServers) : undefined}

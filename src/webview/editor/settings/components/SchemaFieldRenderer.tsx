@@ -3,7 +3,7 @@ import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
 import type { FlatFieldSchema } from '../../../../shared/claude-settings-schema';
 import { getSchemaDefault, getSchemaEnumOptions, getValueSchemaEnumOptions, getValueSchemaNumberMeta } from '../../../../shared/claude-settings-schema';
-import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './SettingControls';
+import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting, type Inherited } from './SettingControls';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { useSettingSave } from '../hooks/useSettingSave';
 
@@ -13,11 +13,12 @@ export interface SchemaFieldRendererProps {
   value: unknown;
   scope: PluginScope;
   overriddenScope?: PluginScope;
+  inherited: Inherited;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
 
-export function SchemaFieldRenderer({ settingKey, schema, value, scope, overriddenScope, onSave, onDelete }: SchemaFieldRendererProps): React.ReactElement | null {
+export function SchemaFieldRenderer({ settingKey, schema, value, scope, overriddenScope, inherited, onSave, onDelete }: SchemaFieldRendererProps): React.ReactElement | null {
   const { t } = useI18n();
   const { withSave } = useSettingSave();
   const tk = (suffix: string): string =>
@@ -37,6 +38,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           settingKey={settingKey}
           defaultValue={getSchemaDefault<boolean>(settingKey)}
           overriddenScope={overriddenScope}
+          inherited={inherited}
           onSave={onSave}
           onDelete={onDelete}
         />
@@ -88,6 +90,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
               settingKey={settingKey}
               defaultValue={getSchemaDefault<string>(settingKey)}
               overriddenScope={overriddenScope}
+              inherited={inherited}
               onSave={enumOnSave}
               onDelete={onDelete}
             />
@@ -105,6 +108,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           settingKey={settingKey}
           defaultValue={getSchemaDefault<string>(settingKey)}
           overriddenScope={overriddenScope}
+          inherited={inherited}
           scope={scope}
           onSave={onSave}
           onDelete={onDelete}
@@ -125,6 +129,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           settingKey={settingKey}
           defaultValue={getSchemaDefault<number>(settingKey)}
           overriddenScope={overriddenScope}
+          inherited={inherited}
           scope={scope}
           min={numberMeta?.min}
           max={numberMeta?.max}

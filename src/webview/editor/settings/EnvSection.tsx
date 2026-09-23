@@ -480,6 +480,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     const desc = getDescription(knownVar.name);
     return (
       <BooleanToggle
+        inherited={{ kind: 'none' }}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -500,6 +501,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     const desc = getDescription(knownVar.name);
     return (
       <NumberSetting
+        inherited={{ kind: 'none' }}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -536,6 +538,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     const desc = getDescription(knownVar.name);
     return (
       <TextSetting
+        inherited={{ kind: 'none' }}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -608,7 +611,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
   );
 }
 
-export function EnvSection({ scope, settings, onSave, onDelete }: SectionProps): React.ReactElement {
+export function EnvSection({ scope, settings, parentSettings, onSave, onDelete }: SectionProps): React.ReactElement {
   const currentEnv = useMemo<Record<string, string>>(
     () => (settings.env as Record<string, string>) ?? {},
     [settings.env],
@@ -619,6 +622,7 @@ export function EnvSection({ scope, settings, onSave, onDelete }: SectionProps):
       section="env"
       scope={scope}
       settings={settings}
+      parentSettings={parentSettings}
       onSave={onSave}
       onDelete={onDelete}
       renderCustom={(key) => {
@@ -692,6 +696,7 @@ export function EnvFieldRenderer({
       : undefined;
     return (
       <BooleanToggle
+        inherited={{ kind: 'none' }}
         label={envKey}
         description={desc ?? undefined}
         value={boolVal}
@@ -708,6 +713,7 @@ export function EnvFieldRenderer({
     const defaultNum = knownVar.default !== undefined ? Number(knownVar.default) : undefined;
     return (
       <NumberSetting
+        inherited={{ kind: 'none' }}
         label={envKey}
         description={desc ?? undefined}
         value={numVal}
@@ -745,6 +751,7 @@ export function EnvFieldRenderer({
 
   return (
     <TextSetting
+      inherited={{ kind: 'none' }}
       label={envKey}
       description={desc ?? undefined}
       value={envVal}

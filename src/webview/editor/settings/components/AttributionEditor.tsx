@@ -3,31 +3,41 @@ import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings } from '../../../../shared/types';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { ObjectSetting, useObjectEditorState } from './ObjectSetting';
+import { shouldDeleteOnChoose, type Inherited } from './SettingControls';
 
 interface AttributionEditorProps {
   attribution: ClaudeSettings['attribution'];
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
+  inheritedSessionUrl: Inherited;
 }
 
-export function AttributionEditor({ attribution, onSave, onDelete }: AttributionEditorProps): React.ReactElement {
+export function AttributionEditor({ attribution, onSave, onDelete, inheritedSessionUrl }: AttributionEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
-  // sessionUrl default is true: undefined means checked (session URL shown)
+  // sessionUrl default is true; 本層未設時顯示繼承自父層的值，父層也沒有才用 default。
+  // draft.sessionUrl undefined＝checkbox 未被動過（維持繼承）；只有使用者動過才變 boolean。
+  const ownSessionUrl = attribution?.sessionUrl;
+  const inheritedValue = inheritedSessionUrl.kind === 'known' && typeof inheritedSessionUrl.value === 'boolean'
+    ? inheritedSessionUrl.value
+    : undefined;
   const createDraft = useCallback(() => ({
     commit: attribution?.commit ?? '',
     pr: attribution?.pr ?? '',
-    sessionUrl: attribution?.sessionUrl ?? true,
-  }), [attribution?.commit, attribution?.pr, attribution?.sessionUrl]);
+    sessionUrl: ownSessionUrl,
+  }), [attribution?.commit, attribution?.pr, ownSessionUrl]);
   const [draft, setDraft] = useObjectEditorState(createDraft);
+  const displaySessionUrl = draft.sessionUrl ?? inheritedValue ?? true;
 
   const handleSave = (): void => {
     void withSave(async () => {
       const obj: { commit?: string; pr?: string; sessionUrl?: boolean } = {};
       if (draft.commit.trim()) obj.commit = draft.commit.trim();
       if (draft.pr.trim()) obj.pr = draft.pr.trim();
-      // Only write sessionUrl when it's explicitly false (hiding session URL)
-      if (draft.sessionUrl === false) obj.sessionUrl = false;
+      // 沒動過 checkbox → 不寫（維持繼承）；動過但選到 default 且無父層設值 → 不寫
+      if (draft.sessionUrl !== undefined && !shouldDeleteOnChoose(draft.sessionUrl, true, inheritedSessionUrl)) {
+        obj.sessionUrl = draft.sessionUrl;
+      }
 
       if (Object.keys(obj).length === 0) {
         await onDelete('attribution');
@@ -86,7 +96,7 @@ export function AttributionEditor({ attribution, onSave, onDelete }: Attribution
           <input
             id="attribution-sessionUrl"
             type="checkbox"
-            checked={draft.sessionUrl}
+            checked={displaySessionUrl}
             onChange={(e) => setDraft((prev) => ({ ...prev, sessionUrl: e.target.checked }))}
             disabled={saving}
             aria-label={t('settings.advanced.attribution.sessionUrl.label')}

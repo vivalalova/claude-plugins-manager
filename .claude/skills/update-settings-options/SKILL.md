@@ -76,7 +76,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 - `removedKeys` 非空 → 提報使用者（repo schema 仍支援、但官方 docs 已不再列出的 key，可能是改名/棄用/文件遺漏——逐 key 回 docs 原文核實原因），**禁自動刪**；使用者確認要刪的 key 才走「Hard checklist」的刪 key 流程（含 UI/i18n/schema 移除，不清使用者既有 settings 檔）。
 - `envGaps` 非空 → 提報使用者（附各 var 的 docs description），確認後把各筆加進 `src/shared/known-env-vars.ts`。
 - `envRemoved` 非空 → 白名單未收的新案例（`known-env-vars.ts` 仍登記、但官方 docs 已不再列出的 var）。逐項回 docs 原文核實：若只是改名/併入其他變數的 prose 說明，補進 `KNOWN_ENV_REPO_ONLY` 而非刪 registry；確認真的棄用才提報使用者，確認後移除該 registry entry 及對應 i18n key。
-- `defaultDrift` 非空 → 逐筆讀 docs 該 key 條目後修正，不必逐筆問使用者（docs 就是答案）。為何要緊：UI 在「選到的值 = schema default」時改為刪 key，schema default 若不等於 Claude Code 未設定時的實際行為，該值就**永遠寫不進去**、畫面也顯示錯的狀態。
+- `defaultDrift` 非空 → 逐筆讀 docs 該 key 條目後修正，不必逐筆問使用者（docs 就是答案）。為何要緊：UI 在「選到的值 = schema default」且沒有任何生效中的上層 scope 設了此 key（user scope 必然成立）時才刪 key，schema default 若不等於 Claude Code 未設定時的實際行為，該值就**永遠寫不進去**、畫面也顯示錯的狀態。
   - `mismatch` → schema `default` 改成 docs 的值
   - `conditional` → 移除 schema `default`（預設值依平台／方案而變，固定任一值都會讓部分使用者選不到它）
   - `repoDefaultDocsUnset` → docs 有寫出未設定時的等效行為（如「unset, so X is off」）且等於 repo 值 → 把 key 與**docs Default 原文**加進 `settings-meta-drift.ts` 的 `KNOWN_DEFAULT_EQUIVALENT`；docs 只寫 `unset` 或行為取決於帳號／組織／模型 → 移除 schema `default`（例外：空 record／空 array 的 default 等同 unset，登錄即可）

@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { getFlatFieldSchema } from '../../../../../shared/claude-settings-schema';
-import { isFieldVisibleForScope, getSchemaFieldBindings } from '../SchemaSection';
+import { isFieldVisibleForScope, getSchemaFieldBindings, drillParents } from '../SchemaSection';
 
 describe('isFieldVisibleForScope', () => {
   it('storageFile=globalConfig 欄位（autoConnectIde）→ 只在 scope=user 可見', () => {
@@ -127,5 +127,15 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
       onDelete: async () => {},
     });
     expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #26 — drillParents：parentSettings undefined 維持未知，不能被 `?? {}` 抹成已知空物件
+// ---------------------------------------------------------------------------
+
+describe('drillParents — #26', () => {
+  it('parentSettings=undefined → 回傳 undefined（維持未知，非 {}）', () => {
+    expect(drillParents(undefined, 'attribution')).toBeUndefined();
   });
 });

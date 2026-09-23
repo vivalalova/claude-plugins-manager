@@ -19,26 +19,62 @@ export const PARENT_SCOPES: Record<PluginScope, readonly PluginScope[]> = {
 };
 
 /**
- * 判斷本層 key 覆寫了哪個父層（回傳最近一個有設該 key 的父 scope）。
+ * 本層 key 從父層繼承到的值。
+ * none＝沒有生效中的父層設了此 key；unknown＝父層快照尚未就緒（載入中／失敗／屬於別的 scope）；
+ * known＝最近一個有設此 key 的生效父層與其值。
+ */
+export type Inherited =
+  | { kind: 'none' }
+  | { kind: 'unknown' }
+  | { kind: 'known'; scope: PluginScope; value: unknown };
+
+/**
+ * 沿 PARENT_SCOPES 找最近一個有設 key 的父層。
+ * parents 已 drill 到對照層級（巢狀欄位傳父物件，頂層欄位傳 scope 根）；undefined＝未知。
+ * 該 key 在父層 scope 不生效（見 isScopeEffective）時跳過該層：那份值 Claude Code 不讀。
+ * 沒有生效父層時（如 user scope）不看 parents 是否就緒，直接 none。非物件的父層值視為沒設。
+ * schemaKey 供巢狀欄位以父 key 查 schema（如 attribution.sessionUrl 用 'attribution'）。
+ */
+export function resolveInherited(
+  scope: PluginScope,
+  parents: Partial<Record<PluginScope, unknown>> | undefined,
+  key: string,
+  schemaKey: string = key,
+): Inherited {
+  const schema = getFlatFieldSchema(schemaKey);
+  const effective = PARENT_SCOPES[scope].filter((p) => !schema || isScopeEffective(schema, p));
+  if (effective.length === 0) return { kind: 'none' };
+  if (parents === undefined) return { kind: 'unknown' };
+  for (const parent of effective) {
+    const ps = parents[parent];
+    if (ps === null || typeof ps !== 'object' || Array.isArray(ps)) continue;
+    if (key in ps) return { kind: 'known', scope: parent, value: (ps as Record<string, unknown>)[key] };
+  }
+  return { kind: 'none' };
+}
+
+/**
+ * 判斷本層 key 覆寫了哪個父層。
  * 僅當本層實際有設定值（value !== undefined）才算覆寫——與 shouldShowReset 同一口徑：
  * 本層沒值＝沒設定（不顯示 Reset 鈕），是繼承而非覆寫，不該掛 override badge。
- * parentSettings 已 drill 到對照層級（巢狀欄位傳父物件，頂層欄位傳 scope 根）。
- * 該 key 在父層 scope 不生效（見 isScopeEffective）時跳過該層：那份值 Claude Code 不讀。
  */
 export function getOverriddenScope(
   scope: PluginScope,
-  parentSettings: Partial<Record<PluginScope, Record<string, unknown>>>,
+  parentSettings: Partial<Record<PluginScope, unknown>> | undefined,
   key: string,
   value: unknown,
 ): PluginScope | undefined {
   if (value === undefined) return undefined;
-  const schema = getFlatFieldSchema(key);
-  for (const parent of PARENT_SCOPES[scope]) {
-    if (schema && !isScopeEffective(schema, parent)) continue;
-    const ps = parentSettings[parent];
-    if (ps && key in ps) return parent;
-  }
-  return undefined;
+  const inherited = resolveInherited(scope, parentSettings, key);
+  return inherited.kind === 'known' ? inherited.scope : undefined;
+}
+
+/**
+ * 選值時是否改為刪 key：只有選到 schema default 且確定沒有父層設此 key 才刪。
+ * 父層有設（即便同值）或狀態未知一律寫入，避免刪掉後改吃父層值。
+ */
+export function shouldDeleteOnChoose(chosen: unknown, defaultValue: unknown, inherited: Inherited): boolean {
+  return defaultValue !== undefined && chosen === defaultValue && inherited.kind === 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +97,7 @@ interface OverrideBadgeProps {
 export function OverrideBadge({ scope }: OverrideBadgeProps): React.ReactElement {
   const { t } = useI18n();
   const scopeLabel = t(`settings.scope.${scope}` as Parameters<typeof t>[0]);
-  const label = t('settings.common.overrides' as Parameters<typeof t>[0], { scope: scopeLabel });
+  const label = t('settings.common.overrides', { scope: scopeLabel });
   return (
     <span className="settings-override-badge" title={label}>
       {label}
@@ -277,15 +313,17 @@ export interface BooleanToggleProps {
   settingKey: string;
   defaultValue?: boolean;
   overriddenScope?: PluginScope;
+  inherited: Inherited;
   disabled?: boolean;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, disabled = false, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, inherited, disabled = false, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
-  const checked = value ?? defaultValue ?? false;
+  const inheritedValue = inherited.kind === 'known' && typeof inherited.value === 'boolean' ? inherited.value : undefined;
+  const checked = value ?? inheritedValue ?? defaultValue ?? false;
   const resetLabel = t('settings.common.reset');
   const isDisabled = disabled || saving;
 
@@ -293,7 +331,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
     if (isDisabled) return;
     const newVal = !checked;
     void withSave(() =>
-      defaultValue !== undefined && newVal === defaultValue
+      shouldDeleteOnChoose(newVal, defaultValue, inherited)
         ? onDelete(settingKey)
         : onSave(settingKey, newVal),
     );
@@ -348,6 +386,7 @@ export interface EnumDropdownProps {
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
+  inherited: Inherited;
   disabled?: boolean;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
@@ -364,6 +403,7 @@ export function EnumDropdown({
   settingKey,
   defaultValue,
   overriddenScope,
+  inherited,
   disabled = false,
   onSave,
   onDelete,
@@ -375,11 +415,19 @@ export function EnumDropdown({
 
   const isUnknown = value !== undefined && !knownValues.includes(value);
   const selectValue = isUnknown ? '__unknown__' : (value ?? '');
+  const inheritedLabel = inherited.kind === 'known'
+    ? t('settings.common.inheritedFrom', {
+      scope: t(`settings.scope.${inherited.scope}` as Parameters<typeof t>[0]),
+      value: typeof inherited.value === 'string' && Object.prototype.hasOwnProperty.call(knownLabels, inherited.value)
+        ? knownLabels[inherited.value]
+        : String(inherited.value),
+    })
+    : undefined;
 
   const handleChange = (val: string): void => {
     if (val === '__unknown__' || isDisabled) return;
     void withSave(async () => {
-      if (val === '' || (defaultValue !== undefined && val === defaultValue)) {
+      if (val === '' || shouldDeleteOnChoose(val, defaultValue, inherited)) {
         await onDelete(settingKey);
       } else {
         await onSave(settingKey, val);
@@ -401,7 +449,7 @@ export function EnumDropdown({
           onChange={(e) => void handleChange(e.target.value)}
           disabled={isDisabled}
         >
-          <option value="">{notSetLabel}</option>
+          <option value="">{inheritedLabel ?? notSetLabel}</option>
           {isUnknown && (
             <option value="__unknown__" disabled>
               {unknownTemplate.replace('{value}', value!)}
@@ -441,6 +489,7 @@ export interface TextSettingProps {
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
+  inherited: Inherited;
   scope: PluginScope;
   disabled?: boolean;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
@@ -456,6 +505,7 @@ export function TextSetting({
   settingKey,
   defaultValue,
   overriddenScope,
+  inherited,
   scope,
   disabled = false,
   onSave,
@@ -471,7 +521,7 @@ export function TextSetting({
     if (isDisabled) return;
     void withSave(async () => {
       const trimmed = inputValue.trim();
-      if (!trimmed || (defaultValue !== undefined && trimmed === defaultValue)) {
+      if (!trimmed || shouldDeleteOnChoose(trimmed, defaultValue, inherited)) {
         const deleted = await onDelete(settingKey);
         if (deleted !== false) {
           setInputValue('');
@@ -793,6 +843,7 @@ export interface NumberSettingProps {
   maxError?: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
+  inherited: Inherited;
   disabled?: boolean;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
@@ -818,6 +869,7 @@ export function NumberSetting({
   maxError,
   defaultValue,
   overriddenScope,
+  inherited,
   disabled = false,
   onSave,
   onDelete,
@@ -848,7 +900,7 @@ export function NumberSetting({
   const handleSave = (): void => {
     if (saveDisabled) return;
     void withSave(async () => {
-      if (isEmpty || (defaultValue !== undefined && parsedValue === defaultValue)) {
+      if (isEmpty || shouldDeleteOnChoose(parsedValue, defaultValue, inherited)) {
         const deleted = await onDelete(settingKey);
         if (deleted !== false) {
           setInputValue('');

@@ -701,3 +701,4 @@ describe('SettingsPage', () => {
   });
 
 });
+

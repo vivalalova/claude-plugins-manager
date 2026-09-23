@@ -25,12 +25,14 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
+  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
       <DisplaySection
         scope={scope}
         settings={settings as any}
+        parentSettings={parentSettings as any}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -587,6 +589,62 @@ describe('DisplaySection — teammateMode dropdown', () => {
 // ---------------------------------------------------------------------------
 // SpinnerVerbs Editor
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// #26 — teammateMode 繼承感知（R3/R3b/R10）
+// ---------------------------------------------------------------------------
+
+describe('DisplaySection — teammateMode 繼承感知（#26 R3/R3b）', () => {
+  it('R3：local scope，own=auto，父層(user)=tmux（非 default）→「not set」選項標註 "Inherited from User: tmux"', async () => {
+    renderSection({ teammateMode: 'auto' }, vi.fn(), vi.fn(), 'local', { user: { teammateMode: 'tmux' } });
+    await waitFor(() => screen.getByRole('combobox', { name: /^Teammate Mode/ }));
+    const select = screen.getByRole('combobox', { name: /^Teammate Mode/ }) as HTMLSelectElement;
+    const notSetOption = Array.from(select.options).find((o) => o.value === '');
+    expect(notSetOption?.textContent).toBe('Inherited from User: Tmux');
+  });
+
+  it('R3：local scope，own=auto，父層(user)=tmux → 選 in-process（=default）→ onSave("teammateMode", "in-process")（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ teammateMode: 'auto' }, onSave, onDelete, 'local', { user: { teammateMode: 'tmux' } });
+    await waitFor(() => screen.getByRole('combobox', { name: /^Teammate Mode/ }));
+    fireEvent.change(screen.getByRole('combobox', { name: /^Teammate Mode/ }), { target: { value: 'in-process' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('teammateMode', 'in-process');
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('R3b（rule C）：local scope，own=tmux，父層(user)=in-process（等於 default）→ 選 in-process → onSave("teammateMode", "in-process")（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ teammateMode: 'tmux' }, onSave, onDelete, 'local', { user: { teammateMode: 'in-process' } });
+    await waitFor(() => screen.getByRole('combobox', { name: /^Teammate Mode/ }));
+    fireEvent.change(screen.getByRole('combobox', { name: /^Teammate Mode/ }), { target: { value: 'in-process' } });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('teammateMode', 'in-process');
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('DisplaySection — timeFormat 繼承感知（#26 R9）', () => {
+  it('project scope，own 未設，父層(user)="%H:%M"（非 default "auto"）→ 輸入 auto（=default）並儲存 → onSave("timeFormat", "auto")（今日為 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete, 'project', { user: { timeFormat: '%H:%M' } });
+
+    const input = await screen.findByRole('textbox', { name: 'Time Format' });
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: 'auto' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('timeFormat', 'auto');
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+});
 
 describe('DisplaySection — SpinnerVerbs 渲染', () => {
   it('顯示 Spinner Verbs section', async () => {

@@ -21,6 +21,7 @@ export function DisplaySection(props: SectionProps): React.ReactElement {
           const { scope, settings, overriddenScope, onSave, onDelete } = ctx;
           return (
             <TextSetting
+              inherited={{ kind: 'none' }}
               label={t('settings.display.teammateDefaultModel.label')}
               description={t('settings.display.teammateDefaultModel.description')}
               value={settings.teammateDefaultModel === null ? 'null' : settings.teammateDefaultModel}

@@ -45,6 +45,7 @@ const renderNumberSetting = (
         min={overrides.min}
         max={overrides.max}
         step={overrides.step}
+        inherited={{ kind: 'none' }}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -246,6 +247,7 @@ describe('NumberSetting — 邊界值', () => {
             clearLabel="Clear"
             settingKey="cleanupPeriodDays"
             scope="project"
+            inherited={{ kind: 'none' }}
             onSave={vi.fn()}
             onDelete={vi.fn()}
           />
