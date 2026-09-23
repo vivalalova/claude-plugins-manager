@@ -65,7 +65,7 @@ export interface ClaudeSettings {
   advisorModel?: string;
   fallbackModel?: string[];
   switchModelsOnFlag?: boolean;
-  effortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
+  effortLevel?: "xhigh" | "high" | "medium" | "low";
   fastMode?: boolean;
   fastModePerSessionOptIn?: boolean;
   agent?: string;
@@ -119,11 +119,9 @@ export interface ClaudeSettings {
   agentPushNotifEnabled?: boolean;
   inputNeededNotifEnabled?: boolean;
   editorMode?: "normal" | "vim";
-  keybindingFlavor?: "classic" | "readline";
   vimInsertModeRemaps?: Record<string, string>;
   externalEditorContext?: boolean;
   emojiCompletionEnabled?: boolean;
-  voiceEnabled?: boolean;
   voice?: {
     enabled?: boolean;
     mode?: "hold" | "tap";
@@ -137,9 +135,7 @@ export interface ClaudeSettings {
     language?: string;
     color?: string;
   };
-  permissionExplainerEnabled?: boolean;
   teammateMode?: "auto" | "in-process" | "tmux" | "iterm2";
-  teammateDefaultModel?: string | null;
   crossSessionInbound?: "accept" | "hold" | "refuse";
   enableAllProjectMcpServers?: boolean;
   enabledMcpjsonServers?: string[];
@@ -362,7 +358,6 @@ export interface ClaudeSettings {
   disableDeepLinkRegistration?: "disable";
   skipWebFetchPreflight?: boolean;
   remoteControlAtStartup?: boolean;
-  disableArtifact?: boolean;
   enableArtifact?: boolean;
   disableBundledSkills?: boolean;
   disableClaudeAiConnectors?: boolean;

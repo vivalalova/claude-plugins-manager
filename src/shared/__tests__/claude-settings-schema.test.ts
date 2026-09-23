@@ -23,7 +23,7 @@ type _ClaudeSettingsCompileTimeChecks = [
   Assert<IsEqual<ClaudeSettings['viewMode'], 'default' | 'verbose' | 'focus' | undefined>>,
   Assert<IsEqual<ClaudeSettings['editorMode'], 'normal' | 'vim' | undefined>>,
   Assert<IsEqual<ClaudeSettings['preferredNotifChannel'], 'auto' | 'terminal_bell' | 'iterm2' | 'iterm2_with_bell' | 'kitty' | 'ghostty' | 'notifications_disabled' | undefined>>,
-  Assert<IsEqual<ClaudeSettings['teammateDefaultModel'], string | null | undefined>>,
+  // teammateDefaultModel 已於 #27 從 schema 移除（docs 標 Removed in v2.1.234）。
   Assert<IsEqual<ClaudeSettings['voice'], { enabled?: boolean; mode?: 'hold' | 'tap'; autoSubmit?: boolean } | undefined>>,
   Assert<IsEqual<ClaudeSettings['forceLoginOrgUUID'], string | string[] | undefined>>,
   Assert<IsEqual<ClaudeSettings['modelPicker'], { options: Array<{ model: string; label?: string; description?: string }>; replaceBuiltInOptions?: boolean } | undefined>>,
@@ -168,7 +168,9 @@ describe('claude-settings-schema', () => {
 
 describe('getSchemaEnumOptions', () => {
   it('回傳已知 enum key 的 options', () => {
-    expect(getSchemaEnumOptions('effortLevel')).toEqual(['max', 'xhigh', 'high', 'medium', 'low']);
+    // #27：docs settings-reference.md 的 Type 只列 low/medium/high/xhigh，'max' 不被接受
+    // （model-config docs 明寫「`max` isn't accepted as a level in either key」）。
+    expect(getSchemaEnumOptions('effortLevel')).toEqual(['xhigh', 'high', 'medium', 'low']);
     expect(getSchemaEnumOptions('autoUpdatesChannel')).toEqual(['stable', 'latest']);
     // #25：docs Type 有列 'iterm2'，CLI enum 偵測不到（人工對照發現）。
     expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux', 'iterm2']);
@@ -223,10 +225,7 @@ describe('getSchemaDefault', () => {
     expect(getSchemaDefault('syncClaudeAiSkills')).toBeUndefined();
     // #25：docs 只寫「unset」或行為取決於帳號／組織，schema 拿掉固定 default。
     expect(getSchemaDefault('effortLevel')).toBeUndefined();
-    expect(getSchemaDefault('keybindingFlavor')).toBeUndefined();
-    expect(getSchemaDefault('voiceEnabled')).toBeUndefined();
     expect(getSchemaDefault('remoteControlAtStartup')).toBeUndefined();
-    expect(getSchemaDefault('disableArtifact')).toBeUndefined();
     expect(getSchemaDefault('workflowSizeGuideline')).toBeUndefined();
   });
 
@@ -242,17 +241,17 @@ describe('getSchemaDefault', () => {
   // isolatePeerMachines: docs settings.md 該列沒有 **Default**: prose（`true` 只在 Example 欄），
   // cross-session-messaging.md 明寫「Set isolatePeerMachines to true to require approval」＝
   // opt-in，未設就不攔，因此不得編出 default。Verified 2026-08-21.
-  // voiceEnabled/remoteControlAtStartup/disableArtifact: #25 拍板紀錄——實際值取決於
-  // 帳號／組織，寫死預設會讓某個值存不進去；寧可畫面顯示不確定，也不要讓某個值存不進去。
+  // remoteControlAtStartup: #25 拍板紀錄——實際值取決於帳號／組織，寫死預設會讓某個值
+  // 存不進去；寧可畫面顯示不確定，也不要讓某個值存不進去。
   // Verified 2026-09-23 against settings-reference.md.
+  // voiceEnabled/disableArtifact 已於 #27 從 schema 移除（docs 標 Deprecated），不再是
+  // Boolean entry，故也不再需要出現在本例外清單。
   const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set([
     'enableArtifact',
     'isolatePeerMachines',
     'enableWorkflows',
     'syncClaudeAiSkills',
-    'voiceEnabled',
     'remoteControlAtStartup',
-    'disableArtifact',
   ]);
 
   it('所有 Boolean entry 都有 default 值（documented dynamic-default keys 除外）', () => {
@@ -275,21 +274,19 @@ describe('getSchemaDefault', () => {
 });
 
 describe('getGlobalConfigSettingKeys', () => {
-  // 依官方文件應存在 ~/.claude.json（頂層 key）而非 settings.json 的 6 個 key。
-  // workflowSizeGuideline 依 #25 拍板 P3 移出（docs Scope 為 Any file，改存 settings 檔），
-  // 7 → 6。
+  // 依官方文件應存在 ~/.claude.json（頂層 key）而非 settings.json 的 key。
+  // workflowSizeGuideline 依 #25 拍板 P3 移出（docs Scope 為 Any file，改存 settings 檔），7 → 6。
+  // permissionExplainerEnabled／teammateDefaultModel 依 #27（docs 標 Removed in）整組移出 schema，6 → 4。
   const EXPECTED_GLOBAL_CONFIG_KEYS = [
     'autoConnectIde',
     'autoInstallIdeExtension',
     'diffTool',
     'externalEditorContext',
-    'permissionExplainerEnabled',
-    'teammateDefaultModel',
   ];
 
-  it('回傳精確 6 個 key（排序後比對，防止漏標或多標）', () => {
+  it('回傳精確 4 個 key（排序後比對，防止漏標或多標）', () => {
     const keys = getGlobalConfigSettingKeys();
-    expect(keys.length).toBe(6);
+    expect(keys.length).toBe(4);
     expect([...keys].sort()).toEqual([...EXPECTED_GLOBAL_CONFIG_KEYS].sort());
   });
 
@@ -299,5 +296,30 @@ describe('getGlobalConfigSettingKeys', () => {
 
   it.each(['model', 'effortLevel', 'workflowSizeGuideline'])('%s（非 globalConfig 欄位）storageFile 為 undefined', (key) => {
     expect(getFlatFieldSchema(key)?.storageFile).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #27：docs 標為 Deprecated／Removed in 的 5 個 key 從 schema 移除，改進
+// settings-diff 的 KNOWN_EXCLUDED（不再是首方 settings 頁面）。
+// ---------------------------------------------------------------------------
+
+describe('#27 棄用／已移除設定移出 schema', () => {
+  const DEPRECATED_OR_REMOVED_KEYS = [
+    'keybindingFlavor',
+    'voiceEnabled',
+    'disableArtifact',
+    'permissionExplainerEnabled',
+    'teammateDefaultModel',
+  ];
+
+  it.each(DEPRECATED_OR_REMOVED_KEYS)('%s 不在真實 flat schema 中', (key) => {
+    const flatSchema = getAllFlatFieldSchemas();
+    expect(Object.prototype.hasOwnProperty.call(flatSchema, key)).toBe(false);
+  });
+
+  it.each(DEPRECATED_OR_REMOVED_KEYS)('%s 在 settings-diff 的 KNOWN_EXCLUDED 中', async (key) => {
+    const { KNOWN_EXCLUDED } = await import('../settings-sync/settings-diff');
+    expect(KNOWN_EXCLUDED.has(key)).toBe(true);
   });
 });

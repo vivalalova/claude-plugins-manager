@@ -54,7 +54,7 @@ Schema 中存在但**不納入** settings UI 的 key：
 |----------|------|------|
 | managed-only | 索引 Scope=`Managed` 者由 CLI 自動排除，不列；Scope 未標但實質 managed-only 的（如 `enforceAvailableModels`）見 `KNOWN_EXCLUDED` | 企業管理員專用，不做 first-party UI |
 | plugin-internal | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` | 由 extension plugin/marketplace UI 管理 |
-| deprecated | `includeCoAuthoredBy` | 已被 `attribution` 取代 |
+| deprecated | `includeCoAuthoredBy`、`keybindingFlavor`、`voiceEnabled`、`disableArtifact`、`permissionExplainerEnabled`、`teammateDefaultModel` | docs 標 Deprecated／Removed in（已被取代或已無作用） |
 | meta | `$schema` | JSON schema 參照，非設定值 |
 
 逐條排除清單的 SSOT 在 `src/shared/settings-sync/settings-diff.ts` 的 `KNOWN_EXCLUDED`，此處不複寫。新發現的 non-user-facing gap（Scope 非 Managed、由 description 判斷）→ 加進 `KNOWN_EXCLUDED`。

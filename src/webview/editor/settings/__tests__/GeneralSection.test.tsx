@@ -547,6 +547,15 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     });
   });
 
+  // T-j：#27 拿掉 'max' 後，select 選項不再含它（schema 層另有 claude-settings-schema.test.ts 的斷言）。
+  it('effortLevel select 選項不含 "max"', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Effort Level' }) as HTMLSelectElement;
+      expect(Array.from(select.options).map((o) => o.value)).toEqual(['', 'xhigh', 'high', 'medium', 'low']);
+    });
+  });
+
   it('未知 effortLevel → 顯示 __unknown__ disabled option（含 ⚠️）', async () => {
     renderSection({ effortLevel: 'ultra' as any });
     await waitFor(() => {

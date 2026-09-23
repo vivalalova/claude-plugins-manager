@@ -56,22 +56,24 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 腳本（`references/scripts/sync-settings.workflow.js`）兩個 phase，全唯讀：
 
-- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, scopeDrift, counts, health }`，全是 CLI 的確定性結果：
-  - `settingsGaps`：docs 有、repo 無，已扣 `KNOWN_EXCLUDED` 與 Scope=`Managed`；每筆帶 key、description、topic、scope
+- **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, scopeDrift, deprecatedSurfaced, enumDrift, counts, health }`，全是 CLI 的確定性結果：
+  - `settingsGaps`：docs 有、repo 無，已扣 `KNOWN_EXCLUDED`、Scope=`Managed` 與 docs 標 Deprecated／Removed 的 key；每筆帶 key、description、topic、scope
   - `removedKeys`：repo 有、docs 無，已扣 `KNOWN_REPO_ONLY`
   - `envGaps` / `envRemoved`：同上兩方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`；`envGaps` 帶 docs description
   - `defaultDrift`：兩邊都有的 key，schema `default` 與 docs `**Default**` 不符。`kind` 四種：`mismatch`（docs 給了明確值、repo 不同或沒給）、`repoDefaultDocsUnset`（docs 說 unset、repo 有給值，已扣 `KNOWN_DEFAULT_EQUIVALENT`）、`conditional`（docs 寫「`A`, or `B` when …」、repo 有給值）、`unparsed`（docs 文字既非 unset 也非開頭的 JSON literal）
   - `storageDrift`：索引 Scope=`Global config`（存 `~/.claude.json`）與 schema `storageFile: 'globalConfig'` 不一致
   - `scopeDrift`：索引 Scope（`User or managed`／`User, local, or managed`／`Any file`）與 schema `effectiveScopes` 不一致，含 object 子設定（dotted path，子層未登錄即繼承父層）。`kind`：`mismatch`／`unrecognized`（Scope 文字不在 `settings-meta-drift.ts` 的 `DOCS_SCOPE_TO_EFFECTIVE`；`Managed`／`Global config` 認得但不比對）
+  - `deprecatedSurfaced`：repo 仍有、docs 條目開頭 `<Warning>` 標 Deprecated／Removed in 的 key（含 object 子設定）。`kind`：`deprecated`／`removed`，`docs` 為 Warning 原文
+  - `enumDrift`：repo 字串欄位與 docs `**Type**` 列出的固定值不一致（含 object 子設定）。`kind`：`mismatch`（`docsOnly`／`repoOnly` 列差集）、`repoNotEnum`（docs 列固定值、repo 為自由輸入字串）、`unparsed`（repo 是 enum，docs Type 解析不出固定值）。open type（docs 列 preset 外另收自由格式）：repo 自由字串不算漂移，只回報缺漏的 preset
 - **Categorize（平行）**：對每個 `settingsGap` 把 description、topic、scope inline 餵給分類 agent，指派 section、判斷 `isObjectEditor`、標記 non-user-facing。其餘欄位原樣傳回，不走 LLM——判斷交回主迴圈。
 
-回傳：`categorized`、`userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`scopeDrift`、`counts`。
+回傳：`categorized`、`userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`scopeDrift`、`deprecatedSurfaced`、`enumDrift`、`counts`。
 
 > 要改 workflow 邏輯：編輯該 `.js` 檔後重跑；前次 workflow run 的 `runId` 可帶入 `Workflow({ resumeFromRunId })` 命中快取，跳過已完成的 phase。不要把腳本貼進對話。
 
 ## Step 2 — 確認或 early exit
 
-- `userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`scopeDrift` 全空 → 報告同步完成並 **END**。
+- `userFacing`、`nonUserFacing`、`removedKeys`、`envGaps`、`envRemoved`、`defaultDrift`、`storageDrift`、`scopeDrift`、`deprecatedSurfaced` 全空，且 `enumDrift` 全空或每筆都已有未關閉的票追蹤 → 報告同步完成（列出追蹤中的票號）並 **END**。
 - `nonUserFacing` 清單非空 → 提報使用者（僅供知悉，不 apply），確認後把各 key 加進 `KNOWN_EXCLUDED`；`userFacing` 若同時非空，兩份清單一起回報，apply 只對 `userFacing` 跑。
 - `removedKeys` 非空 → 提報使用者（repo schema 仍支援、但官方 docs 已不再列出的 key，可能是改名/棄用/文件遺漏——逐 key 回 docs 原文核實原因），**禁自動刪**；使用者確認要刪的 key 才走「Hard checklist」的刪 key 流程（含 UI/i18n/schema 移除，不清使用者既有 settings 檔）。
 - `envGaps` 非空 → 提報使用者（附各 var 的 docs description），確認後把各筆加進 `src/shared/known-env-vars.ts`。
@@ -88,6 +90,11 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
   - object 子設定 → 登錄在 `optional(schema, { effectiveScopes })`，未登錄即繼承父層
   - 有 `nestedUnder` 的 dotted key（如 `autoMode.classifyAllShell`、`permissions.*`）→ 登錄在該扁平欄位的 meta，不登在 object 子屬性上
   - `unrecognized` → 回 docs 讀 Scope 定義，擴充 `DOCS_SCOPE_TO_EFFECTIVE` 並補測試
+- `deprecatedSurfaced` 非空 → 走「Hard checklist」的刪 key 流程移除 UI／i18n／schema，並把 key 加進 `KNOWN_EXCLUDED` 的 deprecated 群組（附簡短原因）；不清使用者既有 settings 檔。
+- `enumDrift` 非空：
+  - `mismatch` → 依 docs Type 更新 schema enum 選項與對應 i18n
+  - `repoNotEnum` → 讀原文判斷是否改成 enum
+  - `unparsed` → 讀原文判斷後，擴充 `parseSettingsEntries` 的 Type 解析並補測試
 - `userFacing` 非空且 section 歸屬不明確 → `AskUserQuestion` 讓使用者確認。
 
 ## Step 3 — apply（主迴圈）
@@ -120,7 +127,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 ### 完成關卡
 
 1. `npm run verify` 全綠（含 check:schema Phase 4 i18n-completeness + generate --check）。
-2. 重跑 `npx tsx scripts/settings-sync-diff.ts` 確認 `settingsGaps`、`defaultDrift`、`storageDrift`、`scopeDrift` 歸 0。
+2. 重跑 `npx tsx scripts/settings-sync-diff.ts` 確認 `settingsGaps`、`defaultDrift`、`storageDrift`、`scopeDrift`、`deprecatedSurfaced` 歸 0；`enumDrift` 歸 0，或剩下每筆都已有未關閉的票追蹤（最終回報列出票號）。
 
 ## 能力邊界
 
@@ -130,7 +137,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 - **`removedKeys` 僅涵蓋 non-object top-level 欄位**：object-kind 欄位（如 `sandbox`、`permissions`）整個從 docs 消失、或其巢狀 leaf 被 docs 移除，皆不會被 `removedKeys` 偵測到；新增方向（`settingsGaps`）則涵蓋巢狀 leaf。
 - **default / 存放檔漂移可偵測**：`defaultDrift` 涵蓋 non-object flat field，`storageDrift` 涵蓋全部 flat field。
 - **生效 scope 漂移可偵測**：`scopeDrift` 涵蓋全部 flat field 與 object 子設定；設定頁在不生效的 scope 隱藏該控制項（JSON 模式不過濾）。
-- **enum 選項與 type／range 漂移不偵測**：docs 的 `**Type**` bullet 格式不一（有的列選項、有的「one of:」後接清單），尚未解析；新增 enum key 或 docs 改選項時，手動對照該 key 條目的 Type。
+- **棄用與 enum 選項漂移可偵測**：`deprecatedSurfaced` 讀條目開頭的 Warning；`enumDrift` 解析 `**Type**` 的固定字串值（含樣板值 `<…>` 者略過），涵蓋 flat key 與有自己 `` ### `parent.child` `` 條目的 object 子設定；選項只寫在父層 Type 句的子設定（如 `spellcheck.checker`、`sandbox.credentials.sigv4`）不偵測。type／range（數值範圍、非字串型別）漂移仍不偵測。
 
 ## Hard checklist
 
@@ -154,7 +161,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 ## Output contract
 
-最終回報必列：新增 key、刪除 key（來自 `removedKeys` 且經使用者確認者）、修正 default／存放檔／生效 scope 的 key（來自 `defaultDrift`/`storageDrift`/`scopeDrift`，附修前修後）、non-user-facing keys（已加 `KNOWN_EXCLUDED`）、env var 新增/移除、受影響 section、驗證結果、CLI 各 counts 最終數。
+最終回報必列：新增 key、刪除 key（來自 `removedKeys` 且經使用者確認者）、修正 default／存放檔／生效 scope／enum 選項的 key（來自 `defaultDrift`/`storageDrift`/`scopeDrift`/`enumDrift`，附修前修後）、移除的棄用 key（來自 `deprecatedSurfaced`）、留待票處理的 `enumDrift` 項目與票號、non-user-facing keys（已加 `KNOWN_EXCLUDED`）、env var 新增/移除、受影響 section、驗證結果、CLI 各 counts 最終數。
 
 ## References
 

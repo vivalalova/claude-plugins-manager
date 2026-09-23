@@ -256,6 +256,11 @@ export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
   'pluginConfigs',
   // Deprecated settings are not first-party settings surface anymore.
   'includeCoAuthoredBy',
+  'keybindingFlavor',           // docs: Deprecated since v2.1.261, no effect
+  'voiceEnabled',               // docs: Deprecated, replaced by voice.enabled
+  'disableArtifact',            // docs: Deprecated, replaced by enableArtifact
+  'permissionExplainerEnabled', // docs: Removed in v2.1.257
+  'teammateDefaultModel',       // docs: Removed in v2.1.234
   'policyHelper',             // "Only honored from MDM" — no bracket marker
   'ultracode',                // session-only, not read from settings.json
   'autoDreamEnabled',         // undocumented

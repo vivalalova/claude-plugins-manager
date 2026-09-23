@@ -299,13 +299,12 @@ function recordField<
 }
 
 const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const;
-const EFFORT_LEVEL_OPTIONS = ['max', 'xhigh', 'high', 'medium', 'low'] as const;
+const EFFORT_LEVEL_OPTIONS = ['xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux', 'iterm2'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
 const TUI_OPTIONS = ['fullscreen', 'default'] as const;
 const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
-const KEYBINDING_FLAVOR_OPTIONS = ['classic', 'readline'] as const;
 const PREFERRED_NOTIF_CHANNEL_OPTIONS = ['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled'] as const;
 const FORCE_LOGIN_METHOD_OPTIONS = ['claudeai', 'console'] as const;
 const DISABLE_ONLY_OPTIONS = ['disable'] as const;
@@ -411,7 +410,6 @@ const TEAMMATE_MODE_VALUE_SCHEMA = stringValue(TEAMMATE_MODE_OPTIONS);
 const VIEW_MODE_VALUE_SCHEMA = stringValue(VIEW_MODE_OPTIONS);
 const TUI_VALUE_SCHEMA = stringValue(TUI_OPTIONS);
 const EDITOR_MODE_VALUE_SCHEMA = stringValue(EDITOR_MODE_OPTIONS);
-const KEYBINDING_FLAVOR_VALUE_SCHEMA = stringValue(KEYBINDING_FLAVOR_OPTIONS);
 const PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA = stringValue(PREFERRED_NOTIF_CHANNEL_OPTIONS);
 const WORKTREE_BASE_REF_VALUE_SCHEMA = stringValue(WORKTREE_BASE_REF_OPTIONS);
 const WORKTREE_BG_ISOLATION_VALUE_SCHEMA = stringValue(WORKTREE_BG_ISOLATION_OPTIONS);
@@ -559,7 +557,6 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
 
 const COMPANY_ANNOUNCEMENTS_VALUE_SCHEMA = arrayValue(STRING_SCHEMA);
 const FORCE_LOGIN_ORG_UUID_VALUE_SCHEMA = unionValue(STRING_SCHEMA, STRING_ARRAY_SCHEMA);
-const STRING_OR_NULL_VALUE_SCHEMA = unionValue(STRING_SCHEMA, literalValue(null));
 const MODEL_OVERRIDES_VALUE_SCHEMA = recordValue(STRING_SCHEMA);
 const CLEANUP_PERIOD_DAYS_VALUE_SCHEMA = numberValue({ min: 0, step: 1 });
 const FEEDBACK_SURVEY_RATE_VALUE_SCHEMA = numberValue({ min: 0, max: 1, step: 0.01 });
@@ -708,19 +705,15 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('inputNeededNotifEnabled', { default: false }),
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
-    createField('keybindingFlavor', KEYBINDING_FLAVOR_VALUE_SCHEMA),
     createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
     booleanField('emojiCompletionEnabled', { default: true }),
-    booleanField('voiceEnabled'),
     createField('voice', VOICE_VALUE_SCHEMA),
     createField('askUserQuestionTimeout', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: 'never', effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('promptSuggestionEnabled', { default: true }),
     createField('spellcheck', SPELLCHECK_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
-    booleanField('permissionExplainerEnabled', { default: true, storageFile: 'globalConfig' }),
     // Agent teammates
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'in-process' }),
-    createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String, storageFile: 'globalConfig' }),
     createField('crossSessionInbound', CROSS_SESSION_INBOUND_VALUE_SCHEMA),
   ],
 
@@ -798,7 +791,6 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
     booleanField('skipWebFetchPreflight', { default: false }),
     booleanField('remoteControlAtStartup'),
-    booleanField('disableArtifact'),
     booleanField('enableArtifact'),
     booleanField('disableBundledSkills', { default: false }),
     booleanField('disableClaudeAiConnectors', { default: false }),

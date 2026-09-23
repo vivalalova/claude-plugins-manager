@@ -1449,7 +1449,6 @@ describe('AdvancedSection — 批次 S 渲染（先紅）', () => {
 
   it.each([
     ['remoteControlAtStartup', 'Remote Control at Startup'],
-    ['disableArtifact', 'Disable Artifact Tool'],
     ['disableBundledSkills', 'Disable Bundled Skills'],
     ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
     ['disableWorkflows', 'Disable Workflows'],
@@ -1458,6 +1457,13 @@ describe('AdvancedSection — 批次 S 渲染（先紅）', () => {
   ])('顯示 %s 欄位：label "%s"', (_key, label) => {
     renderSection();
     expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  // #27：disableArtifact 依 docs Deprecated（由 enableArtifact 取代）從 UI 移除。
+  it('disableArtifact 不再渲染，同 section 的 enableArtifact 照常渲染', () => {
+    renderSection();
+    expect(screen.getByText('Enable Artifact Tool')).toBeTruthy();
+    expect(screen.queryByText('(disableArtifact)')).toBeNull();
   });
 });
 
@@ -1505,14 +1511,13 @@ describe('AdvancedSection — enableArtifact（無 fixed default）', () => {
   });
 });
 
-// remoteControlAtStartup / disableArtifact 依 #25 拍板紀錄拿掉 schema 預設值
+// remoteControlAtStartup 依 #25 拍板紀錄拿掉 schema 預設值（disableArtifact 已於 #27 移除 UI）
 // （docs：實際值取決於帳號／組織，寫死預設會讓某個值存不進去）。
 // 拿掉預設後：unset 時畫面顯示為關（checked = value ?? defaultValue ?? false，
 // 視覺上與舊行為相同）；但 value=true 時 toggle off 已無 default 可比對，
 // 不再走 onDelete，而是 onSave(key, false)。
 describe.each([
   ['remoteControlAtStartup', 'Remote Control at Startup'],
-  ['disableArtifact', 'Disable Artifact Tool'],
 ])('AdvancedSection — %s（無 fixed default，#25）', (key, label) => {
   it('key hint 不顯示預設值', async () => {
     renderSection();
@@ -1557,7 +1562,6 @@ describe('AdvancedSection — 批次 S 互動（先紅）', () => {
 
   it.each([
     ['remoteControlAtStartup', 'Remote Control at Startup'],
-    ['disableArtifact', 'Disable Artifact Tool'],
     ['disableBundledSkills', 'Disable Bundled Skills'],
     ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
     ['disableWorkflows', 'Disable Workflows'],
@@ -1570,7 +1574,6 @@ describe('AdvancedSection — 批次 S 互動（先紅）', () => {
 
   it.each([
     ['remoteControlAtStartup', 'Remote Control at Startup'],
-    ['disableArtifact', 'Disable Artifact Tool'],
     ['disableBundledSkills', 'Disable Bundled Skills'],
     ['disableClaudeAiConnectors', 'Disable claude.ai Connectors'],
     ['disableWorkflows', 'Disable Workflows'],

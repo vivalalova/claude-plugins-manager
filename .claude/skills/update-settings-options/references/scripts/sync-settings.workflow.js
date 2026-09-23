@@ -22,7 +22,7 @@ export const meta = {
 
 const DETECT_SCHEMA = {
   type: 'object',
-  required: ['settingsGaps', 'removedKeys', 'envGaps', 'envRemoved', 'defaultDrift', 'storageDrift', 'scopeDrift', 'counts', 'health'],
+  required: ['settingsGaps', 'removedKeys', 'envGaps', 'envRemoved', 'defaultDrift', 'storageDrift', 'scopeDrift', 'deprecatedSurfaced', 'enumDrift', 'counts', 'health'],
   properties: {
     settingsGaps: {
       type: 'array',
@@ -51,6 +51,16 @@ const DETECT_SCHEMA = {
       items: { type: 'object', properties: { key: { type: 'string' }, docsScope: { type: 'string' }, repoEffectiveScopes: {}, kind: { type: 'string' } } },
       description: 'keys (incl. object children by dotted path) whose index Scope (User or managed / User, local, or managed / Any file) disagrees with schema effectiveScopes (kind: mismatch | unrecognized)',
     },
+    deprecatedSurfaced: {
+      type: 'array',
+      items: { type: 'object', properties: { key: { type: 'string' }, kind: { type: 'string' }, docs: { type: 'string' } } },
+      description: 'repo keys (incl. object children by dotted path) whose docs entry opens with a Deprecated or Removed in Warning (kind: deprecated | removed)',
+    },
+    enumDrift: {
+      type: 'array',
+      items: { type: 'object', properties: { key: { type: 'string' }, kind: { type: 'string' }, docsOnly: { type: 'array', items: { type: 'string' } }, repoOnly: { type: 'array', items: { type: 'string' } } } },
+      description: 'repo string fields whose enum options disagree with the docs Type values (kind: mismatch | repoNotEnum | unparsed)',
+    },
     counts: {
       type: 'object',
       properties: {
@@ -64,6 +74,8 @@ const DETECT_SCHEMA = {
         defaultDrift: { type: 'number' },
         storageDrift: { type: 'number' },
         scopeDrift: { type: 'number' },
+        deprecatedSurfaced: { type: 'number' },
+        enumDrift: { type: 'number' },
       },
     },
     health: {
@@ -117,7 +129,7 @@ if (!detected) {
 // health is guaranteed ok: CLI calls process.exit(1) on failure, producing no JSON output.
 // A parsed `detected` therefore always has health.ok === true.
 
-log(`Detect: ${detected.counts.settingsGaps} settings gaps · ${detected.counts.removedKeys} removed keys · ${detected.counts.envGaps} env gaps · ${detected.counts.envRemoved} env removed · ${detected.counts.defaultDrift} default drift · ${detected.counts.storageDrift} storage drift · ${detected.counts.scopeDrift} scope drift · ${detected.counts.docsKeys} docs keys · ${detected.counts.repoKeys} repo keys`)
+log(`Detect: ${detected.counts.settingsGaps} settings gaps · ${detected.counts.removedKeys} removed keys · ${detected.counts.envGaps} env gaps · ${detected.counts.envRemoved} env removed · ${detected.counts.defaultDrift} default drift · ${detected.counts.storageDrift} storage drift · ${detected.counts.scopeDrift} scope drift · ${detected.counts.deprecatedSurfaced} deprecated surfaced · ${detected.counts.enumDrift} enum drift · ${detected.counts.docsKeys} docs keys · ${detected.counts.repoKeys} repo keys`)
 
 if (detected.settingsGaps.length === 0) {
   log('No settings gaps — skipping Categorize phase.')
@@ -131,6 +143,8 @@ if (detected.settingsGaps.length === 0) {
     defaultDrift: detected.defaultDrift,
     storageDrift: detected.storageDrift,
     scopeDrift: detected.scopeDrift,
+    deprecatedSurfaced: detected.deprecatedSurfaced,
+    enumDrift: detected.enumDrift,
     counts: detected.counts,
   }
 }
@@ -183,5 +197,7 @@ return {
   defaultDrift: detected.defaultDrift,
   storageDrift: detected.storageDrift,
   scopeDrift: detected.scopeDrift,
+  deprecatedSurfaced: detected.deprecatedSurfaced,
+  enumDrift: detected.enumDrift,
   counts: detected.counts,
 }

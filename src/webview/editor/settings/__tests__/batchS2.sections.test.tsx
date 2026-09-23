@@ -8,7 +8,7 @@
  *   - dialogExpiry（general, enum 60s|5m|10m|never, default '5m'）
  *   - promptSuggestionEnabled（display, boolean, default true）
  *   - crossSessionInbound（display, enum accept|hold|refuse, 無 default）
- *   - keybindingFlavor（display, enum classic|readline, 無 default — #25 拿掉）
+ *   - keybindingFlavor（display, 已於 #27 移除：docs 標 Deprecated since v2.1.261 且無作用）
  *   - isolatePeerMachines（advanced, boolean, 無 default）
  *
  * 定位控件走 key hint 文字（`(key: default)`）而非 label 文案：文案由實作決定，
@@ -251,44 +251,14 @@ describe('crossSessionInbound（display section）', () => {
 });
 
 // ---------------------------------------------------------------------------
-// keybindingFlavor — display / enum classic|readline / no fixed default
+// keybindingFlavor — #27：docs 標 Deprecated since v2.1.261 且無作用，UI 移除
 // ---------------------------------------------------------------------------
 
-// #25：docs 只寫「unset」而非固定值，schema 拿掉 keybindingFlavor 的 default——
-// hint 因此不再帶預設值，選回 'classic'（舊 default）不再走 onDelete。
-describe('keybindingFlavor（display section，#25 無 fixed default）', () => {
-  const HINT = '(keybindingFlavor)';
-
-  it('render 出 enum 控件，選項為 classic/readline', async () => {
+describe('keybindingFlavor（display section，#27 已從 UI 移除）', () => {
+  it('不再渲染 keybindingFlavor 欄位，同 section 的 crossSessionInbound 照常渲染', async () => {
     renderSection(DisplaySection);
-    await waitFor(() => expect(screen.getByText(HINT)).toBeTruthy());
-    const select = within(fieldByKeyHint(HINT)).getByRole('combobox') as HTMLSelectElement;
-    const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toEqual(expect.arrayContaining(['classic', 'readline']));
-  });
-
-  it('選 readline → onSave("keybindingFlavor", "readline")', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection(DisplaySection, {}, onSave);
-
-    await waitFor(() => screen.getByText(HINT));
-    fireEvent.change(within(fieldByKeyHint(HINT)).getByRole('combobox'), { target: { value: 'readline' } });
-
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith('keybindingFlavor', 'readline'));
-  });
-
-  it('選 classic（舊 default，現無 default 可比對）→ onSave("keybindingFlavor", "classic")，不再走 onDelete', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection(DisplaySection, { keybindingFlavor: 'readline' }, onSave, onDelete);
-
-    await waitFor(() => screen.getByText(HINT));
-    fireEvent.change(within(fieldByKeyHint(HINT)).getByRole('combobox'), { target: { value: 'classic' } });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('keybindingFlavor', 'classic');
-      expect(onDelete).not.toHaveBeenCalled();
-    });
+    await waitFor(() => expect(screen.getByText('(crossSessionInbound)')).toBeTruthy());
+    expect(screen.queryByText('(keybindingFlavor)')).toBeNull();
   });
 });
 

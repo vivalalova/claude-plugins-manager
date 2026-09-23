@@ -49,13 +49,14 @@ function sortedArray(s: string[]): string[] {
 
 // ─── A. Core gate: exactly the 21 expected gaps ───────────────────────────────
 
-const EXPECTED_21 = [
-  // Top-level (18)
+// #27：disableArtifact 進 KNOWN_EXCLUDED（docs 標 Deprecated，不再是首方 settings 頁面設定），
+// 21 → 20；frozen 快照本身不動（disableArtifact 仍不在快照裡，只是現在被排除不算 gap）。
+const EXPECTED_20 = [
+  // Top-level (17)
   'advisorModel',
   'agentPushNotifEnabled',
   'autoCompactEnabled',
   'axScreenReader',
-  'disableArtifact',
   'disableBundledSkills',
   'disableClaudeAiConnectors',
   'disableWorkflows',
@@ -75,11 +76,11 @@ const EXPECTED_21 = [
   'sandbox.credentials.files',
 ].sort();
 
-describe('settings-diff — core gate: 21 gap', () => {
-  it('diffKeys with frozen snapshot produces exactly the 21 expected gaps', () => {
+describe('settings-diff — core gate: 20 gap', () => {
+  it('diffKeys with frozen snapshot produces exactly the 20 expected gaps', () => {
     const docsKeys = parseSettingsDocs(settingsMd).keys;
     const { missing } = diffKeys(docsKeys, SNAPSHOT_KEYS, KNOWN_EXCLUDED);
-    expect(sortedArray(missing)).toEqual(EXPECTED_21);
+    expect(sortedArray(missing)).toEqual(EXPECTED_20);
   });
 
   // Verify each nested gap key individually (they are easy to get wrong)
@@ -134,20 +135,20 @@ describe('settings-diff — corruption detection (these prove the gate is sensit
     const docsKeys = parseSettingsDocs(settingsMd).keys;
     const { missing } = diffKeys(docsKeys, corruptedSnapshot, KNOWN_EXCLUDED);
 
-    // Now 22 gaps (21 genuine + 1 introduced)
-    expect(missing.length).toBe(22);
+    // Now 21 gaps (20 genuine + 1 introduced)
+    expect(missing.length).toBe(21);
     expect(missing).toContain('attribution.pr');
   });
 
-  it('removing a different existing repo key makes the count 22 and includes that key', () => {
-    // Use a clearly non-gap key: "model" (in repo, not in EXPECTED_21)
+  it('removing a different existing repo key makes the count 21 and includes that key', () => {
+    // Use a clearly non-gap key: "model" (in repo, not in EXPECTED_20)
     const corruptedSnapshot = new Set(SNAPSHOT_KEYS);
     corruptedSnapshot.delete('model');
 
     const docsKeys = parseSettingsDocs(settingsMd).keys;
     const { missing } = diffKeys(docsKeys, corruptedSnapshot, KNOWN_EXCLUDED);
 
-    expect(missing.length).toBe(22);
+    expect(missing.length).toBe(21);
     expect(missing).toContain('model');
   });
 
@@ -163,9 +164,9 @@ describe('settings-diff — corruption detection (these prove the gate is sensit
     expect(docsKeys.has('advisorModel')).toBe(false);
 
     const { missing } = diffKeys(docsKeys, SNAPSHOT_KEYS, KNOWN_EXCLUDED);
-    // Now only 20 gaps (advisorModel no longer detected)
+    // Now only 19 gaps (advisorModel no longer detected)
     expect(missing).not.toContain('advisorModel');
-    expect(missing.length).toBe(20);
+    expect(missing.length).toBe(19);
   });
 });
 
@@ -324,6 +325,12 @@ describe('KNOWN_EXCLUDED constant', () => {
     'sandbox.filesystem.allowManagedReadPathsOnly',
     'enabledPlugins',
     'includeCoAuthoredBy',
+    // #27：docs 標為 Deprecated／Removed in 的 5 個設定，UI 已移除，不再是首方設定頁面。
+    'keybindingFlavor',
+    'voiceEnabled',
+    'disableArtifact',
+    'permissionExplainerEnabled',
+    'teammateDefaultModel',
   ])('contains "%s"', (key) => {
     expect(KNOWN_EXCLUDED.has(key)).toBe(true);
   });

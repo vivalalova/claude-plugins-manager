@@ -35,10 +35,14 @@ import {
   KNOWN_ENV_REPO_ONLY,
 } from '../src/shared/settings-sync/settings-diff';
 import {
-  parseSettingsDetails,
+  parseSettingsEntries,
   diffDefaults,
+  diffDeprecated,
+  diffEnumOptions,
   diffStorage,
   diffScopes,
+  excludeDeprecatedGaps,
+  warningParseHealthy,
   KNOWN_DEFAULT_EQUIVALENT,
 } from '../src/shared/settings-sync/settings-meta-drift';
 
@@ -108,9 +112,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const docsDefaults = parseSettingsDetails(settingsReferenceMd);
+  const docsEntries = parseSettingsEntries(settingsReferenceMd);
+  const docsDefaults = new Map<string, string>();
+  for (const [key, entry] of docsEntries) {
+    if (entry.default !== undefined) docsDefaults.set(key, entry.default);
+  }
   if (docsDefaults.size < docsKeys.size / 2) {
     console.error(`[settings-sync-diff] only ${docsDefaults.size} of ${docsKeys.size} index keys have a parsed **Default** entry — detail layout may have changed`);
+    process.exit(1);
+  }
+  if (!warningParseHealthy(settingsReferenceMd, docsEntries)) {
+    console.error('[settings-sync-diff] docs have Deprecated／Removed Warnings but none was parsed — Warning layout may have changed');
     process.exit(1);
   }
 
@@ -136,7 +148,7 @@ async function main(): Promise<void> {
     repoFlatFieldKeys,
     KNOWN_REPO_ONLY,
   );
-  const settingsGaps = settingsGapKeys.map((key) => ({
+  const settingsGaps = excludeDeprecatedGaps(settingsGapKeys, docsEntries).map((key) => ({
     key,
     description: settingsDescriptions.get(key) ?? '',
     topic: settingsTopics.get(key) ?? '',
@@ -145,6 +157,8 @@ async function main(): Promise<void> {
   const defaultDrift = diffDefaults(flatSchemas, docsDefaults, KNOWN_DEFAULT_EQUIVALENT);
   const storageDrift = diffStorage(flatSchemas, settingsScopes);
   const scopeDrift = diffScopes(flatSchemas, settingsScopes);
+  const deprecatedSurfaced = diffDeprecated(flatSchemas, docsEntries);
+  const enumDrift = diffEnumOptions(flatSchemas, docsEntries);
 
   // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
   const registryEnvNames = new Set(getKnownEnvVarNames());
@@ -159,6 +173,8 @@ async function main(): Promise<void> {
     defaultDrift,
     storageDrift,
     scopeDrift,
+    deprecatedSurfaced,
+    enumDrift,
     counts: {
       docsKeys: docsKeys.size,
       repoKeys: repoKeys.size,
@@ -170,6 +186,8 @@ async function main(): Promise<void> {
       defaultDrift: defaultDrift.length,
       storageDrift: storageDrift.length,
       scopeDrift: scopeDrift.length,
+      deprecatedSurfaced: deprecatedSurfaced.length,
+      enumDrift: enumDrift.length,
     },
     health,
   };

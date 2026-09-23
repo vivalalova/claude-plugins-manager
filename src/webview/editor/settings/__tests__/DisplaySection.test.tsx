@@ -55,7 +55,6 @@ describe('DisplaySection — 渲染', () => {
     await waitFor(() => {
       // teammateMode：docs 預設為 'in-process'（#25），schema 預設從 'auto' 改 'in-process'。
       expect(screen.getByText('(teammateMode: in-process)')).toBeTruthy();
-      expect(screen.getByText('(teammateDefaultModel)')).toBeTruthy();
       expect(screen.getByText('(editorMode: normal)')).toBeTruthy();
       expect(screen.getByText('(externalEditorContext: false)')).toBeTruthy();
       expect(screen.getByText('(preferredNotifChannel: auto)')).toBeTruthy();
@@ -69,20 +68,17 @@ describe('DisplaySection — 渲染', () => {
       expect(screen.getByText('(terminalProgressBarEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
       expect(screen.getByText('(syntaxHighlightingDisabled: false)')).toBeTruthy();
-      // voiceEnabled：docs 只寫「unset」而非固定值（#25），schema 拿掉 default，
-      // hint 因此不再帶預設值。
-      expect(screen.getByText('(voiceEnabled)')).toBeTruthy();
       expect(screen.getByText('(voice)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
-  it('顯示 22 個 checkbox（19 boolean toggle + excludeDefault + permissionExplainerEnabled + spellcheck.enabled；批次 S 加入 6 個、批次 R 加入 emojiCompletionEnabled、本批加入 promptSuggestionEnabled 與 spellcheck.enabled）', async () => {
+  it('顯示 20 個 checkbox（#27 移除 voiceEnabled／permissionExplainerEnabled 後，22 減 2）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(22);
+      expect(checkboxes.length).toBe(20);
     });
   });
 
@@ -122,12 +118,23 @@ describe('DisplaySection — 渲染', () => {
       expect(screen.getByText('Session Recap')).toBeTruthy();
       expect(screen.getByText('External Editor Context')).toBeTruthy();
       expect(screen.getByText('Disable Syntax Highlighting')).toBeTruthy();
-      expect(screen.getByText('Teammate Default Model')).toBeTruthy();
       expect(screen.getByText('Voice Settings')).toBeTruthy();
       expect(screen.getByText('Vim Insert Mode Remaps')).toBeTruthy();
       expect(screen.getByText('Question Auto-Continue Timeout')).toBeTruthy();
-      expect(screen.getByText('Permission Explainer')).toBeTruthy();
     });
+  });
+
+  // #27：keybindingFlavor／voiceEnabled／permissionExplainerEnabled／teammateDefaultModel
+  // docs 標為 Deprecated／Removed，UI 移除；與仍在的同 section 欄位（Voice Settings）配對驗證。
+  it('已移除的 4 個棄用／已移除欄位不再渲染，仍在的 Voice Settings 照常渲染', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText('Voice Settings')).toBeTruthy();
+    });
+    expect(screen.queryByText('(keybindingFlavor)')).toBeNull();
+    expect(screen.queryByText('(voiceEnabled)')).toBeNull();
+    expect(screen.queryByText(/\(permissionExplainerEnabled/)).toBeNull();
+    expect(screen.queryByText('(teammateDefaultModel)')).toBeNull();
   });
 
   it('欄位按 schema 陣列順序渲染', async () => {
@@ -271,20 +278,6 @@ describe('DisplaySection — 驗收條件', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('syntaxHighlightingDisabled', true);
-    });
-  });
-
-  it('teammateDefaultModel 輸入 null 並儲存 → onSave("teammateDefaultModel", null)', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave);
-
-    await waitFor(() => screen.getByPlaceholderText('e.g. sonnet or null'));
-    const field = screen.getByPlaceholderText('e.g. sonnet or null').closest('.settings-field') as HTMLElement;
-    fireEvent.change(screen.getByPlaceholderText('e.g. sonnet or null'), { target: { value: 'null' } });
-    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('teammateDefaultModel', null);
     });
   });
 
@@ -438,46 +431,6 @@ describe('DisplaySection — 驗收條件', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('prefersReducedMotion');
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// voiceEnabled — #25 拿掉 schema 固定 default（docs 只寫「unset」，實際值取決於帳號／組織）
-// ---------------------------------------------------------------------------
-
-describe('DisplaySection — voiceEnabled（無 fixed default，#25）', () => {
-  const getField = () =>
-    screen.getByText('(voiceEnabled)').closest('.settings-field') as HTMLElement;
-
-  it('未設定 → checkbox 未勾選', async () => {
-    renderSection({});
-    await waitFor(() => {
-      const cb = within(getField()).getByRole('checkbox') as HTMLInputElement;
-      expect(cb.checked).toBe(false);
-    });
-  });
-
-  it('值=true, toggle off → onSave("voiceEnabled", false)（無 default 可比對，不觸發 onDelete）', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ voiceEnabled: true }, onSave, onDelete);
-    await waitFor(() => getField());
-    fireEvent.click(within(getField()).getByRole('checkbox'));
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('voiceEnabled', false);
-      expect(onDelete).not.toHaveBeenCalled();
-    });
-  });
-
-  it('值=true → Reset 按鈕顯示，點擊 → onDelete("voiceEnabled")', async () => {
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ voiceEnabled: true }, vi.fn(), onDelete);
-    await waitFor(() => getField());
-    const resetBtn = within(getField()).getByRole('button', { name: /Reset/ });
-    fireEvent.click(resetBtn);
-    await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('voiceEnabled');
     });
   });
 });
@@ -1068,29 +1021,6 @@ describe('DisplaySection — 批次 S 互動（先紅）', () => {
     });
   });
 
-  // permissionExplainerEnabled: default=true → unset→checked; click→onSave(key, false)
-  it('permissionExplainerEnabled 未設定 → checkbox checked（default true）', async () => {
-    renderSection({});
-    await waitFor(() => {
-      const field = screen.getByText('Permission Explainer').closest('.settings-field') as HTMLElement;
-      const cb = within(field).getByRole('checkbox') as HTMLInputElement;
-      expect(cb.checked).toBe(true);
-    });
-  });
-
-  it('permissionExplainerEnabled 未設定, 點擊 → onSave("permissionExplainerEnabled", false)', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave, onDelete);
-    await waitFor(() => screen.getByText('Permission Explainer'));
-    const field = screen.getByText('Permission Explainer').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('checkbox'));
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('permissionExplainerEnabled', false);
-      expect(onDelete).not.toHaveBeenCalled();
-    });
-  });
-
   // askUserQuestionTimeout: enum, default='never'
   it('askUserQuestionTimeout 未設定 → combobox value 為空', async () => {
     renderSection({});
@@ -1125,14 +1055,15 @@ describe('DisplaySection — 批次 S 互動（先紅）', () => {
 
 // ---------------------------------------------------------------------------
 // storageFile=globalConfig 欄位在 project scope 完全不渲染（先紅）
-// 這 3 個 key（externalEditorContext/permissionExplainerEnabled/teammateDefaultModel）
-// 依官方文件只存在 ~/.claude.json（user 層級），project/local scope 不該顯示。
+// externalEditorContext 依官方文件只存在 ~/.claude.json（user 層級），
+// project/local scope 不該顯示（#27：permissionExplainerEnabled／teammateDefaultModel
+// 已因 docs 標為 Removed 整組移出 UI，改由上方 4 個棄用欄位的渲染測試覆蓋）。
 // ---------------------------------------------------------------------------
 
 describe('DisplaySection — globalConfig 欄位 scope 隔離（先紅）', () => {
-  it('scope=project → externalEditorContext/permissionExplainerEnabled/teammateDefaultModel 完全不渲染', async () => {
+  it('scope=project → externalEditorContext 完全不渲染', async () => {
     renderSection(
-      { externalEditorContext: true, permissionExplainerEnabled: false, teammateDefaultModel: 'sonnet' },
+      { externalEditorContext: true },
       vi.fn().mockResolvedValue(undefined),
       vi.fn().mockResolvedValue(undefined),
       'project',
@@ -1141,8 +1072,6 @@ describe('DisplaySection — globalConfig 欄位 scope 隔離（先紅）', () =
     await waitFor(() => expect(screen.getByText('View Mode')).toBeTruthy());
 
     expect(screen.queryByText('External Editor Context')).toBeNull();
-    expect(screen.queryByText('Permission Explainer')).toBeNull();
-    expect(screen.queryByText('Teammate Default Model')).toBeNull();
     expect(screen.queryByText('(externalEditorContext: false)')).toBeNull();
   });
 });
