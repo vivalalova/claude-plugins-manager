@@ -4,9 +4,9 @@ import { useSettingSave } from './hooks/useSettingSave';
 import type { PluginScope } from '../../../shared/types';
 import { getKnownEnvVar, getKnownEnvVarNames, getKnownEnvVarsByValueType } from '../../../shared/known-env-vars';
 import type { KnownEnvVar, EnvVarValueType } from '../../../shared/known-env-vars';
-import { BooleanToggle, TextSetting, NumberSetting } from './components/SettingControls';
+import { BooleanToggle, TextSetting, NumberSetting, resolveInherited, type Inherited } from './components/SettingControls';
 import { ObjectSetting } from './components/ObjectSetting';
-import { SchemaSection, type SectionProps } from './components/SchemaSection';
+import { SchemaSection, drillParents, type ParentSettings, type SectionProps } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -17,6 +17,23 @@ type EnvEntryValidationResult = 'ok' | 'empty' | 'invalid' | 'duplicate';
 
 export function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY_RE.test(key);
+}
+
+/**
+ * 已知 env 變數從父層繼承到的值：比對單位是 env[varName]，schema 以 'env' 查生效 scope。
+ * 父層值是字串，依控制項型別轉值（布林：'1'／'true' 為 true，與本層取值同規則；數字：Number）。
+ */
+function resolveEnvInherited(
+  scope: PluginScope,
+  parentSettings: ParentSettings | undefined,
+  knownVar: KnownEnvVar,
+): Inherited {
+  const inherited = resolveInherited(scope, drillParents(parentSettings, 'env'), knownVar.name, 'env');
+  if (inherited.kind !== 'known') return inherited;
+  const raw = inherited.value;
+  if (knownVar.valueType === Boolean) return { ...inherited, value: raw === '1' || raw === 'true' };
+  if (knownVar.valueType === Number) return { ...inherited, value: Number(raw) };
+  return inherited;
 }
 
 const VALID_KEY_RE = /^[A-Z0-9_]+$/;
@@ -417,11 +434,12 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 
 interface EnvObjectEditorProps {
   scope: PluginScope;
+  parentSettings: ParentSettings | undefined;
   currentEnv: Record<string, string>;
   onSaveEnv: (updatedEnv: Record<string, string>) => Promise<void>;
 }
 
-function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps): React.ReactElement {
+function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveEnv }: EnvObjectEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
   const knownVarsByType = useMemo(() => getKnownEnvVarsByValueType(), []);
@@ -480,7 +498,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     const desc = getDescription(knownVar.name);
     return (
       <BooleanToggle
-        inherited={{ kind: 'none' }}
+        inherited={resolveEnvInherited(scope, parentSettings, knownVar)}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -501,7 +519,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     const desc = getDescription(knownVar.name);
     return (
       <NumberSetting
-        inherited={{ kind: 'none' }}
+        inherited={resolveEnvInherited(scope, parentSettings, knownVar)}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -538,7 +556,7 @@ function EnvObjectEditor({ scope, currentEnv, onSaveEnv }: EnvObjectEditorProps)
     const desc = getDescription(knownVar.name);
     return (
       <TextSetting
-        inherited={{ kind: 'none' }}
+        inherited={resolveEnvInherited(scope, parentSettings, knownVar)}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -630,6 +648,7 @@ export function EnvSection({ scope, settings, parentSettings, onSave, onDelete }
         return (
           <EnvObjectEditor
             scope={scope}
+            parentSettings={parentSettings}
             currentEnv={currentEnv}
             onSaveEnv={(updatedEnv) => onSave('env', updatedEnv)}
           />
@@ -647,6 +666,7 @@ export interface EnvFieldRendererProps {
   envKey: string;
   currentEnv: Record<string, string>;
   scope: PluginScope;
+  parentSettings: ParentSettings | undefined;
   onEnvChange: (updatedEnv: Record<string, string>) => Promise<void>;
   saving?: boolean;
 }
@@ -655,6 +675,7 @@ export function EnvFieldRenderer({
   envKey,
   currentEnv,
   scope,
+  parentSettings,
   onEnvChange,
   saving = false,
 }: EnvFieldRendererProps): React.ReactElement | null {
@@ -688,6 +709,7 @@ export function EnvFieldRenderer({
 
   const envVal = currentEnv[envKey];
   const desc = getDescription(envKey);
+  const inherited = resolveEnvInherited(scope, parentSettings, knownVar);
 
   if (knownVar.valueType === Boolean) {
     const boolVal = envVal !== undefined ? (envVal === '1' || envVal === 'true') : undefined;
@@ -696,7 +718,7 @@ export function EnvFieldRenderer({
       : undefined;
     return (
       <BooleanToggle
-        inherited={{ kind: 'none' }}
+        inherited={inherited}
         label={envKey}
         description={desc ?? undefined}
         value={boolVal}
@@ -713,7 +735,7 @@ export function EnvFieldRenderer({
     const defaultNum = knownVar.default !== undefined ? Number(knownVar.default) : undefined;
     return (
       <NumberSetting
-        inherited={{ kind: 'none' }}
+        inherited={inherited}
         label={envKey}
         description={desc ?? undefined}
         value={numVal}
@@ -751,7 +773,7 @@ export function EnvFieldRenderer({
 
   return (
     <TextSetting
-      inherited={{ kind: 'none' }}
+      inherited={inherited}
       label={envKey}
       description={desc ?? undefined}
       value={envVal}
@@ -776,11 +798,12 @@ export function EnvFieldRenderer({
 
 interface CustomizedEnvEditorProps {
   scope: PluginScope;
+  parentSettings: ParentSettings | undefined;
   currentEnv: Record<string, string>;
   onSaveEnv: (updatedEnv: Record<string, string>) => Promise<void>;
 }
 
-export function CustomizedEnvEditor({ scope, currentEnv, onSaveEnv }: CustomizedEnvEditorProps): React.ReactElement {
+export function CustomizedEnvEditor({ scope, parentSettings, currentEnv, onSaveEnv }: CustomizedEnvEditorProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
 
   const updateEnv = async (updatedEnv: Record<string, string>): Promise<boolean> => {
@@ -818,6 +841,7 @@ export function CustomizedEnvEditor({ scope, currentEnv, onSaveEnv }: Customized
             envKey={key}
             currentEnv={currentEnv}
             scope={scope}
+            parentSettings={parentSettings}
             onEnvChange={onSaveEnv}
             saving={saving}
           />
