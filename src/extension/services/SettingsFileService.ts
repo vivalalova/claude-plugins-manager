@@ -14,7 +14,11 @@ import type {
 import { KeyedWriteQueue } from '../utils/WriteQueue';
 import { readJsonFile, readJsonFileStrict, writeJsonFileAtomic } from '../utils/jsonFile';
 import { PluginCatalogScanner, type PluginCatalogSnapshot } from './PluginCatalogScanner';
-import { getFlatFieldSchema, getGlobalConfigSettingKeys } from '../../shared/claude-settings-schema';
+import {
+  getFlatFieldSchema,
+  getGlobalConfigFallbackSettingKeys,
+  getGlobalConfigSettingKeys,
+} from '../../shared/claude-settings-schema';
 import {
   CLAUDE_JSON_PATH,
   INSTALLED_PLUGINS_PATH,
@@ -94,6 +98,22 @@ export class SettingsFileService {
       }
     }
     return settings;
+  }
+
+  /**
+   * 讀取 ~/.claude.json 中 globalConfigFallback 標記 key 的值（本層與上層都沒設時 Claude Code 的備援來源）。
+   * 只挑標記且存在的 key，不把整份全域設定檔（MCP、專案歷史等）送給畫面；檔案不存在回 {}。
+   * parse 失敗照 readJsonFile 拋錯（fail-fast），由呼叫端視為備援值未知。
+   */
+  async getGlobalConfigFallbackValues(): Promise<Record<string, unknown>> {
+    const globalConfig = await readJsonFile<Record<string, unknown>>(CLAUDE_JSON_PATH, {});
+    const values: Record<string, unknown> = {};
+    for (const key of getGlobalConfigFallbackSettingKeys()) {
+      if (key in globalConfig) {
+        values[key] = globalConfig[key];
+      }
+    }
+    return values;
   }
 
   /**

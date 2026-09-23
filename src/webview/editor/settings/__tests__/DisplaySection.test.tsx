@@ -39,6 +39,13 @@ const renderSection = (
     </ToastProvider>,
   );
 
+/** voice 結構化編輯器也有名為 Mode 的 select，spinnerVerbs 的要限定在自己的 field 內查。 */
+const getSpinnerVerbsModeSelect = (): HTMLSelectElement => {
+  const field = document.getElementById('spinnerVerbs-mode')?.closest('.settings-field') as HTMLElement | null;
+  if (!field) throw new Error('spinnerVerbs field not rendered');
+  return within(field).getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement;
+};
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -74,11 +81,11 @@ describe('DisplaySection — 渲染', () => {
     });
   });
 
-  it('顯示 20 個 checkbox（#27 移除 voiceEnabled／permissionExplainerEnabled 後，22 減 2）', async () => {
+  it('顯示 22 個 checkbox（#27 移除 2 個後剩 20，#29 voice 結構化編輯器加 enabled／autoSubmit 2 個）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(20);
+      expect(checkboxes.length).toBe(22);
     });
   });
 
@@ -281,13 +288,24 @@ describe('DisplaySection — 驗收條件', () => {
     });
   });
 
-  it('voice 輸入 JSON 並儲存 → onSave("voice", parsedObject)', async () => {
+  it('voice 以結構化控件渲染（enabled／mode／autoSubmit），不再有 JSON 文字框', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect((document.getElementById('voice-enabled') as HTMLInputElement | null)?.type).toBe('checkbox');
+      expect(document.getElementById('voice-mode')?.tagName).toBe('SELECT');
+      expect((document.getElementById('voice-autoSubmit') as HTMLInputElement | null)?.type).toBe('checkbox');
+    });
+    expect(screen.queryByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }')).toBeNull();
+  });
+
+  it('voice 勾開啟、選 tap 後儲存 → onSave("voice", {enabled:true, mode:"tap"})', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }'));
-    const field = screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }').closest('.settings-field') as HTMLElement;
-    fireEvent.change(screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }'), { target: { value: '{"enabled":true,"mode":"tap"}' } });
+    await waitFor(() => expect(document.getElementById('voice-enabled')).not.toBeNull());
+    fireEvent.click(document.getElementById('voice-enabled')!);
+    fireEvent.change(document.getElementById('voice-mode')!, { target: { value: 'tap' } });
+    const field = document.getElementById('voice-mode')!.closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
@@ -295,13 +313,13 @@ describe('DisplaySection — 驗收條件', () => {
     });
   });
 
-  it('voice 有值, Reset → onDelete("voice")', async () => {
+  it('voice 有值, Clear → onDelete("voice")', async () => {
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ voice: { enabled: true, mode: 'tap' } }, vi.fn(), onDelete);
 
-    await waitFor(() => screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }'));
-    const field = screen.getByPlaceholderText('e.g. { "enabled": true, "mode": "tap" }').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('button', { name: /Reset/ }));
+    await waitFor(() => expect(document.getElementById('voice-mode')).not.toBeNull());
+    const field = document.getElementById('voice-mode')!.closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('button', { name: 'Clear' }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('voice');
@@ -524,7 +542,7 @@ describe('DisplaySection — teammateMode dropdown', () => {
     });
   });
 
-  it('teammateMode 未設定, 選擇 in-process（新 default）→ onDelete("teammateMode")', async () => {
+  it('teammateMode 未設定, 選擇 in-process（= default）→ onSave 寫入（globalConfigFallback key 刪了會改吃 ~/.claude.json）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave, onDelete);
@@ -533,8 +551,8 @@ describe('DisplaySection — teammateMode dropdown', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Teammate Mode' }), { target: { value: 'in-process' } });
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('teammateMode');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('teammateMode', 'in-process');
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 });
@@ -613,7 +631,7 @@ describe('DisplaySection — SpinnerVerbs 渲染', () => {
   it('spinnerVerbs 未設定 → mode select 預設 append', async () => {
     renderSection({});
     await waitFor(() => {
-      const select = screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement;
+      const select = getSpinnerVerbsModeSelect();
       expect(select.value).toBe('append');
     });
   });
@@ -626,7 +644,7 @@ describe('DisplaySection — SpinnerVerbs 渲染', () => {
   it('spinnerVerbs.mode=replace → select 顯示 replace', async () => {
     renderSection({ spinnerVerbs: { mode: 'replace', verbs: [] } });
     await waitFor(() => {
-      const select = screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement;
+      const select = getSpinnerVerbsModeSelect();
       expect(select.value).toBe('replace');
     });
   });
@@ -653,7 +671,7 @@ describe('DisplaySection — SpinnerVerbs 驗收', () => {
     );
 
     expect((screen.getByPlaceholderText('e.g. Thinking') as HTMLInputElement).value).toBe('');
-    expect((screen.getByRole('combobox', { name: 'Mode' }) as HTMLSelectElement).value).toBe('replace');
+    expect(getSpinnerVerbsModeSelect().value).toBe('replace');
     expect(screen.getByText('Working')).toBeTruthy();
     expect(screen.queryByText('Thinking')).toBeNull();
   });
@@ -713,8 +731,8 @@ describe('DisplaySection — SpinnerVerbs 驗收', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ spinnerVerbs: { mode: 'append', verbs: ['Thinking'] } }, onSave);
 
-    await waitFor(() => screen.getByRole('combobox', { name: 'Mode' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Mode' }), { target: { value: 'replace' } });
+    await waitFor(() => getSpinnerVerbsModeSelect());
+    fireEvent.change(getSpinnerVerbsModeSelect(), { target: { value: 'replace' } });
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('spinnerVerbs', { mode: 'replace', verbs: ['Thinking'] });
@@ -905,15 +923,15 @@ describe('DisplaySection — 批次 S 互動（先紅）', () => {
     });
   });
 
-  it('theme 未設定, 選擇 dark（= default）→ onDelete("theme")', async () => {
+  it('theme 未設定, 選擇 dark（= default）→ onSave 寫入（globalConfigFallback key 刪了會改吃 ~/.claude.json）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave, onDelete);
     await waitFor(() => screen.getByRole('combobox', { name: 'Theme' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Theme' }), { target: { value: 'dark' } });
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('theme');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('theme', 'dark');
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 

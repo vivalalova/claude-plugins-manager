@@ -139,6 +139,11 @@ export interface SettingFieldSchema<
   storageFile?: 'globalConfig';
   /** 可生效的存檔位置；未指定 = 任何 settings 檔都生效 */
   effectiveScopes?: EffectiveScopes;
+  /**
+   * 本層與所有生效上層都沒設時，Claude Code 改讀 ~/.claude.json 的同名值（docs 備援）。
+   * 與 storageFile='globalConfig' 互斥：仍是一般 settings 檔 key，~/.claude.json 只是備援。
+   */
+  globalConfigFallback?: true;
 }
 
 /** Schema 陣列元素 — key + 完整 schema + UI metadata */
@@ -216,6 +221,7 @@ interface BaseFieldMeta<NestedUnder extends string | undefined = undefined> {
   controlTypeOverride?: ControlType;
   storageFile?: 'globalConfig';
   effectiveScopes?: EffectiveScopes;
+  globalConfigFallback?: true;
 }
 
 function inferControlType(valueSchema: ValueSchema): ControlType | undefined {
@@ -257,6 +263,7 @@ function createField<
     controlTypeOverride: meta.controlTypeOverride,
     storageFile: meta.storageFile,
     effectiveScopes: meta.effectiveScopes,
+    globalConfigFallback: meta.globalConfigFallback,
   };
 }
 
@@ -314,7 +321,7 @@ const HOOK_SHELL_OPTIONS = ['bash', 'powershell'] as const;
 const WORKTREE_BASE_REF_OPTIONS = ['fresh', 'head'] as const;
 const WORKTREE_BG_ISOLATION_OPTIONS = ['worktree', 'none'] as const;
 const SKILL_OVERRIDE_OPTIONS = ['on', 'name-only', 'user-invocable-only', 'off'] as const;
-const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
+export const VOICE_MODE_OPTIONS = ['hold', 'tap'] as const;
 const THEME_OPTIONS = ['auto', 'dark', 'light', 'dark-daltonized', 'light-daltonized', 'dark-ansi', 'light-ansi'] as const;
 const FEEDBACK_DRAFTS_OPTIONS = ['notify', 'quiet', 'off'] as const;
 const MODEL_SETTINGS_EFFORT_LEVEL_OPTIONS = ['low', 'medium', 'high', 'xhigh'] as const;
@@ -657,7 +664,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('autoMemoryDirectory'),
     // Git
     booleanField('includeGitInstructions', { default: true }),
-    booleanField('respectGitignore', { default: true }),
+    booleanField('respectGitignore', { default: true, globalConfigFallback: true }),
     // IDE integration
     booleanField('autoConnectIde', { default: false, storageFile: 'globalConfig' }),
     booleanField('autoInstallIdeExtension', { default: true, storageFile: 'globalConfig' }),
@@ -679,30 +686,30 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Rendering & view
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
     createField('tui', TUI_VALUE_SCHEMA),
-    createField('theme', THEME_VALUE_SCHEMA, { default: 'dark' }),
+    createField('theme', THEME_VALUE_SCHEMA, { default: 'dark', globalConfigFallback: true }),
     stringField('timeFormat', { default: 'auto' }),
     stringField('timeZone'),
     booleanField('autoScrollEnabled', { default: true }),
     booleanField('syntaxHighlightingDisabled', { default: false }),
     booleanField('prefersReducedMotion', { default: false }),
-    booleanField('verbose', { default: false }),
+    booleanField('verbose', { default: false, globalConfigFallback: true }),
     booleanField('axScreenReader', { default: false }),
     booleanField('wheelScrollAccelerationEnabled', { default: true }),
     booleanField('respondToBashCommands', { default: true }),
     // Transcript info
-    booleanField('showTurnDuration', { default: true }),
+    booleanField('showTurnDuration', { default: true, globalConfigFallback: true }),
     booleanField('showThinkingSummaries', { default: false }),
     booleanField('showClearContextOnPlanAccept', { default: false }),
     booleanField('awaySummaryEnabled', { default: true }),
     // Spinner & progress
     booleanField('spinnerTipsEnabled', { default: true }),
-    booleanField('terminalProgressBarEnabled', { default: true }),
+    booleanField('terminalProgressBarEnabled', { default: true, globalConfigFallback: true }),
     createField('spinnerVerbs', SPINNER_VERBS_VALUE_SCHEMA),
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),
     // Notifications
-    createField('preferredNotifChannel', PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA, { default: 'auto' }),
-    booleanField('agentPushNotifEnabled', { default: false }),
-    booleanField('inputNeededNotifEnabled', { default: false }),
+    createField('preferredNotifChannel', PREFERRED_NOTIF_CHANNEL_VALUE_SCHEMA, { default: 'auto', globalConfigFallback: true }),
+    booleanField('agentPushNotifEnabled', { default: false, globalConfigFallback: true }),
+    booleanField('inputNeededNotifEnabled', { default: false, globalConfigFallback: true }),
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
     createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
@@ -713,7 +720,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('promptSuggestionEnabled', { default: true }),
     createField('spellcheck', SPELLCHECK_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     // Agent teammates
-    createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'in-process' }),
+    createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'in-process', globalConfigFallback: true }),
     createField('crossSessionInbound', CROSS_SESSION_INBOUND_VALUE_SCHEMA),
   ],
 
@@ -790,7 +797,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('disableRemoteControl', { default: false }),
     createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
     booleanField('skipWebFetchPreflight', { default: false }),
-    booleanField('remoteControlAtStartup'),
+    booleanField('remoteControlAtStartup', { globalConfigFallback: true }),
     booleanField('enableArtifact'),
     booleanField('disableBundledSkills', { default: false }),
     booleanField('disableClaudeAiConnectors', { default: false }),
@@ -822,6 +829,7 @@ interface RuntimeSettingFieldBase {
   controlTypeOverride?: ControlType;
   storageFile?: 'globalConfig';
   effectiveScopes?: EffectiveScopes;
+  globalConfigFallback?: true;
 }
 
 interface RuntimeFlatFieldSchema extends Omit<RuntimeSettingFieldBase, 'controlTypeOverride'> {
@@ -838,6 +846,17 @@ function buildFlatSchema(): Record<string, RuntimeFlatFieldSchema> {
       if (!controlType) {
         throw new Error(`Unable to infer controlType for schema field '${key}'`);
       }
+      if (flatFieldBase.globalConfigFallback && flatFieldBase.storageFile === 'globalConfig') {
+        throw new Error(`Schema field '${key}' cannot be both globalConfigFallback and storageFile='globalConfig'`);
+      }
+      // 「選到預設值一律寫」只有 BooleanToggle／EnumDropdown 實作；其他控制項會退回刪 key，違反 I1a
+      if (
+        flatFieldBase.globalConfigFallback
+        && controlType !== Boolean
+        && !(controlType === String && getValueSchemaEnumOptions(flatFieldBase.valueSchema))
+      ) {
+        throw new Error(`Schema field '${key}' has globalConfigFallback but is not a Boolean or enum field`);
+      }
       flat[key] = {
         valueSchema: flatFieldBase.valueSchema,
         controlType,
@@ -846,6 +865,7 @@ function buildFlatSchema(): Record<string, RuntimeFlatFieldSchema> {
         dangerValues: flatFieldBase.dangerValues,
         storageFile: flatFieldBase.storageFile,
         effectiveScopes: flatFieldBase.effectiveScopes,
+        globalConfigFallback: flatFieldBase.globalConfigFallback,
         section,
       };
     }
@@ -887,6 +907,13 @@ export function getSchemaDefault<T = unknown>(key: string): T | undefined {
 export function getGlobalConfigSettingKeys(): string[] {
   return Object.entries(FLAT_SCHEMA_BY_KEY)
     .filter(([, field]) => field.storageFile === 'globalConfig')
+    .map(([key]) => key);
+}
+
+/** 列出 globalConfigFallback 的欄位 key（本層與上層都沒設時，Claude Code 改讀 ~/.claude.json 的同名值）。 */
+export function getGlobalConfigFallbackSettingKeys(): string[] {
+  return Object.entries(FLAT_SCHEMA_BY_KEY)
+    .filter(([, field]) => field.globalConfigFallback === true)
     .map(([key]) => key);
 }
 

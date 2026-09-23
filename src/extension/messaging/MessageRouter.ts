@@ -152,6 +152,8 @@ export class MessageRouter {
         return this.settings.setSetting(message.scope, message.key, message.value);
       case 'settings.delete':
         return this.settings.deleteSetting(message.scope, message.key);
+      case 'settings.getGlobalConfigFallback':
+        return this.settings.getGlobalConfigFallbackValues();
       case 'hooks.checkFilePaths':
         return message.paths.filter((p) => {
           const expanded = expandTildePath(p);

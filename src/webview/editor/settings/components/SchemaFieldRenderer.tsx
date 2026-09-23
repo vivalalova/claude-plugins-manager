@@ -6,6 +6,7 @@ import { getSchemaDefault, getSchemaEnumOptions, getValueSchemaEnumOptions, getV
 import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting, type Inherited } from './SettingControls';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { useSettingSave } from '../hooks/useSettingSave';
+import { useGlobalConfigFallback } from './globalConfigFallback';
 
 export interface SchemaFieldRendererProps {
   settingKey: string;
@@ -28,6 +29,14 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
 
   const [pendingDangerValue, setPendingDangerValue] = useState<string | null>(null);
 
+  // ~/.claude.json 備援（#31）：旗標是靜態的，一律傳給控制項決定「選預設值寫入不刪」；
+  // 備援值只在本層未設、所有生效上層都沒設（none）、快照就緒時取出，合法性再依控制項型別過濾。
+  const globalConfigFallback = schema.globalConfigFallback === true;
+  const fallbackSnapshot = useGlobalConfigFallback();
+  const rawFallback = globalConfigFallback && value === undefined && inherited.kind === 'none' && fallbackSnapshot.kind === 'ready'
+    ? fallbackSnapshot.values[settingKey]
+    : undefined;
+
   switch (schema.controlType) {
     case Boolean:
       return (
@@ -39,6 +48,8 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           defaultValue={getSchemaDefault<boolean>(settingKey)}
           overriddenScope={overriddenScope}
           inherited={inherited}
+          globalConfigFallback={globalConfigFallback}
+          fallbackValue={typeof rawFallback === 'boolean' ? rawFallback : undefined}
           onSave={onSave}
           onDelete={onDelete}
         />
@@ -91,6 +102,8 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
               defaultValue={getSchemaDefault<string>(settingKey)}
               overriddenScope={overriddenScope}
               inherited={inherited}
+              globalConfigFallback={globalConfigFallback}
+              fallbackValue={typeof rawFallback === 'string' && options.includes(rawFallback) ? rawFallback : undefined}
               onSave={enumOnSave}
               onDelete={onDelete}
             />

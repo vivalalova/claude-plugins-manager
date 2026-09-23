@@ -72,9 +72,22 @@ export function getOverriddenScope(
 /**
  * 選值時是否改為刪 key：只有選到 schema default 且確定沒有父層設此 key 才刪。
  * 父層有設（即便同值）或狀態未知一律寫入，避免刪掉後改吃父層值。
+ * globalConfigFallback（schema 靜態旗標）的 key 一律寫入：刪掉後 Claude Code 會改吃 ~/.claude.json 的值，
+ * 與備援快照是否就緒無關。
  */
-export function shouldDeleteOnChoose(chosen: unknown, defaultValue: unknown, inherited: Inherited): boolean {
-  return defaultValue !== undefined && chosen === defaultValue && inherited.kind === 'none';
+export function shouldDeleteOnChoose(
+  chosen: unknown,
+  defaultValue: unknown,
+  inherited: Inherited,
+  globalConfigFallback = false,
+): boolean {
+  return !globalConfigFallback && defaultValue !== undefined && chosen === defaultValue && inherited.kind === 'none';
+}
+
+/** ~/.claude.json 備援值的唯讀提示；放在欄位最後，與 description 同樣式。 */
+function GlobalConfigFallbackHint({ valueLabel }: { valueLabel: string }): React.ReactElement {
+  const { t } = useI18n();
+  return <p className="settings-field-description">{t('settings.common.globalConfigFallback', { value: valueLabel })}</p>;
 }
 
 // ---------------------------------------------------------------------------
@@ -315,15 +328,22 @@ export interface BooleanToggleProps {
   overriddenScope?: PluginScope;
   inherited: Inherited;
   disabled?: boolean;
+  /** schema 靜態旗標：選到預設值也寫入、不刪 key（見 shouldDeleteOnChoose）。 */
+  globalConfigFallback?: boolean;
+  /**
+   * ~/.claude.json 的備援值；呼叫端只在「本層未設、inherited 為 none、快照就緒、值合法」時傳入。
+   * 有值時顯示值取它並顯示唯讀提示。
+   */
+  fallbackValue?: boolean;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, inherited, disabled = false, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, inherited, disabled = false, globalConfigFallback = false, fallbackValue, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
   const inheritedValue = inherited.kind === 'known' && typeof inherited.value === 'boolean' ? inherited.value : undefined;
-  const checked = value ?? inheritedValue ?? defaultValue ?? false;
+  const checked = value ?? inheritedValue ?? fallbackValue ?? defaultValue ?? false;
   const resetLabel = t('settings.common.reset');
   const isDisabled = disabled || saving;
 
@@ -331,7 +351,7 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
     if (isDisabled) return;
     const newVal = !checked;
     void withSave(() =>
-      shouldDeleteOnChoose(newVal, defaultValue, inherited)
+      shouldDeleteOnChoose(newVal, defaultValue, inherited, globalConfigFallback)
         ? onDelete(settingKey)
         : onSave(settingKey, newVal),
     );
@@ -367,6 +387,9 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
         )}
       </div>
       {description && <p className="settings-field-description">{description}</p>}
+      {fallbackValue !== undefined && (
+        <GlobalConfigFallbackHint valueLabel={t(fallbackValue ? 'settings.common.on' : 'settings.common.off')} />
+      )}
     </div>
   );
 }
@@ -388,6 +411,13 @@ export interface EnumDropdownProps {
   overriddenScope?: PluginScope;
   inherited: Inherited;
   disabled?: boolean;
+  /** schema 靜態旗標：選到預設值也寫入、不刪 key（見 shouldDeleteOnChoose）。 */
+  globalConfigFallback?: boolean;
+  /**
+   * ~/.claude.json 的備援值；呼叫端只在「本層未設、inherited 為 none、快照就緒、值在 knownValues 內」時傳入。
+   * 有值時 '' 選項文字改為備援值並顯示唯讀提示（selectValue 不變）。
+   */
+  fallbackValue?: string;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
 }
@@ -405,6 +435,8 @@ export function EnumDropdown({
   overriddenScope,
   inherited,
   disabled = false,
+  globalConfigFallback = false,
+  fallbackValue,
   onSave,
   onDelete,
 }: EnumDropdownProps): React.ReactElement {
@@ -423,11 +455,15 @@ export function EnumDropdown({
         : String(inherited.value),
     })
     : undefined;
+  const fallbackValueLabel = fallbackValue !== undefined ? (knownLabels[fallbackValue] ?? fallbackValue) : undefined;
+  const fallbackLabel = fallbackValueLabel !== undefined
+    ? t('settings.common.globalConfigFallback', { value: fallbackValueLabel })
+    : undefined;
 
   const handleChange = (val: string): void => {
     if (val === '__unknown__' || isDisabled) return;
     void withSave(async () => {
-      if (val === '' || shouldDeleteOnChoose(val, defaultValue, inherited)) {
+      if (val === '' || shouldDeleteOnChoose(val, defaultValue, inherited, globalConfigFallback)) {
         await onDelete(settingKey);
       } else {
         await onSave(settingKey, val);
@@ -449,7 +485,7 @@ export function EnumDropdown({
           onChange={(e) => void handleChange(e.target.value)}
           disabled={isDisabled}
         >
-          <option value="">{inheritedLabel ?? notSetLabel}</option>
+          <option value="">{inheritedLabel ?? fallbackLabel ?? notSetLabel}</option>
           {isUnknown && (
             <option value="__unknown__" disabled>
               {unknownTemplate.replace('{value}', value!)}
@@ -471,6 +507,7 @@ export function EnumDropdown({
           </button>
         )}
       </div>
+      {fallbackValueLabel !== undefined && <GlobalConfigFallbackHint valueLabel={fallbackValueLabel} />}
     </div>
   );
 }

@@ -21,6 +21,12 @@ import { getSchemaFieldBindings, isFieldVisibleForScope, type ParentSettings } f
 import { PARENT_SCOPES, OverrideBadge, type Inherited } from './components/SettingControls';
 import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
 import { hasVisibleSandboxContent } from './components/SandboxEditor';
+import {
+  GlobalConfigFallbackContext,
+  UNKNOWN_GLOBAL_CONFIG_FALLBACK,
+  toGlobalConfigFallbackSnapshot,
+  type GlobalConfigFallbackSnapshot,
+} from './components/globalConfigFallback';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -286,6 +292,22 @@ export function SettingsPage(): React.ReactElement {
   // forScope 剛好等於目前 scope（如 A→B→A），也不能當成已就緒——否則會誤用切走前的舊資料。
   const parentSettings = !parentLoading && parentSnapshot.forScope === scope ? parentSnapshot.snapshots : undefined;
 
+  // ~/.claude.json 備援值（#31）：與 scope 無關，初次載入與 settings.refresh 時重讀。
+  // 在 load 內 catch 並回傳未知，失敗或回應非物件都不沿用舊快照（避免重載失敗仍顯示舊備援值）。
+  const loadGlobalConfigFallback = useCallback(async (): Promise<GlobalConfigFallbackSnapshot> => {
+    try {
+      return toGlobalConfigFallbackSnapshot(await sendRequest<unknown>({ type: 'settings.getGlobalConfigFallback' }));
+    } catch {
+      return UNKNOWN_GLOBAL_CONFIG_FALLBACK;
+    }
+  }, []);
+
+  const { data: globalConfigFallback } = usePushSyncedResource<GlobalConfigFallbackSnapshot>({
+    initialData: UNKNOWN_GLOBAL_CONFIG_FALLBACK,
+    load: loadGlobalConfigFallback,
+    pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
+  });
+
   const loadScopeCounts = useCallback(async (): Promise<{ project: number; local: number }> => {
     if (!hasWorkspace) {
       return { project: 0, local: 0 };
@@ -364,7 +386,7 @@ export function SettingsPage(): React.ReactElement {
     [settings],
   );
 
-  return (
+  const page = (
     <div className="page-container settings-page settings-page--fixed-shell">
       <PageHeader title={t('settings.page.title')} subtitle={t('settings.page.subtitle')} />
 
@@ -467,6 +489,7 @@ export function SettingsPage(): React.ReactElement {
                             envKey={field.key}
                             currentEnv={currentEnv}
                             scope={scope}
+                            parentSettings={parentSettings}
                             onEnvChange={(updatedEnv) => handleSave('env', updatedEnv)}
                           />
                         </div>
@@ -609,6 +632,7 @@ export function SettingsPage(): React.ReactElement {
                               {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <CustomizedEnvEditor
                                 scope={scope}
+                                parentSettings={parentSettings}
                                 currentEnv={(value as Record<string, string>) ?? {}}
                                 onSaveEnv={(e) => fieldOnSave('env', e)}
                               />
@@ -672,5 +696,12 @@ export function SettingsPage(): React.ReactElement {
         </div>
       </div>
     </div>
+  );
+
+  // 備援快照以 context 下發到所有 SchemaFieldRenderer（section、搜尋、已自訂三個入口共用）。
+  return (
+    <GlobalConfigFallbackContext.Provider value={globalConfigFallback}>
+      {page}
+    </GlobalConfigFallbackContext.Provider>
   );
 }

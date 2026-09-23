@@ -202,4 +202,34 @@ describe('SettingsFileService — global config (~/.claude.json)（integration�
     const result = await svc.getSettings('user');
     expect(result.workflowSizeGuideline).toBe('small');
   });
+
+  /* ═══════ #31：~/.claude.json 備援值（只回傳標記 key） ═══════ */
+
+  it('A20（I2）：getGlobalConfigFallbackValues 只回傳標記且存在的 key，不帶 mcpServers／projects／globalConfig key', async () => {
+    await writeFile(globalConfigPath(), JSON.stringify({
+      respectGitignore: false,
+      mcpServers: { foo: { command: 'x' } },
+      projects: { '/ws': { allowedTools: [] } },
+      autoConnectIde: true,
+    }) + '\n');
+
+    const result = await svc.getGlobalConfigFallbackValues();
+    expect(result).toEqual({ respectGitignore: false });
+  });
+
+  it('A20：~/.claude.json 不存在 → 回傳 {}', async () => {
+    expect(existsSync(globalConfigPath())).toBe(false);
+    expect(await svc.getGlobalConfigFallbackValues()).toEqual({});
+  });
+
+  it('A21（I5）：setSetting("user", "respectGitignore", true) 寫進 ~/.claude/settings.json，~/.claude.json 內容不變', async () => {
+    const original = JSON.stringify({ respectGitignore: false, mcpServers: {} }) + '\n';
+    await writeFile(globalConfigPath(), original);
+
+    await svc.setSetting('user', 'respectGitignore', true);
+
+    const settingsContent = JSON.parse(await readFile(userSettingsPath(), 'utf-8'));
+    expect(settingsContent.respectGitignore).toBe(true);
+    expect(await readFile(globalConfigPath(), 'utf-8')).toBe(original);
+  });
 });

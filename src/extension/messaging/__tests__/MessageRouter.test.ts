@@ -46,6 +46,7 @@ function createMockServices() {
     },
     settings: {
       getContentDetail: vi.fn().mockResolvedValue({ frontmatter: {}, body: '' }),
+      getGlobalConfigFallbackValues: vi.fn().mockResolvedValue({}),
     } as Record<string, unknown>,
     preferences: {
       readAll: vi.fn().mockReturnValue({}),
@@ -674,6 +675,23 @@ describe('MessageRouter', () => {
       );
       expect(posted[0]).toMatchObject({ type: 'error', requestId: 's10' });
       expect((posted[0] as { error: string }).error).toContain('not in allowed directories');
+    });
+  });
+
+  describe('settings 路由', () => {
+    // #31 A22：~/.claude.json 備援值走獨立 request type，不擴充 settings.get 回應
+    it('settings.getGlobalConfigFallback → 呼叫 getGlobalConfigFallbackValues 並回傳結果', async () => {
+      const fallback = { respectGitignore: false };
+      const getFallback = services.settings.getGlobalConfigFallbackValues as ReturnType<typeof vi.fn>;
+      getFallback.mockResolvedValue(fallback);
+
+      await router.handle(
+        { type: 'settings.getGlobalConfigFallback', requestId: 'r-fb' } as RequestMessage,
+        post,
+      );
+
+      expect(getFallback).toHaveBeenCalledTimes(1);
+      expect(posted).toEqual([{ type: 'response', requestId: 'r-fb', data: fallback }]);
     });
   });
 
