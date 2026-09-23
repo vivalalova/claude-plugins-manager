@@ -34,12 +34,6 @@ const KEY_ROW_RE = /^\|\s*`([^`]+)`/;
 /** Regex matching the linked first cell in the settings reference index. */
 const REFERENCE_KEY_ROW_RE = /^\|\s*\[\s*`([^`]+)`\s*\]\(#[A-Za-z0-9_.-]+\)\s*(?:\||$)/;
 
-/** The reference inventory starts at this exact level-two heading. */
-const REFERENCE_HEADING_RE = /^##(?!#)\s+All settings\s*$/i;
-
-/** A level-two heading ends the reference inventory section. */
-const LEVEL_TWO_HEADING_RE = /^##(?!#)\s+/;
-
 /** Regex matching the bracket managed-only marker. */
 const MANAGED_BRACKET_RE = /\([^)]*[Mm]anaged settings only[^)]*\)/;
 
@@ -52,6 +46,7 @@ const ENV_VAR_ROW_RE = /^\|\s*`([A-Z][A-Z0-9_]*)`/;
 type ParsedSettingsDocs = {
   keys: Set<string>;
   descriptions: Map<string, string>;
+  topics: Map<string, string>;
   scopes: Map<string, string>;
 };
 
@@ -107,27 +102,18 @@ function extractRowDescription(line: string): string {
 
 /**
  * Parse the linked-key inventory from settings-reference.md.
- * Only the table immediately following the `## All settings` heading is read.
+ * The index is the first `Key | Description | Topic | Scope` table; its
+ * heading text is not an anchor because docs have renamed it before.
  */
 function parseSettingsReferenceDocs(md: string): ParsedSettingsDocs {
   const keys = new Set<string>();
   const descriptions = new Map<string, string>();
+  const topics = new Map<string, string>();
   const scopes = new Map<string, string>();
   const lines = md.split('\n');
-  const headingIndex = lines.findIndex((line) => REFERENCE_HEADING_RE.test(line.trimEnd()));
-
-  if (headingIndex < 0) return { keys, descriptions, scopes };
-
-  let sectionEnd = lines.length;
-  for (let index = headingIndex + 1; index < lines.length; index++) {
-    if (LEVEL_TWO_HEADING_RE.test(lines[index].trimEnd())) {
-      sectionEnd = index;
-      break;
-    }
-  }
 
   let headerIndex = -1;
-  for (let index = headingIndex + 1; index + 1 < sectionEnd; index++) {
+  for (let index = 0; index + 1 < lines.length; index++) {
     const cells = normalizedTableCells(lines[index]);
     if (
       cells.length === 4 &&
@@ -143,9 +129,9 @@ function parseSettingsReferenceDocs(md: string): ParsedSettingsDocs {
     }
   }
 
-  if (headerIndex < 0) return { keys, descriptions, scopes };
+  if (headerIndex < 0) return { keys, descriptions, topics, scopes };
 
-  for (let index = headerIndex + 2; index < sectionEnd; index++) {
+  for (let index = headerIndex + 2; index < lines.length; index++) {
     const line = lines[index].trimEnd();
     if (!line.trim() || !line.startsWith('|')) break;
 
@@ -161,16 +147,18 @@ function parseSettingsReferenceDocs(md: string): ParsedSettingsDocs {
 
     keys.add(rawKey);
     descriptions.set(rawKey, description);
+    topics.set(rawKey, cells[2] ?? '');
     scopes.set(rawKey, cells[3] ?? '');
   }
 
-  return { keys, descriptions, scopes };
+  return { keys, descriptions, topics, scopes };
 }
 
 /** Parse the legacy settings.md heading/table layout used by frozen fixtures. */
 function parseLegacySettingsDocs(md: string): ParsedSettingsDocs {
   const keys = new Set<string>();
   const descriptions = new Map<string, string>();
+  const topics = new Map<string, string>();
   const scopes = new Map<string, string>();
   let currentPrefix: string | null = null; // null = excluded section
 
@@ -213,7 +201,7 @@ function parseLegacySettingsDocs(md: string): ParsedSettingsDocs {
     descriptions.set(effectiveKey, extractRowDescription(line));
   }
 
-  return { keys, descriptions, scopes };
+  return { keys, descriptions, topics, scopes };
 }
 
 /**
@@ -552,11 +540,10 @@ const SETTINGS_SENTINELS = ['model', 'env', 'permissions.allow', 'sandbox.enable
  * Sanity check on the parsed settings-docs key set.
  * Returns { ok: false, reason } when:
  *   - size === 0
- *   - size < 20 (suspiciously small — real parse produces 90+ keys)
+ *   - size < 20 (suspiciously small — the live index has 230+ keys)
  *   - any sentinel key is absent: 'model', 'env', 'permissions.allow',
- *     'sandbox.enabled', 'attribution.commit' (one per docs section that
- *     drives SECTION_PREFIX, so a renamed heading silently drops that
- *     section's keys instead of surfacing as a health failure)
+ *     'sandbox.enabled', 'attribution.commit' (spread across docs topics, so
+ *     a truncated index surfaces as a health failure)
  */
 export function checkSettingsDocsHealth(settingsKeys: Set<string>): { ok: boolean; reason?: string } {
   if (settingsKeys.size === 0) {

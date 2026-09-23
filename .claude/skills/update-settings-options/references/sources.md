@@ -2,12 +2,14 @@
 
 ## Primary（官方 docs，確定性 CLI 解析）
 
-- Settings inventory：`https://code.claude.com/docs/en/settings-reference.md` 的 `## All settings` index（curl 取 Markdown，`parseSettingsDocs` 只解析同頁 linked key 與第二欄 description）
+- Settings inventory：`https://code.claude.com/docs/en/settings-reference.md` 的索引表（curl 取 Markdown；`parseSettingsDocs` 以表頭 `Key | Description | Topic | Scope` 定位，不認標題文字，解析同頁 linked key、description、topic、scope）
+- Settings meta：同頁各 `` ### `key` `` 條目的 `* **Default**:` bullet（`parseSettingsDetails`，跳過 code block）
 - Settings background：`https://code.claude.com/docs/en/settings.md` 僅提供 overview/precedence 背景，不作 key inventory
 - Env vars：`https://code.claude.com/docs/en/env-vars.md`（curl 取 Markdown，`parseEnvDocs` 解析 env var 名稱）
 - 偵測入口：`scripts/settings-sync-diff.ts`（curl live docs → parse → diff against repo schema → 輸出 JSON）
-- 輸出：`{ settingsGaps, removedKeys, envGaps, envRemoved, counts, health }`
-- `settingsGaps`：docs 有、repo 無（每筆帶 All settings index 的 description 與 scope）
+- 輸出：`{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, counts, health }`
+- `settingsGaps`：docs 有、repo 無，已扣 Scope=`Managed`（每筆帶索引表的 description、topic、scope）
+- `defaultDrift` / `storageDrift`：兩邊都有的 key，default（僅 non-object flat field）或存放檔（全部 flat field）不一致（判讀見 SKILL.md Step 2；`repoDefaultDocsUnset` 的已核實等效清單是 `settings-meta-drift.ts` 的 `KNOWN_DEFAULT_EQUIVALENT`，以 docs Default 原文為鍵，docs 改寫即重新浮出）
 - `envGaps`：docs 有、registry 無（每筆帶 docs description）
 - `removedKeys`：repo 有、docs 無（flat-field 粒度比對，見下）
 - `envRemoved`：`known-env-vars.ts` 有、docs 無，已扣掉 `KNOWN_ENV_REPO_ONLY`（SSOT 在 `settings-diff.ts`；docs 在別頁或僅 prose 提及的 var）
@@ -30,11 +32,11 @@
 
 ## Fail-fast
 
-- CLI exit 1（health failure 或 fetch error）→ workflow throw，不 fallback
+- CLI exit 1（條件見 SKILL.md Source of truth）→ workflow throw，不 fallback
 
 ## Rules
 
-- type/enum/default 以 docs 描述為準；schema 缺 shape 時保守同步、不腦補 enterprise/private fields
+- type/enum/default 以 docs 該 key 條目的 `**Type**` / `**Default**` bullet 為準（JSON 範例值不是預設值）；schema 缺 shape 時保守同步、不腦補 enterprise/private fields
 - 同步進 repo schema 時，secondary（既有 section 實作）只補 literal enum、default、object shape
 - 刪除 key：移除 repo first-party support、tests、locale、CLAUDE.md 說明
 - 刪除 key：不修改使用者既有 settings 檔；unknown key 容忍保持

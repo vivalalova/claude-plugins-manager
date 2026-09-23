@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * CLI: fetch the live settings-reference.md inventory + env-vars.md from docs,
- * compare against repo schema, and output a JSON report of gaps.
+ * compare against repo schema, and output a JSON report of gaps and meta drift.
  *
  * Usage:
  *   npx tsx scripts/settings-sync-diff.ts
@@ -34,6 +34,12 @@ import {
   KNOWN_REPO_ONLY,
   KNOWN_ENV_REPO_ONLY,
 } from '../src/shared/settings-sync/settings-diff';
+import {
+  parseSettingsDetails,
+  diffDefaults,
+  diffStorage,
+  KNOWN_DEFAULT_EQUIVALENT,
+} from '../src/shared/settings-sync/settings-meta-drift';
 
 const execFileAsync = promisify(execFile);
 
@@ -89,6 +95,7 @@ async function main(): Promise<void> {
   const {
     keys: docsKeys,
     descriptions: settingsDescriptions,
+    topics: settingsTopics,
     scopes: settingsScopes,
   } = parseSettingsDocs(settingsReferenceMd, 'reference');
   const { keys: envKeys, descriptions: envDescriptions } = parseEnvDocs(envVarsMd);
@@ -97,6 +104,12 @@ async function main(): Promise<void> {
   const settingsHealth = checkSettingsDocsHealth(docsKeys);
   if (!settingsHealth.ok) {
     console.error(`[settings-sync-diff] settings health check failed: ${settingsHealth.reason}`);
+    process.exit(1);
+  }
+
+  const docsDefaults = parseSettingsDetails(settingsReferenceMd);
+  if (docsDefaults.size < docsKeys.size / 2) {
+    console.error(`[settings-sync-diff] only ${docsDefaults.size} of ${docsKeys.size} index keys have a parsed **Default** entry — detail layout may have changed`);
     process.exit(1);
   }
 
@@ -113,18 +126,23 @@ async function main(): Promise<void> {
   const repoFlatFieldKeys = collectRepoFlatFieldKeys(flatSchemas);
 
   // Compute settings gaps (docs-has/repo-lacks) and removed keys (repo-has/docs-lacks)
+  // Managed-scope keys never get first-party UI, so the index Scope column excludes them.
+  const managedScopeKeys = [...settingsScopes].filter(([, scope]) => scope === 'Managed').map(([key]) => key);
   const { missing: settingsGapKeys, removed: removedKeys } = diffKeys(
     docsKeys,
     repoKeys,
-    KNOWN_EXCLUDED,
+    new Set([...KNOWN_EXCLUDED, ...managedScopeKeys]),
     repoFlatFieldKeys,
     KNOWN_REPO_ONLY,
   );
   const settingsGaps = settingsGapKeys.map((key) => ({
     key,
     description: settingsDescriptions.get(key) ?? '',
+    topic: settingsTopics.get(key) ?? '',
     scope: settingsScopes.get(key) ?? '',
   }));
+  const defaultDrift = diffDefaults(flatSchemas, docsDefaults, KNOWN_DEFAULT_EQUIVALENT);
+  const storageDrift = diffStorage(flatSchemas, settingsScopes);
 
   // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
   const registryEnvNames = new Set(getKnownEnvVarNames());
@@ -136,6 +154,8 @@ async function main(): Promise<void> {
     removedKeys,
     envGaps,
     envRemoved,
+    defaultDrift,
+    storageDrift,
     counts: {
       docsKeys: docsKeys.size,
       repoKeys: repoKeys.size,
@@ -144,6 +164,8 @@ async function main(): Promise<void> {
       envKeys: envKeys.size,
       envGaps: envGaps.length,
       envRemoved: envRemoved.length,
+      defaultDrift: defaultDrift.length,
+      storageDrift: storageDrift.length,
     },
     health,
   };

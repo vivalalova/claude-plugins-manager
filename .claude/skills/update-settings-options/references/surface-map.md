@@ -2,7 +2,7 @@
 
 ## 儲存檔判定（section 歸屬前先做）
 
-先從 `settings-reference.md` 的 All settings index 讀 key 的 Topic/Scope；**Global config key 存 `~/.claude.json` 而非 `settings.json`**——寫進 settings.json 會被 Claude Code 靜默忽略。這類 key 在 schema field 必須標 `storageFile: 'globalConfig'`（讀寫由 `SettingsFileService` 分流到 `~/.claude.json`，僅 user scope 顯示），漏標＝UI 開關 no-op silent bug。`settings.md` 僅供 overview/precedence 背景核對。
+先從 `settings-reference.md` 索引表讀 key 的 Topic/Scope；**Global config key 存 `~/.claude.json` 而非 `settings.json`**——寫進 settings.json 會被 Claude Code 靜默忽略。這類 key 在 schema field 必須標 `storageFile: 'globalConfig'`（讀寫由 `SettingsFileService` 分流到 `~/.claude.json`，僅 user scope 顯示），漏標＝UI 開關 no-op silent bug。既有 key 的標記是否仍對，CLI 的 `storageDrift` 會比對。`settings.md` 僅供 overview/precedence 背景核對。
 
 ## Section mapping
 
@@ -52,12 +52,12 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 | Category | Keys | 原因 |
 |----------|------|------|
-| managed-only | `allowAllClaudeAiMcps`、`allowManagedHooksOnly`、`allowManagedMcpServersOnly`、`allowManagedPermissionRulesOnly`、`allowedChannelPlugins`、`blockedMarketplaces`、`channelsEnabled`、`claudeMd`、`forceRemoteSettingsRefresh`、`parentSettingsBehavior`、`pluginSuggestionMarketplaces`、`pluginTrustMessage`、`policyHelper`、`strictKnownMarketplaces`、`strictPluginOnlyCustomization`、`wslInheritsWindowsSettings`、`sandbox.bwrapPath`、`sandbox.socatPath`、`sandbox.filesystem.allowManagedReadPathsOnly`、`sandbox.network.allowManagedDomainsOnly`、`sandbox.enabledPlatforms`、`browserExternalPageTools`、`disableBrowserExternalNavigation`、`disableCommandPluginSources`、`disableDesktopLocalSessions`、`disableMobileSimulatorTools`、`disableSideloadFlags`、`managedSourcesBehavior`、`modelPricing`、`policyHelper.path`、`policyHelper.refreshIntervalMs`、`policyHelper.timeoutMs`、`sshHostAllowlist`、`strictPluginOnlyCustomization.agents`、`strictPluginOnlyCustomization.hooks`、`strictPluginOnlyCustomization.mcp`、`strictPluginOnlyCustomization.skills` | 企業管理員專用，一般使用者無法設定（`enabledPlatforms` 僅 honored from managed/policy settings；新增的 Scope=Managed 欄位同樣不做 first-party UI）|
+| managed-only | 索引 Scope=`Managed` 者由 CLI 自動排除，不列；Scope 未標但實質 managed-only 的（如 `enforceAvailableModels`）見 `KNOWN_EXCLUDED` | 企業管理員專用，不做 first-party UI |
 | plugin-internal | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` | 由 extension plugin/marketplace UI 管理 |
 | deprecated | `includeCoAuthoredBy` | 已被 `attribution` 取代 |
 | meta | `$schema` | JSON schema 參照，非設定值 |
 
-上表為人讀文件，涵蓋 reference index 以 Scope 標示的 managed-only keys、plugin-internal、deprecated 與 meta keys。**機器強制排除的補充 SSOT** 在 `src/shared/settings-sync/settings-diff.ts` 的 `KNOWN_EXCLUDED`；legacy fixture parser 仍支援 description 中的 managed marker，但 reference index 的既有 managed-only key 必須明列於此清單。新發現的 non-user-facing gap（由 index scope/description 判斷）→ 加進 `KNOWN_EXCLUDED`；機器強制以 `KNOWN_EXCLUDED` 為準。
+逐條排除清單的 SSOT 在 `src/shared/settings-sync/settings-diff.ts` 的 `KNOWN_EXCLUDED`，此處不複寫。新發現的 non-user-facing gap（Scope 非 Managed、由 description 判斷）→ 加進 `KNOWN_EXCLUDED`。
 
 ## Excluded from `removed` diff（反方向：repo 有、docs 無）
 

@@ -251,7 +251,7 @@ describe('parseSettingsDocs — section/prefix mapping', () => {
 
 describe('parseSettingsDocs — settings-reference.md All settings index', () => {
   it('parses linked top-level and dotted keys with their descriptions', () => {
-    const { keys, descriptions, scopes } = parseSettingsDocs(settingsReferenceMd);
+    const { keys, descriptions, topics, scopes } = parseSettingsDocs(settingsReferenceMd);
 
     expect(keys).toEqual(new Set([
       'advisorModel',
@@ -264,6 +264,7 @@ describe('parseSettingsDocs — settings-reference.md All settings index', () =>
     ]));
     expect(descriptions.get('advisorModel')).toBe('Pick the model used by the advisor');
     expect(descriptions.get('sandbox.credentials.files')).toBe('Block reads of credential files with an escaped \\| pipe');
+    expect(topics.get('advisorModel')).toBe('Model and responses');
     expect(scopes.get('advisorModel')).toBe('Any file');
     expect(scopes.get('managedByScope')).toBe('Managed');
   });
@@ -282,16 +283,19 @@ describe('parseSettingsDocs — settings-reference.md All settings index', () =>
     expect(keys.has('detailTableKey')).toBe(false);
   });
 
-  it('does not fall back to legacy rows when the All settings heading is missing', () => {
-    const missingHeading = settingsReferenceMd.replace('## All settings', '## Settings overview');
-    const { keys } = parseSettingsDocs(missingHeading);
+  it('locates the index by its header row, not the heading text, skipping a component block before the table', () => {
+    const liveShape = settingsReferenceMd.replace(
+      '## All settings\n',
+      '## Settings index\n\nEvery key below links to its entry.\n\n<ReferenceFilter\n  noun="settings"\n  columnHelp={{\ntopic: "The section of this page that holds the entry.",\n}}\n/>\n',
+    );
+    const { keys, scopes } = parseSettingsDocs(liveShape, 'reference');
 
-    expect(keys).toEqual(new Set());
-    expect(checkSettingsDocsHealth(keys).ok).toBe(false);
+    expect(keys).toEqual(parseSettingsDocs(settingsReferenceMd).keys);
+    expect(scopes.get('managedByScope')).toBe('Managed');
   });
 
-  it('returns no keys when the All settings table is missing', () => {
-    const missingTable = '## All settings\n\nSettings are listed elsewhere.\n\n## Model and responses\n';
+  it('returns no keys when the index table is missing', () => {
+    const missingTable = '## Settings index\n\nSettings are listed elsewhere.\n\n## Model and responses\n';
     const { keys } = parseSettingsDocs(missingTable);
 
     expect(keys).toEqual(new Set());

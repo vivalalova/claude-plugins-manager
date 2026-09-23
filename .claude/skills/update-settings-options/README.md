@@ -1,12 +1,12 @@
 # update-settings-options
 
-Keep the extension's settings surface in sync with **which settings Claude Code currently has** — use the `## All settings` index in `https://code.claude.com/docs/en/settings-reference.md` as the primary key/description inventory. The `settings.md` page is background for overview and precedence, not inventory; gaps are detected by a deterministic CLI.
+Keep the extension's settings surface in sync with **which settings Claude Code currently has, their defaults, and which file stores them** — the source is `https://code.claude.com/docs/en/settings-reference.md` (its `Key | Description | Topic | Scope` index table plus each key's `**Default**` bullet). The `settings.md` page is background for overview and precedence, not inventory; gaps and drift are detected by a deterministic CLI.
 
 ## How it works
 
 A **workflow** runs discovery (read-only); the main loop decides, edits, and verifies. See `SKILL.md` for the full flow.
 
-1. **Detect**: run `scripts/settings-sync-diff.ts` (curl the settings-reference All settings index and env-vars docs → parse → diff against repo schema → JSON output)
+1. **Detect**: run `scripts/settings-sync-diff.ts` (curl settings-reference and env-vars docs → parse → diff against repo schema → JSON with presence gaps plus `defaultDrift` / `storageDrift`)
 2. **Categorize** (parallel): classify each gap by section + isObjectEditor
 3. **Apply** (main loop): add schema field + i18n (3 languages) + tests; `SchemaFieldRenderer` auto-renders scalars; object editor keys need a dispatcher case in `ObjectFieldEditor.tsx`
 
@@ -16,6 +16,7 @@ A **workflow** runs discovery (read-only); the main loop decides, edits, and ver
 |------|---------|
 | `src/shared/claude-settings-schema.ts` | Settings schema (single source: value shape, section, UI metadata) |
 | `src/shared/settings-sync/settings-diff.ts` | Gap detection logic + `KNOWN_EXCLUDED` |
+| `src/shared/settings-sync/settings-meta-drift.ts` | Default / storage-file drift + `KNOWN_DEFAULT_EQUIVALENT` |
 | `src/shared/known-env-vars.ts` | Environment variables registry |
 | `src/webview/i18n/locales/{en,zh-TW,ja}.ts` | Translations |
 | `src/webview/editor/settings/*Section.tsx` | Section components |
@@ -37,7 +38,8 @@ Or trigger with natural language: "sync settings from docs", "update settings op
 |----------|--------|
 | user-facing | Sync to UI |
 | anti-direction | Sync to existing `AdvancedSection` |
-| managed-only / plugin-internal / deprecated / meta | Skip → add to `KNOWN_EXCLUDED` |
+| managed-only | Index Scope `Managed` is auto-excluded by the CLI; others → `KNOWN_EXCLUDED` |
+| plugin-internal / deprecated / meta | Skip → add to `KNOWN_EXCLUDED` |
 
 ## References
 
