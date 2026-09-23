@@ -47,7 +47,8 @@ describe('PermissionsSection — 渲染', () => {
       expect(screen.getByText('(disableAutoMode)')).toBeTruthy();
       expect(screen.getByText('(disableBypassPermissionsMode)')).toBeTruthy();
       expect(screen.getByText('(skipDangerousModePermissionPrompt: false)')).toBeTruthy();
-      expect(screen.getByText('(useAutoModeDuringPlan: false)')).toBeTruthy();
+      // useAutoModeDuringPlan：docs 預設為 true（#25），schema 預設從 false 改 true。
+      expect(screen.getByText('(useAutoModeDuringPlan: true)')).toBeTruthy();
       expect(screen.getByText('(classifyAllShell: false)')).toBeTruthy();
       expect(screen.getByText('(additionalDirectories)')).toBeTruthy();
       expect(screen.getByText('(enabledMcpjsonServers)')).toBeTruthy();
@@ -138,36 +139,55 @@ describe('PermissionsSection — new settings 互動', () => {
     });
   });
 
-  it('useAutoModeDuringPlan 未設定 → checkbox unchecked（反映預設值 false）', async () => {
+  // useAutoModeDuringPlan：docs 預設為 true（#25 拍板紀錄），schema 預設從 false 改 true。
+  it('useAutoModeDuringPlan 未設定 → checkbox checked（反映新預設值 true）', async () => {
     renderSection({});
 
     await waitFor(() => {
       const checkbox = screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }) as HTMLInputElement;
-      expect(checkbox.checked).toBe(false);
+      expect(checkbox.checked).toBe(true);
     });
   });
 
-  it('useAutoModeDuringPlan 未設定, toggle on → onSave("useAutoModeDuringPlan", true)', async () => {
+  it('useAutoModeDuringPlan 未設定, toggle off → onSave("useAutoModeDuringPlan", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
 
     await waitFor(() => screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('useAutoModeDuringPlan', true);
+      expect(onSave).toHaveBeenCalledWith('useAutoModeDuringPlan', false);
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 
-  it('useAutoModeDuringPlan=true, toggle off → onDelete("useAutoModeDuringPlan")', async () => {
+  it('useAutoModeDuringPlan=true（值等於新 default）, toggle off → onSave("useAutoModeDuringPlan", false)，非 onDelete', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ useAutoModeDuringPlan: true }, vi.fn(), onDelete);
+    renderSection({ useAutoModeDuringPlan: true }, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('useAutoModeDuringPlan', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('useAutoModeDuringPlan=false（值等於新 default 的相反）, toggle on → onDelete("useAutoModeDuringPlan")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ useAutoModeDuringPlan: false }, onSave, onDelete);
 
     await waitFor(() => screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Use Auto Mode During Plan' }));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('useAutoModeDuringPlan');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 

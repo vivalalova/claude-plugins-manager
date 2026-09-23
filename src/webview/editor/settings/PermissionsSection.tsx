@@ -7,6 +7,7 @@ import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { ObjectFieldEditor } from './components/ObjectFieldEditor';
 import { getSchemaFieldBindings } from './components/SchemaSection';
 import { saveOrDeleteParent } from './components/nestedParent';
+import { getSchemaDefault } from '../../../shared/claude-settings-schema';
 
 // ---------------------------------------------------------------------------
 // Constants（internal only — defaultMode 已移至 schema general section）
@@ -392,7 +393,7 @@ export function PermissionsSection({
         description={t('settings.permissions.enableAllProjectMcpServers.description')}
         value={settings.enableAllProjectMcpServers}
         settingKey="enableAllProjectMcpServers"
-        defaultValue={false}
+        defaultValue={getSchemaDefault<boolean>('enableAllProjectMcpServers')}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -442,7 +443,7 @@ export function PermissionsSection({
         description={t('settings.permissions.skipDangerousModePermissionPrompt.description')}
         value={settings.skipDangerousModePermissionPrompt}
         settingKey="skipDangerousModePermissionPrompt"
-        defaultValue={false}
+        defaultValue={getSchemaDefault<boolean>('skipDangerousModePermissionPrompt')}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -452,7 +453,7 @@ export function PermissionsSection({
         description={t('settings.permissions.useAutoModeDuringPlan.description')}
         value={settings.useAutoModeDuringPlan}
         settingKey="useAutoModeDuringPlan"
-        defaultValue={false}
+        defaultValue={getSchemaDefault<boolean>('useAutoModeDuringPlan')}
         onSave={onSave}
         onDelete={onDelete}
       />
@@ -468,7 +469,7 @@ export function PermissionsSection({
             description={t('settings.permissions.classifyAllShell.description')}
             value={binding.value as boolean | undefined}
             settingKey="classifyAllShell"
-            defaultValue={false}
+            defaultValue={getSchemaDefault<boolean>('classifyAllShell')}
             overriddenScope={binding.overriddenScope}
             disabled={saving}
             onSave={binding.onSave}

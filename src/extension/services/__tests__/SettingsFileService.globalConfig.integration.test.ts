@@ -1,6 +1,7 @@
 /**
  * SettingsFileService — global config (~/.claude.json) 整合測試。
- * 7 個 user-facing key（autoConnectIde 等）依官方文件應存在 ~/.claude.json 頂層，
+ * 6 個 user-facing key（autoConnectIde 等；workflowSizeGuideline 依 #25 拍板 P3 移出，
+ * 改存 settings.json）依官方文件應存在 ~/.claude.json 頂層，
  * 而非 settings.json；目前 extension 全部寫進 settings.json，導致 Claude Code 啟動時
  * 靜默忽略。本檔驗證修復後 getSettings/setSetting/deleteSetting 對這批 key 的行為。
  * 用真實 filesystem（tmpdir），不 mock fs/promises，仿照 SettingsFileService.settings.integration.test.ts。
@@ -84,7 +85,7 @@ describe('SettingsFileService — global config (~/.claude.json)（integration�
     expect(result.autoConnectIde).toBeUndefined();
   });
 
-  it('getSettings("user")：~/.claude.json 不存在 → 不拋錯，7 個 key 均為 undefined，其餘欄位正常回傳', async () => {
+  it('getSettings("user")：~/.claude.json 不存在 → 不拋錯，globalConfig key 均為 undefined，其餘欄位正常回傳', async () => {
     await writeFile(userSettingsPath(), JSON.stringify({ model: 'x', autoConnectIde: true }) + '\n');
     // globalConfigPath 已於 beforeEach 移除
 
@@ -181,5 +182,24 @@ describe('SettingsFileService — global config (~/.claude.json)（integration�
     const content = JSON.parse(await readFile(userSettingsPath(), 'utf-8'));
     expect(content.model).toBe('x');
     expect(existsSync(globalConfigPath())).toBe(false);
+  });
+
+  // #25 拍板 P3：workflowSizeGuideline 從 7 個 globalConfig key 移出（storageFile 拿掉），
+  // docs Scope 為 Any file，應寫進 settings.json（user scope 即 ~/.claude/settings.json），
+  // 不再寫 ~/.claude.json。舊版遺留在 ~/.claude.json 的值不搬移、不清除，也不被 UI 讀取。
+  it('setSetting("user", "workflowSizeGuideline", "small")：寫入 ~/.claude/settings.json，不寫 ~/.claude.json', async () => {
+    await svc.setSetting('user', 'workflowSizeGuideline', 'small');
+
+    const settingsContent = JSON.parse(await readFile(userSettingsPath(), 'utf-8'));
+    expect(settingsContent.workflowSizeGuideline).toBe('small');
+    expect(existsSync(globalConfigPath())).toBe(false);
+  });
+
+  it('getSettings("user")：~/.claude.json 殘留舊版 workflowSizeGuideline → 不被讀取／不覆蓋 settings.json 的值', async () => {
+    await writeFile(globalConfigPath(), JSON.stringify({ workflowSizeGuideline: 'large' }) + '\n');
+    await writeFile(userSettingsPath(), JSON.stringify({ workflowSizeGuideline: 'small' }) + '\n');
+
+    const result = await svc.getSettings('user');
+    expect(result.workflowSizeGuideline).toBe('small');
   });
 });

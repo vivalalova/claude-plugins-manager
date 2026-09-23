@@ -283,7 +283,7 @@ function recordField<
 const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'dontAsk', 'auto', 'bypassPermissions', 'delegate'] as const;
 const EFFORT_LEVEL_OPTIONS = ['max', 'xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
-const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux'] as const;
+const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux', 'iterm2'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
 const TUI_OPTIONS = ['fullscreen', 'default'] as const;
 const EDITOR_MODE_OPTIONS = ['normal', 'vim'] as const;
@@ -623,12 +623,13 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('advisorModel'),
     arrayField('fallbackModel', STRING_SCHEMA),
     booleanField('switchModelsOnFlag', { default: true }),
-    createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA, { default: 'high' }),
+    createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA),
     booleanField('fastMode', { default: false }),
     booleanField('fastModePerSessionOptIn', { default: false }),
     stringField('agent'),
     stringField('outputStyle'),
-    createField('workflowSizeGuideline', WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA, { default: 'medium', storageFile: 'globalConfig' }),
+    createField('workflowSizeGuideline', WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA),
+    booleanField('alwaysThinkingEnabled', { default: true }),
     // Permission mode
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
@@ -689,18 +690,18 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('inputNeededNotifEnabled', { default: false }),
     // Input & editor
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
-    createField('keybindingFlavor', KEYBINDING_FLAVOR_VALUE_SCHEMA, { default: 'classic' }),
+    createField('keybindingFlavor', KEYBINDING_FLAVOR_VALUE_SCHEMA),
     createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object }),
     booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
     booleanField('emojiCompletionEnabled', { default: true }),
-    booleanField('voiceEnabled', { default: false }),
+    booleanField('voiceEnabled'),
     createField('voice', VOICE_VALUE_SCHEMA),
     createField('askUserQuestionTimeout', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: 'never' }),
     booleanField('promptSuggestionEnabled', { default: true }),
     createField('spellcheck', SPELLCHECK_VALUE_SCHEMA),
     booleanField('permissionExplainerEnabled', { default: true, storageFile: 'globalConfig' }),
     // Agent teammates
-    createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'auto' }),
+    createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'in-process' }),
     createField('teammateDefaultModel', STRING_OR_NULL_VALUE_SCHEMA, { controlTypeOverride: String, storageFile: 'globalConfig' }),
     createField('crossSessionInbound', CROSS_SESSION_INBOUND_VALUE_SCHEMA),
   ],
@@ -716,7 +717,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
       nestedUnder: 'permissions',
     }),
     booleanField('skipDangerousModePermissionPrompt', { default: false }),
-    booleanField('useAutoModeDuringPlan', { default: false }),
+    booleanField('useAutoModeDuringPlan', { default: true }),
     booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),
     createField('allowedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
@@ -778,9 +779,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('disableRemoteControl', { default: false }),
     createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
     booleanField('skipWebFetchPreflight', { default: false }),
-    booleanField('alwaysThinkingEnabled', { default: false }),
-    booleanField('remoteControlAtStartup', { default: false }),
-    booleanField('disableArtifact', { default: false }),
+    booleanField('remoteControlAtStartup'),
+    booleanField('disableArtifact'),
     booleanField('enableArtifact'),
     booleanField('disableBundledSkills', { default: false }),
     booleanField('disableClaudeAiConnectors', { default: false }),

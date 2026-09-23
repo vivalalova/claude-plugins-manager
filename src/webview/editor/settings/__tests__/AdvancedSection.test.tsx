@@ -311,44 +311,15 @@ describe('AdvancedSection — new settings 互動', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// BooleanToggle — alwaysThinkingEnabled
-// ---------------------------------------------------------------------------
+// alwaysThinkingEnabled 已依 #25 拍板紀錄 P2 移到 GeneralSection「Model & reasoning」群組
+// （docs：unset 時 thinking 對支援的模型開啟；用途從「強制思考」變成「關閉以省 token」）。
+// 對應測試見 GeneralSection.test.tsx「alwaysThinkingEnabled（Extended Thinking）」。
 
-describe('AdvancedSection — alwaysThinkingEnabled toggle', () => {
-  it('alwaysThinkingEnabled 未設定 → checkbox 未勾選', () => {
-    renderSection({});
-    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
-    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
-  });
-
-  it('alwaysThinkingEnabled=true → checkbox 勾選', () => {
-    renderSection({ alwaysThinkingEnabled: true });
-    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
-    const checkbox = within(field).getByRole('checkbox') as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
-  });
-
-  it('alwaysThinkingEnabled 未設定, toggle on → onSave("alwaysThinkingEnabled", true)', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    renderSection({}, onSave);
-    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('checkbox'));
+describe('AdvancedSection — alwaysThinkingEnabled 不再渲染於此（已移至 GeneralSection，#25）', () => {
+  it('不渲染 alwaysThinkingEnabled hint', async () => {
+    renderSection();
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', true);
-    });
-  });
-
-  it('alwaysThinkingEnabled=true, toggle off → 值等於 default，呼叫 onDelete', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection({ alwaysThinkingEnabled: true }, onSave, onDelete);
-    const field = screen.getByText('Always Thinking Enabled').closest('.settings-field') as HTMLElement;
-    fireEvent.click(within(field).getByRole('checkbox'));
-    await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('alwaysThinkingEnabled');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(screen.queryByText('(alwaysThinkingEnabled: true)')).toBeNull();
     });
   });
 });
@@ -1529,6 +1500,53 @@ describe('AdvancedSection — enableArtifact（無 fixed default）', () => {
     fireEvent.click(resetBtn);
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('enableArtifact');
+    });
+  });
+});
+
+// remoteControlAtStartup / disableArtifact 依 #25 拍板紀錄拿掉 schema 預設值
+// （docs：實際值取決於帳號／組織，寫死預設會讓某個值存不進去）。
+// 拿掉預設後：unset 時畫面顯示為關（checked = value ?? defaultValue ?? false，
+// 視覺上與舊行為相同）；但 value=true 時 toggle off 已無 default 可比對，
+// 不再走 onDelete，而是 onSave(key, false)。
+describe.each([
+  ['remoteControlAtStartup', 'Remote Control at Startup'],
+  ['disableArtifact', 'Disable Artifact Tool'],
+])('AdvancedSection — %s（無 fixed default，#25）', (key, label) => {
+  it('key hint 不顯示預設值', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText(`(${key})`)).toBeTruthy();
+    });
+  });
+
+  it(`${label} 未設定 → checkbox 未勾選`, () => {
+    renderSection({});
+    const field = screen.getByText(label).closest('.settings-field') as HTMLElement;
+    const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(cb.checked).toBe(false);
+  });
+
+  it(`${label}=true, toggle off → onSave(key, false)（無 default 可比對，不觸發 onDelete）`, async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ [key]: true }, onSave, onDelete);
+    const field = screen.getByText(label).closest('.settings-field') as HTMLElement;
+    fireEvent.click(within(field).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(key, false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it(`${label}=true → Reset 按鈕顯示，點擊 → onDelete(key)`, async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ [key]: true }, vi.fn(), onDelete);
+    const field = screen.getByText(label).closest('.settings-field') as HTMLElement;
+    const resetBtn = within(field).getByRole('button', { name: /Reset/ });
+    fireEvent.click(resetBtn);
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith(key);
     });
   });
 });

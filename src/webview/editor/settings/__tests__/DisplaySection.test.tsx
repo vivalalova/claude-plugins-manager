@@ -9,6 +9,7 @@ import { DisplaySection } from '../DisplaySection';
 import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
 import { ToastProvider } from '../../../components/Toast';
 import { I18nProvider } from '../../../i18n/I18nContext';
+import { en } from '../../../i18n/locales/en';
 
 vi.mock('../../../vscode', () => ({
   sendRequest: vi.fn().mockResolvedValue(undefined),
@@ -50,7 +51,8 @@ describe('DisplaySection — 渲染', () => {
     renderSection();
 
     await waitFor(() => {
-      expect(screen.getByText('(teammateMode: auto)')).toBeTruthy();
+      // teammateMode：docs 預設為 'in-process'（#25），schema 預設從 'auto' 改 'in-process'。
+      expect(screen.getByText('(teammateMode: in-process)')).toBeTruthy();
       expect(screen.getByText('(teammateDefaultModel)')).toBeTruthy();
       expect(screen.getByText('(editorMode: normal)')).toBeTruthy();
       expect(screen.getByText('(externalEditorContext: false)')).toBeTruthy();
@@ -65,7 +67,9 @@ describe('DisplaySection — 渲染', () => {
       expect(screen.getByText('(terminalProgressBarEnabled: true)')).toBeTruthy();
       expect(screen.getByText('(prefersReducedMotion: false)')).toBeTruthy();
       expect(screen.getByText('(syntaxHighlightingDisabled: false)')).toBeTruthy();
-      expect(screen.getByText('(voiceEnabled: false)')).toBeTruthy();
+      // voiceEnabled：docs 只寫「unset」而非固定值（#25），schema 拿掉 default，
+      // hint 因此不再帶預設值。
+      expect(screen.getByText('(voiceEnabled)')).toBeTruthy();
       expect(screen.getByText('(voice)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerVerbs)').classList.contains('settings-key-hint')).toBe(true);
       expect(screen.getByText('(spinnerTipsOverride)').classList.contains('settings-key-hint')).toBe(true);
@@ -437,6 +441,46 @@ describe('DisplaySection — 驗收條件', () => {
 });
 
 // ---------------------------------------------------------------------------
+// voiceEnabled — #25 拿掉 schema 固定 default（docs 只寫「unset」，實際值取決於帳號／組織）
+// ---------------------------------------------------------------------------
+
+describe('DisplaySection — voiceEnabled（無 fixed default，#25）', () => {
+  const getField = () =>
+    screen.getByText('(voiceEnabled)').closest('.settings-field') as HTMLElement;
+
+  it('未設定 → checkbox 未勾選', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = within(getField()).getByRole('checkbox') as HTMLInputElement;
+      expect(cb.checked).toBe(false);
+    });
+  });
+
+  it('值=true, toggle off → onSave("voiceEnabled", false)（無 default 可比對，不觸發 onDelete）', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ voiceEnabled: true }, onSave, onDelete);
+    await waitFor(() => getField());
+    fireEvent.click(within(getField()).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('voiceEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('值=true → Reset 按鈕顯示，點擊 → onDelete("voiceEnabled")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ voiceEnabled: true }, vi.fn(), onDelete);
+    await waitFor(() => getField());
+    const resetBtn = within(getField()).getByRole('button', { name: /Reset/ });
+    fireEvent.click(resetBtn);
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('voiceEnabled');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // teammateMode EnumDropdown
 // ---------------------------------------------------------------------------
 
@@ -495,6 +539,47 @@ describe('DisplaySection — teammateMode dropdown', () => {
     await waitFor(() => {
       const select = screen.getByRole('combobox', { name: 'Teammate Mode' }) as HTMLSelectElement;
       expect(select.value).toBe('in-process');
+    });
+  });
+
+  // #25：docs default 改為 'in-process'（原本 schema 誤寫 'auto'），選項補 'iterm2'。
+  it('選項包含 iterm2（docs Type 有列，CLI enum 偵測不到的漏項）', async () => {
+    renderSection();
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Teammate Mode' }) as HTMLSelectElement;
+      const values = Array.from(select.options).map((o) => o.value);
+      expect(values).toEqual(expect.arrayContaining(['iterm2']));
+
+      const iterm2Option = Array.from(select.options).find((o) => o.value === 'iterm2');
+      expect(iterm2Option?.textContent).toBe(en['settings.display.teammateMode.iterm2']);
+    });
+  });
+
+  it('teammateMode 未設定, 選擇 auto（原本誤標的預設值）→ onSave("teammateMode", "auto")，不再走 onDelete', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Teammate Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Teammate Mode' }), { target: { value: 'auto' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('teammateMode', 'auto');
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('teammateMode 未設定, 選擇 in-process（新 default）→ onDelete("teammateMode")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Teammate Mode' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Teammate Mode' }), { target: { value: 'in-process' } });
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('teammateMode');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

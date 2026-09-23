@@ -36,7 +36,7 @@
 
 ### 判定準則
 
-1. **Anti-cost**：啟用後顯著增加 token 消耗 / API 費用（如強制 extended thinking）
+1. **Anti-cost**：啟用後顯著增加 token 消耗 / API 費用
 2. **Anti-efficiency**：增加不必要的操作摩擦或等待
 3. **Anti-user**：主要受益方為平台/廠商而非使用者
 
@@ -44,7 +44,7 @@
 
 | Key | 原 Section | Anti 原因 |
 |-----|-----------|-----------|
-| `alwaysThinkingEnabled` | general → advanced | Anti-cost：強制 extended thinking，token 消耗倍增 |
+| 目前無 | | |
 
 ## Excluded categories
 

@@ -8,7 +8,7 @@
  *   - dialogExpiry（general, enum 60s|5m|10m|never, default '5m'）
  *   - promptSuggestionEnabled（display, boolean, default true）
  *   - crossSessionInbound（display, enum accept|hold|refuse, 無 default）
- *   - keybindingFlavor（display, enum classic|readline, default 'classic'）
+ *   - keybindingFlavor（display, enum classic|readline, 無 default — #25 拿掉）
  *   - isolatePeerMachines（advanced, boolean, 無 default）
  *
  * 定位控件走 key hint 文字（`(key: default)`）而非 label 文案：文案由實作決定，
@@ -251,11 +251,13 @@ describe('crossSessionInbound（display section）', () => {
 });
 
 // ---------------------------------------------------------------------------
-// keybindingFlavor — display / enum classic|readline / default 'classic'
+// keybindingFlavor — display / enum classic|readline / no fixed default
 // ---------------------------------------------------------------------------
 
-describe('keybindingFlavor（display section）', () => {
-  const HINT = '(keybindingFlavor: classic)';
+// #25：docs 只寫「unset」而非固定值，schema 拿掉 keybindingFlavor 的 default——
+// hint 因此不再帶預設值，選回 'classic'（舊 default）不再走 onDelete。
+describe('keybindingFlavor（display section，#25 無 fixed default）', () => {
+  const HINT = '(keybindingFlavor)';
 
   it('render 出 enum 控件，選項為 classic/readline', async () => {
     renderSection(DisplaySection);
@@ -265,7 +267,7 @@ describe('keybindingFlavor（display section）', () => {
     expect(values).toEqual(expect.arrayContaining(['classic', 'readline']));
   });
 
-  it('選非 default 值 → onSave("keybindingFlavor", "readline")', async () => {
+  it('選 readline → onSave("keybindingFlavor", "readline")', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection(DisplaySection, {}, onSave);
 
@@ -275,7 +277,7 @@ describe('keybindingFlavor（display section）', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith('keybindingFlavor', 'readline'));
   });
 
-  it('選回 default 值 → onDelete("keybindingFlavor")', async () => {
+  it('選 classic（舊 default，現無 default 可比對）→ onSave("keybindingFlavor", "classic")，不再走 onDelete', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection(DisplaySection, { keybindingFlavor: 'readline' }, onSave, onDelete);
@@ -284,8 +286,8 @@ describe('keybindingFlavor（display section）', () => {
     fireEvent.change(within(fieldByKeyHint(HINT)).getByRole('combobox'), { target: { value: 'classic' } });
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('keybindingFlavor');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('keybindingFlavor', 'classic');
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 });

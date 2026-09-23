@@ -61,7 +61,9 @@ describe('GeneralSection — 渲染', () => {
       expect(screen.getByText('(agent)')).toBeTruthy();
       expect(screen.getByText('(autoConnectIde: false)')).toBeTruthy();
       expect(screen.getByText('(autoInstallIdeExtension: true)')).toBeTruthy();
-      expect(screen.getByText('(effortLevel: high)')).toBeTruthy();
+      // effortLevel：依 docs 只寫「unset」而非固定值，schema 拿掉 default（#25），
+      // hint 因此不再帶預設值。
+      expect(screen.getByText('(effortLevel)')).toBeTruthy();
       expect(screen.getByText('(language)')).toBeTruthy();
       expect(screen.getByText('(availableModels)')).toBeTruthy();
       expect(screen.getByText('(includeGitInstructions: true)')).toBeTruthy();
@@ -71,7 +73,12 @@ describe('GeneralSection — 渲染', () => {
       expect(screen.getByText('(autoUpdatesChannel: latest)')).toBeTruthy();
       expect(screen.getByText('(minimumVersion)')).toBeTruthy();
       expect(screen.getByText('(diffTool: auto)')).toBeTruthy();
-      expect(screen.getByText('(workflowSizeGuideline: medium)')).toBeTruthy();
+      // workflowSizeGuideline：docs 預設依方案而變（Pro 為 small），schema 拿掉固定
+      // default（#25 拍板 P3），hint 因此不再帶預設值。
+      expect(screen.getByText('(workflowSizeGuideline)')).toBeTruthy();
+      // alwaysThinkingEnabled：#25 拍板 P2 從 advanced 移回 general「Model & reasoning」，
+      // docs：unset 時支援的模型預設就會思考，故 default 改為 true。
+      expect(screen.getByText('(alwaysThinkingEnabled: true)')).toBeTruthy();
     });
   });
 
@@ -526,6 +533,20 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     });
   });
 
+  it('選擇 effortLevel "high"（原本的預設值，#25 拿掉 default 後）→ 呼叫 onSave("effortLevel", "high")，不再走 onDelete', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+
+    await waitFor(() => screen.getByRole('combobox', { name: 'Effort Level' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Effort Level' }), { target: { value: 'high' } });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('effortLevel', 'high');
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
   it('未知 effortLevel → 顯示 __unknown__ disabled option（含 ⚠️）', async () => {
     renderSection({ effortLevel: 'ultra' as any });
     await waitFor(() => {
@@ -681,15 +702,15 @@ describe('GeneralSection — EnumDropdown 互動', () => {
     });
   });
 
-  it('workflowSizeGuideline 選擇 medium（=docs default）→ onDelete("workflowSizeGuideline")', async () => {
+  it('workflowSizeGuideline 選擇 medium（docs 預設依方案而變，#25 拿掉 schema 固定 default 後）→ onSave("workflowSizeGuideline", "medium")，不再走 onDelete', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ workflowSizeGuideline: 'small' }, onSave, onDelete);
     await waitFor(() => screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Dynamic Workflow Size' }), { target: { value: 'medium' } });
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('workflowSizeGuideline');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('workflowSizeGuideline', 'medium');
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 });
@@ -1226,9 +1247,9 @@ describe('GeneralSection — 批次 S 互動（先紅）', () => {
 // ---------------------------------------------------------------------------
 
 describe('GeneralSection — globalConfig 欄位 scope 隔離（先紅）', () => {
-  it('scope=project → autoConnectIde/autoInstallIdeExtension/diffTool/workflowSizeGuideline 完全不渲染', async () => {
+  it('scope=project → autoConnectIde/autoInstallIdeExtension/diffTool 完全不渲染', async () => {
     renderSection(
-      { autoConnectIde: true, autoInstallIdeExtension: true, diffTool: 'terminal', workflowSizeGuideline: 'small' },
+      { autoConnectIde: true, autoInstallIdeExtension: true, diffTool: 'terminal' },
       vi.fn().mockResolvedValue(undefined),
       vi.fn().mockResolvedValue(undefined),
       'project',
@@ -1239,11 +1260,83 @@ describe('GeneralSection — globalConfig 欄位 scope 隔離（先紅）', () =
     expect(screen.queryByText('Auto-connect IDE')).toBeNull();
     expect(screen.queryByText('Auto-install IDE Extension')).toBeNull();
     expect(screen.queryByText('Diff Tool')).toBeNull();
-    expect(screen.queryByText('Dynamic Workflow Size')).toBeNull();
     expect(screen.queryByText('(autoConnectIde: false)')).toBeNull();
     expect(screen.queryByText('(autoInstallIdeExtension: true)')).toBeNull();
     expect(screen.queryByText('(diffTool: auto)')).toBeNull();
-    expect(screen.queryByText('(workflowSizeGuideline: medium)')).toBeNull();
+  });
+
+  // #25 P3：workflowSizeGuideline 改存 settings 檔（不再 storageFile: 'globalConfig'），
+  // docs Scope 為 Any file，project/local scope 不該再被隱藏。
+  it('scope=project → workflowSizeGuideline 仍渲染（不再是 globalConfig-only 欄位）', async () => {
+    renderSection(
+      { workflowSizeGuideline: 'small' },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      'project',
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Dynamic Workflow Size')).toBeTruthy();
+      expect(screen.getByText('(workflowSizeGuideline)')).toBeTruthy();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// alwaysThinkingEnabled（Extended Thinking）— #25 拍板 P2 從 AdvancedSection 移入
+// ---------------------------------------------------------------------------
+// docs：unset 時，對支援 extended thinking 的模型預設就會思考；關閉會停用「每個
+// session」的 extended thinking，對本來就一直思考的模型無影響。default 因此改為
+// true（而非舊的 false）。用 settingKey hint `(alwaysThinkingEnabled: true)` 定位，
+// 不依賴確切標籤文案（新文案為 "Extended thinking" / 「延伸思考」）。
+describe('GeneralSection — alwaysThinkingEnabled（Extended Thinking，#25）', () => {
+  const getField = () =>
+    screen.getByText('(alwaysThinkingEnabled: true)').closest('.settings-field') as HTMLElement;
+
+  it('渲染 settingKey hint', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(screen.getByText('(alwaysThinkingEnabled: true)')).toBeTruthy();
+    });
+  });
+
+  it('顯示標籤為 Title Case「Extended Thinking」', async () => {
+    renderSection();
+    await waitFor(() => {
+      expect(within(getField()).getByText('Extended Thinking')).toBeTruthy();
+    });
+  });
+
+  it('未設定 → checkbox checked（default true）', async () => {
+    renderSection({});
+    await waitFor(() => {
+      const cb = within(getField()).getByRole('checkbox') as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+    });
+  });
+
+  it('未設定, 點擊 → onSave("alwaysThinkingEnabled", false)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave, onDelete);
+    await waitFor(() => getField());
+    fireEvent.click(within(getField()).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('alwaysThinkingEnabled', false);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  it('值為 false, 點擊 → 值等於 default(true)，呼叫 onDelete("alwaysThinkingEnabled")', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ alwaysThinkingEnabled: false }, onSave, onDelete);
+    await waitFor(() => getField());
+    fireEvent.click(within(getField()).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('alwaysThinkingEnabled');
+      expect(onSave).not.toHaveBeenCalled();
+    });
   });
 });
 

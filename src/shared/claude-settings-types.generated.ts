@@ -71,6 +71,7 @@ export interface ClaudeSettings {
   agent?: string;
   outputStyle?: string;
   workflowSizeGuideline?: "unrestricted" | "small" | "medium" | "large";
+  alwaysThinkingEnabled?: boolean;
   language?: string;
   autoMemoryEnabled?: boolean;
   autoMemoryDirectory?: string;
@@ -137,7 +138,7 @@ export interface ClaudeSettings {
     color?: string;
   };
   permissionExplainerEnabled?: boolean;
-  teammateMode?: "auto" | "in-process" | "tmux";
+  teammateMode?: "auto" | "in-process" | "tmux" | "iterm2";
   teammateDefaultModel?: string | null;
   crossSessionInbound?: "accept" | "hold" | "refuse";
   enableAllProjectMcpServers?: boolean;
@@ -360,7 +361,6 @@ export interface ClaudeSettings {
   disableRemoteControl?: boolean;
   disableDeepLinkRegistration?: "disable";
   skipWebFetchPreflight?: boolean;
-  alwaysThinkingEnabled?: boolean;
   remoteControlAtStartup?: boolean;
   disableArtifact?: boolean;
   enableArtifact?: boolean;

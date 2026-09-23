@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
 import type { FlatFieldSchema } from '../../claude-settings-schema';
+import { getAllFlatFieldSchemas } from '../../claude-settings-schema';
 import {
   parseSettingsDetails,
   parseDocsDefault,
   diffDefaults,
   diffStorage,
+  KNOWN_DEFAULT_EQUIVALENT,
 } from '../settings-meta-drift';
 
 const detailsMd = [
@@ -134,6 +136,15 @@ describe('diffDefaults', () => {
 
     const stale = new Map([['fastMode', 'unset, so fast mode is on']]);
     expect(diffDefaults(schemas, details, stale).map((d) => d.key)).toContain('fastMode');
+  });
+
+  it('registers alwaysThinkingEnabled in KNOWN_DEFAULT_EQUIVALENT against the real schema', () => {
+    const docsDefaults = new Map([
+      ['alwaysThinkingEnabled', 'unset, so thinking is on for models that support it'],
+    ]);
+    const drift = diffDefaults(getAllFlatFieldSchemas(), docsDefaults, KNOWN_DEFAULT_EQUIVALENT);
+
+    expect(drift.map((d) => d.key)).not.toContain('alwaysThinkingEnabled');
   });
 });
 

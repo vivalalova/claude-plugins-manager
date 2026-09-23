@@ -100,7 +100,7 @@ export class FileWatcherService implements vscode.Disposable {
     // workspace .claude/skills/** → skill refresh
     this.watchWorkspaceFile('.claude/skills/**/*', FileChangeCategory.Skill);
 
-    // ~/.claude.json → settings refresh（globalConfig 7 個 key 顯示值刷新）
+    // ~/.claude.json → settings refresh（globalConfig 顯示值刷新）
     this.watchFile(
       join(home, '.claude.json'),
       FileChangeCategory.Settings,

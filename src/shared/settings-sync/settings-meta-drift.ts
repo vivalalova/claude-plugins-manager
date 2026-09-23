@@ -152,6 +152,7 @@ export function diffStorage(
  * exact docs Default text they were checked against (2026-09-23).
  */
 export const KNOWN_DEFAULT_EQUIVALENT: ReadonlyMap<string, string> = new Map([
+  ['alwaysThinkingEnabled', 'unset, so thinking is on for models that support it'],
   ['autoUpdatesChannel', 'unset, so Claude Code follows `"latest"`'],
   ['awaySummaryEnabled', 'unset, so the recap is on'],
   ['axScreenReader', 'unset, so screen-reader mode is off'],

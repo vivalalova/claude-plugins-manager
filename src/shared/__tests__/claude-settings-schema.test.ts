@@ -170,7 +170,8 @@ describe('getSchemaEnumOptions', () => {
   it('回傳已知 enum key 的 options', () => {
     expect(getSchemaEnumOptions('effortLevel')).toEqual(['max', 'xhigh', 'high', 'medium', 'low']);
     expect(getSchemaEnumOptions('autoUpdatesChannel')).toEqual(['stable', 'latest']);
-    expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux']);
+    // #25：docs Type 有列 'iterm2'，CLI enum 偵測不到（人工對照發現）。
+    expect(getSchemaEnumOptions('teammateMode')).toEqual(['auto', 'in-process', 'tmux', 'iterm2']);
     expect(getSchemaEnumOptions('editorMode')).toEqual(['normal', 'vim']);
     expect(getSchemaEnumOptions('preferredNotifChannel')).toEqual(['auto', 'terminal_bell', 'iterm2', 'iterm2_with_bell', 'kitty', 'ghostty', 'notifications_disabled']);
     expect(getSchemaEnumOptions('forceLoginMethod')).toEqual(['claudeai', 'console']);
@@ -189,11 +190,11 @@ describe('getSchemaDefault', () => {
   it('有 default 的 key 回傳正確值', () => {
     expect(getSchemaDefault('fastMode')).toBe(false);
     expect(getSchemaDefault('autoMemoryEnabled')).toBe(true);
-    expect(getSchemaDefault('effortLevel')).toBe('high');
     expect(getSchemaDefault('cleanupPeriodDays')).toBe(30);
     expect(getSchemaDefault('plansDirectory')).toBe('~/.claude/plans');
     expect(getSchemaDefault('prefersReducedMotion')).toBe(false);
-    expect(getSchemaDefault('teammateMode')).toBe('auto');
+    // teammateMode：docs 預設為 'in-process'（#25，原本 schema 誤寫 'auto'）。
+    expect(getSchemaDefault('teammateMode')).toBe('in-process');
     expect(getSchemaDefault('editorMode')).toBe('normal');
     expect(getSchemaDefault('preferredNotifChannel')).toBe('auto');
     expect(getSchemaDefault('autoScrollEnabled')).toBe(true);
@@ -210,6 +211,9 @@ describe('getSchemaDefault', () => {
     expect(getSchemaDefault('disableRemoteControl')).toBe(false);
     expect(getSchemaDefault('skillListingMaxDescChars')).toBe(1536);
     expect(getSchemaDefault('skillListingBudgetFraction')).toBe(0.01);
+    // #25：docs 明寫的固定預設值（原本 schema 寫反或缺漏）。
+    expect(getSchemaDefault('alwaysThinkingEnabled')).toBe(true);
+    expect(getSchemaDefault('useAutoModeDuringPlan')).toBe(true);
   });
 
   it('無 default 的 key 回傳 undefined', () => {
@@ -217,6 +221,13 @@ describe('getSchemaDefault', () => {
     expect(getSchemaDefault('language')).toBeUndefined();
     expect(getSchemaDefault('enableWorkflows')).toBeUndefined();
     expect(getSchemaDefault('syncClaudeAiSkills')).toBeUndefined();
+    // #25：docs 只寫「unset」或行為取決於帳號／組織，schema 拿掉固定 default。
+    expect(getSchemaDefault('effortLevel')).toBeUndefined();
+    expect(getSchemaDefault('keybindingFlavor')).toBeUndefined();
+    expect(getSchemaDefault('voiceEnabled')).toBeUndefined();
+    expect(getSchemaDefault('remoteControlAtStartup')).toBeUndefined();
+    expect(getSchemaDefault('disableArtifact')).toBeUndefined();
+    expect(getSchemaDefault('workflowSizeGuideline')).toBeUndefined();
   });
 
   it('不存在的 key → 拋出 Error', () => {
@@ -231,11 +242,17 @@ describe('getSchemaDefault', () => {
   // isolatePeerMachines: docs settings.md 該列沒有 **Default**: prose（`true` 只在 Example 欄），
   // cross-session-messaging.md 明寫「Set isolatePeerMachines to true to require approval」＝
   // opt-in，未設就不攔，因此不得編出 default。Verified 2026-08-21.
+  // voiceEnabled/remoteControlAtStartup/disableArtifact: #25 拍板紀錄——實際值取決於
+  // 帳號／組織，寫死預設會讓某個值存不進去；寧可畫面顯示不確定，也不要讓某個值存不進去。
+  // Verified 2026-09-23 against settings-reference.md.
   const BOOLEAN_KEYS_WITHOUT_FIXED_DEFAULT = new Set([
     'enableArtifact',
     'isolatePeerMachines',
     'enableWorkflows',
     'syncClaudeAiSkills',
+    'voiceEnabled',
+    'remoteControlAtStartup',
+    'disableArtifact',
   ]);
 
   it('所有 Boolean entry 都有 default 值（documented dynamic-default keys 除外）', () => {
@@ -258,7 +275,9 @@ describe('getSchemaDefault', () => {
 });
 
 describe('getGlobalConfigSettingKeys', () => {
-  // 依官方文件應存在 ~/.claude.json（頂層 key）而非 settings.json 的 7 個 key。
+  // 依官方文件應存在 ~/.claude.json（頂層 key）而非 settings.json 的 6 個 key。
+  // workflowSizeGuideline 依 #25 拍板 P3 移出（docs Scope 為 Any file，改存 settings 檔），
+  // 7 → 6。
   const EXPECTED_GLOBAL_CONFIG_KEYS = [
     'autoConnectIde',
     'autoInstallIdeExtension',
@@ -266,12 +285,11 @@ describe('getGlobalConfigSettingKeys', () => {
     'externalEditorContext',
     'permissionExplainerEnabled',
     'teammateDefaultModel',
-    'workflowSizeGuideline',
   ];
 
-  it('回傳精確 7 個 key（排序後比對，防止漏標或多標）', () => {
+  it('回傳精確 6 個 key（排序後比對，防止漏標或多標）', () => {
     const keys = getGlobalConfigSettingKeys();
-    expect(keys.length).toBe(7);
+    expect(keys.length).toBe(6);
     expect([...keys].sort()).toEqual([...EXPECTED_GLOBAL_CONFIG_KEYS].sort());
   });
 
@@ -279,7 +297,7 @@ describe('getGlobalConfigSettingKeys', () => {
     expect(getFlatFieldSchema(key)?.storageFile).toBe('globalConfig');
   });
 
-  it.each(['model', 'effortLevel'])('%s（非 globalConfig 欄位）storageFile 為 undefined', (key) => {
+  it.each(['model', 'effortLevel', 'workflowSizeGuideline'])('%s（非 globalConfig 欄位）storageFile 為 undefined', (key) => {
     expect(getFlatFieldSchema(key)?.storageFile).toBeUndefined();
   });
 });
