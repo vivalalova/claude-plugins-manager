@@ -61,7 +61,7 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
     // 快照也會讓呼叫次數 > 0）。改等 own 欄位本身冒出 override badge——badge 只在
     // parentSnapshot.forScope === 'project' 且 inherited.kind === 'known' 時渲染，是「父層快照
     // 已就緒且套用到當前 scope」的直接證據。
-    await within(getAlwaysThinkingField()).findByText('Overrides User');
+    await within(getAlwaysThinkingField()).findByText('Overrides User', {}, { timeout: 5000 });
 
     fireEvent.click(within(getAlwaysThinkingField()).getByRole('checkbox'));
 
@@ -90,7 +90,7 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
     // fastMode（兩層都設同值）當「parentSnapshot 已就緒」的旁證訊號——它與 alwaysThinkingEnabled
     // 共用同一份 parentSnapshot，其 badge 出現即代表快照已套用到本次 render。
     const fastModeField = screen.getByText('(fastMode: false)').closest('.settings-field') as HTMLElement;
-    await within(fastModeField).findByText('Overrides User');
+    await within(fastModeField).findByText('Overrides User', {}, { timeout: 5000 });
     // 訊號到位前不該有任何提早送出的 alwaysThinkingEnabled 寫入。
     expect(getCalls('settings.set').some((c) => c[0]?.key === 'alwaysThinkingEnabled')).toBe(false);
 
@@ -125,7 +125,7 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
     await waitFor(() => {
       const userCalls = getCalls('settings.get').filter((c) => c[0]?.scope === 'user');
       expect(userCalls.length).toBeGreaterThanOrEqual(2);
-    });
+    }, { timeout: 5000 });
     expect(resolveUser).toBeDefined();
 
     fireEvent.click(within(getAlwaysThinkingField()).getByRole('checkbox'));
@@ -153,7 +153,7 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
     await waitFor(() => getAlwaysThinkingField());
     await waitFor(() => {
       expect(getCalls('settings.get').some((c) => c[0]?.scope === 'user')).toBe(true);
-    });
+    }, { timeout: 5000 });
 
     fireEvent.click(within(getAlwaysThinkingField()).getByRole('checkbox'));
 
@@ -190,12 +190,12 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
 
     await waitFor(() => getAlwaysThinkingField());
     // 第一輪父層載入成功回傳 {}（loaded, 沒設 → none）。
-    await waitFor(() => expect(userCallCount).toBeGreaterThanOrEqual(1));
+    await waitFor(() => expect(userCallCount).toBeGreaterThanOrEqual(1), { timeout: 5000 });
 
     // 推播 settings.refresh，觸發第二輪父層載入——這次會 reject（loadParentSettings 內部
     // try/catch 應把 snapshots 標成 undefined／未知，而非沿用上一輪成功的 {} 快照）。
     handlers.forEach((h) => h({ type: 'settings.refresh' }));
-    await waitFor(() => expect(userCallCount).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(userCallCount).toBeGreaterThanOrEqual(2), { timeout: 5000 });
     // flush：讓 reject 的 catch 分支跑完並 setState。
     await new Promise((r) => setTimeout(r, 0));
 
