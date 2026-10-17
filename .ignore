@@ -10,9 +10,7 @@ pnpm-lock.yaml
 
 # IDE/OS
 .DS_Store
-.vscode/
 
 # Logs / binary assets
 .claude/**/*.jsonl
-resources/
 *.png
