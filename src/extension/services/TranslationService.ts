@@ -1,6 +1,6 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { TRANSLATE_LANGS } from '../../shared/types';
+import { TRANSLATE_LANGS, type TranslateResult } from '../../shared/types';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile } from '../utils/jsonFile';
 import { hashShort } from '../utils/crypto';
@@ -25,13 +25,6 @@ interface TranslationCache {
   version: 1;
   entries: Record<string, Record<string, string>>;
   // entries[targetLang][hash] = translated
-}
-
-/** translate() 回傳結構 */
-export interface TranslateResult {
-  translations: Record<string, string>;
-  /** API quota 耗盡等警告訊息 */
-  warning?: string;
 }
 
 /**

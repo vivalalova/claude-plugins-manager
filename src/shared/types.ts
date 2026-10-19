@@ -344,3 +344,10 @@ export interface SkillSearchResult {
   installs?: string;
   url?: string;
 }
+
+/** translate() 回傳結構 */
+export interface TranslateResult {
+  translations: Record<string, string>;
+  /** API quota 耗盡等警告訊息 */
+  warning?: string;
+}

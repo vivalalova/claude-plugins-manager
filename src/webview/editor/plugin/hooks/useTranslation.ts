@@ -1,8 +1,7 @@
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { sendRequest, getViewState, setViewState, setGlobalState, initGlobalState } from '../../../vscode';
 import { collectPluginTexts, computeTranslateFingerprint, runConcurrent } from '../translateUtils';
-import type { TranslateResult } from '../../../../extension/services/TranslationService';
-import type { MergedPlugin } from '../../../../shared/types';
+import type { MergedPlugin, TranslateResult } from '../../../../shared/types';
 
 const TRANSLATE_LANG_KEY = 'plugin.translateLang';
 const TRANSLATE_EMAIL_KEY = 'plugin.translateEmail';
