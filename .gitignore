@@ -13,3 +13,4 @@ claude-code-settings-schema.json
 .claude/settings.json
 .agents/session-learning/.hook-debug.log
 .claude/rules/shared
+.claude/tmp/
