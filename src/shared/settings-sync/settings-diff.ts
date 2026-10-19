@@ -122,7 +122,7 @@ function parseSettingsReferenceDocs(md: string): ParsedSettingsDocs {
       cells[2].toLowerCase() === 'topic' &&
       cells[3].toLowerCase() === 'scope' &&
       normalizedTableCells(lines[index + 1]).length === 4 &&
-      normalizedTableCells(lines[index + 1]).every((cell) => /^:?-{3,}:?$/.test(cell))
+      normalizedTableCells(lines[index + 1]).every((cell) => /^:?-+:?$/.test(cell))
     ) {
       headerIndex = index;
       break;
@@ -262,13 +262,10 @@ export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
   'permissionExplainerEnabled', // docs: Removed in v2.1.257
   'teammateDefaultModel',       // docs: Removed in v2.1.234
   'policyHelper',             // "Only honored from MDM" — no bracket marker
-  'ultracode',                // session-only, not read from settings.json
   'autoDreamEnabled',         // undocumented
   'skipWorkflowUsageWarning', // undocumented
-  'skipAutoPermissionPrompt', // undocumented
   'requiredMinimumVersion',   // "Managed settings only." text (not bracket)
   'requiredMaximumVersion',   // "Managed settings only." text (not bracket)
-  'enforceAvailableModels',   // effectively managed-only
   'forceLoginGatewayUrl',     // managed-only: honored only at the managed policy tier
   'browserExternalPageTools',
   'disableBrowserExternalNavigation',
@@ -323,6 +320,8 @@ export const KNOWN_REPO_ONLY: ReadonlySet<string> = new Set([
   // is repo-only. Verified 2026-07-21 against
   // https://code.claude.com/docs/en/settings.md.
   'classifyAllShell',
+  // docs lists only `permissions.blockReadsOutsideWorkingDirectories` — bare form is repo-only.
+  'blockReadsOutsideWorkingDirectories',
   // docs lists only the prefixed form `remote.defaultEnvironmentId` in
   // "### Available settings" — bare form is repo-only. Verified 2026-07-30
   // against https://code.claude.com/docs/en/settings.md.
@@ -368,7 +367,22 @@ export const KNOWN_ENV_REPO_ONLY: ReadonlySet<string> = new Set([
 export function parseEnvDocs(md: string): { keys: Set<string>; descriptions: Map<string, string> } {
   const keys = new Set<string>();
   const descriptions = new Map<string, string>();
-  for (const line of md.split('\n')) {
+  const lines = md.split('\n');
+  // Rows of headed tables count only when the first header cell is `Variable`; other tables quote example names.
+  let inOtherTable = false;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (!line.trim().startsWith('|')) {
+      inOtherTable = false;
+      continue;
+    }
+    const next = lines[index + 1] ?? '';
+    const nextCells = normalizedTableCells(next);
+    if (next.trim().startsWith('|') && nextCells.length > 0 && nextCells.every((cell) => /^:?-+:?$/.test(cell))) {
+      inOtherTable = normalizedTableCells(line)[0]?.toLowerCase() !== 'variable';
+      continue;
+    }
+    if (inOtherTable) continue;
     const m = ENV_VAR_ROW_RE.exec(line);
     if (m) {
       keys.add(m[1]);

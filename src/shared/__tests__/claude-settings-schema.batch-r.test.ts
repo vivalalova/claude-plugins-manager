@@ -34,11 +34,9 @@ describe('批次 R — 新 scalar setting keys 的 flat schema entry（先紅）
     expect(flat['emojiCompletionEnabled']?.nestedUnder).toBeUndefined();
   });
 
-  it('switchModelsOnFlag：general section、default true、boolean control', () => {
-    expect(flat['switchModelsOnFlag']).toMatchObject({
-      section: 'general',
-      default: true,
-    });
+  it('switchModelsOnFlag：general section、無 default（docs：unset 可能先詢問，不等於 true）', () => {
+    expect(flat['switchModelsOnFlag']).toMatchObject({ section: 'general' });
+    expect(flat['switchModelsOnFlag']?.default).toBeUndefined();
     expect(flat['switchModelsOnFlag']?.nestedUnder).toBeUndefined();
   });
 

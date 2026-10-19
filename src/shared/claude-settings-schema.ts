@@ -307,6 +307,7 @@ function recordField<
 
 const DEFAULT_MODE_OPTIONS = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions', 'manual'] as const;
 const EFFORT_LEVEL_OPTIONS = ['xhigh', 'high', 'medium', 'low'] as const;
+const MAX_EFFORT_LEVEL_OPTIONS = ['max', 'xhigh', 'high', 'medium', 'low'] as const;
 const UPDATE_CHANNEL_OPTIONS = ['stable', 'latest'] as const;
 const TEAMMATE_MODE_OPTIONS = ['auto', 'in-process', 'tmux', 'iterm2'] as const;
 const VIEW_MODE_OPTIONS = ['default', 'verbose', 'focus'] as const;
@@ -412,6 +413,7 @@ export const HOOK_COMMAND_SCHEMA = unionValue(
 
 const DEFAULT_MODE_VALUE_SCHEMA = stringValue(DEFAULT_MODE_OPTIONS);
 const EFFORT_LEVEL_VALUE_SCHEMA = stringValue(EFFORT_LEVEL_OPTIONS);
+const MAX_EFFORT_LEVEL_VALUE_SCHEMA = stringValue(MAX_EFFORT_LEVEL_OPTIONS);
 const UPDATE_CHANNEL_VALUE_SCHEMA = stringValue(UPDATE_CHANNEL_OPTIONS);
 const TEAMMATE_MODE_VALUE_SCHEMA = stringValue(TEAMMATE_MODE_OPTIONS);
 const VIEW_MODE_VALUE_SCHEMA = stringValue(VIEW_MODE_OPTIONS);
@@ -575,6 +577,7 @@ const WORKTREE_VALUE_SCHEMA = objectValue({
   symlinkDirectories: optional(STRING_ARRAY_SCHEMA),
   baseRef: optional(WORKTREE_BASE_REF_VALUE_SCHEMA),
   bgIsolation: optional(WORKTREE_BG_ISOLATION_VALUE_SCHEMA),
+  location: optional(STRING_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
 });
 
 const AUTO_MODE_VALUE_SCHEMA = objectValue({
@@ -610,6 +613,7 @@ const PERMISSIONS_VALUE_SCHEMA = objectValue({
   ask: optional(STRING_ARRAY_SCHEMA),
   defaultMode: optional(DEFAULT_MODE_VALUE_SCHEMA),
   disableBypassPermissionsMode: optional(DISABLE_ONLY_VALUE_SCHEMA),
+  blockReadsOutsideWorkingDirectories: optional(booleanValue()),
   disableAutoMode: optional(DISABLE_ONLY_VALUE_SCHEMA),
   additionalDirectories: optional(STRING_ARRAY_SCHEMA),
 });
@@ -638,19 +642,22 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Model & reasoning
     stringField('model'),
     arrayField('availableModels', STRING_SCHEMA),
+    booleanField('enforceAvailableModels', { default: false }),
     createField('modelPicker', MODEL_PICKER_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     createField('modelSettings', MODEL_SETTINGS_VALUE_SCHEMA),
     createField('promptCacheTtl', stringValue(PROMPT_CACHE_TTL_OPTIONS)),
     createField('subagentPromptCacheTtl', stringValue(PROMPT_CACHE_TTL_OPTIONS)),
     stringField('advisorModel'),
     arrayField('fallbackModel', STRING_SCHEMA),
-    booleanField('switchModelsOnFlag', { default: true }),
+    booleanField('switchModelsOnFlag'),
     createField('effortLevel', EFFORT_LEVEL_VALUE_SCHEMA),
+    createField('maxEffortLevel', MAX_EFFORT_LEVEL_VALUE_SCHEMA),
     booleanField('fastMode', { default: false }),
     booleanField('fastModePerSessionOptIn', { default: false }),
     stringField('agent'),
     stringField('outputStyle'),
     createField('workflowSizeGuideline', WORKFLOW_SIZE_GUIDELINE_VALUE_SCHEMA),
+    booleanField('ultracode'),
     booleanField('alwaysThinkingEnabled', { default: true }),
     // Permission mode
     createField('defaultMode', DEFAULT_MODE_VALUE_SCHEMA, {
@@ -669,6 +676,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('autoConnectIde', { default: false, storageFile: 'globalConfig' }),
     booleanField('autoInstallIdeExtension', { default: true, storageFile: 'globalConfig' }),
     createField('diffTool', DIFF_TOOL_VALUE_SCHEMA, { default: 'auto', storageFile: 'globalConfig' }),
+    booleanField('claudeInChromeDefaultEnabled', { storageFile: 'globalConfig' }),
     // Updates & maintenance
     createField('autoUpdatesChannel', UPDATE_CHANNEL_VALUE_SCHEMA, { default: 'latest' }),
     stringField('minimumVersion'),
@@ -678,6 +686,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('autoContinueAtUsageLimit', { default: true, effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('autoCompactEnabled', { default: true }),
     createField('autoCompactWindow', AUTO_COMPACT_WINDOW_VALUE_SCHEMA),
+    booleanField('idleCompaction', { default: true }),
     createField('dialogExpiry', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: '5m', effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('fileCheckpointingEnabled', { default: true }),
   ],
@@ -686,6 +695,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Rendering & view
     createField('viewMode', VIEW_MODE_VALUE_SCHEMA),
     createField('tui', TUI_VALUE_SCHEMA),
+    createField('maxProseWidth', numberValue({ min: 40, step: 1 })),
     createField('theme', THEME_VALUE_SCHEMA, { default: 'dark', globalConfigFallback: true }),
     stringField('timeFormat', { default: 'auto' }),
     stringField('timeZone'),
@@ -704,6 +714,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     // Spinner & progress
     booleanField('spinnerTipsEnabled', { default: true }),
     booleanField('terminalProgressBarEnabled', { default: true, globalConfigFallback: true }),
+    booleanField('prStatusFooterEnabled', { default: true, storageFile: 'globalConfig' }),
     createField('spinnerVerbs', SPINNER_VERBS_VALUE_SCHEMA),
     createField('spinnerTipsOverride', SPINNER_TIPS_OVERRIDE_VALUE_SCHEMA),
     // Notifications
@@ -714,6 +725,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('editorMode', EDITOR_MODE_VALUE_SCHEMA, { default: 'normal' }),
     createField('vimInsertModeRemaps', STRING_RECORD_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('externalEditorContext', { default: false, storageFile: 'globalConfig' }),
+    booleanField('copyFullResponse', { default: false, storageFile: 'globalConfig' }),
+    booleanField('copyOnSelect', { default: true, storageFile: 'globalConfig' }),
     booleanField('emojiCompletionEnabled', { default: true }),
     createField('voice', VOICE_VALUE_SCHEMA),
     createField('askUserQuestionTimeout', DIALOG_TIMEOUT_VALUE_SCHEMA, { default: 'never', effectiveScopes: USER_SCOPE_ONLY }),
@@ -721,6 +734,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('spellcheck', SPELLCHECK_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     // Agent teammates
     createField('teammateMode', TEAMMATE_MODE_VALUE_SCHEMA, { default: 'in-process', globalConfigFallback: true }),
+    booleanField('defaultToAgentsView', { default: false, storageFile: 'globalConfig' }),
+    booleanField('leftArrowOpensAgents', { default: true, storageFile: 'globalConfig' }),
     createField('crossSessionInbound', CROSS_SESSION_INBOUND_VALUE_SCHEMA),
   ],
 
@@ -735,6 +750,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
       nestedUnder: 'permissions',
     }),
     booleanField('skipDangerousModePermissionPrompt', { default: false, effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('skipAutoPermissionPrompt', { effectiveScopes: USER_SCOPE_ONLY }),
+    booleanField('blockReadsOutsideWorkingDirectories', { nestedUnder: 'permissions' }),
     booleanField('useAutoModeDuringPlan', { default: true, effectiveScopes: USER_AND_LOCAL_SCOPES }),
     booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false, effectiveScopes: USER_SCOPE_ONLY }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),
@@ -778,6 +795,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
     booleanField('disableSkillShellExecution', { default: false }),
     booleanField('syncClaudeAiSkills', { effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('syncClaudeAiPlugins', { effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    arrayField('prependPlugins', STRING_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
+    arrayField('appendPlugins', STRING_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     // Sessions & execution
     createField('worktree', WORKTREE_VALUE_SCHEMA),
     createField('autoMode', AUTO_MODE_VALUE_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
@@ -787,6 +807,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('plansDirectory', { default: '~/.claude/plans' }),
     createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
     stringField('processWrapper', { effectiveScopes: USER_SCOPE_ONLY }),
+    createField('bashOutputMaxChars', numberValue({ min: 4000, max: 128000, step: 1 })),
+    booleanField('bashEditDiffEnabled', { effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('isolatePeerMachines'),
     // Sandbox
     createField('sandbox', SANDBOX_VALUE_SCHEMA),

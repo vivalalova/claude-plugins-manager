@@ -270,6 +270,7 @@ export type ScopeDrift = {
 /** Index Scope → expected `effectiveScopes`; `null` = not compared (Managed／Global config). */
 const DOCS_SCOPE_TO_EFFECTIVE: ReadonlyMap<string, readonly EffectiveScope[] | undefined | null> = new Map([
   ['Any file', undefined],
+  ['User', USER_SCOPE_ONLY],
   ['User or managed', USER_SCOPE_ONLY],
   ['User, local, or managed', USER_AND_LOCAL_SCOPES],
   ['Managed', null],

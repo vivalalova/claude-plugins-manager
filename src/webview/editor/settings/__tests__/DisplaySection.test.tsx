@@ -81,11 +81,11 @@ describe('DisplaySection — 渲染', () => {
     });
   });
 
-  it('顯示 22 個 checkbox（#27 移除 2 個後剩 20，#29 voice 結構化編輯器加 enabled／autoSubmit 2 個）', async () => {
+  it('顯示 27 個 checkbox（#27 移除 2 個後剩 20，#29 voice 加 2 個，2026-10 同步加 5 個 globalConfig boolean）', async () => {
     renderSection();
     await waitFor(() => {
       const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes.length).toBe(22);
+      expect(checkboxes.length).toBe(27);
     });
   });
 

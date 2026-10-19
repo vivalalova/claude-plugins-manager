@@ -47,12 +47,13 @@ function sortedArray(s: string[]): string[] {
   return [...s].sort();
 }
 
-// ─── A. Core gate: exactly the 21 expected gaps ───────────────────────────────
+// ─── A. Core gate: exactly the 22 expected gaps ───────────────────────────────
 
 // #27：disableArtifact 進 KNOWN_EXCLUDED（docs 標 Deprecated，不再是首方 settings 頁面設定），
 // 21 → 20；frozen 快照本身不動（disableArtifact 仍不在快照裡，只是現在被排除不算 gap）。
-const EXPECTED_20 = [
-  // Top-level (17)
+// 2026-10：ultracode／enforceAvailableModels 經 live docs 確認是一般 settings key，移出 KNOWN_EXCLUDED，20 → 22。
+const EXPECTED_22 = [
+  // Top-level (19)
   'advisorModel',
   'agentPushNotifEnabled',
   'autoCompactEnabled',
@@ -60,6 +61,7 @@ const EXPECTED_20 = [
   'disableBundledSkills',
   'disableClaudeAiConnectors',
   'disableWorkflows',
+  'enforceAvailableModels',
   'fallbackModel',
   'fileCheckpointingEnabled',
   'footerLinksRegexes',
@@ -67,6 +69,7 @@ const EXPECTED_20 = [
   'remoteControlAtStartup',
   'respondToBashCommands',
   'theme',
+  'ultracode',
   'verbose',
   'wheelScrollAccelerationEnabled',
   'workflowKeywordTriggerEnabled',
@@ -76,11 +79,11 @@ const EXPECTED_20 = [
   'sandbox.credentials.files',
 ].sort();
 
-describe('settings-diff — core gate: 20 gap', () => {
-  it('diffKeys with frozen snapshot produces exactly the 20 expected gaps', () => {
+describe('settings-diff — core gate: 22 gap', () => {
+  it('diffKeys with frozen snapshot produces exactly the 22 expected gaps', () => {
     const docsKeys = parseSettingsDocs(settingsMd).keys;
     const { missing } = diffKeys(docsKeys, SNAPSHOT_KEYS, KNOWN_EXCLUDED);
-    expect(sortedArray(missing)).toEqual(EXPECTED_20);
+    expect(sortedArray(missing)).toEqual(EXPECTED_22);
   });
 
   // Verify each nested gap key individually (they are easy to get wrong)
@@ -135,20 +138,20 @@ describe('settings-diff — corruption detection (these prove the gate is sensit
     const docsKeys = parseSettingsDocs(settingsMd).keys;
     const { missing } = diffKeys(docsKeys, corruptedSnapshot, KNOWN_EXCLUDED);
 
-    // Now 21 gaps (20 genuine + 1 introduced)
-    expect(missing.length).toBe(21);
+    // Now 23 gaps (22 genuine + 1 introduced)
+    expect(missing.length).toBe(23);
     expect(missing).toContain('attribution.pr');
   });
 
-  it('removing a different existing repo key makes the count 21 and includes that key', () => {
-    // Use a clearly non-gap key: "model" (in repo, not in EXPECTED_20)
+  it('removing a different existing repo key makes the count 23 and includes that key', () => {
+    // Use a clearly non-gap key: "model" (in repo, not in EXPECTED_22)
     const corruptedSnapshot = new Set(SNAPSHOT_KEYS);
     corruptedSnapshot.delete('model');
 
     const docsKeys = parseSettingsDocs(settingsMd).keys;
     const { missing } = diffKeys(docsKeys, corruptedSnapshot, KNOWN_EXCLUDED);
 
-    expect(missing.length).toBe(21);
+    expect(missing.length).toBe(23);
     expect(missing).toContain('model');
   });
 
@@ -164,9 +167,9 @@ describe('settings-diff — corruption detection (these prove the gate is sensit
     expect(docsKeys.has('advisorModel')).toBe(false);
 
     const { missing } = diffKeys(docsKeys, SNAPSHOT_KEYS, KNOWN_EXCLUDED);
-    // Now only 19 gaps (advisorModel no longer detected)
+    // Now only 21 gaps (advisorModel no longer detected)
     expect(missing).not.toContain('advisorModel');
-    expect(missing.length).toBe(19);
+    expect(missing.length).toBe(21);
   });
 });
 
@@ -295,6 +298,13 @@ describe('parseSettingsDocs — settings-reference.md All settings index', () =>
     expect(scopes.get('managedByScope')).toBe('Managed');
   });
 
+  it('accepts single-dash separator cells in the index header', () => {
+    const shortSeparator = settingsReferenceMd.replace('| :--- | :----------- | :--- | :---- |', '| :- | :- | :- | :- |');
+    expect(shortSeparator).not.toBe(settingsReferenceMd);
+
+    expect(parseSettingsDocs(shortSeparator, 'reference').keys).toEqual(parseSettingsDocs(settingsReferenceMd).keys);
+  });
+
   it('returns no keys when the index table is missing', () => {
     const missingTable = '## Settings index\n\nSettings are listed elsewhere.\n\n## Model and responses\n';
     const { keys } = parseSettingsDocs(missingTable);
@@ -313,13 +323,10 @@ describe('KNOWN_EXCLUDED constant', () => {
 
   it.each([
     'policyHelper',
-    'ultracode',
     'autoDreamEnabled',
     'skipWorkflowUsageWarning',
-    'skipAutoPermissionPrompt',
     'requiredMinimumVersion',
     'requiredMaximumVersion',
-    'enforceAvailableModels',
     'allowAllClaudeAiMcps',
     'allowedChannelPlugins',
     'sandbox.filesystem.allowManagedReadPathsOnly',
@@ -345,6 +352,19 @@ describe('parseEnvDocs', () => {
     // Verified count from fixture is ~277; allow some flex for docs changes
     expect(keys.size).toBeGreaterThanOrEqual(250);
     expect(keys.size).toBeLessThan(400);
+  });
+
+  it('ignores env-var-looking rows in tables that are not variable listings', () => {
+    const md = [
+      '| Variable | Purpose |',
+      '| :- | :- |',
+      '| `REAL_VAR` | Does something |',
+      '',
+      '| Example variable | What the scrub does |',
+      '| :- | :- |',
+      '| `NPM_TOKEN`, `DB_PASSWORD` | Removes it |',
+    ].join('\n');
+    expect(parseEnvDocs(md).keys).toEqual(new Set(['REAL_VAR']));
   });
 
   it('contains ANTHROPIC_API_KEY', () => {

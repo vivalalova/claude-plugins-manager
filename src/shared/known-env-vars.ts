@@ -79,6 +79,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'model',
   },
+  CLAUDE_CODE_AUTO_MODE_MODEL: {
+    name: 'CLAUDE_CODE_AUTO_MODE_MODEL',
+    valueType: String,
+    category: 'model',
+  },
   CLAUDE_CODE_SUBAGENT_MODEL_FORCE: {
     name: 'CLAUDE_CODE_SUBAGENT_MODEL_FORCE',
     valueType: String,
@@ -1454,11 +1459,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
-  CLAUDE_CODE_ENABLE_APPEND_SUBAGENT_PROMPT: {
-    name: 'CLAUDE_CODE_ENABLE_APPEND_SUBAGENT_PROMPT',
-    valueType: Boolean,
-    category: 'feature',
-  },
   CLAUDE_CODE_ENABLE_AUTO_MODE: {
     name: 'CLAUDE_CODE_ENABLE_AUTO_MODE',
     valueType: Boolean,
@@ -1945,6 +1945,238 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES',
     valueType: Boolean,
     category: 'telemetry',
+  },
+  CLAUDE_CODE_ARTIFACT_PUBLISH_EDITS: {
+    name: 'CLAUDE_CODE_ARTIFACT_PUBLISH_EDITS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_AUTO_MODE_SERVER: {
+    name: 'CLAUDE_CODE_AUTO_MODE_SERVER',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_BASH_EDIT_DIFF: {
+    name: 'CLAUDE_CODE_BASH_EDIT_DIFF',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_BG_TASKS_REPORT_RUNNING: {
+    name: 'CLAUDE_CODE_BG_TASKS_REPORT_RUNNING',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_AUTH_REFRESH_LOCK: {
+    name: 'CLAUDE_CODE_DISABLE_AUTH_REFRESH_LOCK',
+    valueType: Boolean,
+    category: 'auth',
+  },
+  CLAUDE_CODE_DISABLE_DANGEROUS_RM_TIMEOUT: {
+    name: 'CLAUDE_CODE_DISABLE_DANGEROUS_RM_TIMEOUT',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_DISABLE_FILE_MENTIONS: {
+    name: 'CLAUDE_CODE_DISABLE_FILE_MENTIONS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT: {
+    name: 'CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_DISABLE_MODEL_ACCESS_FALLBACK: {
+    name: 'CLAUDE_CODE_DISABLE_MODEL_ACCESS_FALLBACK',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_DISABLE_POWERSHELL_CMD_RM_DENY: {
+    name: 'CLAUDE_CODE_DISABLE_POWERSHELL_CMD_RM_DENY',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK: {
+    name: 'CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK',
+    valueType: Boolean,
+    category: 'model',
+  },
+  CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS: {
+    name: 'CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_DISABLE_SUBSTITUTION_RM_PROMPT: {
+    name: 'CLAUDE_CODE_DISABLE_SUBSTITUTION_RM_PROMPT',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_DISABLE_WEB_FETCH: {
+    name: 'CLAUDE_CODE_DISABLE_WEB_FETCH',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_WINDOWS_SHELL_LAUNCHER: {
+    name: 'CLAUDE_CODE_DISABLE_WINDOWS_SHELL_LAUNCHER',
+    valueType: Boolean,
+    category: 'shell',
+  },
+  CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: {
+    name: 'CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_CFC: {
+    name: 'CLAUDE_CODE_ENABLE_CFC',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_FORCE_TERMINAL_IMAGES: {
+    name: 'CLAUDE_CODE_FORCE_TERMINAL_IMAGES',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_GATEWAY_HINT_HEADERS: {
+    name: 'CLAUDE_CODE_GATEWAY_HINT_HEADERS',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_GATEWAY_MODEL_DISCOVERY_TIMEOUT_MS: {
+    name: 'CLAUDE_CODE_GATEWAY_MODEL_DISCOVERY_TIMEOUT_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '3000',
+  },
+  CLAUDE_CODE_GZIP_REQUEST_BODIES: {
+    name: 'CLAUDE_CODE_GZIP_REQUEST_BODIES',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: {
+    name: 'CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS',
+    valueType: Number,
+    category: 'limits',
+    default: '200000',
+  },
+  CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH: {
+    name: 'CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH',
+    valueType: Number,
+    category: 'limits',
+  },
+  CLAUDE_CODE_MCP_STARTUP_WAIT_MS: {
+    name: 'CLAUDE_CODE_MCP_STARTUP_WAIT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_NONBLOCKING_STDOUT: {
+    name: 'CLAUDE_CODE_NONBLOCKING_STDOUT',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES: {
+    name: 'CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES',
+    valueType: Number,
+    category: 'limits',
+  },
+  CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS: {
+    name: 'CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '500',
+  },
+  CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS: {
+    name: 'CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '32000',
+  },
+  CLAUDE_CODE_PLUGIN_DIRS: {
+    name: 'CLAUDE_CODE_PLUGIN_DIRS',
+    valueType: String,
+    category: 'feature',
+  },
+  CLAUDE_CODE_PLUGIN_DIR_WATCH: {
+    name: 'CLAUDE_CODE_PLUGIN_DIR_WATCH',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS: {
+    name: 'CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_SKIP_MODEL_ACCESS_MEMORY: {
+    name: 'CLAUDE_CODE_SKIP_MODEL_ACCESS_MEMORY',
+    valueType: Boolean,
+    category: 'provider',
+  },
+  CLAUDE_CODE_STARTUP_FAILURE_RESULTS: {
+    name: 'CLAUDE_CODE_STARTUP_FAILURE_RESULTS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_TRANSCRIPT_LOCAL_GC: {
+    name: 'CLAUDE_CODE_TRANSCRIPT_LOCAL_GC',
+    valueType: Boolean,
+    category: 'limits',
+  },
+  CLAUDE_CODE_WEBFETCH_DEADLINE_MS: {
+    name: 'CLAUDE_CODE_WEBFETCH_DEADLINE_MS',
+    valueType: Number,
+    category: 'timeout',
+    default: '300000',
+  },
+  CLAUDE_CODE_WEB_SEARCH_REFILLS_PER_HOUR: {
+    name: 'CLAUDE_CODE_WEB_SEARCH_REFILLS_PER_HOUR',
+    valueType: Number,
+    category: 'limits',
+    default: '100',
+  },
+  CLAUDE_CODE_WORKER_CHECKIN_SCHEDULE: {
+    name: 'CLAUDE_CODE_WORKER_CHECKIN_SCHEDULE',
+    valueType: String,
+    category: 'feature',
+  },
+  CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS: {
+    name: 'CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS',
+    valueType: Number,
+    category: 'limits',
+  },
+  CLAUDE_CODE_YOU_SHOULD_KNOW_DEBUG: {
+    name: 'CLAUDE_CODE_YOU_SHOULD_KNOW_DEBUG',
+    valueType: Boolean,
+    category: 'ui',
+  },
+  OTEL_LOG_MANAGED_SETTINGS: {
+    name: 'OTEL_LOG_MANAGED_SETTINGS',
+    valueType: Boolean,
+    category: 'telemetry',
+    default: '0',
+  },
+  OTEL_METRICS_INCLUDE_REPOSITORY: {
+    name: 'OTEL_METRICS_INCLUDE_REPOSITORY',
+    valueType: Boolean,
+    category: 'telemetry',
+  },
+  VERTEX_REGION_CLAUDE_5_5_OPUS: {
+    name: 'VERTEX_REGION_CLAUDE_5_5_OPUS',
+    valueType: String,
+    category: 'provider',
+  },
+  VERTEX_REGION_CLAUDE_5_5_SONNET: {
+    name: 'VERTEX_REGION_CLAUDE_5_5_SONNET',
+    valueType: String,
+    category: 'provider',
+  },
+  VERTEX_REGION_CLAUDE_HAIKU_5_5: {
+    name: 'VERTEX_REGION_CLAUDE_HAIKU_5_5',
+    valueType: String,
+    category: 'provider',
+  },
+  CLAUDE_JOB_DIR: {
+    name: 'CLAUDE_JOB_DIR',
+    valueType: String,
+    category: 'shell',
   },
 };
 

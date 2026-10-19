@@ -8,7 +8,7 @@
 
 - `env` → `EnvSection`
 - `hooks`、`disableAllHooks`、`httpHookAllowedEnvVars`、`allowedHttpHookUrls` → `HooksSection`
-- `permissions`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers`、`allowedMcpServers`、`deniedMcpServers`、`disableAutoMode`、`skipDangerousModePermissionPrompt`、`useAutoModeDuringPlan` → `PermissionsSection`
+- `permissions`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers`、`allowedMcpServers`、`deniedMcpServers`、`disableAutoMode`、`skipDangerousModePermissionPrompt`、`skipAutoPermissionPrompt`、`useAutoModeDuringPlan`、`blockReadsOutsideWorkingDirectories` → `PermissionsSection`
 - model / effort / agent / language / availableModels / memory / git behavior / IDE connect / updates / cleanup / `defaultMode`（schema-driven，nestedUnder permissions）→ `GeneralSection`
 - view / spinner / progress / notifications / input / editor / teammate → `DisplaySection`
 - anti-direction key（見下方）→ `AdvancedSection`
@@ -52,7 +52,7 @@ Schema 中存在但**不納入** settings UI 的 key：
 
 | Category | Keys | 原因 |
 |----------|------|------|
-| managed-only | 索引 Scope=`Managed` 者由 CLI 自動排除，不列；Scope 未標但實質 managed-only 的（如 `enforceAvailableModels`）見 `KNOWN_EXCLUDED` | 企業管理員專用，不做 first-party UI |
+| managed-only | 索引 Scope=`Managed` 者由 CLI 自動排除，不列；Scope 未標但實質 managed-only 的（如 `requiredMinimumVersion`）見 `KNOWN_EXCLUDED` | 企業管理員專用，不做 first-party UI |
 | plugin-internal | `enabledPlugins`、`extraKnownMarketplaces`、`skippedMarketplaces`、`skippedPlugins`、`pluginConfigs` | 由 extension plugin/marketplace UI 管理 |
 | deprecated | `includeCoAuthoredBy`、`keybindingFlavor`、`voiceEnabled`、`disableArtifact`、`permissionExplainerEnabled`、`teammateDefaultModel` | docs 標 Deprecated／Removed in（已被取代或已無作用） |
 | meta | `$schema` | JSON schema 參照，非設定值 |

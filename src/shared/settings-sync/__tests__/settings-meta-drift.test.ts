@@ -246,6 +246,23 @@ describe('diffScopes', () => {
     expect(diffScopes(schemas, scopes)).toEqual([]);
   });
 
+  it('docs Scope `User`（如 worktree.location）對應 user-only：登錄 user → 無漂移，未登錄 → mismatch', () => {
+    const scopes = new Map([['worktree.location', 'User']]);
+    const withScope = (effectiveScopes?: typeof USER_ONLY): Record<string, FlatFieldSchema> => ({
+      worktree: field({
+        valueSchema: {
+          kind: 'object',
+          properties: { location: { schema: { kind: 'string' }, optional: true, ...(effectiveScopes ? { effectiveScopes } : {}) } },
+        },
+      }),
+    });
+
+    expect(diffScopes(withScope(USER_ONLY), scopes)).toEqual([]);
+    expect(diffScopes(withScope(), scopes)).toEqual([
+      { key: 'worktree.location', docsScope: 'User', repoEffectiveScopes: undefined, kind: 'mismatch' },
+    ]);
+  });
+
   it('登錄比 docs 更寬（多登了 local）→ mismatch', () => {
     const scopes = new Map([['dialogExpiry', 'User or managed']]);
     const schemas: Record<string, FlatFieldSchema> = {

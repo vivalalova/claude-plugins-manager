@@ -5,7 +5,7 @@
  *
  * 涵蓋：
  *   - emojiCompletionEnabled（display, boolean, default true）
- *   - switchModelsOnFlag（general, boolean, default true）
+ *   - switchModelsOnFlag（general, boolean, 無 default：docs 寫 unset 時可能先詢問，不等於 true）
  *   - defaultEnvironmentId（advanced, string, nestedUnder 'remote'）
  *
  * 定位控件走 key hint 文字（`(key: default)`）而非 label 文案：文案由執行者決定，
@@ -121,26 +121,27 @@ describe('批次 R — emojiCompletionEnabled（display section，先紅）', ()
 });
 
 // ---------------------------------------------------------------------------
-// switchModelsOnFlag — general / boolean / default true
+// switchModelsOnFlag — general / boolean / 無 default
+// docs Default：unset 時自動切換，但互動 session 可能先詢問並把選擇存成此 key → 與 true 不等價。
 // ---------------------------------------------------------------------------
 
-describe('批次 R — switchModelsOnFlag（general section，先紅）', () => {
-  const HINT = '(switchModelsOnFlag: true)';
+describe('批次 R — switchModelsOnFlag（general section）', () => {
+  const HINT = '(switchModelsOnFlag)';
 
-  it('在 general section render 出控件，並顯示 default true 的 key hint', async () => {
+  it('在 general section render 出控件，key hint 不帶 default', async () => {
     renderSection(GeneralSection);
     await waitFor(() => expect(screen.getByText(HINT)).toBeTruthy());
   });
 
-  it('未設定 → checkbox checked（反映 default true）', async () => {
+  it('未設定 → checkbox 未勾', async () => {
     renderSection(GeneralSection);
     await waitFor(() => {
       const cb = within(fieldByKeyHint(HINT)).getByRole('checkbox') as HTMLInputElement;
-      expect(cb.checked).toBe(true);
+      expect(cb.checked).toBe(false);
     });
   });
 
-  it('未設定, toggle off → onSave("switchModelsOnFlag", false)', async () => {
+  it('未設定, toggle on → onSave("switchModelsOnFlag", true)（明確寫 true，不留 unset）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection(GeneralSection, {}, onSave, onDelete);
@@ -149,22 +150,22 @@ describe('批次 R — switchModelsOnFlag（general section，先紅）', () => 
     fireEvent.click(within(fieldByKeyHint(HINT)).getByRole('checkbox'));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('switchModelsOnFlag', false);
+      expect(onSave).toHaveBeenCalledWith('switchModelsOnFlag', true);
       expect(onDelete).not.toHaveBeenCalled();
     });
   });
 
-  it('=false, toggle on → onDelete("switchModelsOnFlag")', async () => {
+  it('=true, toggle off → onSave("switchModelsOnFlag", false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
-    renderSection(GeneralSection, { switchModelsOnFlag: false }, onSave, onDelete);
+    renderSection(GeneralSection, { switchModelsOnFlag: true }, onSave, onDelete);
 
     await waitFor(() => screen.getByText(HINT));
     fireEvent.click(within(fieldByKeyHint(HINT)).getByRole('checkbox'));
 
     await waitFor(() => {
-      expect(onDelete).toHaveBeenCalledWith('switchModelsOnFlag');
-      expect(onSave).not.toHaveBeenCalled();
+      expect(onSave).toHaveBeenCalledWith('switchModelsOnFlag', false);
+      expect(onDelete).not.toHaveBeenCalled();
     });
   });
 });

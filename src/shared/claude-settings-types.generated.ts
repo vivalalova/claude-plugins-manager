@@ -49,6 +49,7 @@ export type HookCommand = {
 export interface ClaudeSettings {
   model?: string;
   availableModels?: string[];
+  enforceAvailableModels?: boolean;
   modelPicker?: {
     options: {
       model: string;
@@ -66,11 +67,13 @@ export interface ClaudeSettings {
   fallbackModel?: string[];
   switchModelsOnFlag?: boolean;
   effortLevel?: "xhigh" | "high" | "medium" | "low";
+  maxEffortLevel?: "max" | "xhigh" | "high" | "medium" | "low";
   fastMode?: boolean;
   fastModePerSessionOptIn?: boolean;
   agent?: string;
   outputStyle?: string;
   workflowSizeGuideline?: "unrestricted" | "small" | "medium" | "large";
+  ultracode?: boolean;
   alwaysThinkingEnabled?: boolean;
   language?: string;
   autoMemoryEnabled?: boolean;
@@ -80,6 +83,7 @@ export interface ClaudeSettings {
   autoConnectIde?: boolean;
   autoInstallIdeExtension?: boolean;
   diffTool?: "auto" | "terminal";
+  claudeInChromeDefaultEnabled?: boolean;
   autoUpdatesChannel?: "stable" | "latest";
   minimumVersion?: string;
   cleanupPeriodDays?: number;
@@ -87,10 +91,12 @@ export interface ClaudeSettings {
   autoContinueAtUsageLimit?: boolean;
   autoCompactEnabled?: boolean;
   autoCompactWindow?: number;
+  idleCompaction?: boolean;
   dialogExpiry?: "60s" | "5m" | "10m" | "never";
   fileCheckpointingEnabled?: boolean;
   viewMode?: "default" | "verbose" | "focus";
   tui?: "fullscreen" | "default";
+  maxProseWidth?: number;
   theme?: "auto" | "dark" | "light" | "dark-daltonized" | "light-daltonized" | "dark-ansi" | "light-ansi";
   timeFormat?: string;
   timeZone?: string;
@@ -107,6 +113,7 @@ export interface ClaudeSettings {
   awaySummaryEnabled?: boolean;
   spinnerTipsEnabled?: boolean;
   terminalProgressBarEnabled?: boolean;
+  prStatusFooterEnabled?: boolean;
   spinnerVerbs?: {
     mode?: "append" | "replace";
     verbs: string[];
@@ -121,6 +128,8 @@ export interface ClaudeSettings {
   editorMode?: "normal" | "vim";
   vimInsertModeRemaps?: Record<string, string>;
   externalEditorContext?: boolean;
+  copyFullResponse?: boolean;
+  copyOnSelect?: boolean;
   emojiCompletionEnabled?: boolean;
   voice?: {
     enabled?: boolean;
@@ -136,11 +145,14 @@ export interface ClaudeSettings {
     color?: string;
   };
   teammateMode?: "auto" | "in-process" | "tmux" | "iterm2";
+  defaultToAgentsView?: boolean;
+  leftArrowOpensAgents?: boolean;
   crossSessionInbound?: "accept" | "hold" | "refuse";
   enableAllProjectMcpServers?: boolean;
   enabledMcpjsonServers?: string[];
   disabledMcpjsonServers?: string[];
   skipDangerousModePermissionPrompt?: boolean;
+  skipAutoPermissionPrompt?: boolean;
   useAutoModeDuringPlan?: boolean;
   permissions?: {
     allow?: string[];
@@ -148,6 +160,7 @@ export interface ClaudeSettings {
     ask?: string[];
     defaultMode?: "default" | "acceptEdits" | "plan" | "auto" | "dontAsk" | "bypassPermissions" | "manual";
     disableBypassPermissionsMode?: "disable";
+    blockReadsOutsideWorkingDirectories?: boolean;
     disableAutoMode?: "disable";
     additionalDirectories?: string[];
   };
@@ -249,11 +262,15 @@ export interface ClaudeSettings {
   skillListingBudgetFraction?: number;
   disableSkillShellExecution?: boolean;
   syncClaudeAiSkills?: boolean;
+  syncClaudeAiPlugins?: boolean;
+  prependPlugins?: string[];
+  appendPlugins?: string[];
   worktree?: {
     sparsePaths?: string[];
     symlinkDirectories?: string[];
     baseRef?: "fresh" | "head";
     bgIsolation?: "worktree" | "none";
+    location?: string;
   };
   autoMode?: {
     environment?: string[];
@@ -276,6 +293,8 @@ export interface ClaudeSettings {
     startDirectory?: string;
   }[];
   processWrapper?: string;
+  bashOutputMaxChars?: number;
+  bashEditDiffEnabled?: boolean;
   isolatePeerMachines?: boolean;
   sandbox?: {
     enabled?: boolean;

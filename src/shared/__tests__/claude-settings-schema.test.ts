@@ -252,6 +252,14 @@ describe('getSchemaDefault', () => {
     'enableWorkflows',
     'syncClaudeAiSkills',
     'remoteControlAtStartup',
+    // 2026-10 settings-reference.md Default 寫 unset 且 unset 與 false／true 不等價（或只寫 unset）。
+    'switchModelsOnFlag',
+    'ultracode',
+    'skipAutoPermissionPrompt',
+    'claudeInChromeDefaultEnabled',
+    'blockReadsOutsideWorkingDirectories',
+    'bashEditDiffEnabled',
+    'syncClaudeAiPlugins',
   ]);
 
   it('所有 Boolean entry 都有 default 值（documented dynamic-default keys 除外）', () => {
@@ -277,16 +285,23 @@ describe('getGlobalConfigSettingKeys', () => {
   // 依官方文件應存在 ~/.claude.json（頂層 key）而非 settings.json 的 key。
   // workflowSizeGuideline 依 #25 拍板 P3 移出（docs Scope 為 Any file，改存 settings 檔），7 → 6。
   // permissionExplainerEnabled／teammateDefaultModel 依 #27（docs 標 Removed in）整組移出 schema，6 → 4。
+  // 2026-10 同步新增 6 個 docs Scope 為 Global config 的 key，4 → 10。
   const EXPECTED_GLOBAL_CONFIG_KEYS = [
     'autoConnectIde',
     'autoInstallIdeExtension',
+    'claudeInChromeDefaultEnabled',
+    'copyFullResponse',
+    'copyOnSelect',
+    'defaultToAgentsView',
     'diffTool',
     'externalEditorContext',
+    'leftArrowOpensAgents',
+    'prStatusFooterEnabled',
   ];
 
-  it('回傳精確 4 個 key（排序後比對，防止漏標或多標）', () => {
+  it('回傳精確 10 個 key（排序後比對，防止漏標或多標）', () => {
     const keys = getGlobalConfigSettingKeys();
-    expect(keys.length).toBe(4);
+    expect(keys.length).toBe(10);
     expect([...keys].sort()).toEqual([...EXPECTED_GLOBAL_CONFIG_KEYS].sort());
   });
 

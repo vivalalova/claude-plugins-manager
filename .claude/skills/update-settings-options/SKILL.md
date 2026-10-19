@@ -62,7 +62,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
   - `envGaps` / `envRemoved`：同上兩方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`；`envGaps` 帶 docs description
   - `defaultDrift`：兩邊都有的 key，schema `default` 與 docs `**Default**` 不符。`kind` 四種：`mismatch`（docs 給了明確值、repo 不同或沒給）、`repoDefaultDocsUnset`（docs 說 unset、repo 有給值，已扣 `KNOWN_DEFAULT_EQUIVALENT`）、`conditional`（docs 寫「`A`, or `B` when …」、repo 有給值）、`unparsed`（docs 文字既非 unset 也非開頭的 JSON literal）
   - `storageDrift`：索引 Scope=`Global config`（存 `~/.claude.json`）與 schema `storageFile: 'globalConfig'` 不一致
-  - `scopeDrift`：索引 Scope（`User or managed`／`User, local, or managed`／`Any file`）與 schema `effectiveScopes` 不一致，含 object 子設定（dotted path，子層未登錄即繼承父層）。`kind`：`mismatch`／`unrecognized`（Scope 文字不在 `settings-meta-drift.ts` 的 `DOCS_SCOPE_TO_EFFECTIVE`；`Managed`／`Global config` 認得但不比對）
+  - `scopeDrift`：索引 Scope（`User`／`User or managed`／`User, local, or managed`／`Any file`）與 schema `effectiveScopes` 不一致，含 object 子設定（dotted path，子層未登錄即繼承父層）。`kind`：`mismatch`／`unrecognized`（Scope 文字不在 `settings-meta-drift.ts` 的 `DOCS_SCOPE_TO_EFFECTIVE`；`Managed`／`Global config` 認得但不比對）
   - `deprecatedSurfaced`：repo 仍有、docs 條目開頭 `<Warning>` 標 Deprecated／Removed in 的 key（含 object 子設定）。`kind`：`deprecated`／`removed`，`docs` 為 Warning 原文
   - `enumDrift`：repo 字串欄位與 docs `**Type**` 列出的固定值不一致（含 object 子設定）。`kind`：`mismatch`（`docsOnly`／`repoOnly` 列差集）、`repoNotEnum`（docs 列固定值、repo 為自由輸入字串）、`unparsed`（repo 是 enum，docs Type 解析不出固定值）。open type（docs 列 preset 外另收自由格式）：repo 自由字串不算漂移，只回報缺漏的 preset
 - **Categorize（平行）**：對每個 `settingsGap` 把 description、topic、scope inline 餵給分類 agent，指派 section、判斷 `isObjectEditor`、標記 non-user-facing。其餘欄位原樣傳回，不走 LLM——判斷交回主迴圈。
@@ -86,7 +86,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
   - 只認 `**Default**` bullet；條目內的 JSON 範例值不是預設值
 - `storageDrift` 非空 → 依索引表 Scope 修 `storageFile`：`Global config` 加 `'globalConfig'`，其餘拿掉（寫入 settings.json）。
 - `scopeDrift` 非空 → 修 schema 的 `effectiveScopes`：
-  - `mismatch` → 依索引表 Scope 登錄：`User or managed`＝`USER_SCOPE_ONLY`、`User, local, or managed`＝`USER_AND_LOCAL_SCOPES`、`Any file`＝拿掉登錄
+  - `mismatch` → 依索引表 Scope 登錄：`User`／`User or managed`＝`USER_SCOPE_ONLY`、`User, local, or managed`＝`USER_AND_LOCAL_SCOPES`、`Any file`＝拿掉登錄
   - object 子設定 → 登錄在 `optional(schema, { effectiveScopes })`，未登錄即繼承父層
   - 有 `nestedUnder` 的 dotted key（如 `autoMode.classifyAllShell`、`permissions.*`）→ 登錄在該扁平欄位的 meta，不登在 object 子屬性上
   - `unrecognized` → 回 docs 讀 Scope 定義，擴充 `DOCS_SCOPE_TO_EFFECTIVE` 並補測試
@@ -142,7 +142,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 ## Hard checklist
 
 - 新 key：先確認索引表的 Topic/Scope；Global config key 存 `~/.claude.json`，schema field 必標 `storageFile: 'globalConfig'`（判定細節見 `references/surface-map.md`）
-- 新 key：索引表 Scope 為 `User or managed`／`User, local, or managed` → schema field（或 object 子設定）必登錄 `effectiveScopes`
+- 新 key：索引表 Scope 為 `User`／`User or managed`／`User, local, or managed` → schema field（或 object 子設定）必登錄 `effectiveScopes`
 - 手寫 render 的控制項須走共用可見性判定並補非 user scope 的 render 測試（見 `references/surface-map.md` 三條 render path）
 - 新 key：schema 陣列正確位置 + type + render path + save/delete/toggle regression test
 - default 只抄該 key 條目的 `**Default**` bullet；寫 unset 且沒說等效行為 → 不給 `default`
