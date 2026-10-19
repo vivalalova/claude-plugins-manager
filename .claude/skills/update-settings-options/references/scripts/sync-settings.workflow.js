@@ -11,10 +11,10 @@
 
 export const meta = {
   name: 'sync-settings-options',
-  description: 'Discover Claude Code settings drift: run the deterministic CLI to get presence gaps, then categorize each gap for the main loop to confirm + apply. Read-only — returns a gap report.',
+  description: 'Discover Claude Code settings drift: run the deterministic CLI to get presence gaps, then categorize the gaps (fixed batches, at most 3 agents) for the main loop to confirm + apply. Read-only — returns a gap report.',
   phases: [
     { title: 'Detect', detail: 'run scripts/settings-sync-diff.ts (cwd repo root) and parse its JSON output (gaps + default/storage drift)' },
-    { title: 'Categorize', detail: 'classify each settings gap (section + isObjectEditor); env gaps passed through as-is' },
+    { title: 'Categorize', detail: 'classify settings gaps in at most 3 fixed batches, one agent per batch (section + isObjectEditor); env gaps passed through as-is' },
   ],
 }
 
@@ -111,6 +111,14 @@ const CATEGORY_SCHEMA = {
   },
 }
 
+const CATEGORY_BATCH_SCHEMA = {
+  type: 'object',
+  required: ['items'],
+  properties: {
+    items: { type: 'array', items: CATEGORY_SCHEMA, description: 'one classification per input gap, same keys as input' },
+  },
+}
+
 // ─── Phase 1: Detect ───────────────────────────────────────────────────────────
 phase('Detect')
 const detected = await agent(
@@ -120,7 +128,7 @@ const detected = await agent(
     'The command fetches live docs and compares against the repo schema. It exits 1 on health failure — if it does, throw an error instead of returning null.',
     'Parse stdout as JSON and return it exactly as-is. Do NOT filter, re-derive, or add fields.',
   ].join('\n'),
-  { label: 'detect:cli', phase: 'Detect', schema: DETECT_SCHEMA },
+  { label: 'detect:cli', phase: 'Detect', schema: DETECT_SCHEMA, agentType: 'haiku-medium' },
 )
 
 if (!detected) {
@@ -160,26 +168,48 @@ const surfaceMapHint = [
   'Never invent a new section.',
 ].join(' ')
 
-const categorized = await parallel(detected.settingsGaps.map(gap => () =>
+// Fixed fan-out: at most 3 batches regardless of gap count (0 gaps → no agent).
+const MAX_CATEGORIZE_BATCHES = 3
+const batchSize = Math.ceil(detected.settingsGaps.length / MAX_CATEGORIZE_BATCHES)
+const gapBatches = []
+for (let i = 0; i < detected.settingsGaps.length; i += batchSize) gapBatches.push(detected.settingsGaps.slice(i, i + batchSize))
+
+// fanout-ok: gapBatches 由 batchSize=ceil(n/3) 切片，組數上限固定為 MAX_CATEGORIZE_BATCHES=3，不隨 gap 件數增加
+const batchResults = await parallel(gapBatches.map((batch, n) => () =>
   agent(
     [
-      'Classify this Claude Code settings gap for the extension UI.',
-      'REASON ONLY: the key and its docs description are inline below. Do NOT use Bash, Write, Read, WebSearch, or an advisor. Emit the StructuredOutput classification directly.',
-      'Key: ' + JSON.stringify(gap.key),
-      'Docs description: ' + JSON.stringify(gap.description),
-      'Docs topic: ' + JSON.stringify(gap.topic ?? ''),
-      'Docs scope: ' + JSON.stringify(gap.scope ?? ''),
+      'Classify these Claude Code settings gaps for the extension UI.',
+      'REASON ONLY: every key and its docs description are inline below. Do NOT use Bash, Write, Read, WebSearch, or an advisor. Emit the StructuredOutput classification directly.',
+      'Return `items` with EXACTLY one classification per gap below — every gap, none skipped, none added — and echo each `key` verbatim.',
       'Scope "Global config" means the key lives in ~/.claude.json (needs storageFile: globalConfig) — still user-facing.',
-      'If the key is dotted (e.g. "sandbox.foo", "permissions.bar", "attribution.baz"), it is a nested child — classify by the parent object\'s role and note that in the rationale.',
+      'If a key is dotted (e.g. "sandbox.foo", "permissions.bar", "attribution.baz"), it is a nested child — classify by the parent object\'s role and note that in the rationale.',
       'Set isObjectEditor=true if the key likely maps to a complex object value needing a bespoke editor (e.g. array-of-objects). Boolean/string/enum/number keys → isObjectEditor=false.',
       'If category is managed-only/plugin-internal/deprecated/meta, set suggestedSection="" — it will be added to KNOWN_EXCLUDED instead of synced to UI.',
       surfaceMapHint,
-    ].join('\n'),
-    { label: `cat:${gap.key}`, phase: 'Categorize', schema: CATEGORY_SCHEMA, effort: 'low' },
+      'Gaps:',
+      ...batch.map(gap => [
+        'Key: ' + JSON.stringify(gap.key),
+        'Docs description: ' + JSON.stringify(gap.description),
+        'Docs topic: ' + JSON.stringify(gap.topic ?? ''),
+        'Docs scope: ' + JSON.stringify(gap.scope ?? ''),
+      ].join('\n')),
+    ].join('\n\n'),
+    { label: `cat:batch-${n + 1}`, phase: 'Categorize', schema: CATEGORY_BATCH_SCHEMA, agentType: 'sonnet-medium' },
   )
 ))
 
-const gaps = categorized.filter(Boolean)
+// Fail-fast: each batch's returned key set must equal its input key set.
+const categorized = batchResults.flatMap((result, n) => {
+  if (!result || !Array.isArray(result.items)) throw new Error(`cat:batch-${n + 1} returned no items`)
+  const expected = gapBatches[n].map(g => g.key).sort()
+  const actual = result.items.map(i => i.key).sort()
+  if (expected.length !== actual.length || expected.some((k, i) => k !== actual[i])) {
+    throw new Error(`cat:batch-${n + 1} key mismatch — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
+  }
+  return result.items
+})
+
+const gaps = categorized
 const userFacing = gaps.filter(g => g.category === 'user-facing' || g.category === 'anti-direction')
 const nonUserFacing = gaps.filter(g => g.category !== 'user-facing' && g.category !== 'anti-direction')
 
