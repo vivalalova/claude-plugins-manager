@@ -209,10 +209,13 @@ function useScopedInputValue(
   value: string,
 ): [string, React.Dispatch<React.SetStateAction<string>>] {
   const [inputValue, setInputValue] = useState(value);
+  const [prev, setPrev] = useState({ scope, value });
 
-  useEffect(() => {
+  // 在 render 期間依前一次 props 調整 state，不用 effect：effect 的掛載同步會晚於使用者輸入，把草稿蓋掉。
+  if (prev.scope !== scope || prev.value !== value) {
+    setPrev({ scope, value });
     setInputValue(value);
-  }, [scope, value]);
+  }
 
   return [inputValue, setInputValue];
 }
