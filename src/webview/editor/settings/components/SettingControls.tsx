@@ -637,7 +637,9 @@ export interface TagInputProps {
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
   disabled?: boolean;
-  onSave: (key: string, value: unknown) => Promise<void>;
+  /** reject 時保留輸入框內容 */
+  onAddItem: (item: string) => Promise<void>;
+  onRemoveItem: (item: string) => Promise<void>;
 }
 
 export function TagInput({
@@ -653,7 +655,8 @@ export function TagInput({
   defaultValue,
   overriddenScope,
   disabled = false,
-  onSave,
+  onAddItem,
+  onRemoveItem,
 }: TagInputProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const [inputValue, setInputValue] = useScopedInputValue(scope, '');
@@ -672,14 +675,14 @@ export function TagInput({
     }
     setError('');
     void withSave(async () => {
-      await onSave(settingKey, [...tags, trimmed]);
+      await onAddItem(trimmed);
       setInputValue('');
     });
   };
 
   const handleDelete = (tag: string): void => {
     if (isDisabled) return;
-    void withSave(() => onSave(settingKey, tags.filter((t) => t !== tag)));
+    void withSave(() => onRemoveItem(tag));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {

@@ -20,10 +20,13 @@ import {
   getGlobalConfigSettingKeys,
 } from '../../shared/claude-settings-schema';
 import {
+  applyAddPermissionsListItem,
   applyDeleteNested,
+  applyRemovePermissionsListItem,
   applySetNested,
   type NestedApplyResult,
   type NestedParentKey,
+  type PermissionsListKey,
 } from '../../shared/nestedSettings';
 import {
   CLAUDE_JSON_PATH,
@@ -199,6 +202,25 @@ export class SettingsFileService {
     this.assertNestedParentInSettingsFile(scope, parentKey);
     return this.updateScopedSettingsFile(scope, (settings) =>
       writeBackNestedParent(settings, parentKey, applyDeleteNested(settings, parentKey, childKey)),
+    );
+  }
+
+  /**
+   * 在 `permissions[listKey]` 加一條，在同檔佇列內以檔案最新內容為準；已有相同字串時不寫檔。
+   * 清單存在但不是陣列（null 除外）→ 拋錯、不寫檔。enqueue 前不可有 await。
+   */
+  async addPermissionsListItem(scope: PluginScope, listKey: PermissionsListKey, item: string): Promise<void> {
+    this.assertNestedParentInSettingsFile(scope, 'permissions');
+    return this.updateScopedSettingsFile(scope, (settings) =>
+      writeBackNestedParent(settings, 'permissions', applyAddPermissionsListItem(settings, listKey, item)),
+    );
+  }
+
+  /** 刪掉 `permissions[listKey]` 內所有相同字串，刪到空留 []；沒有該字串時不寫檔。enqueue 前不可有 await。 */
+  async removePermissionsListItem(scope: PluginScope, listKey: PermissionsListKey, item: string): Promise<void> {
+    this.assertNestedParentInSettingsFile(scope, 'permissions');
+    return this.updateScopedSettingsFile(scope, (settings) =>
+      writeBackNestedParent(settings, 'permissions', applyRemovePermissionsListItem(settings, listKey, item)),
     );
   }
 

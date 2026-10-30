@@ -24,6 +24,7 @@ import {
   clickCheckboxByHint,
   envCheckbox,
   addRule,
+  fieldOf,
 } from '../../../__test-utils__/settingsPageHarness';
 
 const REMOTE_JSON = 'e.g. { "defaultEnvironmentId": "env_0123abcd" }';
@@ -55,6 +56,19 @@ function renameEnvRow(oldKey: string, newKey: string): void {
   fireEvent.change(keyInput, { target: { value: newKey } });
   fireEvent.click(within(row).getByRole('button', { name: 'Save' }));
 }
+
+/** 畫面上顯示該文字的節點數（規則 tag、目錄 tag） */
+const shown = (text: string): number => screen.queryAllByText(text).length;
+
+/** TagInput（additionalDirectories）：填目錄後按同欄位的 Add */
+function addDir(dir: string): void {
+  const input = screen.getByPlaceholderText('e.g. ~/projects');
+  fireEvent.change(input, { target: { value: dir } });
+  fireEvent.click(within(fieldOf(input)).getByRole('button', { name: 'Add' }));
+}
+
+const waitCustomizedLoaded = () => waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+const waitDirInput = () => waitFor(() => screen.getByPlaceholderText('e.g. ~/projects'));
 
 afterEach(() => {
   cleanup();
@@ -106,8 +120,8 @@ describe('#33 AC4 permissions：兩個子欄位並行存檔都留在檔案', () 
     expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebFetch'], defaultMode: 'dontAsk' });
   });
 
-  // 接受的窗口（拍板：同一陣列子欄位跨入口並行，陣列整值最後寫入者勝）。本條宣告此行為，擋「意外做成合併」之外的變動。
-  it('X26 同一陣列子欄位跨入口：權限頁加 A 未回 → 已自訂頁加 B → allow 只剩 B（宣告接受）', async () => {
+  // #34：清單逐條加刪，擴展端在寫檔排隊時讀最新檔案套用，所以兩個入口對同一份清單的修改都留下。
+  it('X26（#34 改寫）同一陣列子欄位跨入口：權限頁加 A 未回 → 已自訂頁加 B → 檔案與畫面三條都在', async () => {
     await openUser({ permissions: { allow: ['Bash'] } });
     clickNav('Permissions');
     await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
@@ -121,7 +135,10 @@ describe('#33 AC4 permissions：兩個子欄位並行存檔都留在檔案', () 
     await waitPending('user', 2);
     await drain('user');
 
-    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebSearch'] });
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebFetch', 'WebSearch'] });
+    expect(shown('Bash')).toBe(1);
+    expect(shown('WebFetch')).toBe(1);
+    expect(shown('WebSearch')).toBe(1);
   });
 
   it('X36 同父物件 deleteNested 與 setNested 交錯：清 defaultMode（唯一子欄位）後設 disableAutoMode → 檔案與畫面一致', async () => {
@@ -139,6 +156,290 @@ describe('#33 AC4 permissions：兩個子欄位並行存檔都留在檔案', () 
     expect(backend.file('user').permissions).toEqual({ disableAutoMode: 'disable' });
     expect(selectValue('Default Mode')).toBe('');
     expect(selectValue('Disable Auto Mode')).toBe('disable');
+  });
+});
+
+describe('#34 permissions 清單單條加刪：兩個入口、remount、請求失敗都不遺失', () => {
+  it('R2a 權限頁刪 WebFetch 未回 → 已自訂頁加 WebSearch → WebFetch 不復活，WebSearch 在', async () => {
+    await openUser({ permissions: { allow: ['Bash', 'WebFetch'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Remove rule WebFetch' }));
+    backend.block('user');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove rule WebFetch' }));
+    await waitPending('user', 1);
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+    addRule('WebSearch');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebSearch'] });
+    expect(shown('WebFetch')).toBe(0);
+    expect(shown('WebSearch')).toBe(1);
+    expect(shown('Bash')).toBe(1);
+  });
+
+  it('R2b 已自訂頁刪 WebFetch 未回 → 權限頁加 WebSearch → WebFetch 不復活，WebSearch 在', async () => {
+    await openUser({ permissions: { allow: ['Bash', 'WebFetch'] } });
+    clickNav('Customized');
+    await waitFor(() => screen.getByRole('button', { name: 'Remove rule WebFetch' }));
+    backend.block('user');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove rule WebFetch' }));
+    await waitPending('user', 1);
+    clickNav('Permissions');
+    await waitCustomizedLoaded();
+    addRule('WebSearch');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebSearch'] });
+    expect(shown('WebFetch')).toBe(0);
+    expect(shown('WebSearch')).toBe(1);
+  });
+
+  it('R3 additionalDirectories 跨入口：權限頁 TagInput 加 ~/b 未回 → 已自訂頁 TagInput 加 ~/c → ~/a ~/b ~/c 都在', async () => {
+    await openUser({ permissions: { additionalDirectories: ['~/a'] } });
+    clickNav('Permissions');
+    await waitDirInput();
+    backend.block('user');
+
+    addDir('~/b');
+    await waitPending('user', 1);
+    clickNav('Customized');
+    await waitDirInput();
+    addDir('~/c');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ additionalDirectories: ['~/a', '~/b', '~/c'] });
+    expect(shown('~/a')).toBe(1);
+    expect(shown('~/b')).toBe(1);
+    expect(shown('~/c')).toBe(1);
+  });
+
+  // 現況不紅（舊路徑也只留一條）；守住「兩邊並行新增同一條只留一條」。mutation：拿掉純函式 add 的去重 → 必須紅。
+  it('R4 兩邊並行新增同一條 WebFetch → 檔案與畫面都只有一個', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.block('user');
+
+    addRule('WebFetch');
+    await waitPending('user', 1);
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+    addRule('WebFetch');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebFetch'] });
+    expect(shown('WebFetch')).toBe(1);
+  });
+
+  it('R8 remount（導航離開再回）：權限頁加 WebFetch 未回 → General → Permissions → 再加 WebSearch → 三條都在', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.block('user');
+
+    addRule('WebFetch');
+    await waitPending('user', 1);
+    clickNav('General');
+    await waitFor(() => screen.getByPlaceholderText(LANGUAGE));
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    addRule('WebSearch');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebFetch', 'WebSearch'] });
+    expect(shown('Bash')).toBe(1);
+    expect(shown('WebFetch')).toBe(1);
+    expect(shown('WebSearch')).toBe(1);
+  });
+
+  it('R8 變體 remount（搜尋後清空）：已自訂頁加 WebFetch 未回 → 搜尋再清空 → 再加 WebSearch → 三條都在', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+    backend.block('user');
+
+    addRule('WebFetch');
+    await waitPending('user', 1);
+    search('x');
+    await flush();
+    search('');
+    await waitCustomizedLoaded();
+    addRule('WebSearch');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebFetch', 'WebSearch'] });
+    expect(shown('WebFetch')).toBe(1);
+    expect(shown('WebSearch')).toBe(1);
+  });
+
+  // 現況不紅（現況 A 失敗時 B 送出 [Bash,B]，結果相同）。mutation：把畫面 patch 移到 await sendRequest 之前 → 必須紅。
+  it('R10a 請求失敗：權限頁加 WebFetch 失敗 → 已自訂頁加 WebSearch → 畫面與檔案都有 WebSearch、沒有 WebFetch，且出現錯誤 toast', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.failNext('user', 'settings.addPermissionsListItem');
+
+    addRule('WebFetch');
+    await waitFor(() => expect(screen.getByText('fake failure')).toBeTruthy());
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+    addRule('WebSearch');
+    await waitFor(() => expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebSearch'] }));
+    await flush();
+
+    expect(shown('WebFetch')).toBe(0);
+    expect(shown('WebSearch')).toBe(1);
+    expect(shown('Bash')).toBe(1);
+  });
+
+  const ruleInput = () => screen.getByPlaceholderText('e.g. WebFetch') as HTMLInputElement;
+
+  it('R10c 權限頁規則新增失敗 → 輸入框保留 Glob、出現錯誤 toast、清單不含 Glob', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.failNext('user', 'settings.addPermissionsListItem');
+
+    addRule('Glob');
+    await waitFor(() => expect(screen.getByText('fake failure')).toBeTruthy());
+    await flush();
+
+    expect(ruleInput().value).toBe('Glob');
+    expect(shown('Glob')).toBe(0);
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash'] });
+  });
+
+  it('R10c 已自訂頁規則新增失敗 → 輸入框保留 Glob、出現錯誤 toast、清單不含 Glob', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+    backend.failNext('user', 'settings.addPermissionsListItem');
+
+    addRule('Glob');
+    await waitFor(() => expect(screen.getByText('fake failure')).toBeTruthy());
+    await flush();
+
+    expect(ruleInput().value).toBe('Glob');
+    expect(shown('Glob')).toBe(0);
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash'] });
+  });
+
+  it('R10c 對照：權限頁規則新增成功 → 輸入框清空、清單含 Glob', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+
+    addRule('Glob');
+    await waitFor(() => expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'Glob'] }));
+    await flush();
+
+    expect(ruleInput().value).toBe('');
+    expect(shown('Glob')).toBe(1);
+  });
+
+  it('R10c 對照：已自訂頁規則新增成功 → 輸入框清空、清單含 Glob', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+
+    addRule('Glob');
+    await waitFor(() => expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'Glob'] }));
+    await flush();
+
+    expect(ruleInput().value).toBe('');
+    expect(shown('Glob')).toBe(1);
+  });
+
+  it('R10b 權限頁 additionalDirectories TagInput 請求失敗 → 輸入框保留 ~/b、出現錯誤 toast、清單不含 ~/b', async () => {
+    await openUser({ permissions: { additionalDirectories: ['~/a'] } });
+    clickNav('Permissions');
+    await waitDirInput();
+    backend.failNext('user', 'settings.addPermissionsListItem');
+
+    addDir('~/b');
+    await waitFor(() => expect(screen.getByText('fake failure')).toBeTruthy());
+    await flush();
+
+    expect((screen.getByPlaceholderText('e.g. ~/projects') as HTMLInputElement).value).toBe('~/b');
+    expect(shown('~/b')).toBe(0);
+    expect(backend.file('user').permissions).toEqual({ additionalDirectories: ['~/a'] });
+  });
+
+  // 現況不紅（已自訂頁今日就回傳原始 promise），守回歸。
+  it('R10b 已自訂頁 additionalDirectories TagInput 請求失敗 → 輸入框保留 ~/b、出現錯誤 toast', async () => {
+    await openUser({ permissions: { additionalDirectories: ['~/a'] } });
+    clickNav('Customized');
+    await waitDirInput();
+    backend.failNext('user', 'settings.addPermissionsListItem');
+
+    addDir('~/b');
+    await waitFor(() => expect(screen.getByText('fake failure')).toBeTruthy());
+    await flush();
+
+    expect((screen.getByPlaceholderText('e.g. ~/projects') as HTMLInputElement).value).toBe('~/b');
+    expect(shown('~/b')).toBe(0);
+  });
+
+  it('R10b 對照：additionalDirectories 新增成功 → 輸入框清空', async () => {
+    await openUser({ permissions: { additionalDirectories: ['~/a'] } });
+    clickNav('Permissions');
+    await waitDirInput();
+
+    addDir('~/b');
+    await waitFor(() => expect(backend.file('user').permissions).toEqual({ additionalDirectories: ['~/a', '~/b'] }));
+    await flush();
+
+    expect((screen.getByPlaceholderText('e.g. ~/projects') as HTMLInputElement).value).toBe('');
+    expect(shown('~/b')).toBe(1);
+  });
+
+  it('R11 重讀與清單操作交錯：權限頁加 WebFetch 未回 → 推送 settings.refresh → 已自訂頁加 WebSearch → 三條都在', async () => {
+    await openUser({ permissions: { allow: ['Bash'] } });
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.block('user');
+
+    addRule('WebFetch');
+    await waitPending('user', 1);
+    act(() => { emitPush({ type: 'settings.refresh' }); });
+    await waitFor(() => expect(backend.pending('user').some((m) => m.type === 'settings.get')).toBe(true));
+    clickNav('Customized');
+    await waitCustomizedLoaded();
+    addRule('WebSearch');
+    await waitFor(() => expect(backend.pending('user').filter((m) => m.type.startsWith('settings.') && m.type !== 'settings.get')).toHaveLength(2));
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['Bash', 'WebFetch', 'WebSearch'] });
+    expect(shown('Bash')).toBe(1);
+    expect(shown('WebFetch')).toBe(1);
+    expect(shown('WebSearch')).toBe(1);
+  });
+
+  // 現況不紅。mutation：純函式 add 在父 key 缺席時不建立 → 必須紅。
+  it('R12 deleteNested 刪掉父 key 與 add 交錯：清 Default Mode（唯一子欄位）未回 → 權限頁加 X → 檔案與畫面都是 allow:[X]', async () => {
+    await openUser({ permissions: { defaultMode: 'plan' } });
+    await waitFor(() => screen.getByRole('combobox', { name: 'Default Mode' }));
+    backend.block('user');
+
+    selectByName('Default Mode', '');
+    await waitPending('user', 1);
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    addRule('X');
+    await waitPending('user', 2);
+    await drain('user');
+
+    expect(backend.file('user').permissions).toEqual({ allow: ['X'] });
+    expect(shown('X')).toBe(1);
   });
 });
 

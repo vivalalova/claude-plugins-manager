@@ -156,6 +156,10 @@ export class MessageRouter {
         return this.settings.setNestedSetting(message.scope, message.parentKey, message.childKey, message.value);
       case 'settings.deleteNested':
         return this.settings.deleteNestedSetting(message.scope, message.parentKey, message.childKey);
+      case 'settings.addPermissionsListItem':
+        return this.settings.addPermissionsListItem(message.scope, message.listKey, message.item);
+      case 'settings.removePermissionsListItem':
+        return this.settings.removePermissionsListItem(message.scope, message.listKey, message.item);
       case 'settings.getGlobalConfigFallback':
         return this.settings.getGlobalConfigFallbackValues();
       case 'hooks.checkFilePaths':

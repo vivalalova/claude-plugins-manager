@@ -165,7 +165,8 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           duplicateError={tk('duplicate')}
           settingKey={settingKey}
           overriddenScope={overriddenScope}
-          onSave={onSave}
+          onAddItem={(item) => onSave(settingKey, [...((value as string[] | undefined) ?? []), item])}
+          onRemoveItem={(item) => onSave(settingKey, ((value as string[] | undefined) ?? []).filter((t) => t !== item))}
         />
       );
 

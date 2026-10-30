@@ -35,6 +35,7 @@ npm run watch
 - `controlType: Object` 的欄位在對應 section 內手動渲染，不要硬塞進通用 renderer。
 - Schema 巢狀欄位（如 `permissions.defaultMode`、`permissions.disableAutoMode`）若要在 UI surface 為 top-level 欄位，**必須**加 `nestedUnder: 'permissions'`，UI 才會寫到 `settings.permissions[key]`；漏加 → 寫到 `settings[key]` 頂層位置，CLI 讀不到（silent bug，UI toggle 完全沒效果）。
 - 巢狀子欄位（`nestedUnder` 欄位、`PermissionsSection` 手寫子欄位、`env` 的變數）一律走 `onSaveNested`／`onDeleteNested`（protocol `settings.setNested`／`settings.deleteNested`），webview 不再用 `settings.set` 寫巢狀父物件；父物件刪到變空由擴展端刪父 key。`settings.set`／`settings.delete` 只留給頂層欄位與整包編輯器（remote／autoMode JSON、sandbox、voice、unknown key）。
+- 例外：`permissions` 的 allow／deny／ask／additionalDirectories 四份清單不走 `onSaveNested`，一律走逐條加刪 `onAddPermissionsListItem`／`onRemovePermissionsListItem`（protocol `settings.addPermissionsListItem`／`settings.removePermissionsListItem`），禁經 `settings.set` 或 `settings.setNested` 送整份清單。
 - 實作設定頁新功能前，先查 JSON Schema：
   [claude-code-settings.json](https://json.schemastore.org/claude-code-settings.json)
 - SchemaStore 可能落後官方 docs；同步 settings 時一定要再交叉比對

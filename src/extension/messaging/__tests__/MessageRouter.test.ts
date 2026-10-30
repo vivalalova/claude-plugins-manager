@@ -742,6 +742,55 @@ describe('MessageRouter', () => {
       expect(posted).toEqual([{ type: 'error', requestId: 'r-sn-err', error: 'permissions is not an object' }]);
     });
 
+    // #34 R6d：permissions 清單單條加刪 request 分派到 service，參數為 (scope, listKey, item)，不帶 parentKey
+    it('settings.addPermissionsListItem → 呼叫 addPermissionsListItem(scope, listKey, item)，回應 data 為 undefined', async () => {
+      const add = vi.fn().mockResolvedValue(undefined);
+      services.settings.addPermissionsListItem = add;
+
+      await router.handle(
+        {
+          type: 'settings.addPermissionsListItem', requestId: 'r-pa', scope: 'project',
+          listKey: 'additionalDirectories', item: '~/b',
+        } as RequestMessage,
+        post,
+      );
+
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(add).toHaveBeenCalledWith('project', 'additionalDirectories', '~/b');
+      expect(posted).toEqual([{ type: 'response', requestId: 'r-pa', data: undefined }]);
+    });
+
+    it('settings.removePermissionsListItem → 呼叫 removePermissionsListItem(scope, listKey, item)，回應 data 為 undefined', async () => {
+      const remove = vi.fn().mockResolvedValue(undefined);
+      services.settings.removePermissionsListItem = remove;
+
+      await router.handle(
+        {
+          type: 'settings.removePermissionsListItem', requestId: 'r-pr', scope: 'local',
+          listKey: 'deny', item: 'WebFetch',
+        } as RequestMessage,
+        post,
+      );
+
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(remove).toHaveBeenCalledWith('local', 'deny', 'WebFetch');
+      expect(posted).toEqual([{ type: 'response', requestId: 'r-pr', data: undefined }]);
+    });
+
+    it('settings.addPermissionsListItem：service 拋錯（清單形狀不符）→ 回 error message', async () => {
+      services.settings.addPermissionsListItem = vi.fn().mockRejectedValue(new Error('allow is not an array'));
+
+      await router.handle(
+        {
+          type: 'settings.addPermissionsListItem', requestId: 'r-pa-err', scope: 'user',
+          listKey: 'allow', item: 'X',
+        } as RequestMessage,
+        post,
+      );
+
+      expect(posted).toEqual([{ type: 'error', requestId: 'r-pa-err', error: 'allow is not an array' }]);
+    });
+
     // #33 C13（E4）：建初始檔收回 SettingsFileService 的同檔佇列，router 不再自行 stat／writeFile
     describe('settings.openInEditor', () => {
       const win = vscode.window as unknown as Record<string, unknown>;

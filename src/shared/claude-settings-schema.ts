@@ -616,7 +616,7 @@ const SSH_HOST_COMMANDS_VALUE_SCHEMA = arrayValue(objectValue({
   startDirectory: optional(STRING_SCHEMA),
 }));
 
-const PERMISSIONS_VALUE_SCHEMA = objectValue({
+export const PERMISSIONS_VALUE_SCHEMA = objectValue({
   allow: optional(STRING_ARRAY_SCHEMA),
   deny: optional(STRING_ARRAY_SCHEMA),
   ask: optional(STRING_ARRAY_SCHEMA),

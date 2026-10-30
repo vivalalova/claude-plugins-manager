@@ -3,8 +3,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { useSettingSave } from './hooks/useSettingSave';
 import type { ClaudeSettings, PluginScope } from '../../../shared/types';
 import { TagInput } from './components/SettingControls';
-import { PermissionRuleListEditor } from './PermissionsSection';
-import type { SectionProps } from './components/SchemaSection';
+import { PermissionRuleListEditor, type PermissionsListWriters } from './PermissionsSection';
 
 // ---------------------------------------------------------------------------
 // CustomizedPermissionsEditor
@@ -12,9 +11,8 @@ import type { SectionProps } from './components/SchemaSection';
 // Intended for the "Customized" tab where all three lists are shown at once.
 // ---------------------------------------------------------------------------
 
-interface CustomizedPermissionsEditorProps {
+interface CustomizedPermissionsEditorProps extends PermissionsListWriters {
   perms: ClaudeSettings['permissions'];
-  onSaveNested: SectionProps['onSaveNested'];
   scope: PluginScope;
   disabled?: boolean;
 }
@@ -37,7 +35,8 @@ export function hasVisiblePermissionsContent(perms: ClaudeSettings['permissions'
 
 export function CustomizedPermissionsEditor({
   perms,
-  onSaveNested,
+  onAddPermissionsListItem,
+  onRemovePermissionsListItem,
   scope,
   disabled,
 }: CustomizedPermissionsEditorProps): React.ReactElement | null {
@@ -55,14 +54,12 @@ export function CustomizedPermissionsEditor({
     { id: 'ask', label: t('settings.permissions.ask') },
   ];
 
-  const handleAdd = (list: PermissionsList, rule: string): void => {
-    const current = (safePerms[list] ?? []) as string[];
-    void withSave(() => onSaveNested('permissions', list, [...current, rule]));
+  const handleAdd = (list: PermissionsList, rule: string): Promise<true | undefined> => {
+    return withSave(async () => { await onAddPermissionsListItem(list, rule); return true as const; });
   };
 
   const handleDelete = (list: PermissionsList, rule: string): void => {
-    const current = (safePerms[list] ?? []) as string[];
-    void withSave(() => onSaveNested('permissions', list, current.filter((r) => r !== rule)));
+    void withSave(() => onRemovePermissionsListItem(list, rule));
   };
 
   const additionalDirs: string[] = safePerms.additionalDirectories ?? [];
@@ -96,7 +93,8 @@ export function CustomizedPermissionsEditor({
           duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
           settingKey="additionalDirectories"
           disabled={isDisabled}
-          onSave={async (_key, value) => onSaveNested('permissions', 'additionalDirectories', value as string[])}
+          onAddItem={(item) => onAddPermissionsListItem('additionalDirectories', item)}
+          onRemoveItem={(item) => onRemovePermissionsListItem('additionalDirectories', item)}
         />
       )}
     </div>

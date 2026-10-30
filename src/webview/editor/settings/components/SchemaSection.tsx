@@ -3,7 +3,7 @@ import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { getFlatFieldSchema, getSectionFieldOrder, isScopeEffective, type FlatFieldSchema, type SettingsSection } from '../../../../shared/claude-settings-schema';
 import { SchemaFieldRenderer } from './SchemaFieldRenderer';
 import { resolveInherited, type Inherited } from './SettingControls';
-import type { NestedParentKey } from '../../../../shared/nestedSettings';
+import type { NestedChildKey, NestedParentKey } from '../../../../shared/nestedSettings';
 import { SettingsSectionWrapper } from './SettingsSectionWrapper';
 
 // ---------------------------------------------------------------------------
@@ -19,8 +19,8 @@ export interface SectionProps {
   parentSettings: ParentSettings | undefined;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
-  /** 巢狀父物件只改一格（`settings.setNested`）；webview 不展開父物件整包寫回 */
-  onSaveNested: (parentKey: NestedParentKey, childKey: string, value: unknown) => Promise<void>;
+  /** 巢狀父物件只改一格（`settings.setNested`）；permissions 清單不走這裡，改逐條加刪 */
+  onSaveNested: <P extends NestedParentKey>(parentKey: P, childKey: NestedChildKey<P>, value: unknown) => Promise<void>;
   /** 巢狀父物件只刪一格（`settings.deleteNested`）；父物件變空由擴展端刪父 key */
   onDeleteNested: (parentKey: NestedParentKey, childKey: string) => Promise<void>;
 }

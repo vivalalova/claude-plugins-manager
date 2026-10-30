@@ -416,9 +416,9 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     });
   });
 
-  it('13. inline permissions → 輸入規則並新增 → sendRequest settings.setNested permissions.allow 含更新後清單', async () => {
+  it('13. inline permissions → 輸入規則並新增 → sendRequest settings.addPermissionsListItem 只帶 allow 與新規則（#34）', async () => {
     // inline 新增規則：allow 已有 'Bash'（清單可見），再輸入 "WebFetch" 按 Add Rule
-    // → settings.setNested(permissions, allow) 值含 'Bash' 和 'WebFetch'
+    // → settings.addPermissionsListItem({listKey:'allow', item:'WebFetch'})，不送整份清單
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
@@ -440,17 +440,18 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     fireEvent.click(within(allowEditor).getByRole('button', { name: 'Add Rule' }));
 
     await waitFor(() => {
-      const nestedCalls = getCalls('settings.setNested');
-      expect(nestedCalls.length).toBeGreaterThanOrEqual(1);
-      const lastCall = nestedCalls[nestedCalls.length - 1][0];
-      expect(lastCall).toMatchObject({ parentKey: 'permissions', childKey: 'allow' });
-      expect(lastCall.value as string[]).toEqual(['Bash', 'WebFetch']);
+      const addCalls = getCalls('settings.addPermissionsListItem');
+      expect(addCalls).toHaveLength(1);
+      expect(addCalls[0][0]).toMatchObject({ scope: 'user', listKey: 'allow', item: 'WebFetch' });
+      expect(addCalls[0][0]).not.toHaveProperty('value');
+      expect(addCalls[0][0]).not.toHaveProperty('parentKey');
     });
+    expect(getCalls('settings.setNested')).toHaveLength(0);
     expect(getCalls('settings.set')).toHaveLength(0);
   });
 
-  it('14. inline permissions → 點刪除規則 → sendRequest settings.setNested permissions.allow 移除該規則', async () => {
-    // inline 刪除：permissions.allow=['Bash'] → 點 × → settings.setNested(permissions, allow, [])（F5）
+  it('14. inline permissions → 點刪除規則 → sendRequest settings.removePermissionsListItem 只帶 allow 與該規則（#34）', async () => {
+    // inline 刪除：permissions.allow=['Bash'] → 點 × → settings.removePermissionsListItem({listKey:'allow', item:'Bash'})
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
@@ -469,11 +470,12 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
 
     await waitFor(() => {
-      const nestedCalls = getCalls('settings.setNested');
-      expect(nestedCalls.length).toBeGreaterThanOrEqual(1);
-      const lastCall = nestedCalls[nestedCalls.length - 1][0];
-      expect(lastCall).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: [] });
+      const removeCalls = getCalls('settings.removePermissionsListItem');
+      expect(removeCalls).toHaveLength(1);
+      expect(removeCalls[0][0]).toMatchObject({ scope: 'user', listKey: 'allow', item: 'Bash' });
+      expect(removeCalls[0][0]).not.toHaveProperty('value');
     });
+    expect(getCalls('settings.setNested')).toHaveLength(0);
     expect(getCalls('settings.set')).toHaveLength(0);
   });
 
@@ -546,7 +548,11 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({ permissions: { allow: ['Bash'] } });
-      if (msg.type === 'settings.set' || msg.type === 'settings.setNested') return Promise.reject(new Error('boom'));
+      if (
+        msg.type === 'settings.set'
+        || msg.type === 'settings.setNested'
+        || msg.type === 'settings.addPermissionsListItem'
+      ) return Promise.reject(new Error('boom'));
       return Promise.resolve(null);
     });
 
@@ -589,11 +595,11 @@ describe('SettingsPage — Customized permissions inline 編輯', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
 
     await waitFor(() => {
-      const nestedCalls = getCalls('settings.setNested');
-      expect(nestedCalls.length).toBeGreaterThanOrEqual(1);
-      const lastCall = nestedCalls[nestedCalls.length - 1][0];
-      expect(lastCall).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: [] });
+      const removeCalls = getCalls('settings.removePermissionsListItem');
+      expect(removeCalls).toHaveLength(1);
+      expect(removeCalls[0][0]).toMatchObject({ listKey: 'allow', item: 'Bash' });
     });
+    expect(getCalls('settings.setNested')).toHaveLength(0);
     expect(getCalls('settings.set').some((c) => c[0]?.key === 'permissions')).toBe(false);
     expect(getCalls('settings.deleteNested').some((c) => c[0]?.childKey === 'defaultMode')).toBe(false);
   });

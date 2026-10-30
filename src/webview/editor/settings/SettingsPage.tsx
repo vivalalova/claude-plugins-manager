@@ -13,7 +13,16 @@ import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
 import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, type SettingsSection, type FlatFieldSchema } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
-import { applyDeleteNested, applySetNested, isNestedParentShape, type NestedParentKey } from '../../../shared/nestedSettings';
+import {
+  applyAddPermissionsListItem,
+  applyDeleteNested,
+  applyRemovePermissionsListItem,
+  applySetNested,
+  isNestedParentShape,
+  type NestedChildKey,
+  type NestedParentKey,
+  type PermissionsListKey,
+} from '../../../shared/nestedSettings';
 import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
@@ -399,7 +408,11 @@ export function SettingsPage(): React.ReactElement {
     });
   }, [scope, commitWrite]);
 
-  const handleSaveNested = useCallback(async (parentKey: NestedParentKey, childKey: string, value: unknown): Promise<void> => {
+  const handleSaveNested = useCallback(async <P extends NestedParentKey>(
+    parentKey: P,
+    childKey: NestedChildKey<P>,
+    value: unknown,
+  ): Promise<void> => {
     await sendRequest({ type: 'settings.setNested', scope, parentKey, childKey, value });
     commitNestedWrite(scope, parentKey, (data) =>
       applySetNested(data as Record<string, unknown>, parentKey, childKey, value).next as ClaudeSettings);
@@ -409,6 +422,22 @@ export function SettingsPage(): React.ReactElement {
     await sendRequest({ type: 'settings.deleteNested', scope, parentKey, childKey });
     commitNestedWrite(scope, parentKey, (data) => {
       const { next, changed } = applyDeleteNested(data as Record<string, unknown>, parentKey, childKey);
+      return changed ? next as ClaudeSettings : data;
+    });
+  }, [scope, commitNestedWrite]);
+
+  const handleAddPermissionsListItem = useCallback(async (listKey: PermissionsListKey, item: string): Promise<void> => {
+    await sendRequest({ type: 'settings.addPermissionsListItem', scope, listKey, item });
+    commitNestedWrite(scope, 'permissions', (data) => {
+      const { next, changed } = applyAddPermissionsListItem(data as Record<string, unknown>, listKey, item);
+      return changed ? next as ClaudeSettings : data;
+    });
+  }, [scope, commitNestedWrite]);
+
+  const handleRemovePermissionsListItem = useCallback(async (listKey: PermissionsListKey, item: string): Promise<void> => {
+    await sendRequest({ type: 'settings.removePermissionsListItem', scope, listKey, item });
+    commitNestedWrite(scope, 'permissions', (data) => {
+      const { next, changed } = applyRemovePermissionsListItem(data as Record<string, unknown>, listKey, item);
       return changed ? next as ClaudeSettings : data;
     });
   }, [scope, commitNestedWrite]);
@@ -590,6 +619,8 @@ export function SettingsPage(): React.ReactElement {
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
                   onDeleteNested={handleDeleteNested}
+                  onAddPermissionsListItem={handleAddPermissionsListItem}
+                  onRemovePermissionsListItem={handleRemovePermissionsListItem}
                 />
               )}
               {activeNav === 'env' && (
@@ -685,7 +716,8 @@ export function SettingsPage(): React.ReactElement {
                               {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <CustomizedPermissionsEditor
                                 perms={value as ClaudeSettings['permissions'] ?? {}}
-                                onSaveNested={handleSaveNested}
+                                onAddPermissionsListItem={handleAddPermissionsListItem}
+                                onRemovePermissionsListItem={handleRemovePermissionsListItem}
                                 scope={scope}
                               />
                             </div>

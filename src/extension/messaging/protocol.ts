@@ -7,7 +7,7 @@ import type {
   RegistrySort,
   SkillScope,
 } from '../../shared/types';
-import type { NestedParentKey } from '../../shared/nestedSettings';
+import type { NestedParentKey, PermissionsListKey } from '../../shared/nestedSettings';
 
 export type { NestedParentKey };
 
@@ -51,9 +51,11 @@ export type RequestMessage =
   | { type: 'settings.get'; requestId: string; scope: PluginScope }
   | { type: 'settings.set'; requestId: string; scope: PluginScope; key: string; value: unknown }
   | { type: 'settings.delete'; requestId: string; scope: PluginScope; key: string }
-  // 巢狀父物件只改一格；settings.set／delete 保留給頂層欄位與整包編輯器
+  // 巢狀父物件只改一格、permissions 清單只加刪一條；settings.set／delete 保留給頂層欄位與整包編輯器
   | { type: 'settings.setNested'; requestId: string; scope: PluginScope; parentKey: NestedParentKey; childKey: string; value: unknown }
   | { type: 'settings.deleteNested'; requestId: string; scope: PluginScope; parentKey: NestedParentKey; childKey: string }
+  | { type: 'settings.addPermissionsListItem'; requestId: string; scope: PluginScope; listKey: PermissionsListKey; item: string }
+  | { type: 'settings.removePermissionsListItem'; requestId: string; scope: PluginScope; listKey: PermissionsListKey; item: string }
   | { type: 'settings.getGlobalConfigFallback'; requestId: string }
   | { type: 'settings.openInEditor'; requestId: string; scope: PluginScope }
   | { type: 'hooks.checkFilePaths'; requestId: string; paths: string[] }

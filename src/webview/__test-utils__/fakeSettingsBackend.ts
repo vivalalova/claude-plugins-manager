@@ -7,7 +7,13 @@
  * 用法：測試檔以 `vi.mock('<相對路徑>/vscode', async () => (await import('<相對路徑>/__test-utils__/fakeSettingsBackend')).fakeVscodeModule)`
  * 接上，beforeEach 呼叫 installFakeSettingsBackend(初始檔案內容)。
  */
-import { applyDeleteNested, applySetNested } from '../../shared/nestedSettings';
+import {
+  applyAddPermissionsListItem,
+  applyDeleteNested,
+  applyRemovePermissionsListItem,
+  applySetNested,
+  type PermissionsListKey,
+} from '../../shared/nestedSettings';
 import {
   getFlatFieldSchema,
   getGlobalConfigFallbackSettingKeys,
@@ -202,6 +208,18 @@ export function installFakeSettingsBackend(
             msg.parentKey as Parameters<typeof applyDeleteNested>[1],
             msg.childKey!,
           );
+          files[scope] = next as JsonObject;
+          return undefined;
+        });
+      }
+      case 'settings.addPermissionsListItem':
+      case 'settings.removePermissionsListItem': {
+        const scope = requireScope(msg);
+        const apply = msg.type === 'settings.addPermissionsListItem'
+          ? applyAddPermissionsListItem
+          : applyRemovePermissionsListItem;
+        return enqueue(scope, msg, () => {
+          const { next } = apply(files[scope], msg.listKey as PermissionsListKey, msg.item as string);
           files[scope] = next as JsonObject;
           return undefined;
         });

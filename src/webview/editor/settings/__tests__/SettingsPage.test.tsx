@@ -384,7 +384,7 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('點擊規則 × 按鈕 → settings.setNested permissions.allow 不含該規則', async () => {
+  it('點擊規則 × 按鈕 → settings.removePermissionsListItem 只帶 listKey 與該規則（#34）', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -404,14 +404,18 @@ describe('SettingsPage', () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      const nestedCalls = getCalls('settings.setNested');
-      expect(nestedCalls.length).toBe(1);
-      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: ['WebSearch'] });
+      const removeCalls = getCalls('settings.removePermissionsListItem');
+      expect(removeCalls.length).toBe(1);
+      expect(removeCalls[0][0]).toMatchObject({ scope: 'user', listKey: 'allow', item: 'Bash(git:*)' });
+      // 不帶 parentKey／整份清單
+      expect(removeCalls[0][0]).not.toHaveProperty('parentKey');
+      expect(removeCalls[0][0]).not.toHaveProperty('value');
     });
     expect(getCalls('settings.set')).toHaveLength(0);
+    expect(getCalls('settings.setNested')).toHaveLength(0);
   });
 
-  it('刪除最後一條規則 → settings.setNested permissions.allow 為 []（F5）', async () => {
+  it('刪除最後一條規則 → settings.removePermissionsListItem（清空後留 [] 由擴充端處理，#34）', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -430,13 +434,14 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByLabelText('Remove rule WebSearch'));
 
     await waitFor(() => {
-      const nestedCalls = getCalls('settings.setNested');
-      expect(nestedCalls.length).toBe(1);
-      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'allow', value: [] });
+      const removeCalls = getCalls('settings.removePermissionsListItem');
+      expect(removeCalls.length).toBe(1);
+      expect(removeCalls[0][0]).toMatchObject({ listKey: 'allow', item: 'WebSearch' });
     });
+    expect(getCalls('settings.setNested')).toHaveLength(0);
   });
 
-  it('新增 ToolName 規則 → settings.setNested permissions.allow 含新規則', async () => {
+  it('新增 ToolName 規則 → settings.addPermissionsListItem 只帶 listKey 與新規則（#34）', async () => {
     mockSendRequest.mockImplementation((msg: { type: string }) => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get') return Promise.resolve({
@@ -458,11 +463,13 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('Add Rule'));
 
     await waitFor(() => {
-      const nestedCalls = getCalls('settings.setNested');
-      expect(nestedCalls.length).toBe(1);
-      expect(nestedCalls[0][0]).toMatchObject({ parentKey: 'permissions', childKey: 'allow' });
-      expect(nestedCalls[0][0].value).toContain('WebFetch');
+      const addCalls = getCalls('settings.addPermissionsListItem');
+      expect(addCalls.length).toBe(1);
+      expect(addCalls[0][0]).toMatchObject({ scope: 'user', listKey: 'allow', item: 'WebFetch' });
+      expect(addCalls[0][0]).not.toHaveProperty('parentKey');
+      expect(addCalls[0][0]).not.toHaveProperty('value');
     });
+    expect(getCalls('settings.setNested')).toHaveLength(0);
   });
 
   it('新增重複規則 → 顯示「Rule already exists」，不呼叫 settings.set', async () => {
@@ -489,6 +496,8 @@ describe('SettingsPage', () => {
       expect(screen.getByText('Rule already exists')).toBeTruthy();
       expect(getCalls('settings.set').length).toBe(0);
       expect(getCalls('settings.setNested').length).toBe(0);
+      expect(getCalls('settings.addPermissionsListItem').length).toBe(0);
+      expect(getCalls('settings.removePermissionsListItem').length).toBe(0);
     });
   });
 
@@ -704,5 +713,63 @@ describe('SettingsPage', () => {
     });
   });
 
+});
+
+// #35 R35-MO：主快照（user scope settings.get）晚到、內容區在 act 外掛載時，
+// 輸入框一出現就同步輸入並按 Save，不得被掛載時的同步蓋回空白
+describe('SettingsPage #35 輸入框掛載後立即輸入並儲存', () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it('settings.get(user) 晚到：輸入框一出現就輸入 ja 並 Save → set 1 次（ja）、delete 0 次', async () => {
+    let resolveUserGet!: (v: unknown) => void;
+    const userGet = new Promise((resolve) => {
+      resolveUserGet = resolve;
+    });
+    mockSendRequest.mockImplementation((msg: { type: string; scope?: string }) => {
+      if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
+      if (msg.type === 'settings.get') return msg.scope === 'user' ? userGet : Promise.resolve({});
+      if (msg.type === 'settings.set') return Promise.resolve(undefined);
+      if (msg.type === 'settings.delete') return Promise.resolve(undefined);
+      return Promise.resolve(null);
+    });
+
+    renderPage();
+    await waitFor(() => {
+      expect(getCalls('settings.get').some((c) => c[0]?.scope === 'user')).toBe(true);
+    });
+
+    const g = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const prevActEnv = g.IS_REACT_ACT_ENVIRONMENT;
+    g.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      const selector = 'input[placeholder="e.g. zh-TW"]';
+      const appeared = new Promise<void>((resolve) => {
+        const observer = new MutationObserver(() => {
+          if (document.querySelector(selector)) {
+            observer.disconnect();
+            resolve();
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+      resolveUserGet({});
+      await appeared;
+    } finally {
+      g.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+
+    // 同步輸入並按 Save，中間不讓出控制權給 passive effect
+    const input = document.querySelector('input[placeholder="e.g. zh-TW"]') as HTMLInputElement;
+    const field = input.closest('.settings-field') as HTMLElement;
+    fireEvent.change(input, { target: { value: 'ja' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(getCalls('settings.set')).toHaveLength(1));
+    expect(getCalls('settings.set')[0][0]).toMatchObject({ scope: 'user', key: 'language', value: 'ja' });
+    expect(getCalls('settings.delete')).toHaveLength(0);
+  });
 });
 

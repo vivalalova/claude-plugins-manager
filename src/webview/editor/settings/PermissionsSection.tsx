@@ -6,12 +6,14 @@ import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { ObjectFieldEditor } from './components/ObjectFieldEditor';
 import { getSchemaFieldBindings, type SectionProps } from './components/SchemaSection';
 import { getSchemaDefault } from '../../../shared/claude-settings-schema';
+import type { PermissionsListKey } from '../../../shared/nestedSettings';
 
 // ---------------------------------------------------------------------------
 // Constants（internal only — defaultMode 已移至 schema general section）
 // ---------------------------------------------------------------------------
 
 type PermissionsList = 'allow' | 'deny' | 'ask';
+type DisableModeKey = 'disableAutoMode' | 'disableBypassPermissionsMode';
 type RuleFormat = 'toolName' | 'toolNameArg' | 'mcp';
 interface PermissionRuleDraft {
   format: RuleFormat;
@@ -133,7 +135,8 @@ function RuleTag({ rule, onDelete, disabled }: RuleTagProps): React.ReactElement
 
 interface AddRuleFormProps {
   listRules: string[];
-  onAdd: (rule: string) => void;
+  /** 寫入成功才 resolve true，失敗 resolve undefined（保留輸入）。 */
+  onAdd: (rule: string) => Promise<true | undefined>;
   disabled?: boolean;
 }
 
@@ -142,7 +145,7 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
   const [draft, setDraft] = useState<PermissionRuleDraft>(() => createPermissionRuleDraft());
   const [error, setError] = useState('');
 
-  const handleAdd = (): void => {
+  const handleAdd = async (): Promise<void> => {
     const submission = buildRuleSubmission(draft, listRules);
     if (submission.kind === 'empty') {
       return;
@@ -152,12 +155,11 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
       return;
     }
     setError('');
-    onAdd(submission.rule);
-    setDraft(changeRuleFormat(draft.format));
+    if (await onAdd(submission.rule)) setDraft(changeRuleFormat(draft.format));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key === 'Enter') handleAdd();
+    if (e.key === 'Enter') void handleAdd();
   };
 
   const isAddDisabled =
@@ -231,7 +233,7 @@ function AddRuleForm({ listRules, onAdd, disabled }: AddRuleFormProps): React.Re
 
       <button
         className="btn btn-primary"
-        onClick={handleAdd}
+        onClick={() => void handleAdd()}
         disabled={isAddDisabled}
         type="button"
       >
@@ -251,7 +253,7 @@ interface PermissionRuleListEditorProps {
   /** Optional heading rendered above the rule list. Omit when the parent renders its own selector. */
   title?: string;
   rules: string[];
-  onAdd: (rule: string) => void;
+  onAdd: (rule: string) => Promise<true | undefined>;
   onDelete: (rule: string) => void;
   disabled?: boolean;
 }
@@ -294,6 +296,12 @@ export function PermissionRuleListEditor({
 // PermissionsSection
 // ---------------------------------------------------------------------------
 
+/** permissions 四份清單只逐條加刪（擴展端在同檔佇列內讀最新檔套用），禁送整份清單 */
+export interface PermissionsListWriters {
+  onAddPermissionsListItem: (listKey: PermissionsListKey, item: string) => Promise<void>;
+  onRemovePermissionsListItem: (listKey: PermissionsListKey, item: string) => Promise<void>;
+}
+
 export function PermissionsSection({
   scope,
   settings,
@@ -302,7 +310,9 @@ export function PermissionsSection({
   onDelete,
   onSaveNested,
   onDeleteNested,
-}: SectionProps): React.ReactElement {
+  onAddPermissionsListItem,
+  onRemovePermissionsListItem,
+}: SectionProps & PermissionsListWriters): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
 
@@ -317,7 +327,7 @@ export function PermissionsSection({
   const mcpServersBinding = getSchemaFieldBindings('enableAllProjectMcpServers', bindingProps);
   // 兩個 disable 下拉：繼承標示與覆寫徽章取自 getSchemaFieldBindings（nestedUnder 'permissions'）；
   // 寫入走本元件的 saveChild／deleteChild（共用 saving 鎖）。兩者在所有 scope 可見，拿不到即 schema 缺格。
-  const disableModeBinding = (key: 'disableAutoMode' | 'disableBypassPermissionsMode') => {
+  const disableModeBinding = (key: DisableModeKey) => {
     const binding = getSchemaFieldBindings(key, bindingProps);
     if (!binding) throw new Error(`Schema field "${key}" not visible for scope "${scope}"`);
     return binding;
@@ -329,21 +339,21 @@ export function PermissionsSection({
   const disabledMcpjsonServers: string[] = settings.disabledMcpjsonServers ?? [];
   const listRules: string[] = (perms[activeList] ?? []) as string[];
 
-  // permissions 子欄位只寫一格；section 共用 saving 鎖，同頁不會並發寫同一父物件
-  const saveChild = (childKey: string, value: unknown): void => {
+  // saving 鎖只擋本次掛載內的控制項；跨入口、remount 的並發由清單逐條加刪與子欄位單格寫入在擴展端佇列化解
+  const saveChild = (childKey: DisableModeKey, value: unknown): void => {
     void withSave(() => onSaveNested('permissions', childKey, value));
   };
 
-  const deleteChild = (childKey: string): void => {
+  const deleteChild = (childKey: DisableModeKey): void => {
     void withSave(() => onDeleteNested('permissions', childKey));
   };
 
-  const handleAddRule = (rule: string): void => {
-    saveChild(activeList, [...listRules, rule]);
+  const handleAddRule = (rule: string): Promise<true | undefined> => {
+    return withSave(async () => { await onAddPermissionsListItem(activeList, rule); return true as const; });
   };
 
   const handleDeleteRule = (rule: string): void => {
-    saveChild(activeList, listRules.filter((r) => r !== rule));
+    void withSave(() => onRemovePermissionsListItem(activeList, rule));
   };
 
   const listTabs: { id: PermissionsList; label: string }[] = [
@@ -371,7 +381,7 @@ export function PermissionsSection({
       {/* Rule list + add form for the active sub-tab */}
       <PermissionRuleListEditor
         rules={listRules}
-        onAdd={(rule) => void handleAddRule(rule)}
+        onAdd={handleAddRule}
         onDelete={(rule) => void handleDeleteRule(rule)}
         disabled={saving}
       />
@@ -388,9 +398,8 @@ export function PermissionsSection({
         duplicateError={t('settings.permissions.additionalDirectories.duplicate')}
         settingKey="additionalDirectories"
         disabled={saving}
-        onSave={async (_key, value) => {
-          saveChild('additionalDirectories', value as string[]);
-        }}
+        onAddItem={(item) => onAddPermissionsListItem('additionalDirectories', item)}
+        onRemoveItem={(item) => onRemovePermissionsListItem('additionalDirectories', item)}
       />
 
       {/* enableAllProjectMcpServers */}
@@ -481,9 +490,8 @@ export function PermissionsSection({
         addLabel={t('settings.permissions.enabledMcpjsonServers.add')}
         duplicateError={t('settings.permissions.enabledMcpjsonServers.duplicate')}
         settingKey="enabledMcpjsonServers"
-        onSave={async (_key, value) => {
-          await onSave('enabledMcpjsonServers', value);
-        }}
+        onAddItem={(item) => onSave('enabledMcpjsonServers', [...enabledMcpjsonServers, item])}
+        onRemoveItem={(item) => onSave('enabledMcpjsonServers', enabledMcpjsonServers.filter((s) => s !== item))}
       />
 
       {/* disabledMcpjsonServers */}
@@ -497,9 +505,8 @@ export function PermissionsSection({
         addLabel={t('settings.permissions.disabledMcpjsonServers.add')}
         duplicateError={t('settings.permissions.disabledMcpjsonServers.duplicate')}
         settingKey="disabledMcpjsonServers"
-        onSave={async (_key, value) => {
-          await onSave('disabledMcpjsonServers', value);
-        }}
+        onAddItem={(item) => onSave('disabledMcpjsonServers', [...disabledMcpjsonServers, item])}
+        onRemoveItem={(item) => onSave('disabledMcpjsonServers', disabledMcpjsonServers.filter((s) => s !== item))}
       />
 
       {/* allowedMcpServers */}

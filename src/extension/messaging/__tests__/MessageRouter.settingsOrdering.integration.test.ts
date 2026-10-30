@@ -127,4 +127,33 @@ describe('MessageRouter settings 讀寫順序（#33 integration）', () => {
       data: { permissions: { defaultMode: 'plan' } },
     });
   });
+
+  // #34 R6e：add 卡住時發出 settings.get，get 排在 add 後面，回應含新條目；回應順序＝送出順序
+  it('#34：settings.addPermissionsListItem 卡住時發出 settings.get → get 的回應含新條目', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    writeSpy.mockImplementationOnce(async (p, data) => {
+      await gate;
+      return holder.actual.writeJsonFileAtomic(p, data);
+    });
+    const router = createRouter(new SettingsFileService());
+
+    const addDone = router.handle(
+      {
+        type: 'settings.addPermissionsListItem', requestId: 'w1', scope: 'user',
+        listKey: 'allow', item: 'WebFetch',
+      } as RequestMessage,
+      post,
+    );
+    const getDone = router.handle({ type: 'settings.get', requestId: 'g1', scope: 'user' } as RequestMessage, post);
+    await new Promise((r) => setTimeout(r, 30));
+    release();
+    await Promise.all([addDone, getDone]);
+
+    expect(posted.find((m) => m.requestId === 'g1')).toMatchObject({
+      type: 'response',
+      data: { permissions: { allow: ['WebFetch'] } },
+    });
+    expect(posted.map((m) => m.requestId)).toEqual(['w1', 'g1']);
+  });
 });

@@ -24,6 +24,7 @@ import {
   selectValue,
   clickCheckboxByHint,
   fieldOf,
+  addRule,
 } from '../../../__test-utils__/settingsPageHarness';
 
 const LANGUAGE = 'e.g. zh-TW';
@@ -248,6 +249,65 @@ describe('#33 A→B→A 與回應早到（X13、X13e、X14）', () => {
     await flush();
 
     expect(languageValue()).toBe('');
+    await waitFor(() => expect(scopeBadge('Project')).toBe('1'));
+  });
+});
+
+// #34 R9：清單單條加刪的回應 patch 只套在發出時的 scope（I-4），切 scope 後不污染新 scope 畫面。
+describe('#34 permissions 清單單條新增途中切 scope', () => {
+  const RULE = 'WebFetch';
+  const ruleShown = (): number => screen.queryAllByText(RULE).length;
+
+  beforeEach(() => {
+    backend = installFakeSettingsBackend();
+  });
+
+  // 現況不紅（現況 setNested 也有 forScope 檢查）。mutation：handler 改用 latestRef.current.scope 送出或 commit → 必須紅。
+  it('R9a project 權限頁加 WebFetch 未回 → 切 local 並載完 → 放行 → project 檔有、local 檔沒有，local 權限頁與已自訂頁都沒有，project 徽章 1', async () => {
+    renderSettingsPage();
+    await waitInitialLoad();
+    await switchScope('Project');
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.block('project');
+
+    addRule(RULE);
+    await waitFor(() => expect(pendingOf('project', 'settings.addPermissionsListItem')).toBe(1));
+
+    await switchScope('Local');
+    await act(async () => { await backend.unblock('project'); });
+    await flush();
+
+    expect(backend.file('project').permissions).toEqual({ allow: [RULE] });
+    expect(backend.file('local')).not.toHaveProperty('permissions');
+    expect(ruleShown()).toBe(0);
+    clickNav('Customized');
+    await waitFor(() => expect(screen.getByText('No customized settings in this scope.')).toBeTruthy());
+    expect(ruleShown()).toBe(0);
+    await waitFor(() => expect(scopeBadge('Project')).toBe('1'));
+    expect(backend.requests.filter((m) => m.scope === 'local' && m.type !== 'settings.get')).toEqual([]);
+  });
+
+  it('R9b A→B→A：project 加 WebFetch 未回 → local → 切回 project → 放行 → project 畫面只有一個 WebFetch', async () => {
+    renderSettingsPage();
+    await waitInitialLoad();
+    await switchScope('Project');
+    clickNav('Permissions');
+    await waitFor(() => screen.getByRole('button', { name: 'Add Rule' }));
+    backend.block('project');
+
+    addRule(RULE);
+    await waitFor(() => expect(pendingOf('project', 'settings.addPermissionsListItem')).toBe(1));
+
+    await switchScope('Local');
+    clickScope('Project');
+    await waitFor(() => expect(pendingOf('project', 'settings.get')).toBeGreaterThanOrEqual(1));
+    await act(async () => { await backend.unblock('project'); });
+    await waitFor(() => expect(document.querySelector('.settings-loading')).toBeNull());
+    await flush();
+
+    expect(backend.file('project').permissions).toEqual({ allow: [RULE] });
+    expect(ruleShown()).toBe(1);
     await waitFor(() => expect(scopeBadge('Project')).toBe('1'));
   });
 });

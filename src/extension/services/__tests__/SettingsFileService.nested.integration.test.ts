@@ -193,6 +193,168 @@ describe('SettingsFileService 巢狀子欄位與讀寫排隊（#33 integration�
     expect((await readJson(userSettingsPath())).model).toBe('opus');
   });
 
+  /* ═══════ #34：permissions 清單單條加刪 ═══════ */
+
+  it('R6（#34）：不 await 連發兩筆 addPermissionsListItem，各帶不同規則 → 兩條都在，其他欄位不動', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({
+      model: 'opus',
+      permissions: { allow: ['Bash(ls)'] },
+    }) + '\n');
+
+    await Promise.all([
+      svc.addPermissionsListItem('user', 'allow', 'WebFetch'),
+      svc.addPermissionsListItem('user', 'allow', 'WebSearch'),
+    ]);
+
+    expect(await readJson(userSettingsPath())).toEqual({
+      model: 'opus',
+      permissions: { allow: ['Bash(ls)', 'WebFetch', 'WebSearch'] },
+    });
+  });
+
+  it('R6b（#34）：同一條 WebFetch 不 await 連發兩次 add → 檔案只有一個 WebFetch', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { allow: ['Bash(ls)'] } }) + '\n');
+
+    await Promise.all([
+      svc.addPermissionsListItem('user', 'allow', 'WebFetch'),
+      svc.addPermissionsListItem('user', 'allow', 'WebFetch'),
+    ]);
+
+    expect((await readJson(userSettingsPath())).permissions).toEqual({ allow: ['Bash(ls)', 'WebFetch'] });
+  });
+
+  it.each(['allow', 'deny', 'ask', 'additionalDirectories'] as const)(
+    '#34：setNestedSetting(permissions, %s) 整份清單寫入 → reject、檔案內容不變',
+    async (listKey) => {
+      const raw = JSON.stringify({ model: 'opus', permissions: { [listKey]: ['Read'] } }) + '\n';
+      await writeFile(userSettingsPath(), raw);
+      writeSpy.mockClear();
+
+      await expect(svc.setNestedSetting('user', 'permissions', listKey as never, ['Bash'])).rejects.toThrow(
+        new RegExp(listKey),
+      );
+
+      expect(writeSpy).not.toHaveBeenCalled();
+      expect(await readFile(userSettingsPath(), 'utf-8')).toBe(raw);
+      expect((await readJson(userSettingsPath())).permissions).toEqual({ [listKey]: ['Read'] });
+    },
+  );
+
+  it('#34：permissions.defaultMode 與 env 底下名為 allow 的變數 → setNestedSetting 照舊寫入', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { allow: ['Read'] } }) + '\n');
+
+    await svc.setNestedSetting('user', 'permissions', 'defaultMode', 'plan');
+    await svc.setNestedSetting('user', 'env', 'allow', 'yes');
+
+    expect(await readJson(userSettingsPath())).toEqual({
+      permissions: { allow: ['Read'], defaultMode: 'plan' },
+      env: { allow: 'yes' },
+    });
+  });
+
+  it('R5a（#34 P4）：檔案有 X → 不 await 連發 remove(X)、add(X) → 後到的 add 生效，X 在', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { allow: ['X'] } }) + '\n');
+
+    await Promise.all([
+      svc.removePermissionsListItem('user', 'allow', 'X'),
+      svc.addPermissionsListItem('user', 'allow', 'X'),
+    ]);
+
+    expect((await readJson(userSettingsPath())).permissions).toEqual({ allow: ['X'] });
+  });
+
+  it('R5b（#34 P4）：檔案沒有 X → 不 await 連發 add(X)、remove(X) → 後到的 remove 生效，X 不在', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { allow: ['Bash(ls)'] } }) + '\n');
+
+    await Promise.all([
+      svc.addPermissionsListItem('user', 'allow', 'X'),
+      svc.removePermissionsListItem('user', 'allow', 'X'),
+    ]);
+
+    expect((await readJson(userSettingsPath())).permissions).toEqual({ allow: ['Bash(ls)'] });
+  });
+
+  it.each(['allow', 'deny', 'ask', 'additionalDirectories'] as const)(
+    '#34：%s 的 add 以檔案最新內容為準（外部已改的其他清單與子欄位保留）',
+    async (listKey) => {
+      await writeFile(userSettingsPath(), JSON.stringify({
+        permissions: { defaultMode: 'plan', [listKey]: ['a'] },
+      }) + '\n');
+
+      await svc.addPermissionsListItem('user', listKey, 'b');
+
+      expect((await readJson(userSettingsPath())).permissions).toEqual({ defaultMode: 'plan', [listKey]: ['a', 'b'] });
+    },
+  );
+
+  it('#34：permissions 缺席 → add 建立 permissions.allow（project scope 自動建目錄）', async () => {
+    await svc.addPermissionsListItem('project', 'allow', 'WebFetch');
+    expect(await readJson(projectSettingsPath())).toEqual({ permissions: { allow: ['WebFetch'] } });
+  });
+
+  it('#34：remove 刪到空 → 檔案留 allow: []（不刪 key）', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { allow: ['X'] } }) + '\n');
+    await svc.removePermissionsListItem('user', 'allow', 'X');
+    expect(await readJson(userSettingsPath())).toEqual({ permissions: { allow: [] } });
+  });
+
+  it('#34：remove 時清單或 permissions 不存在 → 不寫檔、不建立 key', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ model: 'x' }) + '\n');
+    writeSpy.mockClear();
+    await svc.removePermissionsListItem('user', 'allow', 'X');
+    expect(writeSpy).not.toHaveBeenCalled();
+    expect(await readJson(userSettingsPath())).toEqual({ model: 'x' });
+
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { defaultMode: 'plan' } }) + '\n');
+    await svc.removePermissionsListItem('user', 'allow', 'X');
+    expect(writeSpy).not.toHaveBeenCalled();
+    expect(await readJson(userSettingsPath())).toEqual({ permissions: { defaultMode: 'plan' } });
+  });
+
+  it('#34：清單內沒有該條 → remove 不寫檔', async () => {
+    await writeFile(userSettingsPath(), JSON.stringify({ permissions: { allow: ['Bash(ls)'] } }) + '\n');
+    writeSpy.mockClear();
+    await svc.removePermissionsListItem('user', 'allow', 'X');
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+
+  it('#34：檔案內 allow 為字串 → add／remove 拒絕、檔案不變，佇列照常繼續', async () => {
+    const raw = JSON.stringify({ permissions: { allow: 'x' } }) + '\n';
+    await writeFile(userSettingsPath(), raw);
+
+    const badAdd = svc.addPermissionsListItem('user', 'allow', 'X');
+    const badRemove = svc.removePermissionsListItem('user', 'allow', 'X');
+    const good = svc.setSetting('user', 'model', 'opus');
+    await expect(badAdd).rejects.toThrow();
+    await expect(badRemove).rejects.toThrow();
+    await good;
+
+    expect(await readJson(userSettingsPath())).toEqual({ permissions: { allow: 'x' }, model: 'opus' });
+  });
+
+  it('#34：檔案內 permissions 為字串 → add 拒絕、檔案不變', async () => {
+    const raw = JSON.stringify({ permissions: 'x' }) + '\n';
+    await writeFile(userSettingsPath(), raw);
+    await expect(svc.addPermissionsListItem('user', 'allow', 'X')).rejects.toThrow();
+    expect(await readFile(userSettingsPath(), 'utf-8')).toBe(raw);
+  });
+
+  it('R6e 基礎（#34）：寫入卡住時發出 getSettings → get 等 add 完成、結果含新條目', async () => {
+    const g = gate();
+    writeSpy.mockImplementationOnce(async (p, data) => {
+      await g.promise;
+      return holder.actual.writeJsonFileAtomic(p, data);
+    });
+
+    const write = svc.addPermissionsListItem('user', 'allow', 'WebFetch');
+    const read = svc.getSettings('user');
+    await settle();
+    g.release();
+
+    await write;
+    expect((await read).permissions).toEqual({ allow: ['WebFetch'] });
+  });
+
   /* ═══════ I3：globalConfig 父 key 明確拋錯 ═══════ */
 
   it('I3：user scope 以 globalConfig key 當父 key → setNested／deleteNested 拋錯，兩個檔都不動', async () => {

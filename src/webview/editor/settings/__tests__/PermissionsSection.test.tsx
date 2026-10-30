@@ -18,11 +18,16 @@ vi.mock('../../../vscode', () => ({
 }));
 
 // #33：巢狀子欄位（permissions.*、autoMode.*）改走 onSaveNested／onDeleteNested，每個 test 重建
+// #34：權限清單（allow／deny／ask／additionalDirectories）改走單條加刪 callback (listKey, item)
 let onSaveNested: Mock;
 let onDeleteNested: Mock;
+let onAddPermissionsListItem: Mock;
+let onRemovePermissionsListItem: Mock;
 beforeEach(() => {
   onSaveNested = vi.fn().mockResolvedValue(undefined);
   onDeleteNested = vi.fn().mockResolvedValue(undefined);
+  onAddPermissionsListItem = vi.fn().mockResolvedValue(undefined);
+  onRemovePermissionsListItem = vi.fn().mockResolvedValue(undefined);
 });
 
 const renderSection = (
@@ -42,6 +47,8 @@ const renderSection = (
         onDelete={onDelete}
         onSaveNested={onSaveNested}
         onDeleteNested={onDeleteNested}
+        onAddPermissionsListItem={onAddPermissionsListItem}
+        onRemovePermissionsListItem={onRemovePermissionsListItem}
       />
     </ToastProvider>,
   );
@@ -256,7 +263,7 @@ describe('PermissionsSection — new settings 互動', () => {
 // ---------------------------------------------------------------------------
 
 describe('PermissionsSection — additionalDirectories 互動', () => {
-  it('新增目錄 → onSaveNested("permissions", "additionalDirectories", [..., newDir])', async () => {
+  it('新增目錄 → onAddPermissionsListItem("additionalDirectories", newDir)，不送整份清單', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { additionalDirectories: ['~/docs'] } }, onSave);
 
@@ -266,8 +273,9 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     fireEvent.click(within(addDirInput.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
-      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'additionalDirectories', ['~/docs', '~/projects']);
+      expect(onAddPermissionsListItem).toHaveBeenCalledWith('additionalDirectories', '~/projects');
     });
+    expect(onSaveNested).not.toHaveBeenCalled();
   });
 
   it('既有其他 permissions 子欄位時只送 additionalDirectories 一格（不整包寫回）', async () => {
@@ -280,12 +288,13 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     fireEvent.click(within(addDirInput2.closest('.settings-field') as HTMLElement).getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
-      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'additionalDirectories', ['~/data']);
+      expect(onAddPermissionsListItem).toHaveBeenCalledWith('additionalDirectories', '~/data');
     });
     expect(onSave).not.toHaveBeenCalled();
+    expect(onSaveNested).not.toHaveBeenCalled();
   });
 
-  it('刪除目錄 → onSaveNested("permissions", "additionalDirectories", [remaining])', async () => {
+  it('刪除目錄 → onRemovePermissionsListItem("additionalDirectories", dir)，不送剩餘清單', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { additionalDirectories: ['~/docs', '~/projects'] } }, onSave);
 
@@ -293,8 +302,9 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove ~/docs' }));
 
     await waitFor(() => {
-      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'additionalDirectories', ['~/projects']);
+      expect(onRemovePermissionsListItem).toHaveBeenCalledWith('additionalDirectories', '~/docs');
     });
+    expect(onSaveNested).not.toHaveBeenCalled();
   });
 
   it('重複目錄 → 顯示錯誤，不呼叫 onSave', async () => {
@@ -311,6 +321,7 @@ describe('PermissionsSection — additionalDirectories 互動', () => {
       expect(screen.getByText('Directory already added')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
       expect(onSaveNested).not.toHaveBeenCalled();
+      expect(onAddPermissionsListItem).not.toHaveBeenCalled();
     });
   });
 });
@@ -477,10 +488,11 @@ describe('PermissionsSection — rule form 互動', () => {
     await waitFor(() => {
       expect(onSave).not.toHaveBeenCalled();
       expect(onSaveNested).not.toHaveBeenCalled();
+      expect(onAddPermissionsListItem).not.toHaveBeenCalled();
     });
   });
 
-  it('toolNameArg 格式新增規則 → onSave 寫入 toolName(pattern)', async () => {
+  it('toolNameArg 格式新增規則 → onAddPermissionsListItem 只送 toolName(pattern) 這一條', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = renderSection({}, onSave);
 
@@ -499,7 +511,7 @@ describe('PermissionsSection — rule form 互動', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
 
     await waitFor(() => {
-      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'allow', ['Bash(npm test)']);
+      expect(onAddPermissionsListItem).toHaveBeenCalledWith('allow', 'Bash(npm test)');
     });
   });
 
@@ -525,6 +537,7 @@ describe('PermissionsSection — rule form 互動', () => {
       expect(within(form).getByText('Rule already exists')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
       expect(onSaveNested).not.toHaveBeenCalled();
+      expect(onAddPermissionsListItem).not.toHaveBeenCalled();
     });
   });
 
@@ -569,6 +582,7 @@ describe('PermissionsSection — rule form 互動', () => {
       expect(within(form).getByText('Rule already exists')).toBeTruthy();
       expect(onSave).not.toHaveBeenCalled();
       expect(onSaveNested).not.toHaveBeenCalled();
+      expect(onAddPermissionsListItem).not.toHaveBeenCalled();
     });
   });
 });
@@ -774,7 +788,7 @@ describe('PermissionsSection — sub-tab 行為 regression guard', () => {
     });
   });
 
-  it('[guard] Allow tab 新增規則 → onSaveNested("permissions", "allow", [newRule])', async () => {
+  it('[guard] Allow tab 新增規則 → onAddPermissionsListItem("allow", newRule)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = renderSection({}, onSave);
 
@@ -786,11 +800,11 @@ describe('PermissionsSection — sub-tab 行為 regression guard', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Add Rule' }));
 
     await waitFor(() => {
-      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'allow', ['Bash']);
+      expect(onAddPermissionsListItem).toHaveBeenCalledWith('allow', 'Bash');
     });
   });
 
-  it('[guard] Allow tab 刪除規則 → onSaveNested("permissions", "allow", [])（F5：清空寫 []）', async () => {
+  it('[guard] Allow tab 刪除規則 → onRemovePermissionsListItem("allow", rule)（清空後留 [] 由擴充端處理）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({ permissions: { allow: ['Bash'] } }, onSave);
 
@@ -798,7 +812,7 @@ describe('PermissionsSection — sub-tab 行為 regression guard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove rule Bash' }));
 
     await waitFor(() => {
-      expect(onSaveNested).toHaveBeenCalledWith('permissions', 'allow', []);
+      expect(onRemovePermissionsListItem).toHaveBeenCalledWith('allow', 'Bash');
     });
   });
 
