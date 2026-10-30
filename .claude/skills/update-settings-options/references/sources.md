@@ -25,7 +25,7 @@
 
 - `src/shared/claude-settings-schema.ts` — schema 單一來源，含 section 陣列（即 UI 渲染順序）
 - `src/shared/settings-sync/settings-diff.ts` → `KNOWN_EXCLUDED`：`settingsGaps`/`envGaps` 方向的機器強制排除清單（權威 SSOT）
-- `src/shared/settings-sync/settings-diff.ts` → `KNOWN_REPO_ONLY`：`removedKeys` 方向的機器強制排除清單（權威 SSOT，每條附驗證證據，僅收 orthogonal 個案）；`removed` diff 在 flat-field 粒度比對（`collectRepoFlatFieldKeys` — 只取非 object 頂層 flat field 的 bare/nestedUnder 形式；object-kind 欄位整類排除，不遞迴、也不留 bare key），結構性避免 container/leaf 誤報，不必逐欄位堆清單。代價：object-kind 欄位整個消失、或其巢狀 leaf 被 docs 移除，`removedKeys` 皆不偵測
+- `src/shared/settings-sync/settings-diff.ts` → `diffKeys`：`removedKeys` 方向；`removed` diff 在 flat-field 粒度比對（`collectRepoFlatFieldKeys` — 只取非 object 頂層 flat field 的 bare/nestedUnder 形式；object-kind 欄位整類排除，不遞迴、也不留 bare key），結構性避免 container/leaf 誤報，不必逐欄位堆清單；巢狀欄位的裸／前綴兩寫法以欄位為單位判定，任一在 docs 即不報，兩者皆無才兩條都報。代價：object-kind 欄位整個消失、或其巢狀 leaf 被 docs 移除，`removedKeys` 皆不偵測
 - `src/shared/known-env-vars.ts` → `KNOWN_ENV_VARS`：env var registry 單一來源，`envGaps`/`envRemoved` 據此比對
 - `src/shared/settings-sync/settings-diff.ts` → `KNOWN_ENV_REPO_ONLY`：`envRemoved` 方向的機器強制排除清單（權威 SSOT，附記各 var 實際被記在哪頁）
 - `src/webview/editor/settings/` 現有 section 實作

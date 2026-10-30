@@ -285,53 +285,10 @@ export const KNOWN_EXCLUDED: ReadonlySet<string> = new Set([
   'strictPluginOnlyCustomization.skills',
 ]);
 
-// ─── KNOWN_REPO_ONLY ──────────────────────────────────────────────────────────
-
-/**
- * Reverse-direction SSOT, parallel to KNOWN_EXCLUDED: keys that legitimately
- * exist in repoKeys but never appear in docs in that exact form, so they must
- * be excluded from diffKeys' `removed` output (repo-has/docs-lacks) to avoid
- * false positives.
- *
- * The `removed` diff runs at flat-field grain (collectRepoFlatFieldKeys —
- * non-object top-level flatSchema entries only; object-kind fields are
- * dropped entirely, not recursed) specifically so structural container/leaf
- * mismatches — e.g. `sandbox`, `worktree`, `sandbox.filesystem` — never reach
- * this list at all. Only the orthogonal nestedUnder dual-form case remains,
- * verified 2026-07-21 against https://code.claude.com/docs/en/settings.md.
- */
-export const KNOWN_REPO_ONLY: ReadonlySet<string> = new Set([
-  // Source: collectRepoFlatFieldKeys() emits BOTH the bare key and the
-  // `nestedUnder.key` form for every nestedUnder field (so the *missing*
-  // diff matches docs regardless of which form docs happens to use). Docs
-  // only ever lists ONE of the two forms per key, so the unused form is
-  // always a spurious `removed` hit. Verified 2026-07-21: all three
-  // nestedUnder fields in `src/shared/claude-settings-schema.ts`.
-  //
-  // docs lists only the prefixed form in "### Permission settings" — bare
-  // form is repo-only (exists so the *missing* diff still matches if docs
-  // ever lists it bare, mirroring how disableAutoMode is listed bare).
-  'defaultMode',
-  'disableBypassPermissionsMode',
-  // inverse case: docs lists disableAutoMode bare in "### Available settings"
-  // only — the prefixed form is repo-only.
-  'permissions.disableAutoMode',
-  // docs lists only the prefixed form `autoMode.classifyAllShell` — bare form
-  // is repo-only. Verified 2026-07-21 against
-  // https://code.claude.com/docs/en/settings.md.
-  'classifyAllShell',
-  // docs lists only `permissions.blockReadsOutsideWorkingDirectories` — bare form is repo-only.
-  'blockReadsOutsideWorkingDirectories',
-  // docs lists only the prefixed form `remote.defaultEnvironmentId` in
-  // "### Available settings" — bare form is repo-only. Verified 2026-07-30
-  // against https://code.claude.com/docs/en/settings.md.
-  'defaultEnvironmentId',
-]);
-
 // ─── KNOWN_ENV_REPO_ONLY ──────────────────────────────────────────────────────
 
 /**
- * Env-var counterpart to KNOWN_REPO_ONLY: names the repo registry legitimately
+ * Names the repo registry legitimately
  * carries even though the official env-vars.md reference table never lists them
  * as their own row (they are documented elsewhere — hooks/network/monitoring
  * pages, or only in env-vars.md prose). Without this filter diffEnvVars' reverse
@@ -443,8 +400,10 @@ function addObjectProperties(
 // ─── collectRepoFlatFieldKeys ─────────────────────────────────────────────────
 
 /**
- * Build the repo key set at flat-schema-registration grain: one entry per
+ * Build the repo key map at flat-schema-registration grain: one entry per
  * non-object flatSchemas key (bare form, plus `nestedUnder.key` when present).
+ * Each entry maps a written form to the other form of the same field
+ * (undefined when the field has only one form).
  * Object-kind fields (valueSchema.kind === 'object') are skipped entirely —
  * no bare key, no recursion into their properties.
  *
@@ -454,24 +413,22 @@ function addObjectProperties(
  * `sandbox.filesystem`, `statusLine.command` never get a row — only their
  * leaf descendants do), and whether a top-level object field additionally
  * gets an overview row in "Available settings" is inconsistent across docs
- * (`permissions`/`hooks`/`voice` do; `sandbox`/`worktree` don't) — not a
- * reliable signal either way. Comparing object-kind keys in the `removed`
- * direction at all is therefore comparing two things docs doesn't consistently
- * expose at the same grain, so this function drops the entire kind rather
- * than special-casing each inconsistent field: one structural exclusion
- * instead of a growing per-key list (see KNOWN_REPO_ONLY, which is then only
- * needed for the orthogonal nestedUnder dual-form case).
+ * (`permissions`/`hooks`/`voice` do; `sandbox`/`worktree` don't). Dropping the
+ * whole object kind is one structural exclusion instead of a per-key list.
  */
 export function collectRepoFlatFieldKeys(
   flatSchemas: Record<string, FlatFieldSchema>,
-): Set<string> {
-  const keys = new Set<string>();
+): Map<string, string | undefined> {
+  const keys = new Map<string, string | undefined>();
 
   for (const [key, field] of Object.entries(flatSchemas)) {
     if (field.valueSchema.kind === 'object') continue;
-    keys.add(key);
     if (field.nestedUnder) {
-      keys.add(`${field.nestedUnder}.${key}`);
+      const prefixed = `${field.nestedUnder}.${key}`;
+      keys.set(key, prefixed);
+      keys.set(prefixed, key);
+    } else {
+      keys.set(key, undefined);
     }
   }
 
@@ -486,19 +443,20 @@ export function collectRepoFlatFieldKeys(
  *     (docs added something repo hasn't synced yet). Compared against the
  *     fully expanded repoKeys (collectRepoSettingKeys) so deeply nested doc
  *     gaps (e.g. `sandbox.credentials.files`) are still caught.
- *   - removed: keys in repoFlatFieldKeys that are in neither docsKeys nor
- *     knownRepoOnly (docs no longer documents a key repo still supports —
- *     candidate for the skill's "delete key" flow). Compared at flat-field
- *     grain (collectRepoFlatFieldKeys) — see that function's doc comment for
- *     why full expansion is wrong for this direction. Defaults to an empty
- *     set so callers that only care about `missing` don't need to supply it.
+ *   - removed: keys in repoFlatFieldKeys whose own form and other form (the
+ *     bare/`nestedUnder.` counterpart of the same field) are both absent from
+ *     docsKeys (docs no longer documents a field repo still supports —
+ *     candidate for the skill's "delete key" flow). When both forms are
+ *     absent, both are reported. Compared at flat-field grain
+ *     (collectRepoFlatFieldKeys) — see that function's doc comment for why
+ *     full expansion is wrong for this direction. Defaults to empty so
+ *     callers that only care about `missing` don't need to supply it.
  */
 export function diffKeys(
   docsKeys: Set<string>,
   repoKeys: Set<string>,
   knownExcluded: ReadonlySet<string>,
-  repoFlatFieldKeys: Set<string> = new Set(),
-  knownRepoOnly: ReadonlySet<string> = new Set(),
+  repoFlatFieldKeys: ReadonlyMap<string, string | undefined> = new Map(),
 ): { missing: string[]; removed: string[] } {
   const missing: string[] = [];
   for (const key of docsKeys) {
@@ -509,8 +467,8 @@ export function diffKeys(
   missing.sort();
 
   const removed: string[] = [];
-  for (const key of repoFlatFieldKeys) {
-    if (!docsKeys.has(key) && !knownRepoOnly.has(key)) {
+  for (const [key, otherForm] of repoFlatFieldKeys) {
+    if (!docsKeys.has(key) && (otherForm === undefined || !docsKeys.has(otherForm))) {
       removed.push(key);
     }
   }

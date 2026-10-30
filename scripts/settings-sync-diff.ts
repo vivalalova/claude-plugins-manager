@@ -31,7 +31,6 @@ import {
   checkEnvDocsHealth,
   checkSettingsDocsHealth,
   KNOWN_EXCLUDED,
-  KNOWN_REPO_ONLY,
   KNOWN_ENV_REPO_ONLY,
 } from '../src/shared/settings-sync/settings-diff';
 import {
@@ -147,7 +146,6 @@ async function main(): Promise<void> {
     repoKeys,
     new Set([...KNOWN_EXCLUDED, ...managedScopeKeys]),
     repoFlatFieldKeys,
-    KNOWN_REPO_ONLY,
   );
   const settingsGaps = excludeDeprecatedGaps(settingsGapKeys, docsEntries).map((key) => ({
     key,

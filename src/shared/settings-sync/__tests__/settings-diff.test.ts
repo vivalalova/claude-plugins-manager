@@ -27,7 +27,6 @@ import {
   diffKeys,
   diffEnvVars,
   KNOWN_EXCLUDED,
-  KNOWN_REPO_ONLY,
   checkEnvDocsHealth,
   checkSettingsDocsHealth,
 } from '../settings-diff';
@@ -521,22 +520,15 @@ describe('collectRepoFlatFieldKeys', () => {
     },
   };
 
-  it('returns a Set', () => {
-    expect(collectRepoFlatFieldKeys({})).toBeInstanceOf(Set);
-  });
-
-  it('includes bare key AND nestedUnder.key for a non-object nestedUnder field', () => {
-    const result = collectRepoFlatFieldKeys(fakeSchemaWithNested);
-    expect(result.has('disableAutoMode')).toBe(true);
-    expect(result.has('permissions.disableAutoMode')).toBe(true);
+  // 回傳形狀不鎖定：一律經 diffKeys 的 removed 觀察可見症狀。
+  it('reports both forms of a nestedUnder field when docs lists neither', () => {
+    const { removed } = diffKeys(new Set(), new Set(), KNOWN_EXCLUDED, collectRepoFlatFieldKeys(fakeSchemaWithNested));
+    expect(removed).toEqual(['disableAutoMode', 'permissions.disableAutoMode']);
   });
 
   it('excludes an object-kind field entirely — no bare key, no recursion into its properties', () => {
-    const result = collectRepoFlatFieldKeys(fakeSchemaWithNested);
-    expect(result.has('sandbox')).toBe(false);
-    expect(result.has('sandbox.enabled')).toBe(false);
-    expect(result.has('sandbox.filesystem')).toBe(false);
-    expect(result.has('sandbox.filesystem.allowWrite')).toBe(false);
+    const { removed } = diffKeys(new Set(), new Set(), KNOWN_EXCLUDED, collectRepoFlatFieldKeys(fakeSchemaWithNested));
+    expect(removed.some((k) => k === 'sandbox' || k.startsWith('sandbox.'))).toBe(false);
   });
 });
 
@@ -554,7 +546,11 @@ describe('collectRepoFlatFieldKeys', () => {
 describe('diffKeys — removed direction', () => {
   it('flags a repo-only leaf key that docs no longer documents', () => {
     const docsKeys = new Set(['model', 'permissions.allow']);
-    const repoFlatFieldKeys = new Set(['model', 'permissions.allow', 'legacyRenamedKey']);
+    const repoFlatFieldKeys = new Map<string, string | undefined>([
+      ['model', undefined],
+      ['permissions.allow', undefined],
+      ['legacyRenamedKey', undefined],
+    ]);
     const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys);
     expect(removed).toEqual(['legacyRenamedKey']);
   });
@@ -572,12 +568,8 @@ describe('diffKeys — removed direction', () => {
         section: 'advanced' as const,
       },
     };
-    // collectRepoFlatFieldKeys drops object-kind fields entirely — 'sandbox'
-    // never reaches the comparison, so it can never be a false positive here
-    // (no KNOWN_REPO_ONLY entry needed, unlike the nestedUnder dual-form case).
     const repoFlatFieldKeys = collectRepoFlatFieldKeys(fakeSchema);
-    expect(repoFlatFieldKeys.has('sandbox')).toBe(false);
-    const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys, KNOWN_REPO_ONLY);
+    const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys);
     expect(removed).toEqual([]);
   });
 
@@ -588,33 +580,39 @@ describe('diffKeys — removed direction', () => {
     expect(removed).toEqual([]);
   });
 
-  it('applies knownRepoOnly exclusions to the removed set', () => {
-    const docsKeys = new Set<string>();
-    const repoFlatFieldKeys = new Set(['excludedKey', 'realRemovedKey']);
-    const { removed } = diffKeys(docsKeys, new Set(), KNOWN_EXCLUDED, repoFlatFieldKeys, new Set(['excludedKey']));
-    expect(removed).toEqual(['realRemovedKey']);
-  });
 });
 
-// ─── H4. KNOWN_REPO_ONLY constant ─────────────────────────────────────────────
+// ─── H4. nestedUnder 雙寫法以欄位為單位判「文件已移除」（#40）─────────────────
 
-describe('KNOWN_REPO_ONLY constant', () => {
-  it('is a Set (or Set-like with .has method)', () => {
-    expect(typeof KNOWN_REPO_ONLY.has).toBe('function');
+describe('diffKeys — removed direction, nestedUnder dual-form fields', () => {
+  const nestedField = (nestedUnder: string) => ({
+    nestedUnder,
+    valueSchema: { kind: 'string' as const },
+    controlType: String,
+    default: undefined,
+    section: 'permissions' as const,
+  });
+  const schema = {
+    defaultMode: nestedField('permissions'),
+    disableAutoMode: nestedField('permissions'),
+  };
+  const removedFor = (docs: string[]) =>
+    diffKeys(new Set(docs), new Set(), KNOWN_EXCLUDED, collectRepoFlatFieldKeys(schema)).removed;
+
+  it('does not flag defaultMode when docs lists only the prefixed form', () => {
+    expect(removedFor(['permissions.defaultMode', 'permissions.disableAutoMode'])).toEqual([]);
   });
 
-  it.each([
-    'defaultMode',
-    'disableBypassPermissionsMode',
-    'permissions.disableAutoMode',
-  ])('contains "%s"', (key) => {
-    expect(KNOWN_REPO_ONLY.has(key)).toBe(true);
+  it('does not flag permissions.disableAutoMode when docs lists only the bare form', () => {
+    expect(removedFor(['defaultMode', 'disableAutoMode'])).toEqual([]);
   });
 
-  it('does NOT need object-kind container entries (sandbox/worktree/subagentStatusLine) — collectRepoFlatFieldKeys excludes them structurally', () => {
-    expect(KNOWN_REPO_ONLY.has('sandbox')).toBe(false);
-    expect(KNOWN_REPO_ONLY.has('worktree')).toBe(false);
-    expect(KNOWN_REPO_ONLY.has('subagentStatusLine')).toBe(false);
+  it('works in both directions at once (mixed docs forms)', () => {
+    expect(removedFor(['permissions.defaultMode', 'disableAutoMode'])).toEqual([]);
+  });
+
+  it('reports both forms when docs lists neither (regression anchor)', () => {
+    expect(removedFor(['permissions.defaultMode'])).toEqual(['disableAutoMode', 'permissions.disableAutoMode']);
   });
 });
 

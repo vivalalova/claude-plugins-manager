@@ -58,7 +58,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 - **Detect**：一個 agent 跑 Bash `npx tsx scripts/settings-sync-diff.ts`（cwd repo root），拿回 JSON `{ settingsGaps, removedKeys, envGaps, envRemoved, defaultDrift, storageDrift, scopeDrift, deprecatedSurfaced, enumDrift, counts, health }`，全是 CLI 的確定性結果：
   - `settingsGaps`：docs 有、repo 無，已扣 `KNOWN_EXCLUDED`、Scope=`Managed` 與 docs 標 Deprecated／Removed 的 key；每筆帶 key、description、topic、scope
-  - `removedKeys`：repo 有、docs 無，已扣 `KNOWN_REPO_ONLY`
+  - `removedKeys`：repo 有、docs 無（巢狀欄位的裸／前綴兩種寫法任一出現在 docs 即不報）
   - `envGaps` / `envRemoved`：同上兩方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`；`envGaps` 帶 docs description
   - `defaultDrift`：兩邊都有的 key，schema `default` 與 docs `**Default**` 不符。`kind` 四種：`mismatch`（docs 給了明確值、repo 不同或沒給）、`repoDefaultDocsUnset`（docs 說 unset、repo 有給值，已扣 `KNOWN_DEFAULT_EQUIVALENT`）、`conditional`（docs 寫「`A`, or `B` when …」、repo 有給值）、`unparsed`（docs 文字既非 unset 也非開頭的 JSON literal）
   - `storageDrift`：索引 Scope=`Global config`（存 `~/.claude.json`）與 schema `storageFile: 'globalConfig'` 不一致
@@ -133,7 +133,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
 
 - **scalar 高度自動化**：schema field + i18n + 自動渲染，均可一次到位。
 - **object editor 半自動**：schema 可自動，dispatcher case + editor 元件需人工；workflow 會標記 `isObjectEditor=true` 提醒。
-- **key 新增/移除可偵測**：`settingsGaps`（docs 有 repo 無）與 `removedKeys`（repo 有 docs 無，flat-field 粒度比對，已扣 `KNOWN_REPO_ONLY`）、`envGaps`/`envRemoved`（同方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`）皆由 CLI 確定性偵測。
+- **key 新增/移除可偵測**：`settingsGaps`（docs 有 repo 無）與 `removedKeys`（repo 有 docs 無，flat-field 粒度比對，巢狀欄位任一寫法在 docs 即不報）、`envGaps`/`envRemoved`（同方向比對 `known-env-vars.ts`，`envRemoved` 已扣 `KNOWN_ENV_REPO_ONLY`）皆由 CLI 確定性偵測。
 - **`removedKeys` 僅涵蓋 non-object top-level 欄位**：object-kind 欄位（如 `sandbox`、`permissions`）整個從 docs 消失、或其巢狀 leaf 被 docs 移除，皆不會被 `removedKeys` 偵測到；新增方向（`settingsGaps`）則涵蓋巢狀 leaf。
 - **default / 存放檔漂移可偵測**：`defaultDrift` 涵蓋 non-object flat field，`storageDrift` 涵蓋全部 flat field。
 - **生效 scope 漂移可偵測**：`scopeDrift` 涵蓋全部 flat field 與 object 子設定；設定頁在不生效的 scope 隱藏該控制項（JSON 模式不過濾）。

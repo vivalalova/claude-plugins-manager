@@ -29,7 +29,7 @@ const DETECT_SCHEMA = {
       items: { type: 'object', properties: { key: { type: 'string' }, description: { type: 'string' }, topic: { type: 'string' }, scope: { type: 'string' } } },
       description: 'doc keys missing from repo schema (already filtered by KNOWN_EXCLUDED and Scope=Managed), each with its index description, topic and scope',
     },
-    removedKeys: { type: 'array', items: { type: 'string' }, description: 'repo schema keys no longer documented (flat-field grain, already filtered by KNOWN_REPO_ONLY) — candidates for the delete-key flow, never auto-applied' },
+    removedKeys: { type: 'array', items: { type: 'string' }, description: 'repo schema keys no longer documented (flat-field grain, a nested field counts as documented when either its bare or prefixed form is in docs) — candidates for the delete-key flow, never auto-applied' },
     envGaps: {
       type: 'array',
       items: { type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' } } },
