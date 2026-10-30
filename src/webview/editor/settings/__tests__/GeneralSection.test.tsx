@@ -1162,7 +1162,7 @@ describe('GeneralSection — defaultMode（nested under permissions）', () => {
     expect(manualOption).toBeTruthy();
     expect(manualOption.textContent).not.toBe('');
     expect(manualOption.textContent).not.toBe('settings.general.defaultMode.manual');
-    // 其餘選項標籤皆首字大寫（Default／Plan／Auto…）；缺 i18n key 時會 fallback 成原始值 'manual'（小寫）
+    // 其餘選項標籤皆首字大寫（Default／Plan／Auto…）；缺 i18n key 時 SchemaFieldRenderer 會拋錯、不會渲染；此斷言再防選項被誤譯成原始值 'manual'（小寫）
     expect(manualOption.textContent).not.toBe('manual');
   });
 

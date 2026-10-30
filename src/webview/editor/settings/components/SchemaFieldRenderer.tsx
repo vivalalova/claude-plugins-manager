@@ -60,10 +60,9 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
         const options = getSchemaEnumOptions(settingKey);
         const optionLabels: Record<string, string> = {};
         for (const option of options) {
-          // t() returns undefined for keys absent from the locale table; skip so
-          // EnumDropdown falls back to the raw enum value instead of rendering "undefined".
           const optionLabel = tk(option) as string | undefined;
-          if (optionLabel) optionLabels[option] = optionLabel;
+          if (!optionLabel) throw new Error(`Missing i18n label settings.${schema.section}.${settingKey}.${option}`);
+          optionLabels[option] = optionLabel;
         }
         const hasDangerValues = schema.dangerValues && schema.dangerValues.length > 0;
         const enumOnSave = hasDangerValues

@@ -91,17 +91,21 @@ describe('SchemaFieldRenderer', () => {
     });
   });
 
-  it('enum option without an i18n label falls back to the raw value (never "undefined")', async () => {
+  it('enum option without an i18n label throws an error naming the full key (no raw-value fallback)', () => {
     // section 'advanced' has no settings.advanced.editorMode.* option labels
-    renderField('editorMode', {
-      valueSchema: { kind: 'string', enum: ['normal', 'vim'] as const },
-      section: 'advanced',
-      controlType: String,
-    });
-    await waitFor(() => {
-      const options = Array.from(screen.getByRole('combobox').querySelectorAll('option'));
-      expect(options.slice(1).map((o) => o.textContent)).toEqual(['normal', 'vim']);
-    });
+    // React 把 render 例外重拋給 act；壓掉 React 自己印的 console.error 噪音。
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(() =>
+        renderField('editorMode', {
+          valueSchema: { kind: 'string', enum: ['normal', 'vim'] as const },
+          section: 'advanced',
+          controlType: String,
+        }),
+      ).toThrow(/settings\.advanced\.editorMode\.normal/);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('String → renders TextSetting with placeholder and save/reset buttons', async () => {
