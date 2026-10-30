@@ -534,7 +534,6 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDe
         value={numVal}
         placeholder={t('settings.env.valuePlaceholder')}
         saveLabel={t('settings.common.save')}
-        clearLabel={t('settings.common.clear')}
         settingKey={knownVar.name}
         scope={scope}
         defaultValue={defaultNum}
@@ -571,7 +570,6 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDe
         value={currentEnv[knownVar.name]}
         placeholder={t('settings.env.valuePlaceholder')}
         saveLabel={t('settings.common.save')}
-        clearLabel={t('settings.common.clear')}
         settingKey={knownVar.name}
         scope={scope}
         defaultValue={knownVar.default}
@@ -747,7 +745,6 @@ export function EnvFieldRenderer({
         value={numVal}
         placeholder={t('settings.env.valuePlaceholder')}
         saveLabel={t('settings.common.save')}
-        clearLabel={t('settings.common.clear')}
         settingKey={envKey}
         scope={scope}
         defaultValue={defaultNum}
@@ -785,7 +782,6 @@ export function EnvFieldRenderer({
       value={envVal}
       placeholder={t('settings.env.valuePlaceholder')}
       saveLabel={t('settings.common.save')}
-      clearLabel={t('settings.common.clear')}
       settingKey={envKey}
       scope={scope}
       defaultValue={knownVar.default}

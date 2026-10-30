@@ -129,7 +129,6 @@ export function ObjectFieldEditor({
           value={settings.modelPicker ? JSON.stringify(settings.modelPicker) : undefined}
           placeholder={t('settings.general.modelPicker.placeholder')}
           saveLabel={t('settings.common.save')}
-          clearLabel={t('settings.common.clear')}
           settingKey="modelPicker"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -146,7 +145,6 @@ export function ObjectFieldEditor({
           value={settings.modelSettings ? JSON.stringify(settings.modelSettings) : undefined}
           placeholder={t('settings.general.modelSettings.placeholder')}
           saveLabel={t('settings.common.save')}
-          clearLabel={t('settings.common.clear')}
           settingKey="modelSettings"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -174,7 +172,6 @@ export function ObjectFieldEditor({
           value={settings.subagentStatusLine?.command}
           placeholder={t('settings.advanced.subagentStatusLine.command.placeholder')}
           saveLabel={t('settings.common.save')}
-          clearLabel={t('settings.common.clear')}
           settingKey="subagentStatusLine"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -191,7 +188,6 @@ export function ObjectFieldEditor({
           value={settings.fileSuggestion?.command}
           placeholder={t('settings.advanced.fileSuggestion.command.placeholder')}
           saveLabel={t('settings.common.save')}
-          clearLabel={t('settings.common.clear')}
           settingKey="fileSuggestion"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -215,7 +211,6 @@ export function ObjectFieldEditor({
           value={settings.modelOverrides ? JSON.stringify(settings.modelOverrides) : undefined}
           placeholder={t('settings.advanced.modelOverrides.placeholder')}
           saveLabel={t('settings.advanced.modelOverrides.save')}
-          clearLabel={t('settings.advanced.modelOverrides.clear')}
           settingKey="modelOverrides"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -232,7 +227,6 @@ export function ObjectFieldEditor({
           value={settings.skillOverrides ? JSON.stringify(settings.skillOverrides) : undefined}
           placeholder={t('settings.advanced.skillOverrides.placeholder')}
           saveLabel={t('settings.advanced.skillOverrides.save')}
-          clearLabel={t('settings.advanced.skillOverrides.clear')}
           settingKey="skillOverrides"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -249,7 +243,6 @@ export function ObjectFieldEditor({
           value={settings.worktree ? JSON.stringify(settings.worktree) : undefined}
           placeholder={t('settings.advanced.worktree.placeholder')}
           saveLabel={t('settings.advanced.worktree.save')}
-          clearLabel={t('settings.advanced.worktree.clear')}
           settingKey="worktree"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -266,7 +259,6 @@ export function ObjectFieldEditor({
           value={settings.sshConfigs ? JSON.stringify(settings.sshConfigs) : undefined}
           placeholder={t('settings.advanced.sshConfigs.placeholder')}
           saveLabel={t('settings.advanced.sshConfigs.save')}
-          clearLabel={t('settings.advanced.sshConfigs.clear')}
           settingKey="sshConfigs"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -301,7 +293,6 @@ export function ObjectFieldEditor({
           value={settings.autoMode ? JSON.stringify(settings.autoMode) : undefined}
           placeholder={t('settings.advanced.autoMode.placeholder')}
           saveLabel={t('settings.advanced.autoMode.save')}
-          clearLabel={t('settings.advanced.autoMode.clear')}
           settingKey="autoMode"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -318,7 +309,6 @@ export function ObjectFieldEditor({
           value={settings.remote ? JSON.stringify(settings.remote) : undefined}
           placeholder={t('settings.advanced.remote.placeholder')}
           saveLabel={t('settings.advanced.remote.save')}
-          clearLabel={t('settings.advanced.remote.clear')}
           settingKey="remote"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -335,7 +325,6 @@ export function ObjectFieldEditor({
           value={settings.vimInsertModeRemaps ? JSON.stringify(settings.vimInsertModeRemaps) : undefined}
           placeholder={t('settings.display.vimInsertModeRemaps.placeholder')}
           saveLabel={t('settings.display.vimInsertModeRemaps.save')}
-          clearLabel={t('settings.display.vimInsertModeRemaps.clear')}
           settingKey="vimInsertModeRemaps"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -361,7 +350,6 @@ export function ObjectFieldEditor({
           value={settings.allowedMcpServers ? JSON.stringify(settings.allowedMcpServers) : undefined}
           placeholder={t('settings.permissions.allowedMcpServers.placeholder')}
           saveLabel={t('settings.permissions.allowedMcpServers.save')}
-          clearLabel={t('settings.permissions.allowedMcpServers.clear')}
           settingKey="allowedMcpServers"
           scope={scope}
           overriddenScope={overriddenScope}
@@ -378,7 +366,6 @@ export function ObjectFieldEditor({
           value={settings.deniedMcpServers ? JSON.stringify(settings.deniedMcpServers) : undefined}
           placeholder={t('settings.permissions.deniedMcpServers.placeholder')}
           saveLabel={t('settings.permissions.deniedMcpServers.save')}
-          clearLabel={t('settings.permissions.deniedMcpServers.clear')}
           settingKey="deniedMcpServers"
           scope={scope}
           overriddenScope={overriddenScope}

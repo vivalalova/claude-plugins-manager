@@ -117,7 +117,6 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           value={value as string | undefined}
           placeholder={tk('placeholder')}
           saveLabel={tc('save')}
-          clearLabel={tc('clear')}
           settingKey={settingKey}
           defaultValue={getSchemaDefault<string>(settingKey)}
           overriddenScope={overriddenScope}
@@ -138,7 +137,6 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           value={value as number | undefined}
           placeholder={tk('placeholder')}
           saveLabel={tc('save')}
-          clearLabel={tc('clear')}
           settingKey={settingKey}
           defaultValue={getSchemaDefault<number>(settingKey)}
           overriddenScope={overriddenScope}

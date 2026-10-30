@@ -522,7 +522,6 @@ export interface TextSettingProps {
   value: string | undefined;
   placeholder: string;
   saveLabel: string;
-  clearLabel?: string;
   settingKey: string;
   defaultValue?: unknown;
   overriddenScope?: PluginScope;
@@ -870,7 +869,6 @@ export interface NumberSettingProps {
   value: number | undefined;
   placeholder: string;
   saveLabel: string;
-  clearLabel?: string;
   settingKey: string;
   scope: PluginScope;
   min?: number;

@@ -71,7 +71,6 @@ export function UnknownSettingsSection({
           value={serializeValue(value)}
           placeholder=""
           saveLabel={t('settings.common.save')}
-          clearLabel={t('settings.common.clear')}
           settingKey={key}
           scope={scope}
           onSave={async (k, raw) => onSave(k, deserializeValue(raw as string))}
