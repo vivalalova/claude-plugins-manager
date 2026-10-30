@@ -44,6 +44,40 @@ describe('ContentDetailPanel XSS sanitization', () => {
     });
   });
 
+  describe('blocks CSS injection', () => {
+    it('style 標籤（前面有其他內容）不會留在 DOM', () => {
+      renderPanel('# Title\n\n<style>body{display:none}</style>');
+      const container = document.querySelector('.detail-markdown');
+      expect(container?.querySelector('h1')?.textContent).toBe('Title');
+      expect(container?.querySelector('style')).toBeNull();
+    });
+
+    it('style 屬性不會留在任何元素上', () => {
+      renderPanel('<p style="display:none">x</p>');
+      const container = document.querySelector('.detail-markdown');
+      expect(container?.textContent).toContain('x');
+      expect(container?.querySelectorAll('[style]').length).toBe(0);
+    });
+
+    it.each(['confirm-overlay', 'action-menu-panel', 'toast-container'])(
+      'class 屬性不會留下，無法借用 app 全域 class（%s）',
+      (cls) => {
+        renderPanel(`hi\n\n<div class="${cls}">x</div>`);
+        const container = document.querySelector('.detail-markdown');
+        expect(container?.textContent).toContain('x');
+        expect(container?.querySelectorAll('[class]').length).toBe(0);
+        expect(container?.querySelector(`.${cls}`)).toBeNull();
+      },
+    );
+
+    it('marked 產生的 code block class 也一併移除（無樣式依賴）', () => {
+      renderPanel('```js\nconst x = 1;\n```');
+      const code = document.querySelector('.detail-markdown code');
+      expect(code?.textContent).toContain('const x = 1');
+      expect(code?.hasAttribute('class')).toBe(false);
+    });
+  });
+
   describe('preserves safe markdown', () => {
     it('renders inline code', () => {
       renderPanel('`const x = 1`');

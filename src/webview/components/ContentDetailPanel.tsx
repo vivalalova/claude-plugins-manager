@@ -28,10 +28,14 @@ const MULTI_TAG_FIELDS = new Set(['allowed-tools', 'agents']);
 /** Frontmatter 顯示順序（name/description 特殊處理，不在此列） */
 const META_FIELDS = ['model', 'context', 'allowed-tools', 'agents'];
 
-/** 將 markdown body 轉為 HTML（經 DOMPurify sanitize 防 XSS） */
+/**
+ * 將 markdown body 轉為 HTML（經 DOMPurify sanitize 防 XSS）。
+ * 另擋所有樣式入口：`<style>`、`style` 屬性、`class` 屬性——
+ * 第三方 markdown 可借用 app 既有全域 class（如 `.confirm-overlay` 為 fixed 全視窗）蓋住面板與按鈕。
+ */
 function renderMarkdown(md: string): string {
   const raw = marked.parse(md, { async: false, gfm: true, breaks: true }) as string;
-  return DOMPurify.sanitize(raw);
+  return DOMPurify.sanitize(raw, { FORBID_TAGS: ['style'], FORBID_ATTR: ['style', 'class'] });
 }
 
 /**
