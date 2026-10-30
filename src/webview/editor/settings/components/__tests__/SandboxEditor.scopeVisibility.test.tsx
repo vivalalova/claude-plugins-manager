@@ -47,6 +47,7 @@ describe('SandboxEditor — #24 gated 控件 scope 隔離', () => {
     renderEditor({}, 'user');
     await waitFor(() => {
       expect(screen.getByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: /Disable filesystem isolation/ })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: /Deny hosts outside the allowlist/ })).toBeTruthy();
       expect(screen.getByText('AWS Credential Pairs')).toBeTruthy();
@@ -59,6 +60,7 @@ describe('SandboxEditor — #24 gated 控件 scope 隔離', () => {
     renderEditor({}, 'project');
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Enable Sandbox' })).toBeTruthy());
     expect(screen.queryByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Disable filesystem isolation/ })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Deny hosts outside the allowlist/ })).toBeNull();
     expect(screen.queryByText('AWS Credential Pairs')).toBeNull();
@@ -73,6 +75,7 @@ describe('SandboxEditor — #24 gated 控件 scope 隔離', () => {
     renderEditor({}, 'local');
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Enable Sandbox' })).toBeTruthy());
     expect(screen.queryByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Disable filesystem isolation/ })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Deny hosts outside the allowlist/ })).toBeNull();
     expect(screen.queryByText('AWS Credential Pairs')).toBeNull();

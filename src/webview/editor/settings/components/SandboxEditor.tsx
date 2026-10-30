@@ -17,6 +17,7 @@ type SandboxBooleanKey =
   | 'enableWeakerNestedSandbox'
   | 'allowUnsandboxedCommands'
   | 'allowAppleEvents'
+  | 'allowNestedUserNamespaces'
   | 'failIfUnavailable';
 type SandboxFilesystemArrayKey = 'allowWrite' | 'denyWrite' | 'denyRead' | 'allowRead';
 type SandboxFilesystemBooleanKey = 'disabled';
@@ -82,7 +83,7 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
   // Clean root-level
   if (Array.isArray(clean.excludedCommands) && (clean.excludedCommands as unknown[]).length === 0) delete clean.excludedCommands;
   if (clean.ignoreViolations && Object.keys(clean.ignoreViolations as object).length === 0) delete clean.ignoreViolations;
-  for (const k of ['enabled', 'autoAllowBashIfSandboxed', 'enableWeakerNetworkIsolation', 'enableWeakerNestedSandbox', 'allowUnsandboxedCommands', 'allowAppleEvents', 'failIfUnavailable']) {
+  for (const k of ['enabled', 'autoAllowBashIfSandboxed', 'enableWeakerNetworkIsolation', 'enableWeakerNestedSandbox', 'allowUnsandboxedCommands', 'allowAppleEvents', 'allowNestedUserNamespaces', 'failIfUnavailable']) {
     if (clean[k] === undefined) delete clean[k];
     if (clean[k] === '') delete clean[k];
   }
@@ -588,6 +589,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
     { key: 'enableWeakerNestedSandbox', label: tk('weakerNested') },
     { key: 'allowUnsandboxedCommands', label: tk('allowUnsandboxed') },
     { key: 'allowAppleEvents', label: tk('allowAppleEvents') },
+    { key: 'allowNestedUserNamespaces', label: tk('allowNestedUserNamespaces') },
     { key: 'failIfUnavailable', label: tk('failIfUnavailable') },
   ] satisfies Array<{ key: SandboxBooleanKey; label: string }>).filter(({ key }) => isSandboxChildEffective(key, scope));
 

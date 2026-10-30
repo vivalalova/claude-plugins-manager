@@ -11,7 +11,7 @@ import {
   diffDeprecated,
   diffEnumOptions,
   KNOWN_DEFAULT_EQUIVALENT,
-  warningParseHealthy,
+  unclassifiedDeprecations,
   excludeDeprecatedGaps,
 } from '../settings-meta-drift';
 
@@ -465,14 +465,14 @@ function stringField(nestedUnder?: string): FlatFieldSchema {
   } as unknown as FlatFieldSchema;
 }
 
-// Verbatim (trimmed) excerpts from settings-reference.md, 2026-09-23 — real
-// <Warning> and **Type** bullet shapes, not synthesized ones.
+// Verbatim (trimmed) excerpts from settings-reference.md, 2026-10-30 — real
+// `> [!WARNING]` and **Type** bullet shapes, not synthesized ones.
 const warningMd = [
   '### `keybindingFlavor`',
   '',
-  '<Warning>',
-  "  Deprecated since v2.1.261 and has no effect. The prompt's word-editing keys always follow readline conventions, as in Bash. Claude Code still accepts `keybindingFlavor`, so a settings file that sets it stays valid.",
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  "> Deprecated since v2.1.261 and has no effect. The prompt's word-editing keys always follow readline conventions, as in Bash. Claude Code still accepts `keybindingFlavor`, so a settings file that sets it stays valid.",
   '',
   'In v2.1.238 through v2.1.260, setting it to `"readline"` made `Ctrl+W` delete back to the previous whitespace instead of only the previous word.',
   '',
@@ -482,9 +482,9 @@ const warningMd = [
   '',
   '### `teammateDefaultModel`',
   '',
-  '<Warning>',
-  '  Removed in v2.1.234, together with its `/config` row **Default teammate model**. Setting it has no effect on current versions.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Removed in v2.1.234, together with its `/config` row **Default teammate model**. Setting it has no effect on current versions.',
   '',
   'Through v2.1.233, you set this key to the model for agent team teammates your prompt did not name a model for.',
   '',
@@ -504,15 +504,15 @@ const warningMd = [
   '',
   '### `twoWarningsKey`',
   '',
-  '<Warning>',
-  '  Deprecated since v2.1.1.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Deprecated since v2.1.1.',
   '',
   'Some body text sits between the two Warning blocks — only the first classifies.',
   '',
-  '<Warning>',
-  '  Removed in v2.1.2.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Removed in v2.1.2.',
   '',
   '* **Type**: Boolean',
   '* **Default**: unset',
@@ -557,9 +557,9 @@ describe('parseSettingsEntries — Warning classification (T1)', () => {
     const md = [
       '### `skipConfirmDialog`',
       '',
-      '<Warning>',
-      '  Setting this to true skips the confirmation dialog.',
-      '</Warning>',
+      '> [!WARNING]',
+      '>',
+      '> Setting this to true skips the confirmation dialog.',
       '',
       '* **Type**: Boolean',
       '* **Default**: unset',
@@ -581,9 +581,9 @@ describe('parseSettingsEntries — Warning classification (T1)', () => {
       '',
       'Some prose sits before the Warning block.',
       '',
-      '<Warning>',
-      '  Deprecated since v2.1.1.',
-      '</Warning>',
+      '> [!WARNING]',
+      '>',
+      '> Deprecated since v2.1.1.',
       '',
       '* **Type**: Boolean',
       '* **Default**: unset',
@@ -600,15 +600,40 @@ describe('parseSettingsEntries — Warning classification (T1)', () => {
       '{}',
       '```',
       '',
-      '<Warning>',
-      '  Deprecated since v2.1.1.',
-      '</Warning>',
+      '> [!WARNING]',
+      '>',
+      '> Deprecated since v2.1.1.',
       '',
       '* **Type**: Boolean',
       '* **Default**: unset',
     ].join('\n');
     const entries = parseSettingsEntries(md);
     expect(entries.get('fencedThenWarningKey')?.warning).toBeUndefined();
+  });
+
+  it('Warning 引用區塊跨多行 → 合併成一句；區塊後緊接的正文與 bullet 照常解析', () => {
+    const md = [
+      '### `multiLineKey`',
+      '',
+      '> [!WARNING]',
+      '>',
+      '> Removed in v2.1.9.',
+      '> Setting it has no effect.',
+      'Body text right after the quote.',
+      '* **Type**: string, `"a"` or `"b"`',
+      '* **Default**: `"a"`',
+    ].join('\n');
+    const entry = parseSettingsEntries(md).get('multiLineKey');
+    expect(entry?.warning).toEqual({ kind: 'removed', text: 'Removed in v2.1.9. Setting it has no effect.' });
+    expect(entry?.typeOptions).toEqual(['a', 'b']);
+    expect(entry?.default).toBe('`"a"`');
+  });
+
+  it('非 WARNING 的引用區塊（如 [!NOTE]）開頭 → 不分類', () => {
+    const md = ['### `noteKey`', '', '> [!NOTE]', '>', '> Deprecated since v2.1.1.', '', '* **Default**: unset'].join(
+      '\n',
+    );
+    expect(parseSettingsEntries(md).get('noteKey')?.warning).toBeUndefined();
   });
 });
 
@@ -833,45 +858,45 @@ describe('diffEnumOptions — open type (T-a)', () => {
 const REMOVED_KEYS_WARNING_MD = [
   '### `keybindingFlavor`',
   '',
-  '<Warning>',
-  "  Deprecated since v2.1.261 and has no effect. The prompt's word-editing keys always follow readline conventions, as in Bash. Claude Code still accepts `keybindingFlavor`, so a settings file that sets it stays valid.",
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  "> Deprecated since v2.1.261 and has no effect. The prompt's word-editing keys always follow readline conventions, as in Bash. Claude Code still accepts `keybindingFlavor`, so a settings file that sets it stays valid.",
   '',
   '* **Type**: string, `"classic"` or `"readline"`',
   '* **Default**: unset',
   '',
   '### `voiceEnabled`',
   '',
-  '<Warning>',
-  '  Deprecated since v2.1.92, when the `voice` object replaced it. Claude Code still reads it so older settings files keep working, but new configurations should set `voice.enabled`.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Deprecated since v2.1.92, when the `voice` object replaced it. Claude Code still reads it so older settings files keep working, but new configurations should set `voice.enabled`.',
   '',
   '* **Type**: Boolean',
   '* **Default**: unset',
   '',
   '### `disableArtifact`',
   '',
-  '<Warning>',
-  '  Deprecated, and replaced by `enableArtifact`. Claude Code still honors `disableArtifact: true` as equivalent to `enableArtifact: false`, and ignores `disableArtifact: false`.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Deprecated, and replaced by `enableArtifact`. Claude Code still honors `disableArtifact: true` as equivalent to `enableArtifact: false`, and ignores `disableArtifact: false`.',
   '',
   '* **Type**: Boolean',
   '* **Default**: unset',
   '',
   '### `permissionExplainerEnabled`',
   '',
-  '<Warning>',
-  '  Removed in v2.1.257, together with the `Ctrl+E` command explanation on Bash and PowerShell permission prompts. Setting it has no effect on current versions.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Removed in v2.1.257, together with the `Ctrl+E` command explanation on Bash and PowerShell permission prompts. Setting it has no effect on current versions.',
   '',
   '* **Type**: Boolean',
   '* **Default**: `true`',
   '',
   '### `teammateDefaultModel`',
   '',
-  '<Warning>',
-  '  Removed in v2.1.234, together with its `/config` row **Default teammate model**. Setting it has no effect on current versions.',
-  '</Warning>',
+  '> [!WARNING]',
+  '>',
+  '> Removed in v2.1.234, together with its `/config` row **Default teammate model**. Setting it has no effect on current versions.',
   '',
   '* **Type**: string, a model alias or full model ID, or `null`',
   '* **Default**: unset',
@@ -905,9 +930,9 @@ describe('diffDeprecated (27-2)', () => {
     const md = [
       '### `container.child`',
       '',
-      '<Warning>',
-      '  Deprecated since v2.1.9.',
-      '</Warning>',
+      '> [!WARNING]',
+      '>',
+      '> Deprecated since v2.1.9.',
       '',
       '* **Type**: Boolean',
       '* **Default**: unset',
@@ -927,9 +952,9 @@ describe('diffDeprecated (27-2)', () => {
     const md = [
       '### `worktree.child`',
       '',
-      '<Warning>',
-      '  Deprecated since v2.1.9.',
-      '</Warning>',
+      '> [!WARNING]',
+      '>',
+      '> Deprecated since v2.1.9.',
       '',
       '* **Type**: Boolean',
       '* **Default**: unset',
@@ -1079,22 +1104,29 @@ describe('diffEnumOptions — effortLevel repoOnly 對照真實 docs Type (T3 fi
   });
 });
 
-// T-g: F3 的 Warning-parse 健康檢查——md 裡有 <Warning>/Deprecated/Removed 字樣，
-// 但一筆都沒被分類到，判為不健康（供 CLI 用來 exit 1）。
-describe('warningParseHealthy (T-g)', () => {
-  it('md 含 <Warning> 與 Deprecated 字樣，但 entries 一筆 warning 都沒有 → false', () => {
-    const md = ['### `someKey`', '', '<Warning>', '  Deprecated since v2.1.1.', '</Warning>'].join('\n');
-    expect(warningParseHealthy(md, new Map())).toBe(false);
+// T-g: 索引表 Description 標 Deprecated／Removed 的 key，條目卻沒分類到 Warning → 解析失準（供 CLI exit 1），
+// 判準不依賴 Warning 的標記語法。
+describe('unclassifiedDeprecations (T-g)', () => {
+  const descriptions = new Map([
+    ['keybindingFlavor', 'Deprecated and has no effect; the word-editing shortcuts always follow readline conventions'],
+    ['teammateDefaultModel', 'Removed in v2.1.234; see Specify teammates and models'],
+    ['prefersReducedMotion', 'Reduce or turn off interface animations'],
+  ]);
+
+  it('索引標棄用、條目也分類到 → 空', () => {
+    expect(unclassifiedDeprecations(descriptions, parseSettingsEntries(warningMd))).toEqual([]);
   });
 
-  it('md 含 Warning 且 entries 有分類到 → true', () => {
-    const entries = parseSettingsEntries(warningMd);
-    expect(warningParseHealthy(warningMd, entries)).toBe(true);
+  it('索引標棄用、條目用舊 <Warning> 標記而沒分類到 → 回報該 key', () => {
+    const md = ['### `keybindingFlavor`', '', '<Warning>', '  Deprecated since v2.1.261.', '</Warning>'].join('\n');
+    const entries = parseSettingsEntries(md);
+    expect(unclassifiedDeprecations(new Map([['keybindingFlavor', 'Deprecated and has no effect']]), entries)).toEqual([
+      'keybindingFlavor',
+    ]);
   });
 
-  it('md 完全沒有 Warning → true（沒有可分類的東西，非不健康）', () => {
-    const entries = parseSettingsEntries(detailsMd);
-    expect(warningParseHealthy(detailsMd, entries)).toBe(true);
+  it('索引沒有棄用描述 → 空（沒有可分類的東西，非不健康）', () => {
+    expect(unclassifiedDeprecations(new Map([['prefersReducedMotion', 'Reduce animations']]), new Map())).toEqual([]);
   });
 });
 

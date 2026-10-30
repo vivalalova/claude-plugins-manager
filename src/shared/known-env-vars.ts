@@ -663,17 +663,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'timeout',
   },
-  CLAUDE_AFK_COUNTDOWN_MS: {
-    name: 'CLAUDE_AFK_COUNTDOWN_MS',
-    valueType: Number,
-    category: 'timeout',
-    default: '20000',
-  },
-  CLAUDE_AFK_TIMEOUT_MS: {
-    name: 'CLAUDE_AFK_TIMEOUT_MS',
-    valueType: Number,
-    category: 'timeout',
-  },
   CLAUDE_CODE_AWS_CHAIN_RESOLVE_TIMEOUT_MS: {
     name: 'CLAUDE_CODE_AWS_CHAIN_RESOLVE_TIMEOUT_MS',
     valueType: Number,
@@ -724,12 +713,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Number,
     category: 'timeout',
     default: '30000',
-  },
-  CLAUDE_CODE_TEAM_TEARDOWN_PARK_TIMEOUT_MS: {
-    name: 'CLAUDE_CODE_TEAM_TEARDOWN_PARK_TIMEOUT_MS',
-    valueType: Number,
-    category: 'timeout',
-    default: '10000',
   },
 
   CLAUDE_BYTE_STREAM_IDLE_TIMEOUT_MS: {
@@ -808,12 +791,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_MAX_RETRIES: {
     name: 'CLAUDE_CODE_MAX_RETRIES',
-    valueType: Number,
-    category: 'limits',
-    default: '10',
-  },
-  CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY: {
-    name: 'CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY',
     valueType: Number,
     category: 'limits',
     default: '10',
@@ -1110,11 +1087,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'feature',
   },
-  FALLBACK_FOR_ALL_PRIMARY_MODELS: {
-    name: 'FALLBACK_FOR_ALL_PRIMARY_MODELS',
-    valueType: Boolean,
-    category: 'feature',
-  },
   USE_BUILTIN_RIPGREP: {
     name: 'USE_BUILTIN_RIPGREP',
     valueType: Boolean,
@@ -1314,11 +1286,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: String,
     category: 'feature',
   },
-  CLAUDE_CODE_USE_NATIVE_FILE_SEARCH: {
-    name: 'CLAUDE_CODE_USE_NATIVE_FILE_SEARCH',
-    valueType: Boolean,
-    category: 'feature',
-  },
   CLAUDE_ENABLE_BYTE_WATCHDOG: {
     name: 'CLAUDE_ENABLE_BYTE_WATCHDOG',
     valueType: Boolean,
@@ -1495,11 +1462,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     valueType: Boolean,
     category: 'feature',
   },
-  CLAUDE_DISABLE_ADOPT: {
-    name: 'CLAUDE_DISABLE_ADOPT',
-    valueType: Boolean,
-    category: 'feature',
-  },
   DISABLE_PROMPT_CACHING_FABLE: {
     name: 'DISABLE_PROMPT_CACHING_FABLE',
     valueType: Boolean,
@@ -1513,11 +1475,6 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_ARTIFACT_COMMENTS_AUTOREACT: {
     name: 'CLAUDE_CODE_ARTIFACT_COMMENTS_AUTOREACT',
-    valueType: Boolean,
-    category: 'feature',
-  },
-  CLAUDE_CODE_DISABLE_ADMIN_ENV_UNION: {
-    name: 'CLAUDE_CODE_DISABLE_ADMIN_ENV_UNION',
     valueType: Boolean,
     category: 'feature',
   },
@@ -2177,6 +2134,51 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     name: 'CLAUDE_JOB_DIR',
     valueType: String,
     category: 'shell',
+  },
+  CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND: {
+    name: 'CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT: {
+    name: 'CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_ULTRAREVIEW_TRUST_CHECK: {
+    name: 'CLAUDE_CODE_DISABLE_ULTRAREVIEW_TRUST_CHECK',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_ENABLE_SHARE_BUNDLE: {
+    name: 'CLAUDE_CODE_ENABLE_SHARE_BUNDLE',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_EVEN_MORE_DANGEROUSLY_SKIP_PERMISSIONS: {
+    name: 'CLAUDE_CODE_EVEN_MORE_DANGEROUSLY_SKIP_PERMISSIONS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_RESUME_SHOWS_CUT_OFF_CALLS: {
+    name: 'CLAUDE_CODE_RESUME_SHOWS_CUT_OFF_CALLS',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_RETRY_WATCHDOG_USAGE_LIMIT_RECHECK_MS: {
+    name: 'CLAUDE_CODE_RETRY_WATCHDOG_USAGE_LIMIT_RECHECK_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
+  CLAUDE_CODE_WARN_DISK_FREE_GIB: {
+    name: 'CLAUDE_CODE_WARN_DISK_FREE_GIB',
+    valueType: Number,
+    category: 'limits',
+  },
+  CLAUDE_CODE_WARN_MEMORY_FREE_GIB: {
+    name: 'CLAUDE_CODE_WARN_MEMORY_FREE_GIB',
+    valueType: Number,
+    category: 'limits',
   },
 };
 

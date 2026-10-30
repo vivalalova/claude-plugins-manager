@@ -50,9 +50,10 @@ describe('isScopeEffective', () => {
   });
 });
 
-describe('resolveEffectiveScopes — 扁平 user-only 欄位（13 個）', () => {
+describe('resolveEffectiveScopes — 扁平 user-only 欄位（15 個）', () => {
   it.each([
     'askUserQuestionTimeout',
+    'axScreenReader',
     'autoContinueAtUsageLimit',
     'autoMode',
     'classifyAllShell',
@@ -64,6 +65,7 @@ describe('resolveEffectiveScopes — 扁平 user-only 欄位（13 個）', () =>
     'processWrapper',
     'spellcheck',
     'sshConfigs',
+    'sshHostCommands',
     'vimInsertModeRemaps',
   ])('%s → USER_SCOPE_ONLY', (key) => {
     expect(resolveEffectiveScopes(key)).toEqual(USER_SCOPE_ONLY);
@@ -91,6 +93,7 @@ describe('resolveEffectiveScopes — 扁平 user+local 欄位（3 個）', () =>
 describe('resolveEffectiveScopes — sandbox 巢狀子設定（user-only，含無 UI 控件的 4 個）', () => {
   it.each([
     'sandbox.allowAppleEvents',
+    'sandbox.allowNestedUserNamespaces',
     'sandbox.credentials.awsPairs',
     'sandbox.credentials.allowPlaintextInject',
     'sandbox.credentials.sigv4',

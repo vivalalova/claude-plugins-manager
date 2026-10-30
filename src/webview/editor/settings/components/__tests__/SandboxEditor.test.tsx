@@ -177,6 +177,26 @@ describe('SandboxEditor — 結構化模式 checkbox', () => {
       expect(onSave).toHaveBeenCalledWith('sandbox', { allowAppleEvents: true });
     });
   });
+
+  it('既有 allowNestedUserNamespaces: true → 勾選顯示；取消 → onSave 寫回 false、其餘值保留', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor({ enabled: true, allowNestedUserNamespaces: true }, onSave);
+    const box = await waitFor(() => screen.getByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' }));
+    expect((box as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(box);
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', { enabled: true, allowNestedUserNamespaces: false });
+    });
+  });
+
+  it('toggle allowNestedUserNamespaces（空 sandbox）→ onSave 含 allowNestedUserNamespaces: true', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderEditor(undefined, onSave);
+    fireEvent.click(await waitFor(() => screen.getByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sandbox', { allowNestedUserNamespaces: true });
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

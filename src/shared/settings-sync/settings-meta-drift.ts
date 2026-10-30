@@ -13,8 +13,9 @@ const FENCE_RE = /^\s*```/;
 const DEFAULT_BULLET_RE = /^\*\s+\*\*Default\*\*:\s*(.*)$/;
 const TYPE_BULLET_RE = /^\*\s+\*\*Type\*\*:\s*(.*)$/;
 const SUB_BULLET_RE = /^\s+\*\s+(.*)$/;
-const WARNING_OPEN_RE = /^\s*<Warning>\s*$/;
-const WARNING_CLOSE_RE = /^\s*<\/Warning>\s*$/;
+const WARNING_OPEN_RE = /^>\s*\[!WARNING\]\s*$/;
+const BLOCKQUOTE_RE = /^>\s?(.*)$/;
+const DEPRECATION_RE = /^(Removed in|Deprecated)\b/;
 const UNSET_RE = /^(unset|none|not locked)\b/i;
 const LEADING_LITERAL_RE = /^`([^`]+)`(.*)$/;
 const ALTERNATIVE_TAIL_RE = /^,?\s*or\b/;
@@ -37,9 +38,9 @@ export type DocsEntry = {
 };
 
 function classifyWarning(text: string): DocsWarning | undefined {
-  if (/^Removed in\b/.test(text)) return { kind: 'removed', text };
-  if (/^Deprecated\b/.test(text)) return { kind: 'deprecated', text };
-  return undefined;
+  const match = DEPRECATION_RE.exec(text);
+  if (!match) return undefined;
+  return { kind: match[1] === 'Removed in' ? 'removed' : 'deprecated', text };
 }
 
 /** Leading `"a"`, `"b"`, or `"c"` literals of `text`, if the list is all the text says there. */
@@ -105,13 +106,13 @@ export function parseSettingsEntries(md: string): Map<string, DocsEntry> {
     if (!state || line.trim() === '') continue;
 
     if (state.warningLines) {
-      if (WARNING_CLOSE_RE.test(line)) {
+      const quoted = BLOCKQUOTE_RE.exec(line);
+      if (quoted) {
+        if (quoted[1].trim()) state.warningLines.push(quoted[1].trim());
         state.entry.warning = classifyWarning(state.warningLines.join(' '));
-        state.warningLines = null;
-      } else {
-        state.warningLines.push(line.trim());
+        continue;
       }
-      continue;
+      state.warningLines = null;
     }
     if (!state.sawContent && WARNING_OPEN_RE.test(line)) {
       state.sawContent = true;
@@ -150,11 +151,11 @@ export function parseSettingsEntries(md: string): Map<string, DocsEntry> {
   return entries;
 }
 
-/** False when the md has a Deprecated／Removed Warning block but no entry got a classified warning. */
-export function warningParseHealthy(md: string, entries: Map<string, DocsEntry>): boolean {
-  const blocks = md.match(/<Warning>[\s\S]*?<\/Warning>/g) ?? [];
-  if (!blocks.some((block) => /Removed in|Deprecated/.test(block))) return true;
-  return [...entries.values()].some((entry) => entry.warning);
+/** Index keys whose Description says Deprecated／Removed but whose entry got no classified warning. */
+export function unclassifiedDeprecations(descriptions: Map<string, string>, entries: Map<string, DocsEntry>): string[] {
+  return [...descriptions]
+    .filter(([key, description]) => DEPRECATION_RE.test(description) && !entries.get(key)?.warning)
+    .map(([key]) => key);
 }
 
 /** Drop docs keys whose entry is marked Deprecated／Removed. */

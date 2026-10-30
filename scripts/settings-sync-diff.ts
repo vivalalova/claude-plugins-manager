@@ -42,7 +42,7 @@ import {
   diffStorage,
   diffScopes,
   excludeDeprecatedGaps,
-  warningParseHealthy,
+  unclassifiedDeprecations,
   KNOWN_DEFAULT_EQUIVALENT,
 } from '../src/shared/settings-sync/settings-meta-drift';
 
@@ -121,8 +121,9 @@ async function main(): Promise<void> {
     console.error(`[settings-sync-diff] only ${docsDefaults.size} of ${docsKeys.size} index keys have a parsed **Default** entry — detail layout may have changed`);
     process.exit(1);
   }
-  if (!warningParseHealthy(settingsReferenceMd, docsEntries)) {
-    console.error('[settings-sync-diff] docs have Deprecated／Removed Warnings but none was parsed — Warning layout may have changed');
+  const unclassified = unclassifiedDeprecations(settingsDescriptions, docsEntries);
+  if (unclassified.length > 0) {
+    console.error(`[settings-sync-diff] index marks ${unclassified.join(', ')} Deprecated／Removed but no Warning was parsed from the entry — Warning layout may have changed`);
     process.exit(1);
   }
 

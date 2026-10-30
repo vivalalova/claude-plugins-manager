@@ -496,6 +496,7 @@ const SANDBOX_VALUE_SCHEMA = objectValue({
   enableWeakerNestedSandbox: optional(booleanValue()),
   allowUnsandboxedCommands: optional(booleanValue()),
   allowAppleEvents: optional(booleanValue(), { effectiveScopes: USER_SCOPE_ONLY }),
+  allowNestedUserNamespaces: optional(booleanValue(), { effectiveScopes: USER_SCOPE_ONLY }),
   failIfUnavailable: optional(booleanValue()),
   ignoreViolations: optional(recordValue(STRING_ARRAY_SCHEMA)),
   ripgrep: optional(objectValue({
@@ -607,6 +608,14 @@ const SSH_CONFIGS_VALUE_SCHEMA = arrayValue(objectValue({
   startDirectory: optional(STRING_SCHEMA),
 }));
 
+const SSH_HOST_COMMANDS_VALUE_SCHEMA = arrayValue(objectValue({
+  id: required(STRING_SCHEMA),
+  name: required(STRING_SCHEMA),
+  command: required(STRING_SCHEMA),
+  sshIdentityFile: optional(STRING_SCHEMA),
+  startDirectory: optional(STRING_SCHEMA),
+}));
+
 const PERMISSIONS_VALUE_SCHEMA = objectValue({
   allow: optional(STRING_ARRAY_SCHEMA),
   deny: optional(STRING_ARRAY_SCHEMA),
@@ -703,7 +712,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('syntaxHighlightingDisabled', { default: false }),
     booleanField('prefersReducedMotion', { default: false }),
     booleanField('verbose', { default: false, globalConfigFallback: true }),
-    booleanField('axScreenReader', { default: false }),
+    booleanField('axScreenReader', { default: false, effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('wheelScrollAccelerationEnabled', { default: true }),
     booleanField('respondToBashCommands', { default: true }),
     // Transcript info
@@ -806,6 +815,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('defaultShell', DEFAULT_SHELL_VALUE_SCHEMA),
     stringField('plansDirectory', { default: '~/.claude/plans' }),
     createField('sshConfigs', SSH_CONFIGS_VALUE_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
+    createField('sshHostCommands', SSH_HOST_COMMANDS_VALUE_SCHEMA, { controlTypeOverride: Object, effectiveScopes: USER_SCOPE_ONLY }),
     stringField('processWrapper', { effectiveScopes: USER_SCOPE_ONLY }),
     createField('bashOutputMaxChars', numberValue({ min: 4000, max: 128000, step: 1 })),
     booleanField('bashEditDiffEnabled', { effectiveScopes: USER_SCOPE_ONLY }),

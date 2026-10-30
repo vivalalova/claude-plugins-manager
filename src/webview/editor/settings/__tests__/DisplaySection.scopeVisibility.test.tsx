@@ -38,28 +38,31 @@ afterEach(() => {
 });
 
 describe('DisplaySection — #24 user-only 欄位 scope 隔離', () => {
-  it('scope=user → 三者皆顯示（回歸錨）', async () => {
+  it('scope=user → 四者皆顯示（回歸錨）', async () => {
     renderSection('user');
     await waitFor(() => {
       expect(screen.getByText('Vim Insert Mode Remaps')).toBeTruthy();
       expect(screen.getByText('Question Auto-Continue Timeout')).toBeTruthy();
       expect(screen.getByText('Spellcheck')).toBeTruthy();
+      expect(screen.getByText('Screen Reader Mode')).toBeTruthy();
     });
   });
 
-  it('scope=project → 三者皆不渲染', async () => {
+  it('scope=project → 四者皆不渲染', async () => {
     renderSection('project');
     await waitFor(() => expect(screen.getByText('View Mode')).toBeTruthy());
     expect(screen.queryByText('Vim Insert Mode Remaps')).toBeNull();
     expect(screen.queryByText('Question Auto-Continue Timeout')).toBeNull();
     expect(screen.queryByText('Spellcheck')).toBeNull();
+    expect(screen.queryByText('Screen Reader Mode')).toBeNull();
   });
 
-  it('scope=local → 三者皆不渲染（user-only，local 也不生效）', async () => {
+  it('scope=local → 四者皆不渲染（user-only，local 也不生效）', async () => {
     renderSection('local');
     await waitFor(() => expect(screen.getByText('View Mode')).toBeTruthy());
     expect(screen.queryByText('Vim Insert Mode Remaps')).toBeNull();
     expect(screen.queryByText('Question Auto-Continue Timeout')).toBeNull();
     expect(screen.queryByText('Spellcheck')).toBeNull();
+    expect(screen.queryByText('Screen Reader Mode')).toBeNull();
   });
 });

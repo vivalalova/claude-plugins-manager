@@ -274,6 +274,22 @@ export function ObjectFieldEditor({
           onDelete={async () => onDelete('sshConfigs')}
         />
       );
+    case 'sshHostCommands':
+      return (
+        <TextSetting
+          inherited={{ kind: 'none' }}
+          label={t('settings.advanced.sshHostCommands.label')}
+          description={t('settings.advanced.sshHostCommands.description')}
+          value={settings.sshHostCommands ? JSON.stringify(settings.sshHostCommands) : undefined}
+          placeholder={t('settings.advanced.sshHostCommands.placeholder')}
+          saveLabel={t('settings.advanced.sshHostCommands.save')}
+          settingKey="sshHostCommands"
+          scope={scope}
+          overriddenScope={overriddenScope}
+          onSave={async (_key, value) => onSave('sshHostCommands', parseJsonSettingValue('sshHostCommands', value as string))}
+          onDelete={async () => onDelete('sshHostCommands')}
+        />
+      );
     case 'footerLinksRegexes':
       return <FooterLinksRegexesEditor value={settings.footerLinksRegexes} onSave={onSave} onDelete={onDelete} />;
     case 'autoMode':

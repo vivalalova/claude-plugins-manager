@@ -98,6 +98,7 @@ describe('AdvancedSection — 渲染', () => {
       expect(screen.getByText('(skillListingMaxDescChars: 1536)')).toBeTruthy();
       expect(screen.getByText('(skillListingBudgetFraction: 0.01)')).toBeTruthy();
       expect(screen.getByText('(sshConfigs)').classList.contains('settings-key-hint')).toBe(true);
+      expect(screen.getByText('(sshHostCommands)').classList.contains('settings-key-hint')).toBe(true);
     });
   });
 
@@ -308,6 +309,32 @@ describe('AdvancedSection — new settings 互動', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('sshConfigs', [{ id: 'dev-vm', name: 'Dev VM', sshHost: 'user@dev.example.com' }]);
+    });
+  });
+
+  it('sshHostCommands 輸入 JSON array 並儲存 → onSave("sshHostCommands", parsedArray)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderSection({}, onSave);
+
+    const field = screen.getByPlaceholderText(SSH_HOST_COMMANDS_PLACEHOLDER).closest('.settings-field') as HTMLElement;
+    fireEvent.change(screen.getByPlaceholderText(SSH_HOST_COMMANDS_PLACEHOLDER), { target: { value: '[{"id":"devbox","name":"Dev box","command":"acme-dev create"}]' } });
+    fireEvent.click(within(field).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith('sshHostCommands', [{ id: 'devbox', name: 'Dev box', command: 'acme-dev create' }]);
+    });
+  });
+
+  it('sshHostCommands 有值 → 輸入框顯示既有 JSON；按 Reset → onDelete("sshHostCommands")', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ sshHostCommands: [{ id: 'devbox', name: 'Dev box', command: 'acme-dev create' }] }, undefined, onDelete);
+
+    const input = screen.getByPlaceholderText(SSH_HOST_COMMANDS_PLACEHOLDER) as HTMLInputElement;
+    expect(JSON.parse(input.value)).toEqual([{ id: 'devbox', name: 'Dev box', command: 'acme-dev create' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset SSH Host Commands' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('sshHostCommands');
     });
   });
 });
@@ -1333,6 +1360,7 @@ const MODEL_OVERRIDES_PLACEHOLDER = 'e.g. { "claude-opus-4-6": "arn:aws:bedrock:
 const WORKTREE_PLACEHOLDER = 'e.g. { "sparsePaths": ["packages/my-app"] }';
 const SKILL_OVERRIDES_PLACEHOLDER = 'e.g. { "code-review": "user-invocable-only" }';
 const SSH_CONFIGS_PLACEHOLDER = 'e.g. [{ "id": "dev-vm", "name": "Dev VM", "sshHost": "user@dev.example.com" }]';
+const SSH_HOST_COMMANDS_PLACEHOLDER = 'e.g. [{ "id": "devbox", "name": "Dev box", "command": "acme-dev create" }]';
 const AUTO_MODE_PLACEHOLDER = 'e.g. { "environment": ["Source control: github.com/my-org"] }';
 
 describe('AdvancedSection — object JSON schema validation', () => {

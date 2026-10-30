@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * #24 — Advanced 區塊欄位的 scope 隔離：
- *   - user-only（docs Scope: User or managed）：autoMode／sshConfigs／processWrapper／
+ *   - user-only（docs Scope: User or managed）：autoMode／sshConfigs／sshHostCommands／processWrapper／
  *     footerLinksRegexes／feedbackDrafts —— project／local 皆不生效
  *   - user+local（docs Scope: User, local, or managed）：syncClaudeAiSkills —— project 不生效，
  *     local 生效
@@ -41,32 +41,35 @@ afterEach(() => {
 });
 
 describe('AdvancedSection — #24 user-only 欄位 scope 隔離', () => {
-  it('scope=user → 五者皆顯示（回歸錨）', async () => {
+  it('scope=user → 六者皆顯示（回歸錨）', async () => {
     renderSection('user');
     await waitFor(() => {
       expect(screen.getByText('Auto Mode Rules')).toBeTruthy();
       expect(screen.getByText('SSH Configs')).toBeTruthy();
+      expect(screen.getByText('SSH Host Commands')).toBeTruthy();
       expect(screen.getByText('Process Wrapper')).toBeTruthy();
       expect(screen.getByText('Footer Link Patterns')).toBeTruthy();
       expect(screen.getByText('Feedback Drafts')).toBeTruthy();
     });
   });
 
-  it('scope=project → 五者皆不渲染', async () => {
+  it('scope=project → 六者皆不渲染', async () => {
     renderSection('project');
     await waitFor(() => expect(screen.getByText('Sandbox')).toBeTruthy());
     expect(screen.queryByText('Auto Mode Rules')).toBeNull();
     expect(screen.queryByText('SSH Configs')).toBeNull();
+    expect(screen.queryByText('SSH Host Commands')).toBeNull();
     expect(screen.queryByText('Process Wrapper')).toBeNull();
     expect(screen.queryByText('Footer Link Patterns')).toBeNull();
     expect(screen.queryByText('Feedback Drafts')).toBeNull();
   });
 
-  it('scope=local → 五者皆不渲染（user-only，local 也不生效）', async () => {
+  it('scope=local → 六者皆不渲染（user-only，local 也不生效）', async () => {
     renderSection('local');
     await waitFor(() => expect(screen.getByText('Sandbox')).toBeTruthy());
     expect(screen.queryByText('Auto Mode Rules')).toBeNull();
     expect(screen.queryByText('SSH Configs')).toBeNull();
+    expect(screen.queryByText('SSH Host Commands')).toBeNull();
     expect(screen.queryByText('Process Wrapper')).toBeNull();
     expect(screen.queryByText('Footer Link Patterns')).toBeNull();
     expect(screen.queryByText('Feedback Drafts')).toBeNull();

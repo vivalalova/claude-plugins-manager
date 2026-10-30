@@ -292,6 +292,13 @@ export interface ClaudeSettings {
     sshIdentityFile?: string;
     startDirectory?: string;
   }[];
+  sshHostCommands?: {
+    id: string;
+    name: string;
+    command: string;
+    sshIdentityFile?: string;
+    startDirectory?: string;
+  }[];
   processWrapper?: string;
   bashOutputMaxChars?: number;
   bashEditDiffEnabled?: boolean;
@@ -306,6 +313,7 @@ export interface ClaudeSettings {
     enableWeakerNestedSandbox?: boolean;
     allowUnsandboxedCommands?: boolean;
     allowAppleEvents?: boolean;
+    allowNestedUserNamespaces?: boolean;
     failIfUnavailable?: boolean;
     ignoreViolations?: Record<string, string[]>;
     ripgrep?: {

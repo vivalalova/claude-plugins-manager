@@ -375,7 +375,8 @@ describe('SettingsPage — issue #23 Object 欄位全覆蓋 guard', () => {
       autoMode:            { environment: ['Source control: github.com/my-org'] },
       remote:              { defaultEnvironmentId: 'env-1' },
       sshConfigs:          [{ id: 'dev-vm', name: 'Dev VM', sshHost: 'user@dev.example.com' }],
-      sandbox:             { enabled: true },
+      sshHostCommands:     [{ id: 'devbox', name: 'Dev box', command: 'acme-dev create' }],
+      sandbox:          { enabled: true },
       companyAnnouncements: ['Welcome!'],
       footerLinksRegexes:  [{ pattern: 'PROJ-\\d+', url: 'https://issues.example.com/browse/{0}' }],
     };

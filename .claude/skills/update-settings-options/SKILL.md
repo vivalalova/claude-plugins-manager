@@ -63,7 +63,7 @@ Workflow({ scriptPath: ".claude/skills/update-settings-options/references/script
   - `defaultDrift`：兩邊都有的 key，schema `default` 與 docs `**Default**` 不符。`kind` 四種：`mismatch`（docs 給了明確值、repo 不同或沒給）、`repoDefaultDocsUnset`（docs 說 unset、repo 有給值，已扣 `KNOWN_DEFAULT_EQUIVALENT`）、`conditional`（docs 寫「`A`, or `B` when …」、repo 有給值）、`unparsed`（docs 文字既非 unset 也非開頭的 JSON literal）
   - `storageDrift`：索引 Scope=`Global config`（存 `~/.claude.json`）與 schema `storageFile: 'globalConfig'` 不一致
   - `scopeDrift`：索引 Scope（`User`／`User or managed`／`User, local, or managed`／`Any file`）與 schema `effectiveScopes` 不一致，含 object 子設定（dotted path，子層未登錄即繼承父層）。`kind`：`mismatch`／`unrecognized`（Scope 文字不在 `settings-meta-drift.ts` 的 `DOCS_SCOPE_TO_EFFECTIVE`；`Managed`／`Global config` 認得但不比對）
-  - `deprecatedSurfaced`：repo 仍有、docs 條目開頭 `<Warning>` 標 Deprecated／Removed in 的 key（含 object 子設定）。`kind`：`deprecated`／`removed`，`docs` 為 Warning 原文
+  - `deprecatedSurfaced`：repo 仍有、docs 條目開頭 `> [!WARNING]` 引用區塊標 Deprecated／Removed in 的 key（含 object 子設定）。`kind`：`deprecated`／`removed`，`docs` 為 Warning 原文
   - `enumDrift`：repo 字串欄位與 docs `**Type**` 列出的固定值不一致（含 object 子設定）。`kind`：`mismatch`（`docsOnly`／`repoOnly` 列差集）、`repoNotEnum`（docs 列固定值、repo 為自由輸入字串）、`unparsed`（repo 是 enum，docs Type 解析不出固定值）。open type（docs 列 preset 外另收自由格式）：repo 自由字串不算漂移，只回報缺漏的 preset
 - **Categorize（平行）**：對每個 `settingsGap` 把 description、topic、scope inline 餵給分類 agent，指派 section、判斷 `isObjectEditor`、標記 non-user-facing。其餘欄位原樣傳回，不走 LLM——判斷交回主迴圈。
 
