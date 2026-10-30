@@ -44,26 +44,35 @@ const renderEditor = (
 
 describe('SandboxEditor — #24 gated 控件 scope 隔離', () => {
   it('scope=user → 4 個 gated 控件皆顯示（回歸錨）', async () => {
-    renderEditor({}, 'user');
+    renderEditor({ credentials: { envVars: [{ name: 'KEY_A', mode: 'deny' }] } } as ClaudeSettings['sandbox'], 'user');
     await waitFor(() => {
       expect(screen.getByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: /Disable filesystem isolation/ })).toBeTruthy();
       expect(screen.getByRole('checkbox', { name: /Deny hosts outside the allowlist/ })).toBeTruthy();
       expect(screen.getByText('AWS Credential Pairs')).toBeTruthy();
+      // #39：mode 選單（需有憑證列）、allowPlaintextInject、sigv4 在 user 顯示
+      expect(screen.getByRole('combobox', { name: /mode.*KEY_A/i })).toBeTruthy();
+      expect(screen.getByRole('checkbox', { name: /plaintext/i })).toBeTruthy();
+      expect(screen.getByRole('combobox', { name: /streaming/i })).toBeTruthy();
+      expect(screen.getByRole('combobox', { name: /presigned/i })).toBeTruthy();
+      expect(screen.getByRole('combobox', { name: /sigv4a/i })).toBeTruthy();
     });
     // 其餘控件不受影響
     expect(screen.getByRole('checkbox', { name: 'Enable Sandbox' })).toBeTruthy();
   });
 
   it('scope=project → 4 個 gated 控件皆隱藏，其餘控件仍顯示', async () => {
-    renderEditor({}, 'project');
+    renderEditor({ credentials: { envVars: [{ name: 'KEY_A', mode: 'deny' }] } } as ClaudeSettings['sandbox'], 'project');
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Enable Sandbox' })).toBeTruthy());
     expect(screen.queryByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Disable filesystem isolation/ })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Deny hosts outside the allowlist/ })).toBeNull();
     expect(screen.queryByText('AWS Credential Pairs')).toBeNull();
+    expect(screen.queryAllByRole('combobox', { name: /mode/i })).toHaveLength(0);
+    expect(screen.queryByRole('checkbox', { name: /plaintext/i })).toBeNull();
+    expect(screen.queryAllByRole('combobox', { name: /streaming|presigned|sigv4a/i })).toHaveLength(0);
     // 不受限控件仍顯示（隱藏只作用於 gated 控件）
     expect(screen.getByRole('checkbox', { name: 'Allow all Unix sockets' })).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Allow local port binding' })).toBeTruthy();
@@ -72,13 +81,16 @@ describe('SandboxEditor — #24 gated 控件 scope 隔離', () => {
   });
 
   it('scope=local → 4 個 gated 控件皆隱藏（user-only，local 也不生效）', async () => {
-    renderEditor({}, 'local');
+    renderEditor({ credentials: { envVars: [{ name: 'KEY_A', mode: 'deny' }] } } as ClaudeSettings['sandbox'], 'local');
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Enable Sandbox' })).toBeTruthy());
     expect(screen.queryByRole('checkbox', { name: 'Allow Apple Events (macOS)' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: 'Allow nested user namespaces (Linux/WSL2)' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Disable filesystem isolation/ })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Deny hosts outside the allowlist/ })).toBeNull();
     expect(screen.queryByText('AWS Credential Pairs')).toBeNull();
+    expect(screen.queryAllByRole('combobox', { name: /mode/i })).toHaveLength(0);
+    expect(screen.queryByRole('checkbox', { name: /plaintext/i })).toBeNull();
+    expect(screen.queryAllByRole('combobox', { name: /streaming|presigned|sigv4a/i })).toHaveLength(0);
     // 不受限控件仍顯示（隱藏只作用於 gated 控件）
     expect(screen.getByRole('checkbox', { name: 'Allow all Unix sockets' })).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Allow local port binding' })).toBeTruthy();

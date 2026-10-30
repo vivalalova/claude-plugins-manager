@@ -26,7 +26,6 @@ const ATTRIBUTION_SESSION_URL_KEYS = [
 
 const SANDBOX_CREDENTIALS_FILES_KEYS = [
   'settings.advanced.sandbox.credentials.files.label',
-  'settings.advanced.sandbox.credentials.files.description',
   'settings.advanced.sandbox.credentials.files.placeholder',
   'settings.advanced.sandbox.credentials.files.empty',
   'settings.advanced.sandbox.credentials.files.duplicate',
@@ -38,7 +37,6 @@ const SANDBOX_CREDENTIALS_FILES_KEYS = [
 
 const SANDBOX_CREDENTIALS_ENVVARS_KEYS = [
   'settings.advanced.sandbox.credentials.envVars.label',
-  'settings.advanced.sandbox.credentials.envVars.description',
   'settings.advanced.sandbox.credentials.envVars.placeholder',
   'settings.advanced.sandbox.credentials.envVars.empty',
   'settings.advanced.sandbox.credentials.envVars.duplicate',

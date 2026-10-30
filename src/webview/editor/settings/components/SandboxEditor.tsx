@@ -76,6 +76,17 @@ function cleanSandbox(obj: SandboxValue): SandboxValue | undefined {
     if (Array.isArray(creds.files) && (creds.files as unknown[]).length === 0) delete creds.files;
     if (Array.isArray(creds.envVars) && (creds.envVars as unknown[]).length === 0) delete creds.envVars;
     if (Array.isArray(creds.awsPairs) && (creds.awsPairs as unknown[]).length === 0) delete creds.awsPairs;
+    for (const k of Object.keys(creds)) {
+      if (creds[k] === undefined) delete creds[k];
+    }
+    if (creds.sigv4 !== null && typeof creds.sigv4 === 'object') {
+      const sigv4 = { ...(creds.sigv4 as Record<string, unknown>) };
+      for (const k of Object.keys(sigv4)) {
+        if (sigv4[k] === undefined) delete sigv4[k];
+      }
+      if (Object.keys(sigv4).length === 0) delete creds.sigv4;
+      else creds.sigv4 = sigv4;
+    }
     if (Object.keys(creds).length === 0) delete clean.credentials;
     else clean.credentials = creds;
   }
@@ -171,9 +182,9 @@ function SandboxCheckbox({ label, value, inherited, saving, onChange }: {
   );
 }
 
-function SandboxTagList({ label, items, empty, placeholder, duplicate, saving, onChange }: {
+function SandboxTagList({ label, items, empty, placeholder, duplicate, removeLabel, saving, onChange }: {
   label: string; items: string[]; empty: string; placeholder: string; duplicate: string;
-  saving: boolean; onChange: (items: string[]) => void;
+  removeLabel: string; saving: boolean; onChange: (items: string[]) => void;
 }): React.ReactElement {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
@@ -196,7 +207,7 @@ function SandboxTagList({ label, items, empty, placeholder, duplicate, saving, o
         ) : items.map((item) => (
           <span key={item} className="perm-rule-tag">
             {item}
-            <button className="perm-rule-tag-delete" onClick={() => onChange(items.filter((i) => i !== item))} disabled={saving} type="button">×</button>
+            <button className="perm-rule-tag-delete" onClick={() => onChange(items.filter((i) => i !== item))} disabled={saving} aria-label={`${removeLabel} ${item}`} type="button">×</button>
           </span>
         ))}
       </div>
@@ -209,6 +220,81 @@ function SandboxTagList({ label, items, empty, placeholder, duplicate, saving, o
     </div>
   );
 }
+
+type CredentialKind = 'files' | 'envVars';
+type CredentialMode = 'deny' | 'mask';
+
+/**
+ * user scope 專用憑證列：每筆可選 deny／mask。不持有 entry 狀態（只有輸入框文字），
+ * 新增／移除只送名稱清單，改模式只送 (name, mode)，其餘欄位由 SandboxEditor 以 spread 保留。
+ */
+function SandboxCredentialModeList({ label, entries, empty, placeholder, duplicate, modeLabel, modeOptions, removeLabel, saving, onChange, onModeChange }: {
+  label: string;
+  entries: ReadonlyArray<{ name: string; mode: CredentialMode }>;
+  empty: string; placeholder: string; duplicate: string;
+  modeLabel: (name: string) => string;
+  modeOptions: Record<CredentialMode, string>;
+  removeLabel: string;
+  saving: boolean;
+  onChange: (items: string[]) => void;
+  onModeChange: (name: string, mode: CredentialMode) => void;
+}): React.ReactElement {
+  const [input, setInput] = useState('');
+  const [error, setError] = useState('');
+  // 與 mergeCredentialEntries 同規則折疊同名筆（deny 勝）
+  const rows = mergeCredentialEntries(entries, [...new Set(entries.map((e) => e.name))], 'name');
+  const items = rows.map((r) => r.name);
+
+  const handleAdd = (): void => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    if (items.includes(trimmed)) { setError(duplicate); return; }
+    setError('');
+    setInput('');
+    onChange([...items, trimmed]);
+  };
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--vscode-descriptionForeground)', marginBottom: 4 }}>{label}</div>
+      <div className="general-tag-list">
+        {rows.length === 0 ? (
+          <span className="perm-empty">{empty}</span>
+        ) : rows.map((row) => (
+          <span key={row.name} className="perm-rule-tag">
+            <span>{row.name}</span>
+            <select
+              value={row.mode}
+              aria-label={modeLabel(row.name)}
+              onChange={(e) => onModeChange(row.name, e.target.value as CredentialMode)}
+              disabled={saving}
+            >
+              <option value="deny">{modeOptions.deny}</option>
+              <option value="mask">{modeOptions.mask}</option>
+            </select>
+            <button
+              className="perm-rule-tag-delete"
+              aria-label={`${removeLabel} ${row.name}`}
+              onClick={() => onChange(items.filter((i) => i !== row.name))}
+              disabled={saving}
+              type="button"
+            >×</button>
+          </span>
+        ))}
+      </div>
+      <div className="general-tag-add-row">
+        <input className="input" type="text" value={input} onChange={(e) => { setInput(e.target.value); setError(''); }}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()} placeholder={placeholder} disabled={saving} />
+        <button className="btn btn-primary" onClick={handleAdd} disabled={saving || !input.trim()} type="button">+</button>
+        {error && <span className="perm-add-error" role="alert">{error}</span>}
+      </div>
+    </div>
+  );
+}
+
+const SIGV4_KEYS = ['streaming', 'presigned', 'sigv4a'] as const;
+type Sigv4Key = typeof SIGV4_KEYS[number];
+type Sigv4Policy = 'deny' | 'passthrough';
 
 function SandboxNumberInput({ label, value, placeholder, saving, onChange }: {
   label: string; value: number | undefined; placeholder: string; saving: boolean;
@@ -577,6 +663,27 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
     void saveSandbox({ ...draft, credentials: { ...draft.credentials, envVars } });
   };
 
+  const updateCredentialEntryMode = (kind: CredentialKind, name: string, mode: CredentialMode): void => {
+    const key = kind === 'files' ? 'path' : 'name';
+    const mapEntries = <T extends { mode: CredentialMode }>(list: readonly T[] | undefined): T[] | undefined =>
+      list?.map((entry) => (String((entry as Record<string, unknown>)[key]) === name ? { ...entry, mode } : entry));
+    const credentials = kind === 'files'
+      ? { ...draft.credentials, files: mapEntries(draft.credentials?.files) }
+      : { ...draft.credentials, envVars: mapEntries(draft.credentials?.envVars) };
+    void saveSandbox({ ...draft, credentials });
+  };
+
+  const updateAllowPlaintextInject = (value: boolean): void => {
+    void saveSandbox({ ...draft, credentials: { ...draft.credentials, allowPlaintextInject: value ? true : undefined } });
+  };
+
+  const updateSigv4 = (key: Sigv4Key, value: Sigv4Policy | undefined): void => {
+    void saveSandbox({
+      ...draft,
+      credentials: { ...draft.credentials, sigv4: { ...draft.credentials?.sigv4, [key]: value } },
+    });
+  };
+
   const updateCredentialAwsPairs = (awsPairs: SandboxAwsPair[]): void => {
     void saveSandbox({ ...draft, credentials: { ...draft.credentials, awsPairs } });
   };
@@ -711,7 +818,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
 
           <SandboxTagList label={tk('excludedCommands')} items={draft.excludedCommands ?? []}
             empty={tk('excludedCommands.empty')} placeholder={tk('excludedCommands.placeholder')}
-            duplicate={tk('excludedCommands.duplicate')} saving={saving}
+            duplicate={tk('excludedCommands.duplicate')} removeLabel={tk('credentials.remove')} saving={saving}
             onChange={(items) => updateList('excludedCommands', items)} />
 
           {/* Filesystem */}
@@ -726,6 +833,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
               empty={tk(`${labelKey}.empty`)}
               placeholder={tk(`${labelKey}.placeholder`)}
               duplicate={tk(`${labelKey}.duplicate`)}
+              removeLabel={tk('credentials.remove')}
               saving={saving}
               onChange={(items) => updateFs(key, items)}
             />
@@ -752,6 +860,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
               empty={tk(`${labelKey}.empty`)}
               placeholder={tk(`${labelKey}.placeholder`)}
               duplicate={tk(`${labelKey}.duplicate`)}
+              removeLabel={tk('credentials.remove')}
               saving={saving}
               onChange={(items) => updateNet(key, items)}
             />
@@ -781,24 +890,90 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
           <h4 style={{ fontSize: 12, fontWeight: 600, marginTop: 12, marginBottom: 6, borderTop: '1px solid var(--vscode-editorWidget-border)', paddingTop: 8 }}>
             {tk('credentials')}
           </h4>
-          <SandboxTagList
-            label={tk('credentials.files.label')}
-            items={(draft.credentials?.files ?? []).map((f) => f.path)}
-            empty={tk('credentials.files.empty')}
-            placeholder={tk('credentials.files.placeholder')}
-            duplicate={tk('credentials.files.duplicate')}
-            saving={saving}
-            onChange={updateCredentialFiles}
-          />
-          <SandboxTagList
-            label={tk('credentials.envVars.label')}
-            items={(draft.credentials?.envVars ?? []).map((ev) => ev.name)}
-            empty={tk('credentials.envVars.empty')}
-            placeholder={tk('credentials.envVars.placeholder')}
-            duplicate={tk('credentials.envVars.duplicate')}
-            saving={saving}
-            onChange={updateCredentialEnvVars}
-          />
+          {scope === 'user' ? (
+            <>
+              <SandboxCredentialModeList
+                label={tk('credentials.files.label')}
+                entries={(draft.credentials?.files ?? []).map((f) => ({ name: f.path, mode: f.mode }))}
+                empty={tk('credentials.files.empty')}
+                placeholder={tk('credentials.files.placeholder')}
+                duplicate={tk('credentials.files.duplicate')}
+                modeLabel={(name) => tk('credentials.mode.label').replace('{name}', name)}
+                modeOptions={{ deny: tk('credentials.mode.deny'), mask: tk('credentials.mode.mask') }}
+                removeLabel={tk('credentials.remove')}
+                saving={saving}
+                onChange={updateCredentialFiles}
+                onModeChange={(name, m) => updateCredentialEntryMode('files', name, m)}
+              />
+              <SandboxCredentialModeList
+                label={tk('credentials.envVars.label')}
+                entries={(draft.credentials?.envVars ?? []).map((ev) => ({ name: ev.name, mode: ev.mode }))}
+                empty={tk('credentials.envVars.empty')}
+                placeholder={tk('credentials.envVars.placeholder')}
+                duplicate={tk('credentials.envVars.duplicate')}
+                modeLabel={(name) => tk('credentials.mode.label').replace('{name}', name)}
+                modeOptions={{ deny: tk('credentials.mode.deny'), mask: tk('credentials.mode.mask') }}
+                removeLabel={tk('credentials.remove')}
+                saving={saving}
+                onChange={updateCredentialEnvVars}
+                onModeChange={(name, m) => updateCredentialEntryMode('envVars', name, m)}
+              />
+            </>
+          ) : (
+            <>
+              <SandboxTagList
+                label={tk('credentials.files.label')}
+                items={(draft.credentials?.files ?? []).map((f) => f.path)}
+                empty={tk('credentials.files.empty')}
+                placeholder={tk('credentials.files.placeholder')}
+                duplicate={tk('credentials.files.duplicate')}
+                removeLabel={tk('credentials.remove')}
+                saving={saving}
+                onChange={updateCredentialFiles}
+              />
+              <SandboxTagList
+                label={tk('credentials.envVars.label')}
+                items={(draft.credentials?.envVars ?? []).map((ev) => ev.name)}
+                empty={tk('credentials.envVars.empty')}
+                placeholder={tk('credentials.envVars.placeholder')}
+                duplicate={tk('credentials.envVars.duplicate')}
+                removeLabel={tk('credentials.remove')}
+                saving={saving}
+                onChange={updateCredentialEnvVars}
+              />
+            </>
+          )}
+          {isSandboxChildEffective('credentials.allowPlaintextInject', scope) && (
+            <SandboxCheckbox
+              label={tk('credentials.allowPlaintextInject')}
+              value={draft.credentials?.allowPlaintextInject}
+              inherited={undefined}
+              saving={saving}
+              onChange={updateAllowPlaintextInject}
+            />
+          )}
+          {isSandboxChildEffective('credentials.sigv4', scope) && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--vscode-descriptionForeground)', marginBottom: 4 }}>
+                {tk('credentials.sigv4.label')}
+              </div>
+              {SIGV4_KEYS.map((key) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, minWidth: 140 }}>{tk(`credentials.sigv4.${key}`)}</span>
+                  <select
+                    value={draft.credentials?.sigv4?.[key] ?? ''}
+                    aria-label={tk(`credentials.sigv4.${key}`)}
+                    onChange={(e) => updateSigv4(key, e.target.value === '' ? undefined : e.target.value as Sigv4Policy)}
+                    disabled={saving}
+                  >
+                    <option value="">{tk('credentials.sigv4.notSet')}</option>
+                    <option value="deny">{tk('credentials.sigv4.deny')}</option>
+                    <option value="passthrough">{tk('credentials.sigv4.passthrough')}</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
           {isSandboxChildEffective('credentials.awsPairs', scope) && (
             <SandboxAwsPairsEditor
               pairs={draft.credentials?.awsPairs ?? []}

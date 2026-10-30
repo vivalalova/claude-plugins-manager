@@ -964,6 +964,21 @@ describe('AdvancedSection — SandboxEditor 結構化模式', () => {
   });
 });
 
+describe('AdvancedSection — SandboxEditor 非 user scope 憑證清單移除鈕', () => {
+  it.each(['project', 'local'] as const)('scope=%s → files 與 envVars 每筆移除鈕有可及名稱', async (scope) => {
+    renderSection(
+      { sandbox: { credentials: { files: [{ path: '/etc/secrets', mode: 'deny' }], envVars: [{ name: 'API_KEY', mode: 'deny' }] } } },
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      scope,
+    );
+    await waitFor(() => expect(screen.getByText('/etc/secrets')).toBeTruthy());
+
+    expect(screen.getByRole('button', { name: 'Remove /etc/secrets' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove API_KEY' })).toBeTruthy();
+  });
+});
+
 describe('AdvancedSection — SandboxEditor JSON 模式渲染', () => {
   it('sandbox 未設定 → JSON mode textarea 為空', async () => {
     renderSection({});

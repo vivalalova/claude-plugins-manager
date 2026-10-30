@@ -196,16 +196,23 @@ describe('SandboxEditor — credentials.envVars（先紅，批次 C）', () => {
     });
   });
 
-  it('新增一個名稱不得重建既有 entry：mask／injectHosts 等選填欄位原封保留', async () => {
+  // user 與 project 都跑：project 的 user-only 欄位（allowPlaintextInject／sigv4）隱藏但必須原樣帶回；
+  // user 則由新列元件渲染，同樣不得重建既有 entry 或丟掉這兩個欄位。
+  const userOnlyExtras = { allowPlaintextInject: true, sigv4: { streaming: 'deny' } };
+
+  it.each(['user', 'project'] as const)('[%s] 新增一個名稱不得重建既有 entry：mask／injectHosts 等選填欄位原封保留', async (scope) => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderEditor(
       {
         credentials: {
           envVars: [{ name: 'MY_KEY_ID', mode: 'mask', injectHosts: ['sts.amazonaws.com'] }],
           files: [{ path: '/run/secrets', mode: 'mask', maskDuplicates: true }],
+          ...userOnlyExtras,
         },
       } as ClaudeSettings['sandbox'],
       onSave,
+      undefined,
+      scope,
     );
 
     await waitFor(() => expect(screen.queryByText('MY_KEY_ID')).not.toBeNull());
@@ -215,18 +222,20 @@ describe('SandboxEditor — credentials.envVars（先紅，批次 C）', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('sandbox', expect.objectContaining({
-        credentials: expect.objectContaining({
+        credentials: {
           envVars: [
             { name: 'MY_KEY_ID', mode: 'mask', injectHosts: ['sts.amazonaws.com'] },
             { name: 'MY_SECRET', mode: 'deny' },
           ],
           files: [{ path: '/run/secrets', mode: 'mask', maskDuplicates: true }],
-        }),
+          allowPlaintextInject: true,
+          sigv4: { streaming: 'deny' },
+        },
       }));
     });
   });
 
-  it('刪除一個 credentials.files 名稱不得重建其餘 entry', async () => {
+  it.each(['user', 'project'] as const)('[%s] 刪除一個 credentials.files 名稱不得重建其餘 entry', async (scope) => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderEditor(
       {
@@ -235,9 +244,12 @@ describe('SandboxEditor — credentials.envVars（先紅，批次 C）', () => {
             { path: '/run/secrets', mode: 'mask', maskDuplicates: true },
             { path: '/etc/other', mode: 'deny' },
           ],
+          ...userOnlyExtras,
         },
       } as ClaudeSettings['sandbox'],
       onSave,
+      undefined,
+      scope,
     );
 
     await waitFor(() => screen.getByText('/etc/other'));
@@ -246,9 +258,11 @@ describe('SandboxEditor — credentials.envVars（先紅，批次 C）', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('sandbox', expect.objectContaining({
-        credentials: expect.objectContaining({
+        credentials: {
           files: [{ path: '/run/secrets', mode: 'mask', maskDuplicates: true }],
-        }),
+          allowPlaintextInject: true,
+          sigv4: { streaming: 'deny' },
+        },
       }));
     });
   });
