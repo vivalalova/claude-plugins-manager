@@ -48,6 +48,7 @@ const renderAdvanced = (
     <ToastProvider>
       <AdvancedSection
         scope="user"
+        scopeSettings={undefined}
         settings={settings as any}
         onSave={onSave}
         onDelete={onDelete}

@@ -38,6 +38,7 @@ const render = (settings: ClaudeSettings, scope: 'user' | 'project') =>
       <ObjectFieldEditor
         settingKey="sandbox"
         scope={scope}
+        scopeSettings={undefined}
         settings={settings}
         onSave={vi.fn().mockResolvedValue(undefined)}
         onDelete={vi.fn().mockResolvedValue(undefined)}
@@ -77,6 +78,7 @@ describe('sandbox editor draft × scope', () => {
         <ObjectFieldEditor
           settingKey="sandbox"
           scope="project"
+          scopeSettings={undefined}
           settings={{}}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onDelete={vi.fn().mockResolvedValue(undefined)}
@@ -102,6 +104,7 @@ describe('sandbox editor draft × scope', () => {
         <ObjectFieldEditor
           settingKey="sandbox"
           scope="project"
+          scopeSettings={undefined}
           settings={{ sandbox: { enabled: true } }}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onDelete={vi.fn().mockResolvedValue(undefined)}

@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach, type Mock } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../__test-utils__/loadedLayers';
 import { PermissionsSection } from '../PermissionsSection';
 import { ToastProvider } from '../../../components/Toast';
 
@@ -35,14 +36,14 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
-  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
+  scopeSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
       <PermissionsSection
         scope={scope}
         settings={settings as any}
-        parentSettings={parentSettings as any}
+        scopeSettings={loadedLayers(scopeSettings)}
         onSave={onSave}
         onDelete={onDelete}
         onSaveNested={onSaveNested}
@@ -697,7 +698,7 @@ describe('PermissionsSection — enableAllProjectMcpServers 互動', () => {
 // ---------------------------------------------------------------------------
 
 describe('PermissionsSection — useAutoModeDuringPlan 繼承感知（#26 R4a）', () => {
-  it('local scope，own=false，父層(user)=false（非 default true）→ 點擊 → onSave("useAutoModeDuringPlan", true)（今日為 onDelete）', async () => {
+  it('local scope，own=false，父層(user)=false → 點擊（再勾選）→ onDelete("useAutoModeDuringPlan")，onSave 不被呼叫，永不寫 true（#44 OnlyFalse）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ useAutoModeDuringPlan: false }, onSave, onDelete, 'local', { user: { useAutoModeDuringPlan: false } });
@@ -706,8 +707,8 @@ describe('PermissionsSection — useAutoModeDuringPlan 繼承感知（#26 R4a）
     fireEvent.click(screen.getByRole('checkbox', { name: /^Use Auto Mode During Plan/ }));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('useAutoModeDuringPlan', true);
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith('useAutoModeDuringPlan');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

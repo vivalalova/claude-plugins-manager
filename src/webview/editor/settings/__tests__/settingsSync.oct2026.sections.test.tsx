@@ -47,6 +47,7 @@ const render = (Section: SectionComponent, scope: Scope, settings: Record<string
     <ToastProvider>
       <Section
         scope={scope}
+        scopeSettings={undefined}
         settings={settings as any}
         onSave={onSave}
         onDelete={onDelete}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { sendRequest } from '../../vscode';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { PageHeader } from '../../components/PageHeader';
@@ -11,7 +11,7 @@ import { GeneralSection } from './GeneralSection';
 import { DisplaySection } from './DisplaySection';
 import { AdvancedSection } from './AdvancedSection';
 import type { PluginScope, ClaudeSettings } from '../../../shared/types';
-import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, type SettingsSection, type FlatFieldSchema } from '../../../shared/claude-settings-schema';
+import { CLAUDE_SETTINGS_SCHEMA, getFlatFieldSchema, getSettingsSections, getValueSchemaEnumOptions, getSectionFieldOrder, type SettingsSection } from '../../../shared/claude-settings-schema';
 import { KNOWN_ENV_VARS } from '../../../shared/known-env-vars';
 import {
   applyAddPermissionsListItem,
@@ -27,8 +27,8 @@ import { usePushSyncedResource } from '../../hooks/usePushSyncedResource';
 import { SettingsSectionWrapper } from './components/SettingsSectionWrapper';
 import { UnknownSettingsSection, getUnknownSettingsEntries } from './components/UnknownSettingsSection';
 import { SchemaFieldRenderer } from './components/SchemaFieldRenderer';
-import { getSchemaFieldBindings, isFieldVisibleForScope, type ParentSettings } from './components/SchemaSection';
-import { PARENT_SCOPES, OverrideBadge, type Inherited } from './components/SettingControls';
+import { getSchemaFieldBindings, isFieldVisibleForScope, type ResolvedSchemaFieldBindings, type ScopeSettings } from './components/SchemaSection';
+import { OverrideBadge } from './components/SettingControls';
 import { ObjectFieldEditor, OBJECT_EDITOR_KEYS } from './components/ObjectFieldEditor';
 import { hasVisibleSandboxContent } from './components/SandboxEditor';
 import {
@@ -44,8 +44,10 @@ import {
 
 const SCOPES: PluginScope[] = ['user', 'project', 'local'];
 
-/** 父層快照與其所屬 scope；forScope 不等於目前 scope 時快照不可用（視為未知）。 */
-type ParentSnapshot = { forScope: PluginScope | undefined; snapshots: ParentSettings | undefined };
+/** 他層快照與其所屬分頁；forScope 不等於目前 scope 時快照不可用（視為未就緒）。 */
+type ScopeSettingsSnapshot = { forScope: PluginScope | undefined; snapshots: ScopeSettings | undefined };
+/** pending＝尚未查到；failed＝查詢失敗，project／local 狀態未知 */
+type WorkspaceState = 'pending' | 'failed' | 'none' | 'present';
 /** 目前畫面的設定資料與其所屬 scope；寫入回應只在 forScope 等於發出 scope 時套樂觀更新。 */
 type SettingsSnapshot = { forScope: PluginScope | undefined; data: ClaudeSettings };
 const SETTINGS_NAV_SECTIONS = getSettingsSections();
@@ -77,7 +79,7 @@ function collectCustomizedSchemaFields(
         settings,
         // Only binding.value is used for inclusion; inheritance stays unknown here —
         // counting cares about the current scope only.
-        parentSettings: undefined,
+        scopeSettings: undefined,
         onSave: noop,
         onDelete: noop,
         onSaveNested: noop,
@@ -184,29 +186,19 @@ function renderSchemaResultRow({
   sectionLabel,
   labelText,
   description,
-  schema,
-  value,
   scope,
-  overriddenScope,
-  inherited,
-  onSave,
-  onDelete,
+  binding,
   onNavigate,
 }: {
   fieldKey: string;
   sectionLabel: string;
   labelText: string;
   description?: string;
-  schema: FlatFieldSchema;
-  value: unknown;
   scope: PluginScope;
-  overriddenScope?: PluginScope;
-  inherited: Inherited;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  binding: ResolvedSchemaFieldBindings;
   onNavigate: () => void;
 }): React.ReactElement {
-  if (schema.controlType === Object) {
+  if (binding.schema.controlType === Object) {
     return (
       <div key={fieldKey} className="settings-search-result">
         <span className="settings-search-result-section">{sectionLabel}</span>
@@ -223,16 +215,7 @@ function renderSchemaResultRow({
   return (
     <div key={fieldKey} className="settings-search-result">
       <span className="settings-search-result-section">{sectionLabel}</span>
-      <SchemaFieldRenderer
-        settingKey={fieldKey}
-        schema={schema}
-        value={value}
-        scope={scope}
-        overriddenScope={overriddenScope}
-        inherited={inherited}
-        onSave={onSave}
-        onDelete={onDelete}
-      />
+      <SchemaFieldRenderer settingKey={fieldKey} scope={scope} binding={binding} />
     </div>
   );
 }
@@ -246,7 +229,6 @@ export function SettingsPage(): React.ReactElement {
 
   const [scope, setScope] = useState<PluginScope>('user');
   const [activeNav, setActiveNav] = useState<SettingsNavItem>(SETTINGS_NAV_SECTIONS[0] ?? 'general');
-  const [hasWorkspace, setHasWorkspace] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Build searchable fields from schema + i18n
@@ -265,12 +247,21 @@ export function SettingsPage(): React.ReactElement {
 
   const isSearching = searchQuery.trim().length > 0;
 
-  // Check workspace availability
-  useEffect(() => {
-    sendRequest<{ name: string; path: string }[]>({ type: 'workspace.getFolders' })
-      .then((folders) => setHasWorkspace(folders.length > 0))
-      .catch(() => setHasWorkspace(false));
+  const loadWorkspace = useCallback(async (): Promise<WorkspaceState> => {
+    try {
+      const folders = await sendRequest<{ name: string; path: string }[]>({ type: 'workspace.getFolders' });
+      return folders.length > 0 ? 'present' : 'none';
+    } catch {
+      return 'failed';
+    }
   }, []);
+
+  const { data: workspace } = usePushSyncedResource<WorkspaceState>({
+    initialData: 'pending',
+    load: loadWorkspace,
+    pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
+  });
+  const hasWorkspace = workspace === 'present';
 
   const loadSettings = useCallback(async (): Promise<SettingsSnapshot> => {
     const forScope = scope;
@@ -291,36 +282,32 @@ export function SettingsPage(): React.ReactElement {
   });
   const settings = snap.data;
   // 寫入回應在 await 之後才到，閉包裡的 snap／refresh 可能屬於切走前的 scope；回應時一律讀最新的
-  const latestRef = useRef({ snap, refreshSettings, scope });
-  latestRef.current = { snap, refreshSettings, scope };
+  const latestRef = useRef({ snap, refreshSettings });
+  latestRef.current = { snap, refreshSettings };
 
-  // Parent-scope snapshots feed the override badge and inheritance-aware delete decisions.
-  // Loaded separately so the current-scope view never blocks on parent fetches.
-  // 快照標記所屬 scope：切 scope 後新快照到達前、或載入失敗時，一律視為未知（undefined）。
-  const loadParentSettings = useCallback(async (): Promise<ParentSnapshot> => {
+  // 目前分頁以外各層的快照，供繼承、覆寫標記、合併規則提示與徽章；讀取失敗的層標 unknown。
+  const loadScopeSettings = useCallback(async (): Promise<ScopeSettingsSnapshot> => {
     const forScope = scope;
-    const parents = PARENT_SCOPES[forScope];
-    if (parents.length === 0) return { forScope, snapshots: {} };
-    try {
-      const results = await Promise.all(
-        parents.map((s) => sendRequest<ClaudeSettings>({ type: 'settings.get', scope: s })),
-      );
-      const map: ParentSettings = {};
-      parents.forEach((s, i) => { map[s] = results[i]; });
-      return { forScope, snapshots: map };
-    } catch {
-      return { forScope, snapshots: undefined };
-    }
-  }, [scope]);
+    if (workspace === 'pending') return { forScope, snapshots: undefined };
+    const others = SCOPES.filter((s) => s !== forScope && (s === 'user' || workspace !== 'none'));
+    const results = await Promise.allSettled(others.map((s) => (s !== 'user' && workspace === 'failed'
+      ? Promise.reject(new Error('workspace unknown'))
+      : sendRequest<ClaudeSettings>({ type: 'settings.get', scope: s }))));
+    const snapshots: ScopeSettings = {};
+    others.forEach((s, i) => {
+      const r = results[i];
+      snapshots[s] = r.status === 'fulfilled' ? { kind: 'loaded', settings: r.value } : { kind: 'unknown' };
+    });
+    return { forScope, snapshots };
+  }, [scope, workspace]);
 
-  const { data: parentSnapshot, loading: parentLoading } = usePushSyncedResource<ParentSnapshot>({
+  const { data: scopeSnapshot, loading: scopeSettingsLoading } = usePushSyncedResource<ScopeSettingsSnapshot>({
     initialData: { forScope: undefined, snapshots: undefined },
-    load: loadParentSettings,
+    load: loadScopeSettings,
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
-  // scope 切換觸發的載入中（parentLoading）代表可能有更新一輪的 fetch 在途；即便舊快照的
-  // forScope 剛好等於目前 scope（如 A→B→A），也不能當成已就緒——否則會誤用切走前的舊資料。
-  const parentSettings = !parentLoading && parentSnapshot.forScope === scope ? parentSnapshot.snapshots : undefined;
+  // 切分頁或工作區狀態改變觸發的載入中可能有更新一輪的 fetch 在途；即便舊快照 forScope 相同（A→B→A）也不可用。
+  const scopeSettings = !scopeSettingsLoading && scopeSnapshot.forScope === scope ? scopeSnapshot.snapshots : undefined;
 
   // ~/.claude.json 備援值（#31）：與 scope 無關，初次載入與 settings.refresh 時重讀。
   // 在 load 內 catch 並回傳未知，失敗或回應非物件都不沿用舊快照（避免重載失敗仍顯示舊備援值）。
@@ -338,47 +325,14 @@ export function SettingsPage(): React.ReactElement {
     pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
   });
 
-  const loadScopeCounts = useCallback(async (): Promise<{ project: number; local: number }> => {
-    if (!hasWorkspace) {
-      return { project: 0, local: 0 };
-    }
-    const [projectSettings, localSettings] = await Promise.all([
-      sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'project' }),
-      sendRequest<ClaudeSettings>({ type: 'settings.get', scope: 'local' }),
-    ]);
-    return {
-      project: countCustomized(projectSettings ?? {} as ClaudeSettings, 'project'),
-      local: countCustomized(localSettings ?? {} as ClaudeSettings, 'local'),
-    };
-  }, [hasWorkspace]);
-
-  const { data: counts, setData: setCounts, refresh: refreshCounts } = usePushSyncedResource<{ project: number; local: number }>({
-    initialData: { project: 0, local: 0 },
-    load: loadScopeCounts,
-    pushFilter: useCallback((msg: { type?: string }) => msg.type === 'settings.refresh', []),
-  });
-
-  // 畫面資料（該 scope 最後一次載入＋已套用的寫入）同步進 counts，切走後徽章不停在寫入前的數字；
-  // counts 被較早發出的重讀覆寫時也重新對齊
-  useEffect(() => {
-    const s = snap.forScope;
-    if (loading || s !== scope || (s !== 'project' && s !== 'local')) return;
-    const n = countCustomized(snap.data, s);
-    setCounts((prev) => (prev[s] === n ? prev : { ...prev, [s]: n }));
-  }, [loading, scope, snap, counts, setCounts]);
-
-  /**
-   * 寫入成功後的畫面更新：只在畫面資料仍屬發出 scope 時套 patch（I4）；
-   * 已換成別的 scope 的資料 → 不套，改重讀徽章數（該 scope 的寫入不會再經畫面資料反映）。
-   */
+  /** 寫入成功後的畫面更新：只在畫面資料仍屬發出 scope 時套 patch（I4）；他層快照隨推播重讀。 */
   const commitWrite = useCallback((issuedScope: PluginScope, patch: (data: ClaudeSettings) => ClaudeSettings): void => {
     setSnap((prev) => {
       if (prev.forScope !== issuedScope) return prev;
       const data = patch(prev.data);
       return data === prev.data ? prev : { ...prev, data };
     });
-    if (latestRef.current.scope !== issuedScope && issuedScope !== 'user') void refreshCounts(false);
-  }, [setSnap, refreshCounts]);
+  }, [setSnap]);
 
   /** 巢狀寫入的 patch：畫面上父 key 形狀不符（如外部改成字串）→ 不 patch、重讀對齊，不在 updater 內拋錯 */
   const commitNestedWrite = useCallback((
@@ -461,7 +415,7 @@ export function SettingsPage(): React.ReactElement {
     [scope, settings],
   );
 
-  // 目前 scope 的徽章數：畫面資料確定屬於目前 scope 時由它推導，否則（載入中、載入失敗、過渡幀）用 counts
+  // 徽章數：目前分頁由畫面資料推導，他層由已載入的快照推導；未就緒或讀取失敗不顯示
   const currentCount = useMemo(() => countCustomized(settings, scope), [settings, scope]);
   const currentCountReady = !loading && snap.forScope === scope;
 
@@ -473,7 +427,12 @@ export function SettingsPage(): React.ReactElement {
       <div className="settings-scope-tabs settings-scope-tabs--fixed">
         {SCOPES.map((s) => {
           const disabled = s !== 'user' && !hasWorkspace;
-          const count = s === 'user' ? 0 : s === scope && currentCountReady ? currentCount : counts[s];
+          const layer = scopeSettings?.[s];
+          const count = s === 'user'
+            ? undefined
+            : s === scope
+              ? (currentCountReady ? currentCount : undefined)
+              : (layer?.kind === 'loaded' ? countCustomized(layer.settings, s) : undefined);
           return (
             <button
               key={s}
@@ -483,7 +442,7 @@ export function SettingsPage(): React.ReactElement {
               title={disabled ? t('settings.scope.noWorkspace') : undefined}
             >
               {t(`settings.scope.${s}` as Parameters<typeof t>[0])}
-              {(s === 'project' || s === 'local') && count >= 1 && (
+              {count !== undefined && count >= 1 && (
                 <span className="settings-scope-badge">{count}</span>
               )}
             </button>
@@ -568,7 +527,7 @@ export function SettingsPage(): React.ReactElement {
                             envKey={field.key}
                             currentEnv={currentEnv}
                             scope={scope}
-                            parentSettings={parentSettings}
+                            scopeSettings={scopeSettings}
                             onSaveNested={handleSaveNested}
                             onDeleteNested={handleDeleteNested}
                           />
@@ -580,27 +539,21 @@ export function SettingsPage(): React.ReactElement {
                     const fieldBindings = getSchemaFieldBindings(field.key, {
                       scope,
                       settings,
-                      parentSettings,
+                      scopeSettings,
                       onSave: handleSave,
                       onDelete: handleDelete,
                       onSaveNested: handleSaveNested,
                       onDeleteNested: handleDeleteNested,
                     });
                     if (!fieldBindings) return null;
-                    const { schema, value, onSave, onDelete, overriddenScope, inherited } = fieldBindings;
                     const sectionLabel = t(`settings.nav.${field.section}` as Parameters<typeof t>[0]);
                     return renderSchemaResultRow({
                       fieldKey: field.key,
                       sectionLabel,
                       labelText: field.label || field.key,
                       description: field.description,
-                      schema,
-                      value,
                       scope,
-                      overriddenScope,
-                      inherited,
-                      onSave,
-                      onDelete,
+                      binding: fieldBindings,
                       onNavigate: () => { setSearchQuery(''); setActiveNav(field.section as SettingsNavItem); },
                     });
                   })}
@@ -614,7 +567,7 @@ export function SettingsPage(): React.ReactElement {
                 <PermissionsSection
                   scope={scope}
                   settings={settings}
-                  parentSettings={parentSettings}
+                  scopeSettings={scopeSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
@@ -627,7 +580,7 @@ export function SettingsPage(): React.ReactElement {
                 <EnvSection
                   scope={scope}
                   settings={settings}
-                  parentSettings={parentSettings}
+                  scopeSettings={scopeSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
@@ -638,7 +591,7 @@ export function SettingsPage(): React.ReactElement {
                 <HooksSection
                   scope={scope}
                   settings={settings}
-                  parentSettings={parentSettings}
+                  scopeSettings={scopeSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
@@ -649,7 +602,7 @@ export function SettingsPage(): React.ReactElement {
                 <GeneralSection
                   scope={scope}
                   settings={settings}
-                  parentSettings={parentSettings}
+                  scopeSettings={scopeSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
@@ -660,7 +613,7 @@ export function SettingsPage(): React.ReactElement {
                 <DisplaySection
                   scope={scope}
                   settings={settings}
-                  parentSettings={parentSettings}
+                  scopeSettings={scopeSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
@@ -671,7 +624,7 @@ export function SettingsPage(): React.ReactElement {
                 <AdvancedSection
                   scope={scope}
                   settings={settings}
-                  parentSettings={parentSettings}
+                  scopeSettings={scopeSettings}
                   onSave={handleSave}
                   onDelete={handleDelete}
                   onSaveNested={handleSaveNested}
@@ -698,14 +651,14 @@ export function SettingsPage(): React.ReactElement {
                         const fieldBindings = getSchemaFieldBindings(key, {
                           scope,
                           settings,
-                          parentSettings,
+                          scopeSettings,
                           onSave: handleSave,
                           onDelete: handleDelete,
                           onSaveNested: handleSaveNested,
                           onDeleteNested: handleDeleteNested,
                         });
                         if (!fieldBindings) return null;
-                        const { schema, value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope, inherited } = fieldBindings;
+                        const { value, onSave: fieldOnSave, onDelete: fieldOnDelete, overriddenScope } = fieldBindings;
                         const sectionLabel = t(`settings.nav.${section}` as Parameters<typeof t>[0]);
                         const fieldLabel = t(`settings.${section}.${key}.label` as Parameters<typeof t>[0]) || key;
 
@@ -731,7 +684,7 @@ export function SettingsPage(): React.ReactElement {
                               {overriddenScope && <OverrideBadge scope={overriddenScope} />}
                               <CustomizedEnvEditor
                                 scope={scope}
-                                parentSettings={parentSettings}
+                                scopeSettings={scopeSettings}
                                 currentEnv={(value as Record<string, string>) ?? {}}
                                 onSaveNested={handleSaveNested}
                                 onDeleteNested={handleDeleteNested}
@@ -758,7 +711,7 @@ export function SettingsPage(): React.ReactElement {
                                 settingKey={key}
                                 scope={scope}
                                 settings={settings}
-                                parentSettings={parentSettings}
+                                scopeSettings={scopeSettings}
                                 overriddenScope={overriddenScope}
                                 onSave={fieldOnSave}
                                 onDelete={fieldOnDelete}
@@ -771,13 +724,8 @@ export function SettingsPage(): React.ReactElement {
                           fieldKey: key,
                           sectionLabel,
                           labelText: fieldLabel,
-                          schema,
-                          value,
                           scope,
-                          overriddenScope,
-                          inherited,
-                          onSave: fieldOnSave,
-                          onDelete: fieldOnDelete,
+                          binding: fieldBindings,
                           onNavigate: () => setActiveNav(section as SettingsNavItem),
                         });
                       })}

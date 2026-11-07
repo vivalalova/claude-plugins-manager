@@ -44,6 +44,7 @@ const renderSection = (
     <ToastProvider>
       <PermissionsSection
         scope={scope}
+        scopeSettings={undefined}
         settings={settings as any}
         onSave={onSave}
         onDelete={onDelete}

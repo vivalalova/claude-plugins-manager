@@ -116,6 +116,12 @@ export type InferValueSchema<Schema extends ValueSchema> =
 export type EffectiveScope = 'user' | 'local';
 export type EffectiveScopes = readonly EffectiveScope[];
 
+/** AnyTrue＝任一生效層寫 true 即生效；OnlyFalse＝任一生效層寫 false 即生效 */
+export enum BooleanMergeRule {
+  AnyTrue = 'anyTrue',
+  OnlyFalse = 'onlyFalse',
+}
+
 /** docs Scope `User or managed` */
 export const USER_SCOPE_ONLY: EffectiveScopes = ['user'];
 /** docs Scope `User, local, or managed` */
@@ -144,6 +150,8 @@ export interface SettingFieldSchema<
    * 與 storageFile='globalConfig' 互斥：仍是一般 settings 檔 key，~/.claude.json 只是備援。
    */
   globalConfigFallback?: true;
+  /** 跨層合併規則：Claude Code 不依優先序取值，而是看所有生效層 */
+  booleanMerge?: BooleanMergeRule;
 }
 
 /** Schema 陣列元素 — key + 完整 schema + UI metadata */
@@ -222,6 +230,7 @@ interface BaseFieldMeta<NestedUnder extends string | undefined = undefined> {
   storageFile?: 'globalConfig';
   effectiveScopes?: EffectiveScopes;
   globalConfigFallback?: true;
+  booleanMerge?: BooleanMergeRule;
 }
 
 function inferControlType(valueSchema: ValueSchema): ControlType | undefined {
@@ -264,6 +273,7 @@ function createField<
     storageFile: meta.storageFile,
     effectiveScopes: meta.effectiveScopes,
     globalConfigFallback: meta.globalConfigFallback,
+    booleanMerge: meta.booleanMerge,
   };
 }
 
@@ -759,11 +769,11 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('disableBypassPermissionsMode', DISABLE_ONLY_VALUE_SCHEMA, {
       nestedUnder: 'permissions',
     }),
-    booleanField('skipDangerousModePermissionPrompt', { default: false, effectiveScopes: USER_AND_LOCAL_SCOPES }),
-    booleanField('skipAutoPermissionPrompt', { effectiveScopes: USER_SCOPE_ONLY }),
-    booleanField('blockReadsOutsideWorkingDirectories', { nestedUnder: 'permissions' }),
-    booleanField('blockWritesOutsideWorkingDirectories', { nestedUnder: 'permissions' }),
-    booleanField('useAutoModeDuringPlan', { default: true, effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('skipDangerousModePermissionPrompt', { default: false, booleanMerge: BooleanMergeRule.AnyTrue, effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('skipAutoPermissionPrompt', { booleanMerge: BooleanMergeRule.AnyTrue, effectiveScopes: USER_SCOPE_ONLY }),
+    booleanField('blockReadsOutsideWorkingDirectories', { nestedUnder: 'permissions', booleanMerge: BooleanMergeRule.AnyTrue }),
+    booleanField('blockWritesOutsideWorkingDirectories', { nestedUnder: 'permissions', booleanMerge: BooleanMergeRule.AnyTrue }),
+    booleanField('useAutoModeDuringPlan', { default: true, effectiveScopes: USER_AND_LOCAL_SCOPES, booleanMerge: BooleanMergeRule.OnlyFalse }),
     booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false, effectiveScopes: USER_SCOPE_ONLY }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),
     createField('allowedMcpServers', MCP_SERVER_LIST_VALUE_SCHEMA, { controlTypeOverride: Object }),
@@ -805,8 +815,8 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('skillListingMaxDescChars', SKILL_LISTING_MAX_DESC_CHARS_VALUE_SCHEMA, { default: 1536 }),
     createField('skillListingBudgetFraction', SKILL_LISTING_BUDGET_FRACTION_VALUE_SCHEMA, { default: 0.01 }),
     booleanField('disableSkillShellExecution', { default: false }),
-    booleanField('syncClaudeAiSkills', { effectiveScopes: USER_AND_LOCAL_SCOPES }),
-    booleanField('syncClaudeAiPlugins', { effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('syncClaudeAiSkills', { booleanMerge: BooleanMergeRule.OnlyFalse, effectiveScopes: USER_AND_LOCAL_SCOPES }),
+    booleanField('syncClaudeAiPlugins', { booleanMerge: BooleanMergeRule.OnlyFalse, effectiveScopes: USER_AND_LOCAL_SCOPES }),
     arrayField('prependPlugins', STRING_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     arrayField('appendPlugins', STRING_SCHEMA, { effectiveScopes: USER_SCOPE_ONLY }),
     // Sessions & execution
@@ -821,7 +831,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     stringField('processWrapper', { effectiveScopes: USER_SCOPE_ONLY }),
     createField('bashOutputMaxChars', numberValue({ min: 4000, max: 128000, step: 1 })),
     booleanField('bashEditDiffEnabled', { effectiveScopes: USER_SCOPE_ONLY }),
-    booleanField('isolatePeerMachines'),
+    booleanField('isolatePeerMachines', { booleanMerge: BooleanMergeRule.AnyTrue }),
     // Sandbox
     createField('sandbox', SANDBOX_VALUE_SCHEMA),
     // Footer link patterns
@@ -832,9 +842,9 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     createField('disableDeepLinkRegistration', DISABLE_ONLY_VALUE_SCHEMA),
     booleanField('skipWebFetchPreflight', { default: false }),
     booleanField('remoteControlAtStartup', { globalConfigFallback: true }),
-    booleanField('enableArtifact'),
+    booleanField('enableArtifact', { booleanMerge: BooleanMergeRule.OnlyFalse }),
     booleanField('disableBundledSkills', { default: false }),
-    booleanField('disableClaudeAiConnectors', { default: false }),
+    booleanField('disableClaudeAiConnectors', { default: false, booleanMerge: BooleanMergeRule.AnyTrue }),
     booleanField('disableWorkflows', { default: false }),
     booleanField('enableWorkflows'),
     createField('feedbackDrafts', stringValue(FEEDBACK_DRAFTS_OPTIONS), { default: 'notify', effectiveScopes: USER_SCOPE_ONLY }),
@@ -864,6 +874,7 @@ interface RuntimeSettingFieldBase {
   storageFile?: 'globalConfig';
   effectiveScopes?: EffectiveScopes;
   globalConfigFallback?: true;
+  booleanMerge?: BooleanMergeRule;
 }
 
 interface RuntimeFlatFieldSchema extends Omit<RuntimeSettingFieldBase, 'controlTypeOverride'> {
@@ -900,6 +911,7 @@ function buildFlatSchema(): Record<string, RuntimeFlatFieldSchema> {
         storageFile: flatFieldBase.storageFile,
         effectiveScopes: flatFieldBase.effectiveScopes,
         globalConfigFallback: flatFieldBase.globalConfigFallback,
+        booleanMerge: flatFieldBase.booleanMerge,
         section,
       };
     }

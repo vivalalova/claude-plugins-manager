@@ -6,7 +6,7 @@ import { getKnownEnvVar, getKnownEnvVarNames, getKnownEnvVarsByValueType } from 
 import type { KnownEnvVar, EnvVarValueType } from '../../../shared/known-env-vars';
 import { BooleanToggle, TextSetting, NumberSetting, resolveInherited, type Inherited } from './components/SettingControls';
 import { ObjectSetting } from './components/ObjectSetting';
-import { SchemaSection, drillParents, type ParentSettings, type SectionProps } from './components/SchemaSection';
+import { SchemaSection, drillParents, type ScopeSettings, type SectionProps } from './components/SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,10 +25,10 @@ export function isSensitiveKey(key: string): boolean {
  */
 function resolveEnvInherited(
   scope: PluginScope,
-  parentSettings: ParentSettings | undefined,
+  scopeSettings: ScopeSettings | undefined,
   knownVar: KnownEnvVar,
 ): Inherited {
-  const inherited = resolveInherited(scope, drillParents(parentSettings, 'env'), knownVar.name, 'env');
+  const inherited = resolveInherited(scope, drillParents(scopeSettings, 'env'), knownVar.name, 'env');
   if (inherited.kind !== 'known') return inherited;
   const raw = inherited.value;
   if (knownVar.valueType === Boolean) return { ...inherited, value: raw === '1' || raw === 'true' };
@@ -468,11 +468,11 @@ function AddEnvForm({ existingKeys, onAdd, disabled }: AddEnvFormProps): React.R
 
 interface EnvObjectEditorProps extends EnvNestedWriters {
   scope: PluginScope;
-  parentSettings: ParentSettings | undefined;
+  scopeSettings: ScopeSettings | undefined;
   currentEnv: Record<string, string>;
 }
 
-function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDeleteNested }: EnvObjectEditorProps): React.ReactElement {
+function EnvObjectEditor({ scope, scopeSettings, currentEnv, onSaveNested, onDeleteNested }: EnvObjectEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, run } = useEnvWriteRunner();
   const knownVarsByType = useMemo(() => getKnownEnvVarsByValueType(), []);
@@ -506,7 +506,8 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDe
     const desc = getDescription(knownVar.name);
     return (
       <BooleanToggle
-        inherited={resolveEnvInherited(scope, parentSettings, knownVar)}
+        inherited={resolveEnvInherited(scope, scopeSettings, knownVar)}
+        merge={undefined}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -527,7 +528,7 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDe
     const desc = getDescription(knownVar.name);
     return (
       <NumberSetting
-        inherited={resolveEnvInherited(scope, parentSettings, knownVar)}
+        inherited={resolveEnvInherited(scope, scopeSettings, knownVar)}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -563,7 +564,7 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDe
     const desc = getDescription(knownVar.name);
     return (
       <TextSetting
-        inherited={resolveEnvInherited(scope, parentSettings, knownVar)}
+        inherited={resolveEnvInherited(scope, scopeSettings, knownVar)}
         key={knownVar.name}
         label={knownVar.name}
         description={desc ?? undefined}
@@ -635,7 +636,7 @@ function EnvObjectEditor({ scope, parentSettings, currentEnv, onSaveNested, onDe
   );
 }
 
-export function EnvSection({ scope, settings, parentSettings, onSave, onDelete, onSaveNested, onDeleteNested }: SectionProps): React.ReactElement {
+export function EnvSection({ scope, settings, scopeSettings, onSave, onDelete, onSaveNested, onDeleteNested }: SectionProps): React.ReactElement {
   const currentEnv = useMemo<Record<string, string>>(
     () => (settings.env as Record<string, string>) ?? {},
     [settings.env],
@@ -646,7 +647,7 @@ export function EnvSection({ scope, settings, parentSettings, onSave, onDelete, 
       section="env"
       scope={scope}
       settings={settings}
-      parentSettings={parentSettings}
+      scopeSettings={scopeSettings}
       onSave={onSave}
       onDelete={onDelete}
       onSaveNested={onSaveNested}
@@ -656,7 +657,7 @@ export function EnvSection({ scope, settings, parentSettings, onSave, onDelete, 
         return (
           <EnvObjectEditor
             scope={scope}
-            parentSettings={parentSettings}
+            scopeSettings={scopeSettings}
             currentEnv={currentEnv}
             onSaveNested={onSaveNested}
             onDeleteNested={onDeleteNested}
@@ -675,7 +676,7 @@ export interface EnvFieldRendererProps extends EnvNestedWriters {
   envKey: string;
   currentEnv: Record<string, string>;
   scope: PluginScope;
-  parentSettings: ParentSettings | undefined;
+  scopeSettings: ScopeSettings | undefined;
   saving?: boolean;
 }
 
@@ -689,7 +690,7 @@ export function EnvFieldRenderer({
   envKey,
   currentEnv,
   scope,
-  parentSettings,
+  scopeSettings,
   onSaveNested,
   onDeleteNested,
   saving = false,
@@ -713,7 +714,7 @@ export function EnvFieldRenderer({
 
   const envVal = currentEnv[envKey];
   const desc = getDescription(envKey);
-  const inherited = resolveEnvInherited(scope, parentSettings, knownVar);
+  const inherited = resolveEnvInherited(scope, scopeSettings, knownVar);
 
   if (knownVar.valueType === Boolean) {
     const boolVal = envVal !== undefined ? (envVal === '1' || envVal === 'true') : undefined;
@@ -723,6 +724,7 @@ export function EnvFieldRenderer({
     return (
       <BooleanToggle
         inherited={inherited}
+        merge={undefined}
         label={envKey}
         description={desc ?? undefined}
         value={boolVal}
@@ -800,11 +802,11 @@ export function EnvFieldRenderer({
 
 interface CustomizedEnvEditorProps extends EnvNestedWriters {
   scope: PluginScope;
-  parentSettings: ParentSettings | undefined;
+  scopeSettings: ScopeSettings | undefined;
   currentEnv: Record<string, string>;
 }
 
-export function CustomizedEnvEditor({ scope, parentSettings, currentEnv, onSaveNested, onDeleteNested }: CustomizedEnvEditorProps): React.ReactElement {
+export function CustomizedEnvEditor({ scope, scopeSettings, currentEnv, onSaveNested, onDeleteNested }: CustomizedEnvEditorProps): React.ReactElement {
   const { saving, run } = useEnvWriteRunner();
   const { save: envOnSave, rename: envOnRename, remove: envOnDelete } = createEnvWriters({ onSaveNested, onDeleteNested }, run);
 
@@ -819,7 +821,7 @@ export function CustomizedEnvEditor({ scope, parentSettings, currentEnv, onSaveN
             envKey={key}
             currentEnv={currentEnv}
             scope={scope}
-            parentSettings={parentSettings}
+            scopeSettings={scopeSettings}
             onSaveNested={onSaveNested}
             onDeleteNested={onDeleteNested}
             saving={saving}

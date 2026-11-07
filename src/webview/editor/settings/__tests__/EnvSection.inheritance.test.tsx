@@ -9,6 +9,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../__test-utils__/loadedLayers';
 import { EnvSection } from '../EnvSection';
 import { ToastProvider } from '../../../components/Toast';
 
@@ -26,7 +27,7 @@ type Scope = 'user' | 'project' | 'local';
 const renderSection = (
   settings: Record<string, unknown>,
   scope: Scope,
-  parentSettings: Partial<Record<Scope, Record<string, unknown>>> | undefined,
+  scopeSettings: Partial<Record<Scope, Record<string, unknown>>> | undefined,
   onSave = vi.fn().mockResolvedValue(undefined),
   onSaveNested = vi.fn().mockResolvedValue(undefined),
   onDeleteNested = vi.fn().mockResolvedValue(undefined),
@@ -36,7 +37,7 @@ const renderSection = (
       <EnvSection
         scope={scope}
         settings={settings as any}
-        parentSettings={parentSettings as any}
+        scopeSettings={loadedLayers(scopeSettings)}
         onSave={onSave}
         onDelete={vi.fn().mockResolvedValue(undefined)}
         onSaveNested={onSaveNested}
@@ -102,7 +103,7 @@ describe('EnvSection — 選到已知變數預設值的繼承感知判斷（#28�
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('B3 local、上層快照未知（parentSettings=undefined）→ 選預設值 → 寫入', async () => {
+  it('B3 local、上層快照未知（scopeSettings=undefined）→ 選預設值 → 寫入', async () => {
     const { onSave, onSaveNested, onDeleteNested } = renderSection({ env: { DISABLE_TELEMETRY: '1' } }, 'local', undefined);
     await waitFor(() => getEnvCheckbox('DISABLE_TELEMETRY'));
     fireEvent.click(getEnvCheckbox('DISABLE_TELEMETRY'));
@@ -110,7 +111,7 @@ describe('EnvSection — 選到已知變數預設值的繼承感知判斷（#28�
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, {}])('B4（守衛）user scope（parentSettings=%o）→ 選預設值 → 刪', async (parents) => {
+  it.each([undefined, {}])('B4（守衛）user scope（scopeSettings=%o）→ 選預設值 → 刪', async (parents) => {
     const { onSave, onSaveNested, onDeleteNested } = renderSection({ env: { DISABLE_TELEMETRY: '1' } }, 'user', parents as any);
     await waitFor(() => getEnvCheckbox('DISABLE_TELEMETRY'));
     fireEvent.click(getEnvCheckbox('DISABLE_TELEMETRY'));

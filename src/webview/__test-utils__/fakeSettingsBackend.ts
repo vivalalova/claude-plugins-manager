@@ -71,6 +71,14 @@ export interface FakeSettingsBackend {
   failNext: (lane: FakeLane, type: string, options?: { skip?: number; message?: string }) => void;
   /** 依到達順序記錄的全部請求 */
   requests: FakeRequest[];
+  /** 改變工作區有無（之後的 getFolders 與 project／local 讀取依此） */
+  setWorkspace: (has: boolean) => void;
+  /** 讓 getFolders 拋錯（或恢復） */
+  setFoldersFailing: (failing: boolean) => void;
+  /** 之後的 getFolders 先卡住；回傳放行函式，放行時才依當下狀態回應 */
+  holdFolders: () => () => void;
+  /** 讓該層 settings.get 拋錯（或恢復） */
+  setReadFailing: (scope: SettingsScope, failing: boolean) => void;
 }
 
 let current: FakeSettingsBackend | null = null;
@@ -78,9 +86,12 @@ const pushHandlers = new Set<(msg: { type: string; [key: string]: unknown }) => 
 
 export function installFakeSettingsBackend(
   initial: Partial<Record<FakeLane, JsonObject>> = {},
-  options: { hasWorkspace?: boolean } = {},
+  options: { hasWorkspace?: boolean; failReads?: SettingsScope[]; failFolders?: boolean } = {},
 ): FakeSettingsBackend {
-  const hasWorkspace = options.hasWorkspace ?? true;
+  let hasWorkspace = options.hasWorkspace ?? true;
+  let foldersFailing = options.failFolders ?? false;
+  let folderGate: Promise<void> | null = null;
+  const failingReads = new Set<SettingsScope>(options.failReads ?? []);
   const files: Record<FakeLane, JsonObject> = {
     user: clone(initial.user ?? {}),
     project: clone(initial.project ?? {}),
@@ -145,8 +156,12 @@ export function installFakeSettingsBackend(
   const handle = (msg: FakeRequest): Promise<unknown> => {
     requests.push(clone(msg));
     switch (msg.type) {
-      case 'workspace.getFolders':
-        return Promise.resolve(hasWorkspace ? [{ name: 'ws', path: '/ws' }] : []);
+      case 'workspace.getFolders': {
+        const respond = (): Promise<unknown> => (foldersFailing
+          ? Promise.reject(new Error('fake getFolders failure'))
+          : Promise.resolve(hasWorkspace ? [{ name: 'ws', path: '/ws' }] : []));
+        return folderGate ? folderGate.then(respond) : respond();
+      }
       case 'settings.getGlobalConfigFallback': {
         const values: JsonObject = {};
         for (const key of getGlobalConfigFallbackSettingKeys()) {
@@ -156,6 +171,12 @@ export function installFakeSettingsBackend(
       }
       case 'settings.get': {
         const scope = requireScope(msg);
+        if (scope !== 'user' && !hasWorkspace) {
+          return Promise.reject(new Error(`fakeSettingsBackend: 無工作區，無法讀取 ${scope} 設定`));
+        }
+        if (failingReads.has(scope)) {
+          return Promise.reject(new Error(`fakeSettingsBackend: ${scope} 讀取失敗`));
+        }
         return enqueue(scope, msg, async () => {
           const settings = clone(files[scope]);
           if (scope !== 'user') return settings;
@@ -258,6 +279,17 @@ export function installFakeSettingsBackend(
       failures.push({ lane, type, skip: options.skip ?? 0, message: options.message ?? 'fake failure' });
     },
     requests,
+    setWorkspace: (has) => { hasWorkspace = has; },
+    setFoldersFailing: (failing) => { foldersFailing = failing; },
+    holdFolders: () => {
+      let open!: () => void;
+      folderGate = new Promise<void>((r) => { open = r; });
+      return () => { folderGate = null; open(); };
+    },
+    setReadFailing: (scope, failing) => {
+      if (failing) failingReads.add(scope);
+      else failingReads.delete(scope);
+    },
   };
   current = backend;
   pushHandlers.clear();

@@ -7,6 +7,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithI18n } from '../../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../../__test-utils__/loadedLayers';
 import { ToastProvider } from '../../../../components/Toast';
 import {
   BooleanToggle,
@@ -16,6 +17,7 @@ import {
   resolveInherited,
   shouldDeleteOnChoose,
 } from '../SettingControls';
+import type { ClaudeSettings } from '../../../../../shared/types';
 
 vi.mock('../../../../vscode', () => ({
   sendRequest: vi.fn().mockResolvedValue(undefined),
@@ -36,10 +38,13 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('resolveInherited — R7', () => {
+  // 已載入但 settings 不是物件（如檔案內容為字串）
+  const nonObjectUserLayer = { user: { kind: 'loaded' as const, settings: 'x' as unknown as ClaudeSettings } };
+
   it('nearest parent wins：local 視角 project 與 user 都有值 → 回報最近的 project', () => {
     const result = resolveInherited(
       'local',
-      { project: { fastMode: false }, user: { fastMode: true } },
+      loadedLayers({ project: { fastMode: false }, user: { fastMode: true } }),
       'fastMode',
     );
     expect(result).toEqual({ kind: 'known', scope: 'project', value: false });
@@ -48,7 +53,7 @@ describe('resolveInherited — R7', () => {
   it('useAutoModeDuringPlan（user+local 生效）：local 視角跳過不生效的 project，回報 user', () => {
     const result = resolveInherited(
       'local',
-      { project: { useAutoModeDuringPlan: false }, user: { useAutoModeDuringPlan: true } },
+      loadedLayers({ project: { useAutoModeDuringPlan: false }, user: { useAutoModeDuringPlan: true } }),
       'useAutoModeDuringPlan',
     );
     expect(result).toEqual({ kind: 'known', scope: 'user', value: true });
@@ -65,14 +70,14 @@ describe('resolveInherited — R7', () => {
   });
 
   it('父層值為非物件（如 "x"）→ 跳過該層、不拋錯', () => {
-    expect(() => resolveInherited('project', { user: 'x' as unknown as Record<string, unknown> }, 'fastMode'))
+    expect(() => resolveInherited('project', nonObjectUserLayer, 'fastMode'))
       .not.toThrow();
-    const result = resolveInherited('project', { user: 'x' as unknown as Record<string, unknown> }, 'fastMode');
+    const result = resolveInherited('project', nonObjectUserLayer, 'fastMode');
     expect(result).toEqual({ kind: 'none' });
   });
 
   it('父層值為 null（key 存在但值是 null）→ known', () => {
-    const result = resolveInherited('project', { user: { fastMode: null } }, 'fastMode');
+    const result = resolveInherited('project', loadedLayers({ user: { fastMode: null } }), 'fastMode');
     expect(result).toEqual({ kind: 'known', scope: 'user', value: null });
   });
 });
@@ -110,6 +115,7 @@ describe('R10（I4）— 父層 known 時 Reset/Clear 仍走 onDelete', () => {
           settingKey="fastMode"
           defaultValue={false}
           inherited={{ kind: 'known', scope: 'user', value: true }}
+          merge={undefined}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onDelete={onDelete}
         />
@@ -288,6 +294,7 @@ describe('BooleanToggle — rule C（父層 known，選到 default 仍寫入）'
           settingKey="alwaysThinkingEnabled"
           defaultValue={true}
           inherited={{ kind: 'known', scope: 'user', value: true }}
+          merge={undefined}
           onSave={onSave}
           onDelete={onDelete}
         />

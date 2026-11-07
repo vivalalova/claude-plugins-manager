@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../__test-utils__/loadedLayers';
 import { DisplaySection } from '../DisplaySection';
 import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
 import { ToastProvider } from '../../../components/Toast';
@@ -25,14 +26,14 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
-  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
+  scopeSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
       <DisplaySection
         scope={scope}
         settings={settings as any}
-        parentSettings={parentSettings as any}
+        scopeSettings={loadedLayers(scopeSettings)}
         onSave={onSave}
         onDelete={onDelete}
       />

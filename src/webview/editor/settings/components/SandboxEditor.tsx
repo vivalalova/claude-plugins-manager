@@ -4,7 +4,7 @@ import { toErrorMessage } from '../../../../shared/errorUtils';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
 import { childEffectiveScopes, getFlatFieldSchema, isScopeEffective, resolveEffectiveScopes, type EffectiveScopes, type ValueSchema } from '../../../../shared/claude-settings-schema';
 import { PARENT_SCOPES, SettingLabelText } from './SettingControls';
-import type { ParentSettings } from './SchemaSection';
+import type { ScopeSettings } from './SchemaSection';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { validateJsonSettingValue } from '../jsonSettingValidation';
 
@@ -40,7 +40,7 @@ interface AwsPairDraft {
 interface SandboxEditorProps {
   sandbox: ClaudeSettings['sandbox'];
   scope: PluginScope;
-  parentSettings: ParentSettings | undefined;
+  scopeSettings: ScopeSettings | undefined;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
 }
@@ -110,17 +110,20 @@ function isSandboxChildEffective(path: string, scope: PluginScope): boolean {
 /**
  * sandbox 布林子設定（dotted path，如 `network.allowLocalBinding`）從父層繼承到的值。
  * 沿 PARENT_SCOPES 由近到遠找第一個「該子設定在那層生效、且設了布林值」的父層；
- * 父層快照未知（undefined）或都沒設時回 undefined（顯示維持 false）。
+ * 快照未就緒、在找到之前碰到 unknown 層或都沒設時回 undefined（顯示維持 false）。
  */
 function resolveSandboxInheritedBool(
   scope: PluginScope,
-  parentSettings: ParentSettings | undefined,
+  scopeSettings: ScopeSettings | undefined,
   path: string,
 ): { scope: PluginScope; value: boolean } | undefined {
-  if (parentSettings === undefined) return undefined;
+  if (scopeSettings === undefined) return undefined;
   for (const parent of PARENT_SCOPES[scope]) {
     if (!isSandboxChildEffective(path, parent)) continue;
-    let node: unknown = parentSettings[parent]?.sandbox;
+    const layer = scopeSettings[parent];
+    if (layer === undefined) continue;
+    if (layer.kind === 'unknown') return undefined;
+    let node: unknown = layer.settings.sandbox;
     for (const part of path.split('.')) {
       node = node !== null && typeof node === 'object' && !Array.isArray(node)
         ? (node as Record<string, unknown>)[part]
@@ -599,7 +602,7 @@ export function mergeCredentialEntries<T extends { mode: 'deny' | 'mask' }>(
 // SandboxEditor
 // ---------------------------------------------------------------------------
 
-export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
+export function SandboxEditor({ sandbox, scope, scopeSettings, onSave, onDelete }: SandboxEditorProps): React.ReactElement {
   const { t } = useI18n();
   const { saving, withSave } = useSettingSave();
   const [mode, setMode] = useState<SandboxMode>('structured');
@@ -810,7 +813,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
               key={key}
               label={label}
               value={draft[key]}
-              inherited={resolveSandboxInheritedBool(scope, parentSettings, key)}
+              inherited={resolveSandboxInheritedBool(scope, scopeSettings, key)}
               saving={saving}
               onChange={(value) => updateBool(key, value)}
             />
@@ -843,7 +846,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
               key={key}
               label={label}
               value={draft.filesystem?.[key]}
-              inherited={resolveSandboxInheritedBool(scope, parentSettings, `filesystem.${key}`)}
+              inherited={resolveSandboxInheritedBool(scope, scopeSettings, `filesystem.${key}`)}
               saving={saving}
               onChange={(value) => updateFsBool(key, value)}
             />
@@ -870,7 +873,7 @@ export function SandboxEditor({ sandbox, scope, parentSettings, onSave, onDelete
               key={key}
               label={label}
               value={draft.network?.[key]}
-              inherited={resolveSandboxInheritedBool(scope, parentSettings, `network.${key}`)}
+              inherited={resolveSandboxInheritedBool(scope, scopeSettings, `network.${key}`)}
               saving={saving}
               onChange={(value) => updateNet(key, value)}
             />

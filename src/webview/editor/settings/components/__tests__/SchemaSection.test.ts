@@ -29,7 +29,7 @@ describe('getSchemaFieldBindings — scope 過濾', () => {
     const result = getSchemaFieldBindings('autoConnectIde', {
       scope: 'project',
       settings: { autoConnectIde: true } as any,
-      parentSettings: {},
+      scopeSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
       onSaveNested: async () => {},
@@ -42,7 +42,7 @@ describe('getSchemaFieldBindings — scope 過濾', () => {
     const result = getSchemaFieldBindings('autoConnectIde', {
       scope: 'user',
       settings: { autoConnectIde: true } as any,
-      parentSettings: {},
+      scopeSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
       onSaveNested: async () => {},
@@ -92,7 +92,7 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
     const result = getSchemaFieldBindings('dialogExpiry', {
       scope: 'project',
       settings: { dialogExpiry: '10m' } as any,
-      parentSettings: {},
+      scopeSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
       onSaveNested: async () => {},
@@ -105,7 +105,7 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
     const result = getSchemaFieldBindings('dialogExpiry', {
       scope: 'local',
       settings: { dialogExpiry: '10m' } as any,
-      parentSettings: {},
+      scopeSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
       onSaveNested: async () => {},
@@ -118,7 +118,7 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
     const result = getSchemaFieldBindings('useAutoModeDuringPlan', {
       scope: 'local',
       settings: { useAutoModeDuringPlan: false } as any,
-      parentSettings: {},
+      scopeSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
       onSaveNested: async () => {},
@@ -132,7 +132,7 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
     const result = getSchemaFieldBindings('useAutoModeDuringPlan', {
       scope: 'project',
       settings: { useAutoModeDuringPlan: false } as any,
-      parentSettings: {},
+      scopeSettings: {},
       onSave: async () => {},
       onDelete: async () => {},
       onSaveNested: async () => {},
@@ -143,11 +143,11 @@ describe('getSchemaFieldBindings — #24 effectiveScopes 過濾', () => {
 });
 
 // ---------------------------------------------------------------------------
-// #26 — drillParents：parentSettings undefined 維持未知，不能被 `?? {}` 抹成已知空物件
+// #26 — drillParents：scopeSettings undefined 維持未知，不能被 `?? {}` 抹成已知空物件
 // ---------------------------------------------------------------------------
 
 describe('drillParents — #26', () => {
-  it('parentSettings=undefined → 回傳 undefined（維持未知，非 {}）', () => {
+  it('scopeSettings=undefined → 回傳 undefined（維持未知，非 {}）', () => {
     expect(drillParents(undefined, 'attribution')).toBeUndefined();
   });
 });

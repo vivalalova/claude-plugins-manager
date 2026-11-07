@@ -42,6 +42,7 @@ const renderDispatcher = (
       <ObjectFieldEditor
         settingKey="spellcheck"
         scope="user"
+        scopeSettings={undefined}
         settings={settings}
         onSave={onSave}
         onDelete={onDelete}

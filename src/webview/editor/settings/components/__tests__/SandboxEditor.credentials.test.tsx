@@ -42,7 +42,7 @@ const renderEditor = (
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <SandboxEditor sandbox={sandbox} scope={scope} onSave={onSave} onDelete={onDelete} />
+      <SandboxEditor sandbox={sandbox} scope={scope} scopeSettings={undefined} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 

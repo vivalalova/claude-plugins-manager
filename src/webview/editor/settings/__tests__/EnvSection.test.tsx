@@ -611,7 +611,7 @@ describe('EnvFieldRenderer — 搜尋結果保存契約', () => {
           envKey="ANTHROPIC_MODEL"
           currentEnv={{ ANTHROPIC_MODEL: 'claude-opus' }}
           scope="user"
-          parentSettings={undefined}
+          scopeSettings={undefined}
           onSaveNested={onSaveNested}
           onDeleteNested={onDeleteNested}
         />

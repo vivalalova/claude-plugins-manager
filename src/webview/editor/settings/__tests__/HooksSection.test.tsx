@@ -30,7 +30,7 @@ const renderSection = (
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <HooksSection scope={scope} settings={settings} onSave={onSave} onDelete={onDelete} />
+      <HooksSection scope={scope} scopeSettings={undefined} settings={settings} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 

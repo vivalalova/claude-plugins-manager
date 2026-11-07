@@ -112,7 +112,15 @@ export class EditorPanelManager {
       },
     );
 
+    // 隱藏期間的推播會被丟棄，轉為可見時補送一次
+    const viewStateListener = panel.onDidChangeViewState((e) => {
+      if (e.webviewPanel.visible && this.currentCategory === 'settings') {
+        panel.webview.postMessage({ type: 'settings.refresh' });
+      }
+    });
+
     panel.onDidDispose(() => {
+      viewStateListener.dispose();
       if (this.currentCategory === 'mcp') {
         this.mcpService.stopPolling();
       }

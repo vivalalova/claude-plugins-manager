@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { ClaudeSettings, PluginScope } from '../../../../shared/types';
-import { drillParents, type ParentSettings } from './SchemaSection';
+import { drillParents, type ScopeSettings } from './SchemaSection';
 import { getAllFlatFieldSchemas } from '../../../../shared/claude-settings-schema';
 import { TextSetting, resolveInherited } from './SettingControls';
 import { AttributionEditor } from './AttributionEditor';
@@ -102,7 +102,7 @@ interface ObjectFieldEditorProps {
   settingKey: string;
   scope: PluginScope;
   settings: ClaudeSettings;
-  parentSettings: ParentSettings | undefined;
+  scopeSettings: ScopeSettings | undefined;
   overriddenScope?: PluginScope;
   onSave: (key: string, value: unknown) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
@@ -112,7 +112,7 @@ export function ObjectFieldEditor({
   settingKey,
   scope,
   settings,
-  parentSettings,
+  scopeSettings,
   overriddenScope,
   onSave,
   onDelete,
@@ -156,7 +156,7 @@ export function ObjectFieldEditor({
       return (
         <AttributionEditor
           attribution={settings.attribution}
-          inheritedSessionUrl={resolveInherited(scope, drillParents(parentSettings, 'attribution'), 'sessionUrl', 'attribution')}
+          inheritedSessionUrl={resolveInherited(scope, drillParents(scopeSettings, 'attribution'), 'sessionUrl', 'attribution')}
           onSave={onSave}
           onDelete={onDelete}
         />
@@ -199,7 +199,7 @@ export function ObjectFieldEditor({
       // key={scope}：SettingsPage 切 scope 不 remount，SandboxEditor 的 draft（awsPairs 半填列、
       // JSON 模式文字）會跟著跨 scope 殘留並寫進使用者沒打算寫的 scope。以 key 重置整個
       // sandbox editor（含模式切換與 JSON 草稿）——scope 換了草稿本來就不該延續。
-      return <SandboxEditor key={scope} sandbox={settings.sandbox} scope={scope} parentSettings={parentSettings} onSave={onSave} onDelete={onDelete} />;
+      return <SandboxEditor key={scope} sandbox={settings.sandbox} scope={scope} scopeSettings={scopeSettings} onSave={onSave} onDelete={onDelete} />;
     case 'companyAnnouncements':
       return <CompanyAnnouncementsEditor scope={scope} announcements={settings.companyAnnouncements ?? []} onSave={onSave} />;
     case 'modelOverrides':

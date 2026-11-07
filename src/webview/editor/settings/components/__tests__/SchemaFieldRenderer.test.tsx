@@ -29,12 +29,8 @@ const renderField = (
     <ToastProvider>
       <SchemaFieldRenderer
         settingKey={settingKey}
-        schema={schema}
-        value={value}
         scope="user"
-        inherited={{ kind: 'none' }}
-        onSave={onSave}
-        onDelete={onDelete}
+        binding={{ schema, value, inherited: { kind: 'none' }, merge: undefined, onSave, onDelete }}
       />
     </ToastProvider>,
   );
@@ -211,13 +207,16 @@ describe('SchemaFieldRenderer — override indicator', () => {
       <ToastProvider>
         <SchemaFieldRenderer
           settingKey={settingKey}
-          schema={schema}
-          value={value}
           scope="project"
-          overriddenScope={overriddenScope}
-          inherited={{ kind: 'none' }}
-          onSave={vi.fn().mockResolvedValue(undefined)}
-          onDelete={vi.fn().mockResolvedValue(undefined)}
+          binding={{
+            schema,
+            value,
+            inherited: { kind: 'none' },
+            merge: undefined,
+            onSave: vi.fn().mockResolvedValue(undefined),
+            onDelete: vi.fn().mockResolvedValue(undefined),
+            overriddenScope,
+          }}
         />
       </ToastProvider>,
     );

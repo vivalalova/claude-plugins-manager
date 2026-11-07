@@ -47,6 +47,8 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project') return Promise.resolve({ alwaysThinkingEnabled: false });
       if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({ alwaysThinkingEnabled: false });
+      // 其餘層（如 local）真後端讀不到檔也回 {}
+      if (msg.type === 'settings.get') return Promise.resolve({});
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
       if (msg.type === 'settings.delete') return Promise.resolve(undefined);
       return Promise.resolve(null);
@@ -76,6 +78,8 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project') return Promise.resolve({ alwaysThinkingEnabled: false, fastMode: true });
       if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.resolve({ fastMode: true });
+      // 其餘層（如 local）真後端讀不到檔也回 {}
+      if (msg.type === 'settings.get') return Promise.resolve({});
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
       if (msg.type === 'settings.delete') return Promise.resolve(undefined);
       return Promise.resolve(null);
@@ -109,6 +113,8 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
       if (msg.type === 'settings.get' && msg.scope === 'user') {
         return new Promise<Record<string, unknown>>((res) => { resolveUser = res; });
       }
+      // 其餘層（如 local）真後端讀不到檔也回 {}
+      if (msg.type === 'settings.get') return Promise.resolve({});
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
       if (msg.type === 'settings.delete') return Promise.resolve(undefined);
       return Promise.resolve(null);
@@ -141,6 +147,8 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
       if (msg.type === 'workspace.getFolders') return Promise.resolve([{ name: 'ws', path: '/ws' }]);
       if (msg.type === 'settings.get' && msg.scope === 'project') return Promise.resolve({ alwaysThinkingEnabled: false });
       if (msg.type === 'settings.get' && msg.scope === 'user') return Promise.reject(new Error('load failed'));
+      // 其餘層（如 local）真後端讀不到檔也回 {}
+      if (msg.type === 'settings.get') return Promise.resolve({});
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
       if (msg.type === 'settings.delete') return Promise.resolve(undefined);
       return Promise.resolve(null);
@@ -179,6 +187,8 @@ describe('SettingsPage — 繼承感知寫入（#26 R5/R6）', () => {
         if (userCallCount === 1) return Promise.resolve({});
         return Promise.reject(new Error('load failed'));
       }
+      // 其餘層（如 local）真後端讀不到檔也回 {}
+      if (msg.type === 'settings.get') return Promise.resolve({});
       if (msg.type === 'settings.set') return Promise.resolve(undefined);
       if (msg.type === 'settings.delete') return Promise.resolve(undefined);
       return Promise.resolve(null);

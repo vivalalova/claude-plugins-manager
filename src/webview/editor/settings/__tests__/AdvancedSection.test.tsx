@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../__test-utils__/loadedLayers';
 import { I18nProvider } from '../../../i18n/I18nContext';
 import { AdvancedSection } from '../AdvancedSection';
 import { getSectionFieldOrder } from '../../../../shared/claude-settings-schema';
@@ -24,11 +25,11 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
-  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
+  scopeSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <AdvancedSection scope={scope} settings={settings as any} parentSettings={parentSettings as any} onSave={onSave} onDelete={onDelete} />
+      <AdvancedSection scope={scope} settings={settings as any} scopeSettings={loadedLayers(scopeSettings)} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -1517,27 +1518,42 @@ describe('AdvancedSection — 批次 S 渲染（先紅）', () => {
   });
 });
 
-describe('AdvancedSection — enableArtifact（無 fixed default）', () => {
-  it('enableArtifact 未設定 → checkbox 未勾選', () => {
+describe('AdvancedSection — enableArtifact（OnlyFalse）', () => {
+  it('enableArtifact 未設定 → checkbox 已勾選（未寫視為未關）', () => {
     renderSection({});
     const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
     const cb = within(field).getByRole('checkbox') as HTMLInputElement;
-    expect(cb.checked).toBe(false);
+    expect(cb.checked).toBe(true);
   });
 
-  it('enableArtifact 未設定, toggle on → onSave("enableArtifact", true)', async () => {
+  it('enableArtifact 未設定, 取消勾選 → onSave("enableArtifact", false)，不寫 true', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave, onDelete);
     const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
     fireEvent.click(within(field).getByRole('checkbox'));
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('enableArtifact', true);
+      expect(onSave).toHaveBeenCalledWith('enableArtifact', false);
+      expect(onSave).not.toHaveBeenCalledWith('enableArtifact', true);
       expect(onDelete).not.toHaveBeenCalled();
     });
   });
 
-  it('enableArtifact=true, toggle off → onSave("enableArtifact", false)（無 default 可比對，不觸發 onDelete）', async () => {
+  it('enableArtifact=false → checkbox 未勾選，再勾選 → onDelete("enableArtifact")，不寫 true', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    renderSection({ enableArtifact: false }, onSave, onDelete);
+    const field = screen.getByText('Enable Artifact Tool').closest('.settings-field') as HTMLElement;
+    const cb = within(field).getByRole('checkbox') as HTMLInputElement;
+    expect(cb.checked).toBe(false);
+    fireEvent.click(cb);
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith('enableArtifact');
+    });
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('enableArtifact=true, toggle off → onSave("enableArtifact", false)（OnlyFalse 規則：取消勾選寫 false，不觸發 onDelete）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection({ enableArtifact: true }, onSave, onDelete);
@@ -1707,16 +1723,16 @@ describe('AdvancedSection — settings sync controls', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith('feedbackDrafts', 'quiet'));
   });
 
-  it('syncClaudeAiSkills unset toggles on and terminalTitleFromRename defaults on', async () => {
+  it('syncClaudeAiSkills unset shows checked (OnlyFalse), unchecking writes false; terminalTitleFromRename defaults on', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     renderSection({}, onSave);
 
     const syncSkills = await screen.findByRole('checkbox', { name: 'Sync Claude.ai Skills' });
     const titleFromRename = await screen.findByRole('checkbox', { name: 'Terminal Title From Rename' });
-    expect((syncSkills as HTMLInputElement).checked).toBe(false);
+    expect((syncSkills as HTMLInputElement).checked).toBe(true);
     expect((titleFromRename as HTMLInputElement).checked).toBe(true);
     fireEvent.click(syncSkills);
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith('syncClaudeAiSkills', true));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('syncClaudeAiSkills', false));
   });
 });

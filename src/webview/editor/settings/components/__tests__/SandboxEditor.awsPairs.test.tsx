@@ -47,7 +47,7 @@ const renderEditor = (
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <SandboxEditor sandbox={sandbox} scope={scope} onSave={onSave} onDelete={onDelete} />
+      <SandboxEditor sandbox={sandbox} scope={scope} scopeSettings={undefined} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -360,6 +360,7 @@ describe('SandboxEditor — credentials.awsPairs draft 保留 / 無意義存檔'
             },
           } as ClaudeSettings['sandbox']}
           scope="user"
+          scopeSettings={undefined}
           onSave={onSave}
           onDelete={vi.fn()}
         />

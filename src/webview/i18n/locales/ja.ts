@@ -1140,6 +1140,9 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.common.globalConfigFallback': '現在の実際の値（~/.claude.json より）：{value}',
   'settings.common.on': 'オン',
   'settings.common.off': 'オフ',
+  'settings.common.mergeRuleActual': '実際の状態：{value}（{scopes} で設定済み）',
+  'settings.common.mergeRuleUnreadable': '{scopes} の設定を読み込めないため、実際の状態は不明です',
+  'settings.common.listSeparator': '、',
   // Unknown settings
   'settings.unknown.title': '未定義の設定',
   'settings.unknown.description': 'settings.json に存在するがスキーマに定義されていないキー',

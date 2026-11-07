@@ -8,6 +8,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach, type Mock } from 'vitest';
 import { cleanup, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { renderWithI18n } from '../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../__test-utils__/loadedLayers';
 import { PermissionsSection } from '../PermissionsSection';
 import { ToastProvider } from '../../../components/Toast';
 
@@ -33,14 +34,14 @@ const renderSection = (
   onSave = vi.fn().mockResolvedValue(undefined),
   onDelete = vi.fn().mockResolvedValue(undefined),
   scope: 'user' | 'project' | 'local' = 'user',
-  parentSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
+  scopeSettings?: Partial<Record<'user' | 'project' | 'local', Record<string, unknown>>>,
 ) =>
   renderWithI18n(
     <ToastProvider>
       <PermissionsSection
         scope={scope}
         settings={settings as any}
-        parentSettings={parentSettings as any}
+        scopeSettings={loadedLayers(scopeSettings)}
         onSave={onSave}
         onDelete={onDelete}
         onSaveNested={onSaveNested}
@@ -69,12 +70,12 @@ describe('PermissionsSection — useAutoModeDuringPlan 繼承感知判別對照�
     });
   });
 
-  it('local scope，own 未設，父層(user)=false（known）→ checkbox 未勾選（非 default true）', async () => {
+  it('local scope，own 未設，父層(user)=false（known）→ checkbox 已勾選（勾選框只代表本層值，未寫＝已勾；#44 OnlyFalse）', async () => {
     renderSection({}, vi.fn(), vi.fn(), 'local', { user: { useAutoModeDuringPlan: false } });
 
     await waitFor(() => {
       const checkbox = screen.getByRole('checkbox', { name: /^Use Auto Mode During Plan/ }) as HTMLInputElement;
-      expect(checkbox.checked).toBe(false);
+      expect(checkbox.checked).toBe(true);
     });
   });
 });

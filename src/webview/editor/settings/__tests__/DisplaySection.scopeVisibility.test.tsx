@@ -25,6 +25,7 @@ const renderSection = (scope: 'user' | 'project' | 'local') =>
     <ToastProvider>
       <DisplaySection
         scope={scope}
+        scopeSettings={undefined}
         settings={{} as any}
         onSave={vi.fn().mockResolvedValue(undefined)}
         onDelete={vi.fn().mockResolvedValue(undefined)}

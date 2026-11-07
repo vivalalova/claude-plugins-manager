@@ -17,6 +17,7 @@ function createMockPanel() {
       onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
     },
     reveal: vi.fn(),
+    onDidChangeViewState: vi.fn(() => ({ dispose: vi.fn() })),
     onDidDispose: vi.fn((handler: () => void) => {
       disposeHandler = handler;
       return { dispose: vi.fn() };

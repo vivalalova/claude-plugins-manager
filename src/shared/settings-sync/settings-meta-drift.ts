@@ -4,7 +4,7 @@
  * `storageFile` vs the index Scope column, and `effectiveScopes` vs the same column, Deprecated／Removed Warnings, and Type enum values.
  */
 
-import { USER_AND_LOCAL_SCOPES, USER_SCOPE_ONLY, childEffectiveScopes } from '../claude-settings-schema';
+import { BooleanMergeRule, USER_AND_LOCAL_SCOPES, USER_SCOPE_ONLY, childEffectiveScopes } from '../claude-settings-schema';
 import type { EffectiveScope, EffectiveScopes, FlatFieldSchema, ValueSchema } from '../claude-settings-schema';
 
 const DETAIL_HEADING_RE = /^###\s+`([^`]+)`\s*$/;
@@ -24,6 +24,11 @@ const LITERAL_LIST_RE = /^`"[^"`]*"`(?:,?\s+(?:or\s+)?`"[^"`]*"`|,\s*`"[^"`]*"`)
 const QUOTED_RE = /`"([^"`]*)"`/g;
 const LIST_TAIL_RE = /^($|[.;,:]|\s+which\b)/;
 
+const ANY_TRUE_SENTENCE_RE = /\bA `true` (?:in|from) any (?:\w+ )?(?:file|scope)\b/;
+const ANY_TRUE_SUB_BULLET_RE = /^`false`: the same as unset;.*\banother (?:of these )?(?:settings )?files? sets? `true`/;
+const ONLY_FALSE_RE =
+  /\bhonors only `false`|\bnone can turn it back on\b|\bA `false` in any (?:of these )?(?:settings )?files?\b.*\bturns it off\b|^\s*\*\s+`true`: the same as (?:leaving the key )?unset,? because it never overrides a `false`/;
+
 const GLOBAL_CONFIG_SCOPE = 'Global config';
 
 export type DocsWarning = { kind: 'deprecated' | 'removed'; text: string };
@@ -35,6 +40,8 @@ export type DocsEntry = {
   typeOptions?: string[];
   /** The Type also accepts free-form values beyond `typeOptions` (a pattern or `<placeholder>` template). */
   openType?: boolean;
+  /** Boolean merge rule detected from the Scope row, Type sub-bullet or body sentence. */
+  booleanMerge?: BooleanMergeRule;
 };
 
 function classifyWarning(text: string): DocsWarning | undefined {
@@ -60,6 +67,14 @@ function parseTypeText(raw: string): TypeParse {
   const inline = /^string, (?:one of )?(.*)$/.exec(raw);
   const options = inline ? leadingLiterals(inline[1]) : undefined;
   return options ? { options, subBullets: true } : { subBullets: false };
+}
+
+function detectBooleanMerge(line: string): BooleanMergeRule | undefined {
+  if (ANY_TRUE_SENTENCE_RE.test(line)) return BooleanMergeRule.AnyTrue;
+  const sub = SUB_BULLET_RE.exec(line);
+  if (sub && ANY_TRUE_SUB_BULLET_RE.test(sub[1])) return BooleanMergeRule.AnyTrue;
+  if (ONLY_FALSE_RE.test(line)) return BooleanMergeRule.OnlyFalse;
+  return undefined;
 }
 
 type EntryState = {
@@ -120,6 +135,11 @@ export function parseSettingsEntries(md: string): Map<string, DocsEntry> {
       continue;
     }
     state.sawContent = true;
+
+    if (state.entry.booleanMerge === undefined) {
+      const rule = detectBooleanMerge(line);
+      if (rule) state.entry.booleanMerge = rule;
+    }
 
     const sub = SUB_BULLET_RE.exec(line);
     if (sub) {
@@ -391,6 +411,32 @@ export function diffEnumOptions(
     if (docsOnly.length || repoOnly.length) drift.set(key, { key, kind: 'mismatch', docsOnly, repoOnly });
   });
   return [...drift.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+export type BooleanMergeDrift = {
+  key: string;
+  kind: 'missing' | 'mismatch' | 'repoOnly';
+  docs: BooleanMergeRule | undefined;
+  repo: BooleanMergeRule | undefined;
+};
+
+/** Flat fields whose docs entry describes a cross-file boolean merge rule vs the schema `booleanMerge`. */
+export function diffBooleanMerge(
+  flatSchemas: Record<string, FlatFieldSchema>,
+  entries: Map<string, DocsEntry>,
+): BooleanMergeDrift[] {
+  const drift: BooleanMergeDrift[] = [];
+  for (const [key, field] of Object.entries(flatSchemas)) {
+    const found = lookupDocs(key, field, entries);
+    if (!found) continue;
+    const [docsKey, entry] = found;
+    const docs = entry.booleanMerge;
+    const repo = field.booleanMerge;
+    if (docs === repo) continue;
+    const kind = repo === undefined ? 'missing' : docs === undefined ? 'repoOnly' : 'mismatch';
+    drift.push({ key: docsKey, kind, docs, repo });
+  }
+  return drift.sort((a, b) => a.key.localeCompare(b.key));
 }
 
 /**

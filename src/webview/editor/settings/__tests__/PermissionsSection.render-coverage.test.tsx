@@ -72,6 +72,7 @@ describe('PermissionsSection — render coverage gate (issue #20)', () => {
       <ToastProvider>
         <PermissionsSection
           scope="user"
+          scopeSettings={undefined}
           settings={{} as any}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onDelete={vi.fn().mockResolvedValue(undefined)}
@@ -145,6 +146,7 @@ describe('SchemaSection — Object key silent-null guard (issue #20)', () => {
       <ToastProvider>
         <AdvancedSection
           scope="user"
+          scopeSettings={undefined}
           settings={{} as any}
           onSave={vi.fn().mockResolvedValue(undefined)}
           onDelete={vi.fn().mockResolvedValue(undefined)}

@@ -2,11 +2,12 @@
  * @vitest-environment jsdom
  */
 // #32 — sandbox 布林勾選框在本層未設時反映最近一個有設的上層值，並加一行「Inherited from {scope}」；
-// 點擊寫入＝顯示值取反。經 ObjectFieldEditor 渲染以涵蓋 parentSettings 傳遞。
+// 點擊寫入＝顯示值取反。經 ObjectFieldEditor 渲染以涵蓋 scopeSettings 傳遞。
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithI18n } from '../../../../__test-utils__/renderWithProviders';
+import { loadedLayers } from '../../../../__test-utils__/loadedLayers';
 import { ToastProvider } from '../../../../components/Toast';
 import { I18nProvider } from '../../../../i18n/I18nContext';
 import { ObjectFieldEditor } from '../ObjectFieldEditor';
@@ -29,22 +30,22 @@ afterEach(() => {
 type Scope = 'user' | 'project' | 'local';
 type Parents = Partial<Record<Scope, ClaudeSettings>> | undefined;
 
-const editor = (settings: ClaudeSettings, scope: Scope, parentSettings: Parents, onSave: ReturnType<typeof vi.fn>) => (
+const editor = (settings: ClaudeSettings, scope: Scope, scopeSettings: Parents, onSave: ReturnType<typeof vi.fn>) => (
   <ToastProvider>
     <ObjectFieldEditor
       settingKey="sandbox"
       scope={scope}
       settings={settings}
-      parentSettings={parentSettings as any}
+      scopeSettings={loadedLayers(scopeSettings)}
       onSave={onSave}
       onDelete={vi.fn().mockResolvedValue(undefined)}
     />
   </ToastProvider>
 );
 
-const render = (settings: ClaudeSettings, scope: Scope, parentSettings: Parents) => {
+const render = (settings: ClaudeSettings, scope: Scope, scopeSettings: Parents) => {
   const onSave = vi.fn().mockResolvedValue(undefined);
-  const result = renderWithI18n(editor(settings, scope, parentSettings, onSave));
+  const result = renderWithI18n(editor(settings, scope, scopeSettings, onSave));
   const rerender = (nextSettings: ClaudeSettings, nextParents: Parents) =>
     result.rerender(<I18nProvider locale="en">{editor(nextSettings, scope, nextParents, onSave)}</I18nProvider>);
   return { onSave, rerender };
@@ -101,7 +102,7 @@ describe('SandboxEditor — 布林繼承顯示（#32）', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith('sandbox', { network: { allowLocalBinding: false } }));
   });
 
-  it('B19 上層快照後到：parentSettings 從 undefined rerender 成 user enabled=true → 由未勾變勾', () => {
+  it('B19 上層快照後到：scopeSettings 從 undefined rerender 成 user enabled=true → 由未勾變勾', () => {
     const { rerender } = render({}, 'project', undefined);
     expect(enabledCb().checked).toBe(false);
     rerender({}, { user: { sandbox: { enabled: true } } });

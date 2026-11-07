@@ -46,6 +46,7 @@ const tree = (
     <ObjectFieldEditor
       settingKey="voice"
       scope={scope}
+      scopeSettings={undefined}
       settings={settings}
       onSave={onSave}
       onDelete={onDelete}

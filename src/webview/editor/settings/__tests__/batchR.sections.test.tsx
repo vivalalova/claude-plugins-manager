@@ -57,6 +57,7 @@ const renderSection = (
     <ToastProvider>
       <Section
         scope="user"
+        scopeSettings={undefined}
         settings={settings as any}
         onSave={onSave}
         onDelete={onDelete}

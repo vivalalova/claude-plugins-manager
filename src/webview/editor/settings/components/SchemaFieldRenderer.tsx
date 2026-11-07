@@ -1,25 +1,22 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import type { PluginScope } from '../../../../shared/types';
-import type { FlatFieldSchema } from '../../../../shared/claude-settings-schema';
 import { getSchemaDefault, getSchemaEnumOptions, getValueSchemaEnumOptions, getValueSchemaNumberMeta } from '../../../../shared/claude-settings-schema';
-import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting, type Inherited } from './SettingControls';
+import { BooleanToggle, EnumDropdown, NumberSetting, TagInput, TextSetting } from './SettingControls';
+import type { ResolvedSchemaFieldBindings } from './SchemaSection';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { useSettingSave } from '../hooks/useSettingSave';
 import { useGlobalConfigFallback } from './globalConfigFallback';
 
 export interface SchemaFieldRendererProps {
   settingKey: string;
-  schema: FlatFieldSchema;
-  value: unknown;
   scope: PluginScope;
-  overriddenScope?: PluginScope;
-  inherited: Inherited;
-  onSave: (key: string, value: unknown) => Promise<void>;
-  onDelete: (key: string) => Promise<void>;
+  /** 整包轉發，避免呼叫端漏傳 merge 等欄位 */
+  binding: ResolvedSchemaFieldBindings;
 }
 
-export function SchemaFieldRenderer({ settingKey, schema, value, scope, overriddenScope, inherited, onSave, onDelete }: SchemaFieldRendererProps): React.ReactElement | null {
+export function SchemaFieldRenderer({ settingKey, scope, binding }: SchemaFieldRendererProps): React.ReactElement | null {
+  const { schema, value, overriddenScope, inherited, merge, onSave, onDelete } = binding;
   const { t } = useI18n();
   const { withSave } = useSettingSave();
   const tk = (suffix: string): string =>
@@ -50,6 +47,7 @@ export function SchemaFieldRenderer({ settingKey, schema, value, scope, overridd
           inherited={inherited}
           globalConfigFallback={globalConfigFallback}
           fallbackValue={typeof rawFallback === 'boolean' ? rawFallback : undefined}
+          merge={merge}
           onSave={onSave}
           onDelete={onDelete}
         />

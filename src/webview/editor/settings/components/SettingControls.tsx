@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
 import { useSettingSave } from '../hooks/useSettingSave';
 import type { PluginScope } from '../../../../shared/types';
-import { getFlatFieldSchema, isScopeEffective } from '../../../../shared/claude-settings-schema';
+import { BooleanMergeRule, getFlatFieldSchema, isScopeEffective } from '../../../../shared/claude-settings-schema';
+import type { Layer } from './SchemaSection';
 
 // ---------------------------------------------------------------------------
 // Override helpers
@@ -29,15 +30,13 @@ export type Inherited =
   | { kind: 'known'; scope: PluginScope; value: unknown };
 
 /**
- * 沿 PARENT_SCOPES 找最近一個有設 key 的父層。
- * parents 已 drill 到對照層級（巢狀欄位傳父物件，頂層欄位傳 scope 根）；undefined＝未知。
- * 該 key 在父層 scope 不生效（見 isScopeEffective）時跳過該層：那份值 Claude Code 不讀。
- * 沒有生效父層時（如 user scope）不看 parents 是否就緒，直接 none。非物件的父層值視為沒設。
+ * 沿 PARENT_SCOPES 找最近一個有設 key 的生效父層；在找到之前先碰到 unknown 層才回 unknown。
+ * parents 已 drill 到對照層級（巢狀欄位傳父物件，頂層欄位傳 scope 根）；整份 undefined＝未就緒，缺層＝沒有這層。
  * schemaKey 供巢狀欄位以父 key 查 schema（如 attribution.sessionUrl 用 'attribution'）。
  */
 export function resolveInherited(
   scope: PluginScope,
-  parents: Partial<Record<PluginScope, unknown>> | undefined,
+  parents: Partial<Record<PluginScope, Layer<unknown>>> | undefined,
   key: string,
   schemaKey: string = key,
 ): Inherited {
@@ -46,11 +45,63 @@ export function resolveInherited(
   if (effective.length === 0) return { kind: 'none' };
   if (parents === undefined) return { kind: 'unknown' };
   for (const parent of effective) {
-    const ps = parents[parent];
+    const layer = parents[parent];
+    if (layer === undefined) continue;
+    if (layer.kind === 'unknown') return { kind: 'unknown' };
+    const ps = layer.settings;
     if (ps === null || typeof ps !== 'object' || Array.isArray(ps)) continue;
     if (key in ps) return { kind: 'known', scope: parent, value: (ps as Record<string, unknown>)[key] };
   }
   return { kind: 'none' };
+}
+
+export type MergeHint =
+  | { kind: 'actual'; actual: boolean; scopes: PluginScope[] }
+  | { kind: 'unreadable'; scopes: PluginScope[] };
+
+/** 有 booleanMerge 規則的布林欄位：勾選只反映本層，hint 說明他層讓實際狀態不同或無法判定。 */
+export interface MergeState {
+  rule: BooleanMergeRule;
+  checked: boolean;
+  hint?: MergeHint;
+}
+
+const MERGE_SCOPES: readonly PluginScope[] = ['user', 'project', 'local'];
+
+/**
+ * 依合併規則推導本層勾選與提示；layers 已 drill 到對照層級，undefined＝快照未就緒（不提示）。
+ * 非布林值（如字串 "true"）本層與他層一律當沒寫。
+ */
+export function resolveBooleanMerge(
+  scope: PluginScope,
+  layers: Partial<Record<PluginScope, Layer<unknown>>> | undefined,
+  key: string,
+  schemaKey: string,
+  rule: BooleanMergeRule,
+  own: unknown,
+): MergeState {
+  const decisive = rule === BooleanMergeRule.AnyTrue;
+  const checked = rule === BooleanMergeRule.AnyTrue ? own === true : own !== false;
+  if (own === decisive || layers === undefined) return { rule, checked };
+  const schema = getFlatFieldSchema(schemaKey);
+  const decided: PluginScope[] = [];
+  const unreadable: PluginScope[] = [];
+  for (const s of MERGE_SCOPES) {
+    if (s === scope || (schema && !isScopeEffective(schema, s))) continue;
+    const layer = layers[s];
+    if (layer === undefined) continue;
+    if (layer.kind === 'unknown') {
+      unreadable.push(s);
+      continue;
+    }
+    const ps = layer.settings;
+    if (ps !== null && typeof ps === 'object' && !Array.isArray(ps) && (ps as Record<string, unknown>)[key] === decisive) {
+      decided.push(s);
+    }
+  }
+  if (decided.length > 0) return { rule, checked, hint: { kind: 'actual', actual: decisive, scopes: decided } };
+  if (unreadable.length > 0) return { rule, checked, hint: { kind: 'unreadable', scopes: unreadable } };
+  return { rule, checked };
 }
 
 /**
@@ -60,12 +111,12 @@ export function resolveInherited(
  */
 export function getOverriddenScope(
   scope: PluginScope,
-  parentSettings: Partial<Record<PluginScope, unknown>> | undefined,
+  scopeSettings: Partial<Record<PluginScope, Layer<unknown>>> | undefined,
   key: string,
   value: unknown,
 ): PluginScope | undefined {
   if (value === undefined) return undefined;
-  const inherited = resolveInherited(scope, parentSettings, key);
+  const inherited = resolveInherited(scope, scopeSettings, key);
   return inherited.kind === 'known' ? inherited.scope : undefined;
 }
 
@@ -84,10 +135,23 @@ export function shouldDeleteOnChoose(
   return !globalConfigFallback && defaultValue !== undefined && chosen === defaultValue && inherited.kind === 'none';
 }
 
-/** ~/.claude.json 備援值的唯讀提示；放在欄位最後，與 description 同樣式。 */
-function GlobalConfigFallbackHint({ valueLabel }: { valueLabel: string }): React.ReactElement {
+/** 欄位最後的唯讀提示（備援值、合併規則），與 description 同樣式。 */
+function FieldHint({ text }: { text: string }): React.ReactElement {
+  return <p className="settings-field-description">{text}</p>;
+}
+
+function MergeHintText({ hint }: { hint: MergeHint }): React.ReactElement {
   const { t } = useI18n();
-  return <p className="settings-field-description">{t('settings.common.globalConfigFallback', { value: valueLabel })}</p>;
+  const scopes = hint.scopes
+    .map((s) => t(`settings.scope.${s}` as Parameters<typeof t>[0]))
+    .join(t('settings.common.listSeparator'));
+  return (
+    <FieldHint
+      text={hint.kind === 'actual'
+        ? t('settings.common.mergeRuleActual', { value: t(hint.actual ? 'settings.common.on' : 'settings.common.off'), scopes })
+        : t('settings.common.mergeRuleUnreadable', { scopes })}
+    />
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -338,21 +402,28 @@ export interface BooleanToggleProps {
    * 有值時顯示值取它並顯示唯讀提示。
    */
   fallbackValue?: boolean;
+  /** 有合併規則時勾選只看本層、取消（OnlyFalse 為勾選）刪 key；必填以免呼叫端漏傳 */
+  merge: MergeState | undefined;
   onSave: (key: string, value: unknown) => Promise<void | boolean>;
   onDelete: (key: string) => Promise<void | boolean>;
 }
 
-export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, inherited, disabled = false, globalConfigFallback = false, fallbackValue, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
+export function BooleanToggle({ label, description, value, settingKey, defaultValue, overriddenScope, inherited, disabled = false, globalConfigFallback = false, fallbackValue, merge, onSave, onDelete }: BooleanToggleProps): React.ReactElement {
   const { saving, withSave } = useSettingSave();
   const { t } = useI18n();
   const inheritedValue = inherited.kind === 'known' && typeof inherited.value === 'boolean' ? inherited.value : undefined;
-  const checked = value ?? inheritedValue ?? fallbackValue ?? defaultValue ?? false;
+  const checked = merge ? merge.checked : value ?? inheritedValue ?? fallbackValue ?? defaultValue ?? false;
   const resetLabel = t('settings.common.reset');
   const isDisabled = disabled || saving;
 
   const handleChange = (): void => {
     if (isDisabled) return;
     const newVal = !checked;
+    if (merge) {
+      const writes = newVal === (merge.rule === BooleanMergeRule.AnyTrue);
+      void withSave(() => (writes ? onSave(settingKey, newVal) : onDelete(settingKey)));
+      return;
+    }
     void withSave(() =>
       shouldDeleteOnChoose(newVal, defaultValue, inherited, globalConfigFallback)
         ? onDelete(settingKey)
@@ -391,8 +462,9 @@ export function BooleanToggle({ label, description, value, settingKey, defaultVa
       </div>
       {description && <p className="settings-field-description">{description}</p>}
       {fallbackValue !== undefined && (
-        <GlobalConfigFallbackHint valueLabel={t(fallbackValue ? 'settings.common.on' : 'settings.common.off')} />
+        <FieldHint text={t('settings.common.globalConfigFallback', { value: t(fallbackValue ? 'settings.common.on' : 'settings.common.off') })} />
       )}
+      {merge?.hint && <MergeHintText hint={merge.hint} />}
     </div>
   );
 }
@@ -510,7 +582,7 @@ export function EnumDropdown({
           </button>
         )}
       </div>
-      {fallbackValueLabel !== undefined && <GlobalConfigFallbackHint valueLabel={fallbackValueLabel} />}
+      {fallbackValueLabel !== undefined && <FieldHint text={t('settings.common.globalConfigFallback', { value: fallbackValueLabel })} />}
     </div>
   );
 }

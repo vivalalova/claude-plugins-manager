@@ -141,6 +141,8 @@ export class FileWatcherService implements vscode.Disposable {
     this.watchWorkspaceFile('.claude/settings.local.json', FileChangeCategory.Settings);
     this.watchWorkspaceFile('.mcp.json', FileChangeCategory.Mcp);
     this.watchWorkspaceFile('.claude/skills/**/*', FileChangeCategory.Skill);
+    // 讓 webview 重判工作區並重讀各層設定
+    this.debouncedEmit(FileChangeCategory.Settings);
   }
 
   /** 建立 watcher 並綁定 change/create/delete 事件 */

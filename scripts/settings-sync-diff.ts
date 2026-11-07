@@ -37,6 +37,7 @@ import {
   parseSettingsEntries,
   diffDefaults,
   diffDeprecated,
+  diffBooleanMerge,
   diffEnumOptions,
   diffStorage,
   diffScopes,
@@ -158,6 +159,7 @@ async function main(): Promise<void> {
   const scopeDrift = diffScopes(flatSchemas, settingsScopes);
   const deprecatedSurfaced = diffDeprecated(flatSchemas, docsEntries);
   const enumDrift = diffEnumOptions(flatSchemas, docsEntries);
+  const booleanMergeDrift = diffBooleanMerge(flatSchemas, docsEntries);
 
   // Compute env gaps (docs-has/registry-lacks) and env-removed (registry-has/docs-lacks)
   const registryEnvNames = new Set(getKnownEnvVarNames());
@@ -174,6 +176,7 @@ async function main(): Promise<void> {
     scopeDrift,
     deprecatedSurfaced,
     enumDrift,
+    booleanMergeDrift,
     counts: {
       docsKeys: docsKeys.size,
       repoKeys: repoKeys.size,
@@ -187,6 +190,7 @@ async function main(): Promise<void> {
       scopeDrift: scopeDrift.length,
       deprecatedSurfaced: deprecatedSurfaced.length,
       enumDrift: enumDrift.length,
+      booleanMergeDrift: booleanMergeDrift.length,
     },
     health,
   };

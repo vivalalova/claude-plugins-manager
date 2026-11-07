@@ -305,7 +305,7 @@ export interface PermissionsListWriters {
 export function PermissionsSection({
   scope,
   settings,
-  parentSettings,
+  scopeSettings,
   onSave,
   onDelete,
   onSaveNested,
@@ -323,7 +323,7 @@ export function PermissionsSection({
   }, [scope]);
 
   const perms = settings.permissions ?? {};
-  const bindingProps = { scope, settings, parentSettings, onSave, onDelete, onSaveNested, onDeleteNested };
+  const bindingProps = { scope, settings, scopeSettings, onSave, onDelete, onSaveNested, onDeleteNested };
   const mcpServersBinding = getSchemaFieldBindings('enableAllProjectMcpServers', bindingProps);
   // 兩個 disable 下拉：繼承標示與覆寫徽章取自 getSchemaFieldBindings（nestedUnder 'permissions'）；
   // 寫入走本元件的 saveChild／deleteChild（共用 saving 鎖）。兩者在所有 scope 可見，拿不到即 schema 缺格。
@@ -412,6 +412,7 @@ export function PermissionsSection({
           defaultValue={getSchemaDefault<boolean>('enableAllProjectMcpServers')}
           overriddenScope={mcpServersBinding.overriddenScope}
           inherited={mcpServersBinding.inherited}
+          merge={mcpServersBinding.merge}
           onSave={mcpServersBinding.onSave}
           onDelete={mcpServersBinding.onDelete}
         />
@@ -473,6 +474,7 @@ export function PermissionsSection({
             overriddenScope={binding.overriddenScope}
             inherited={binding.inherited}
             disabled={saving}
+            merge={binding.merge}
             onSave={binding.onSave}
             onDelete={binding.onDelete}
           />
@@ -510,10 +512,10 @@ export function PermissionsSection({
       />
 
       {/* allowedMcpServers */}
-      <ObjectFieldEditor settingKey="allowedMcpServers" scope={scope} settings={settings} parentSettings={parentSettings} onSave={onSave} onDelete={onDelete} />
+      <ObjectFieldEditor settingKey="allowedMcpServers" scope={scope} settings={settings} scopeSettings={scopeSettings} onSave={onSave} onDelete={onDelete} />
 
       {/* deniedMcpServers */}
-      <ObjectFieldEditor settingKey="deniedMcpServers" scope={scope} settings={settings} parentSettings={parentSettings} onSave={onSave} onDelete={onDelete} />
+      <ObjectFieldEditor settingKey="deniedMcpServers" scope={scope} settings={settings} scopeSettings={scopeSettings} onSave={onSave} onDelete={onDelete} />
 
     </SettingsSectionWrapper>
   );

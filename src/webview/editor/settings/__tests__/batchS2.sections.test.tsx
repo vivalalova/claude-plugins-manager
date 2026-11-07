@@ -50,7 +50,7 @@ const renderSection = (
 ) =>
   renderWithI18n(
     <ToastProvider>
-      <Section scope="user" settings={settings as any} onSave={onSave} onDelete={onDelete} />
+      <Section scope="user" scopeSettings={undefined} settings={settings as any} onSave={onSave} onDelete={onDelete} />
     </ToastProvider>,
   );
 
@@ -291,7 +291,7 @@ describe('isolatePeerMachines（advanced section）', () => {
     });
   });
 
-  it('=true, toggle off → onSave("isolatePeerMachines", false)', async () => {
+  it('=true, toggle off → onDelete("isolatePeerMachines")（AnyTrue 取消勾選刪 key）', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDelete = vi.fn().mockResolvedValue(undefined);
     renderSection(AdvancedSection, { isolatePeerMachines: true }, onSave, onDelete);
@@ -300,8 +300,8 @@ describe('isolatePeerMachines（advanced section）', () => {
     fireEvent.click(within(fieldByKeyHint(HINT)).getByRole('checkbox'));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith('isolatePeerMachines', false);
-      expect(onDelete).not.toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith('isolatePeerMachines');
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

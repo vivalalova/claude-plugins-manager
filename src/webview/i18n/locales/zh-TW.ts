@@ -885,6 +885,9 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.common.globalConfigFallback': '目前實際值（來自 ~/.claude.json）：{value}',
   'settings.common.on': '開',
   'settings.common.off': '關',
+  'settings.common.mergeRuleActual': '實際生效：{value}（{scopes} 已設定）',
+  'settings.common.mergeRuleUnreadable': '無法讀取 {scopes} 設定，實際狀態未知',
+  'settings.common.listSeparator': '、',
   // Unknown settings
   'settings.unknown.title': '未定義的設定',
   'settings.unknown.description': '存在於 settings.json 但未定義在 schema 中的設定',

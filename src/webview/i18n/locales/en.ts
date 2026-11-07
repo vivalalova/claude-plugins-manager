@@ -883,6 +883,9 @@ export const en = {
   'settings.common.globalConfigFallback': 'Current value (from ~/.claude.json): {value}',
   'settings.common.on': 'On',
   'settings.common.off': 'Off',
+  'settings.common.mergeRuleActual': 'Effective: {value} (set in {scopes})',
+  'settings.common.mergeRuleUnreadable': 'Cannot read {scopes} settings; actual state unknown',
+  'settings.common.listSeparator': ', ',
   // Unknown settings
   'settings.unknown.title': 'Unrecognized Settings',
   'settings.unknown.description': 'Keys found in settings.json but not defined in schema',
