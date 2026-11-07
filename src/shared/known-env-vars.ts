@@ -761,6 +761,11 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
     category: 'timeout',
     default: '900',
   },
+  CLAUDE_CODE_CONFIG_LOCK_WAIT_MS: {
+    name: 'CLAUDE_CODE_CONFIG_LOCK_WAIT_MS',
+    valueType: Number,
+    category: 'timeout',
+  },
 
   // --- limits ---
   CLAUDE_CODE_AUTO_COMPACT_WINDOW: {
@@ -1403,6 +1408,16 @@ export const KNOWN_ENV_VARS: Record<string, KnownEnvVar> = {
   },
   CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP: {
     name: 'CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DISABLE_BG_STABLE_PATH: {
+    name: 'CLAUDE_CODE_DISABLE_BG_STABLE_PATH',
+    valueType: Boolean,
+    category: 'feature',
+  },
+  CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL: {
+    name: 'CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL',
     valueType: Boolean,
     category: 'feature',
   },

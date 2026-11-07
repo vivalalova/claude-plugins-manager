@@ -259,6 +259,8 @@ export const en = {
   'settings.permissions.skipAutoPermissionPrompt.description': 'Skip the one-time notice shown when you first enter auto mode yourself',
   'settings.permissions.blockReadsOutsideWorkingDirectories.label': 'Block Reads Outside Working Directories',
   'settings.permissions.blockReadsOutsideWorkingDirectories.description': 'File tools refuse reads outside the working directories in every permission mode, including bypassPermissions',
+  'settings.permissions.blockWritesOutsideWorkingDirectories.label': 'Block Writes Outside Working Directories',
+  'settings.permissions.blockWritesOutsideWorkingDirectories.description': 'Write, Edit, and NotebookEdit refuse paths outside the working directories in every permission mode, including bypassPermissions. Shell commands, MCP tools, and hooks are not limited; the EnterWorktree and ExitWorktree tools are removed',
   // Env section
   'settings.env.add': 'Add',
   'settings.env.keyPlaceholder': 'VARIABLE_NAME',
@@ -550,6 +552,9 @@ export const en = {
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_GUARD.description': 'Set to 1 to skip the check that a Bedrock streaming response carries the expected event-stream content-type (requires v2.1.208+)',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF.description': 'Set to 1 to stop background shells, workflows, and subagents from handing off to a session\'s next process on restart (requires v2.1.196+)',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP.description': 'Set to 1 to stop Claude Code terminating background shells on OS memory-pressure signals (macOS/Linux only) (requires v2.1.193+)',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_STABLE_PATH.description': 'macOS native installer only: set to 1 to run background session host processes from the installed binary instead of ~/.local/share/claude/ClaudeCode.app; macOS may ask again for permissions such as folder access after each update. Set in user settings env, not your shell (requires v2.1.295+)',
+  'settings.env.knownVars.CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL.description': 'Set to 1 to drop a deferred tool call whose tool is unavailable when resuming with -p; otherwise the call stays pending and new prompts do not reach Claude (requires v2.1.319+)',
+  'settings.env.knownVars.CLAUDE_CODE_CONFIG_LOCK_WAIT_MS.description': 'Milliseconds that commands adding or removing user/local MCP servers (such as claude mcp add) keep retrying the ~/.claude.json lock before failing; unset waits about 10–20 seconds, and shorter values have no effect (requires v2.1.318+)',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BUNDLED_SKILLS.description': 'Set to 1 to disable bundled skills and workflows; equivalent to the disableBundledSkills setting',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS.description': 'Set to 1 to disable the built-in Explore and Plan subagents (requires v2.1.198+)',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_MOUSE_CLICKS.description': 'Set to 1 to disable click/drag/hover handling in fullscreen rendering while keeping wheel scroll (requires v2.1.195+)',

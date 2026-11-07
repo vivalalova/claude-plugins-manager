@@ -8,7 +8,7 @@
 
 - `env` → `EnvSection`
 - `hooks`、`disableAllHooks`、`httpHookAllowedEnvVars`、`allowedHttpHookUrls` → `HooksSection`
-- `permissions`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers`、`allowedMcpServers`、`deniedMcpServers`、`disableAutoMode`、`skipDangerousModePermissionPrompt`、`skipAutoPermissionPrompt`、`useAutoModeDuringPlan`、`blockReadsOutsideWorkingDirectories` → `PermissionsSection`
+- `permissions`、`additionalDirectories`、`enableAllProjectMcpServers`、`enabledMcpjsonServers`、`disabledMcpjsonServers`、`allowedMcpServers`、`deniedMcpServers`、`disableAutoMode`、`skipDangerousModePermissionPrompt`、`skipAutoPermissionPrompt`、`useAutoModeDuringPlan`、`blockReadsOutsideWorkingDirectories`、`blockWritesOutsideWorkingDirectories` → `PermissionsSection`
 - model / effort / agent / language / availableModels / memory / git behavior / IDE connect / updates / cleanup / `defaultMode`（schema-driven，nestedUnder permissions）→ `GeneralSection`
 - view / spinner / progress / notifications / input / editor / teammate → `DisplaySection`
 - anti-direction key（見下方）→ `AdvancedSection`

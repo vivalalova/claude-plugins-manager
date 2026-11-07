@@ -623,6 +623,7 @@ export const PERMISSIONS_VALUE_SCHEMA = objectValue({
   defaultMode: optional(DEFAULT_MODE_VALUE_SCHEMA),
   disableBypassPermissionsMode: optional(DISABLE_ONLY_VALUE_SCHEMA),
   blockReadsOutsideWorkingDirectories: optional(booleanValue()),
+  blockWritesOutsideWorkingDirectories: optional(booleanValue()),
   disableAutoMode: optional(DISABLE_ONLY_VALUE_SCHEMA),
   additionalDirectories: optional(STRING_ARRAY_SCHEMA),
 });
@@ -761,6 +762,7 @@ export const CLAUDE_SETTINGS_SCHEMA = {
     booleanField('skipDangerousModePermissionPrompt', { default: false, effectiveScopes: USER_AND_LOCAL_SCOPES }),
     booleanField('skipAutoPermissionPrompt', { effectiveScopes: USER_SCOPE_ONLY }),
     booleanField('blockReadsOutsideWorkingDirectories', { nestedUnder: 'permissions' }),
+    booleanField('blockWritesOutsideWorkingDirectories', { nestedUnder: 'permissions' }),
     booleanField('useAutoModeDuringPlan', { default: true, effectiveScopes: USER_AND_LOCAL_SCOPES }),
     booleanField('classifyAllShell', { nestedUnder: 'autoMode', default: false, effectiveScopes: USER_SCOPE_ONLY }),
     createField('permissions', PERMISSIONS_VALUE_SCHEMA),

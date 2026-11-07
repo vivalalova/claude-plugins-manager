@@ -516,6 +516,8 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.skipAutoPermissionPrompt.description': '自分で初めて auto モードに入ったときの一度きりの案内を表示しない',
   'settings.permissions.blockReadsOutsideWorkingDirectories.label': '作業ディレクトリ外の読み取りを禁止',
   'settings.permissions.blockReadsOutsideWorkingDirectories.description': 'すべての権限モード（bypassPermissions を含む）で、ファイルツールは作業ディレクトリ外の読み取りを拒否',
+  'settings.permissions.blockWritesOutsideWorkingDirectories.label': '作業ディレクトリ外への書き込みを禁止',
+  'settings.permissions.blockWritesOutsideWorkingDirectories.description': 'すべての権限モード（bypassPermissions を含む）で、Write・Edit・NotebookEdit は作業ディレクトリ外のパスを拒否。シェルコマンド・MCP ツール・hooks は制限されず、EnterWorktree／ExitWorktree ツールは使えなくなる',
   // Env section
   'settings.env.add': '追加',
   'settings.env.keyPlaceholder': 'VARIABLE_NAME',
@@ -807,6 +809,9 @@ export const ja: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_GUARD.description': '1 で Bedrock のストリーミング応答が期待する event-stream content-type かのチェックをスキップ（v2.1.208+ が必要）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF.description': '1 でバックグラウンドの shell・workflow・subagent を再起動時に次のプロセスへ引き継がず停止（v2.1.196+ が必要）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP.description': '1 で OS のメモリ逼迫シグナル発生時のバックグラウンド shell 終了を停止（macOS/Linux のみ）（v2.1.193+ が必要）',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_STABLE_PATH.description': 'macOS ネイティブインストーラーのみ：1 でバックグラウンドセッションのホストプロセスを ~/.local/share/claude/ClaudeCode.app ではなくインストール済みバイナリから起動。フォルダアクセスなどの権限確認がアップデートのたびに再表示されることがある。シェルではなくユーザー設定の env で指定（v2.1.295+ が必要）',
+  'settings.env.knownVars.CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL.description': '1 で -p による再開時に、ツールが利用できなくなった保留中の deferred ツール呼び出しを破棄。未設定だと呼び出しが保留のままとなり、送ったプロンプトが Claude に届かない（v2.1.319+ が必要）',
+  'settings.env.knownVars.CLAUDE_CODE_CONFIG_LOCK_WAIT_MS.description': 'user／local スコープの MCP サーバーを追加・削除するコマンド（claude mcp add など）が ~/.claude.json のロック取得を失敗前に再試行し続けるミリ秒数。未設定時は約 10〜20 秒待機し、それより短い値は効果なし（v2.1.318+ が必要）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BUNDLED_SKILLS.description': '1 で同梱の skills・workflows を無効化。disableBundledSkills 設定と同等',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS.description': '1 で組み込みの Explore・Plan サブエージェントを無効化（v2.1.198+ が必要）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_MOUSE_CLICKS.description': '1 でフルスクリーン表示でのクリック/ドラッグ/ホバーを無効化（ホイールスクロールは維持）（v2.1.195+ が必要）',

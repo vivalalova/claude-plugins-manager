@@ -56,27 +56,30 @@ const render = (Section: SectionComponent, scope: Scope, settings: Record<string
     </ToastProvider>,
   );
 
-describe('PermissionsSection — blockReadsOutsideWorkingDirectories（Any file，巢狀於 permissions）', () => {
+describe.each([
+  ['blockReadsOutsideWorkingDirectories', 'Block Reads Outside Working Directories'],
+  ['blockWritesOutsideWorkingDirectories', 'Block Writes Outside Working Directories'],
+])('PermissionsSection — %s（Any file，巢狀於 permissions）', (key, label) => {
   it.each<Scope>(['user', 'project', 'local'])('scope=%s → 顯示', async (scope) => {
     render(PermissionsSection, scope);
-    await waitFor(() => expect(screen.getByText('Block Reads Outside Working Directories')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(label)).toBeTruthy());
   });
 
-  it('勾選 → 寫入 permissions.blockReadsOutsideWorkingDirectories，不寫頂層', async () => {
+  it(`勾選 → 寫入 permissions.${key}，不寫頂層`, async () => {
     render(PermissionsSection, 'project');
-    const box = await screen.findByRole('checkbox', { name: 'Block Reads Outside Working Directories' });
+    const box = await screen.findByRole('checkbox', { name: label });
     fireEvent.click(box);
-    await waitFor(() => expect(onSaveNested).toHaveBeenCalledWith('permissions', 'blockReadsOutsideWorkingDirectories', true));
+    await waitFor(() => expect(onSaveNested).toHaveBeenCalledWith('permissions', key, true));
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('已設 true 時取消勾選 → 只刪 permissions 內該格', async () => {
-    render(PermissionsSection, 'user', { permissions: { blockReadsOutsideWorkingDirectories: true } });
-    const box = await screen.findByRole('checkbox', { name: 'Block Reads Outside Working Directories' });
+  it('已設 true 時取消勾選 → 只動 permissions 內該格，不碰頂層', async () => {
+    render(PermissionsSection, 'user', { permissions: { [key]: true } });
+    const box = await screen.findByRole('checkbox', { name: label });
     fireEvent.click(box);
     await waitFor(() => {
       const nestedCalls = [...onSaveNested.mock.calls, ...onDeleteNested.mock.calls];
-      expect(nestedCalls.some((call) => call[0] === 'permissions' && call[1] === 'blockReadsOutsideWorkingDirectories')).toBe(true);
+      expect(nestedCalls.some((call) => call[0] === 'permissions' && call[1] === key)).toBe(true);
     });
     expect(onSave).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();

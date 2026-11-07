@@ -459,7 +459,7 @@ export function PermissionsSection({
 
       {/* 以下 boolean 經 getSchemaFieldBindings 解析（nestedUnder 與 scope 可見性與 SchemaSection 同一機制），
           僅在該 key 會生效的 scope 顯示 */}
-      {(['skipDangerousModePermissionPrompt', 'skipAutoPermissionPrompt', 'useAutoModeDuringPlan', 'classifyAllShell', 'blockReadsOutsideWorkingDirectories'] as const).map((key) => {
+      {(['skipDangerousModePermissionPrompt', 'skipAutoPermissionPrompt', 'useAutoModeDuringPlan', 'classifyAllShell', 'blockReadsOutsideWorkingDirectories', 'blockWritesOutsideWorkingDirectories'] as const).map((key) => {
         const binding = getSchemaFieldBindings(key, bindingProps);
         if (!binding) return null;
         return (

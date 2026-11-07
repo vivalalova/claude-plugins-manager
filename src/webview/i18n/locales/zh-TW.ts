@@ -261,6 +261,8 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.permissions.skipAutoPermissionPrompt.description': '略過首次自行進入 auto 模式時顯示的一次性說明',
   'settings.permissions.blockReadsOutsideWorkingDirectories.label': '禁止讀取工作目錄以外',
   'settings.permissions.blockReadsOutsideWorkingDirectories.description': '在所有權限模式（含 bypassPermissions）下，檔案工具一律拒絕讀取工作目錄以外的路徑',
+  'settings.permissions.blockWritesOutsideWorkingDirectories.label': '禁止寫入工作目錄以外',
+  'settings.permissions.blockWritesOutsideWorkingDirectories.description': '在所有權限模式（含 bypassPermissions）下，Write、Edit、NotebookEdit 一律拒絕寫入工作目錄以外的路徑；不限制 shell 命令、MCP 工具與 hooks，且會停用 EnterWorktree／ExitWorktree 工具',
   // Env section
   'settings.env.add': '新增',
   'settings.env.keyPlaceholder': 'VARIABLE_NAME',
@@ -552,6 +554,9 @@ export const zhTW: Partial<Record<TranslationKey, string>> = {
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BEDROCK_CONTENT_TYPE_GUARD.description': '設為 1 跳過檢查 Bedrock 串流回應是否為預期的 event-stream content-type（需 v2.1.208+）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF.description': '設為 1 停止背景 shell、workflow、subagent 在 session 重啟時交接給下個 process（需 v2.1.196+）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP.description': '設為 1 停止 Claude Code 在作業系統回報記憶體壓力時終止背景 shell（僅 macOS/Linux）（需 v2.1.193+）',
+  'settings.env.knownVars.CLAUDE_CODE_DISABLE_BG_STABLE_PATH.description': '僅限 macOS 原生安裝：設為 1 讓背景 session 的主程序改從已安裝的執行檔啟動，不經 ~/.local/share/claude/ClaudeCode.app；macOS 可能在每次更新後重新詢問資料夾存取等權限。須寫在使用者設定的 env，不是 shell（需 v2.1.295+）',
+  'settings.env.knownVars.CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL.description': '設為 1 在用 -p 續跑時，丟棄工具已無法使用的待處理延後工具呼叫；未設定時該呼叫會一直掛著，送出的提示傳不到 Claude（需 v2.1.319+）',
+  'settings.env.knownVars.CLAUDE_CODE_CONFIG_LOCK_WAIT_MS.description': '新增或移除 user／local scope MCP 伺服器的指令（如 claude mcp add）在失敗前持續嘗試取得 ~/.claude.json 檔案鎖的毫秒數；未設定時約等 10 到 20 秒，設得更短沒有效果（需 v2.1.318+）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_BUNDLED_SKILLS.description': '設為 1 停用內建 skills 與 workflows；等同 disableBundledSkills 設定',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS.description': '設為 1 停用內建的 Explore 與 Plan subagent（需 v2.1.198+）',
   'settings.env.knownVars.CLAUDE_CODE_DISABLE_MOUSE_CLICKS.description': '設為 1 停用全螢幕模式的點擊/拖曳/hover，但保留滾輪滾動（需 v2.1.195+）',

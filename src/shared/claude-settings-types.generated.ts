@@ -161,6 +161,7 @@ export interface ClaudeSettings {
     defaultMode?: "default" | "acceptEdits" | "plan" | "auto" | "dontAsk" | "bypassPermissions" | "manual";
     disableBypassPermissionsMode?: "disable";
     blockReadsOutsideWorkingDirectories?: boolean;
+    blockWritesOutsideWorkingDirectories?: boolean;
     disableAutoMode?: "disable";
     additionalDirectories?: string[];
   };

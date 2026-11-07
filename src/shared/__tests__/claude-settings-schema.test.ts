@@ -84,6 +84,13 @@ describe('claude-settings-schema', () => {
     }
   });
 
+  it('blockWritesOutsideWorkingDirectories 巢狀於 permissions 且無 default', () => {
+    const field = flatSchema.blockWritesOutsideWorkingDirectories;
+    expect(field, 'blockWritesOutsideWorkingDirectories 不在 flatSchema').toBeTruthy();
+    expect(field.nestedUnder).toBe('permissions');
+    expect(field.default).toBeUndefined();
+  });
+
   it('每個 schema entry 都有 valueSchema 與 controlType', () => {
     for (const [key, field] of Object.entries(flatSchema)) {
       expect(field.valueSchema, `${key} 缺少 valueSchema`).toBeTruthy();
@@ -258,6 +265,7 @@ describe('getSchemaDefault', () => {
     'skipAutoPermissionPrompt',
     'claudeInChromeDefaultEnabled',
     'blockReadsOutsideWorkingDirectories',
+    'blockWritesOutsideWorkingDirectories',
     'bashEditDiffEnabled',
     'syncClaudeAiPlugins',
   ]);
