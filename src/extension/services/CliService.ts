@@ -44,6 +44,9 @@ export class CliService {
     // 建構 env 一次，避免每次重試重複 spread process.env
     const env = { ...process.env };
     delete env.CLAUDECODE;
+    // 從 Claude Code 工作階段開啟的 VSCode 視窗會繼承此變數；CLI 見到它會忽略 --accept-command，
+    // 使用者在確認框同意後仍被拒。此處的同意來自使用者親手按的原生確認框，不是工作階段自己同意。
+    delete env.CLAUDE_CODE_CHILD_SESSION;
 
     try {
       return await this.withRetry(async (remainingTimeout) => {
@@ -171,6 +174,7 @@ export class CliService {
       command,
       err.exitCode ?? null,
       err.stderr ?? '',
+      err.stdout ?? '',
     );
   }
 }

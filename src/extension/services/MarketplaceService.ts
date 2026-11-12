@@ -14,15 +14,17 @@ import type {
   EnabledPluginsMap,
   MarketplaceReinstallProgress,
   MarketplaceReinstallPhase,
+  ReinstallAllResult,
 } from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
+import { runWithCommandConsent, type ConfirmFn } from './commandConsent';
 import { WriteQueue } from '../utils/WriteQueue';
 import { readJsonFile, writeJsonFileAtomic } from '../utils/jsonFile';
 import { KNOWN_MARKETPLACES_PATH, PLUGINS_CACHE_DIR } from '../paths';
 import { fixScriptPermissions } from '../utils/fixScriptPermissions';
 import { expandTildePath } from '../utils/pathUtils';
-import { NoWorkspaceError } from '../utils/workspace';
+import { getWorkspacePath, NoWorkspaceError } from '../utils/workspace';
 
 /** Git clone timeout (30s — shallow clone should be fast) */
 const GIT_CLONE_TIMEOUT_MS = 30_000;
@@ -59,6 +61,7 @@ export class MarketplaceService {
   constructor(
     private readonly cli: CliService,
     private readonly settings: SettingsFileService,
+    private readonly confirm: ConfirmFn,
   ) {}
 
   /**
@@ -154,7 +157,7 @@ export class MarketplaceService {
   }
 
   /** 重新安裝所有 marketplace（remove all → re-add each from original source） */
-  async reinstallAll(): Promise<{ total: number; succeeded: number; failed: string[] }> {
+  async reinstallAll(): Promise<ReinstallAllResult> {
     return this.mutationQueue.enqueue(async () => {
       const config = await readJsonFile<RawMarketplaceConfig>(KNOWN_MARKETPLACES_PATH, {} as RawMarketplaceConfig);
       const entries = Object.entries(config)
@@ -165,7 +168,7 @@ export class MarketplaceService {
         .filter((e) => e.source !== '');
 
       const total = entries.length;
-      if (total === 0) return { total: 0, succeeded: 0, failed: [] };
+      if (total === 0) return { total: 0, succeeded: 0, failed: [], cancelledPlugins: [] };
       const marketplaceNames = new Set(entries.map((entry) => entry.name));
       const [installedSnapshot, enabledSnapshot] = await Promise.all([
         this.settings.readInstalledPlugins(),
@@ -208,24 +211,32 @@ export class MarketplaceService {
         Object.values(afterConfig).map((e) => e.installLocation).filter(Boolean).map((dir) => fixScriptPermissions(dir)),
       );
 
-      // Phase 5: Restore enabled settings and reinstall previously installed plugins
-      await this.restoreEnabledPlugins(enabledSnapshot, new Set(failed));
-      await this.reinstallPlugins(installedSnapshot, marketplaceNames, new Set(failed));
+      // Phase 5: 先重裝、再寫回啟用狀態——使用者未同意執行命令而沒裝的外掛不得標為啟用
+      // （重裝失敗的照快照寫回，重試後啟用狀態才救得回來）
+      const reinstall = await this.reinstallPlugins(installedSnapshot, marketplaceNames, new Set(failed));
+      await this.restoreEnabledPlugins(enabledSnapshot, new Set(failed), reinstall.notInstalled);
+      if (reinstall.failures.length > 0) {
+        const skipped = reinstall.cancelled.length > 0
+          ? `; not installed (command not accepted): ${reinstall.cancelled.join(', ')}`
+          : '';
+        throw new Error(`Failed to reinstall plugins: ${reinstall.failures.join('; ')}${skipped}`);
+      }
       this.emitReinstallProgress('completed', 1, 1);
 
-      return { total, succeeded: total - failed.length, failed };
+      return { total, succeeded: total - failed.length, failed, cancelledPlugins: reinstall.cancelled };
     });
   }
 
   private async restoreEnabledPlugins(
     enabledByScope: Record<PluginScope, EnabledPluginsMap>,
     failedMarketplaces: Set<string>,
+    notInstalled: Record<PluginScope, Set<string>>,
   ): Promise<void> {
     const scopes: PluginScope[] = ['user', 'project', 'local'];
     this.emitReinstallProgress('restoringSettings', 0, scopes.length);
     for (const [index, scope] of scopes.entries()) {
       this.emitReinstallProgress('restoringSettings', index + 1, scopes.length, scope);
-      const enabledPlugins = filterEnabledPlugins(enabledByScope[scope] ?? {}, failedMarketplaces);
+      const enabledPlugins = filterEnabledPlugins(enabledByScope[scope] ?? {}, failedMarketplaces, notInstalled[scope]);
       try {
         await this.settings.replaceEnabledPlugins(scope, enabledPlugins);
       } catch (error) {
@@ -245,8 +256,25 @@ export class MarketplaceService {
     installedSnapshot: InstalledPluginsFile,
     marketplaceNames: Set<string>,
     failedMarketplaces: Set<string>,
-  ): Promise<void> {
-    const restoreFailures: string[] = [];
+  ): Promise<{ failures: string[]; cancelled: string[]; notInstalled: Record<PluginScope, Set<string>> }> {
+    const failures: string[] = [];
+    const cancelled: string[] = [];
+    const notInstalled: Record<PluginScope, Set<string>> = { user: new Set(), project: new Set(), local: new Set() };
+    // 使用者拒絕過的外掛：其餘 scope 是同一條命令，不再問
+    const declined = new Set<string>();
+    // project／local 的啟用狀態只寫目前工作區的設定檔，別的專案的安裝紀錄不得影響它
+    let workspacePath: string | undefined;
+    try {
+      workspacePath = getWorkspacePath();
+    } catch (error) {
+      if (!(error instanceof NoWorkspaceError)) throw error;
+    }
+    const markCancelled = (pluginId: string, entry: { scope: PluginScope; projectPath?: string }): void => {
+      cancelled.push(`${pluginId} (${entry.scope})`);
+      if (entry.scope === 'user' || entry.projectPath === workspacePath) {
+        notInstalled[entry.scope].add(pluginId);
+      }
+    };
     const reinstallTargets = Object.entries(installedSnapshot.plugins)
       .filter(([pluginId]) => {
         const marketplaceName = getMarketplaceName(pluginId);
@@ -259,20 +287,29 @@ export class MarketplaceService {
     for (const [index, { pluginId, entry }] of reinstallTargets.entries()) {
       const cwd = entry.scope === 'user' ? undefined : entry.projectPath;
       this.emitReinstallProgress('restoringPlugins', index + 1, reinstallTargets.length, `${pluginId} (${entry.scope})`);
+      if (declined.has(pluginId)) {
+        markCancelled(pluginId, entry);
+        continue;
+      }
       try {
-        await this.cli.exec(
+        const outcome = await runWithCommandConsent(
+          this.cli,
           ['plugin', 'install', pluginId, '--scope', entry.scope],
           { timeout: CLI_LONG_TIMEOUT_MS, ...(cwd ? { cwd } : {}) },
+          'install',
+          this.confirm,
         );
+        if (outcome.cancelled) {
+          declined.add(pluginId);
+          markCancelled(pluginId, entry);
+        }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        restoreFailures.push(`${pluginId} (${entry.scope}): ${reason}`);
+        failures.push(`${pluginId} (${entry.scope}): ${reason}`);
       }
     }
 
-    if (restoreFailures.length > 0) {
-      throw new Error(`Failed to reinstall plugins: ${restoreFailures.join('; ')}`);
-    }
+    return { failures, cancelled, notInstalled };
   }
 
   private emitReinstallProgress(
@@ -391,13 +428,15 @@ function getMarketplaceName(pluginId: string): string | null {
 function filterEnabledPlugins(
   enabledPlugins: EnabledPluginsMap,
   failedMarketplaces: Set<string>,
+  notInstalled: Set<string>,
 ): EnabledPluginsMap {
-  if (failedMarketplaces.size === 0) {
+  if (failedMarketplaces.size === 0 && notInstalled.size === 0) {
     return enabledPlugins;
   }
 
   return Object.fromEntries(
     Object.entries(enabledPlugins).filter(([pluginId]) => {
+      if (notInstalled.has(pluginId)) return false;
       const marketplaceName = getMarketplaceName(pluginId);
       return !marketplaceName || !failedMarketplaces.has(marketplaceName);
     }),

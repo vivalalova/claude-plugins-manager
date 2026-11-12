@@ -10,8 +10,11 @@ const { mockSendRequest, addToastMock } = vi.hoisted(() => ({
   addToastMock: vi.fn(),
 }));
 
+const USER_CONFIRM_TIMEOUT = 30 * 60_000;
+
 vi.mock('../../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
+  USER_CONFIRM_REQUEST_TIMEOUT_MS: 30 * 60_000,
 }));
 
 vi.mock('../../../../components/Toast', () => ({
@@ -75,7 +78,7 @@ describe('usePluginOperations', () => {
     const plugin = makePlugin('alpha@mp', {
       userInstall: { ...makeInstall('user', false), id: 'alpha@mp' },
     });
-    mockSendRequest.mockResolvedValue(undefined);
+    mockSendRequest.mockResolvedValue({ cancelled: false });
 
     const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, setError));
 
@@ -165,7 +168,7 @@ describe('usePluginOperations', () => {
       const setError = vi.fn();
       // settingsEnabledScopes 有 'user'，但 userInstall 為 null（未裝）
       const plugin = makePlugin('alpha@mp', { settingsEnabledScopes: ['user'] });
-      mockSendRequest.mockResolvedValue(undefined);
+      mockSendRequest.mockResolvedValue({ cancelled: false });
 
       const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, setError));
 
@@ -192,7 +195,7 @@ describe('usePluginOperations', () => {
       const setError = vi.fn();
       // 無 install entry，無 settingsEnabledScopes → isInstalledInScope 回傳 false
       const plugin = makePlugin('beta@mp');
-      mockSendRequest.mockResolvedValue(undefined);
+      mockSendRequest.mockResolvedValue({ cancelled: false });
 
       const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, setError));
 
@@ -202,7 +205,7 @@ describe('usePluginOperations', () => {
 
       expect(mockSendRequest).toHaveBeenCalledWith(
         { type: 'plugin.install', plugin: 'beta@mp', scope: 'user' },
-        120_000,
+        USER_CONFIRM_TIMEOUT,
       );
       expect(mockSendRequest).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: 'plugin.enable' }),
@@ -226,7 +229,7 @@ describe('usePluginOperations', () => {
           availableLastUpdated: '2026-02-01T00:00:00Z',
         }),
       ];
-      mockSendRequest.mockResolvedValue(undefined);
+      mockSendRequest.mockResolvedValue({ cancelled: false });
 
       const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
 
@@ -258,7 +261,7 @@ describe('usePluginOperations', () => {
         availableLastUpdated: '2026-02-01T00:00:00Z',
       }),
     ];
-    mockSendRequest.mockResolvedValue(undefined);
+    mockSendRequest.mockResolvedValue({ cancelled: false });
 
     const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
 
@@ -301,7 +304,7 @@ describe('usePluginOperations', () => {
       if (request.type === 'plugin.update' && request.plugin === 'beta@mp') {
         throw new Error('network down');
       }
-      return undefined;
+      return { cancelled: false };
     });
 
     const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, setError));
@@ -323,5 +326,216 @@ describe('usePluginOperations', () => {
     expect(result.current.updateAllErrors).toEqual([
       { pluginId: 'beta@mp', scope: 'project', message: 'network down' },
     ]);
+  });
+  describe('command-source 同意被使用者取消', () => {
+    function enabledPlugin(id: string, scopes: Array<'user' | 'project'> = ['user']): MergedPlugin {
+      return makePlugin(id, {
+        userInstall: scopes.includes('user') ? { ...makeInstall('user', true, '2026-01-01T00:00:00Z'), id } : null,
+        projectInstalls: scopes.includes('project')
+          ? [{ ...makeInstall('project', true, '2026-01-01T00:00:00Z'), id }]
+          : [],
+        availableLastUpdated: '2026-02-01T00:00:00Z',
+      });
+    }
+
+    function updateCalls(): Array<{ plugin: string; scope: string }> {
+      return mockSendRequest.mock.calls
+        .map(([req]) => req as { type: string; plugin: string; scope: string })
+        .filter((req) => req.type === 'plugin.update')
+        .map(({ plugin, scope }) => ({ plugin, scope }));
+    }
+
+    /** 指定 (plugin, scope) 回 cancelled:true，其餘 cancelled:false */
+    function cancelOn(...targets: Array<[string, string]>): void {
+      mockSendRequest.mockImplementation(async (req: { type: string; plugin?: string; scope?: string }) => {
+        if (req.type === 'plugin.update' || req.type === 'plugin.install') {
+          const cancelled = targets.some(([p, sc]) => p === req.plugin && sc === req.scope);
+          return { cancelled };
+        }
+        return undefined;
+      });
+    }
+
+    it('勾選安裝被取消 → 不設錯誤列、不 toast，仍重新抓資料並清掉 loading', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const plugin = makePlugin('xcode@mp');
+      cancelOn(['xcode@mp', 'user']);
+
+      const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleToggle('xcode@mp', 'user', true);
+      });
+
+      expect(mockSendRequest).toHaveBeenCalledWith(
+        { type: 'plugin.install', plugin: 'xcode@mp', scope: 'user' },
+        USER_CONFIRM_TIMEOUT,
+      );
+      expect(result.current.installError).toBeNull();
+      expect(addToastMock).not.toHaveBeenCalled();
+      expect(fetchAll).toHaveBeenCalledTimes(1);
+      expect(result.current.loadingPlugins.size).toBe(0);
+    });
+
+    it('勾選安裝回 cancelled:false（一般外掛）→ 與原本相同：toast Enabled、重新抓資料、無錯誤', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const plugin = makePlugin('plain@mp');
+      cancelOn();
+
+      const { result } = renderHook(() => usePluginOperations([plugin], fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleToggle('plain@mp', 'user', true);
+      });
+
+      expect(addToastMock).toHaveBeenCalledWith('Enabled plain@mp');
+      expect(fetchAll).toHaveBeenCalledWith(false);
+      expect(result.current.installError).toBeNull();
+    });
+
+    it('handleUpdate 第一個 scope 被取消 → 無錯誤、無 Updated toast、其餘 scope 不再送', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const setError = vi.fn();
+      cancelOn(['xcode@mp', 'user']);
+
+      const { result } = renderHook(() => usePluginOperations([], fetchAll, setError));
+
+      await act(async () => {
+        await result.current.handleUpdate('xcode@mp', ['user', 'project']);
+      });
+
+      expect(updateCalls()).toEqual([{ plugin: 'xcode@mp', scope: 'user' }]);
+      expect(setError).not.toHaveBeenCalledWith(expect.any(String));
+      expect(addToastMock).not.toHaveBeenCalledWith('Updated xcode@mp');
+      expect(fetchAll).toHaveBeenCalled();
+    });
+
+    it('handleUpdate 後面的 scope 被取消 → 前面已送的保留，其餘不再送，無 Updated toast', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const setError = vi.fn();
+      cancelOn(['xcode@mp', 'project']);
+
+      const { result } = renderHook(() => usePluginOperations([], fetchAll, setError));
+
+      await act(async () => {
+        await result.current.handleUpdate('xcode@mp', ['user', 'project', 'local']);
+      });
+
+      expect(updateCalls()).toEqual([
+        { plugin: 'xcode@mp', scope: 'user' },
+        { plugin: 'xcode@mp', scope: 'project' },
+      ]);
+      expect(addToastMock).not.toHaveBeenCalledWith('Updated xcode@mp');
+      expect(setError).not.toHaveBeenCalledWith(expect.any(String));
+    });
+
+    it('handleUpdate 一般外掛（cancelled:false）→ 全部 scope 都送、帶使用者確認逾時、toast Updated', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      cancelOn();
+
+      const { result } = renderHook(() => usePluginOperations([], fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleUpdate('plain@mp', ['user', 'project']);
+      });
+
+      expect(updateCalls()).toEqual([
+        { plugin: 'plain@mp', scope: 'user' },
+        { plugin: 'plain@mp', scope: 'project' },
+      ]);
+      for (const [, timeout] of mockSendRequest.mock.calls) {
+        expect(timeout).toBe(USER_CONFIRM_TIMEOUT);
+      }
+      expect(addToastMock).toHaveBeenCalledWith('Updated plain@mp');
+    });
+
+    it('handleUpdateAll 取消發生在第 0 個外掛 → 其餘 scope 不送、其他外掛照常、不顯示 All plugins updated、無錯誤', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const plugins = [
+        enabledPlugin('xcode@mp', ['user', 'project']),
+        enabledPlugin('beta@mp', ['user']),
+      ];
+      cancelOn(['xcode@mp', 'user']);
+
+      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleUpdateAll();
+      });
+
+      expect(updateCalls()).toEqual([
+        { plugin: 'xcode@mp', scope: 'user' },
+        { plugin: 'beta@mp', scope: 'user' },
+      ]);
+      expect(addToastMock).not.toHaveBeenCalledWith('All plugins updated');
+      expect(result.current.updateAllErrors).toEqual([]);
+      expect(result.current.updateAllProgress).toBeNull();
+      expect(fetchAll).toHaveBeenCalledWith(false);
+    });
+
+    it('handleUpdateAll 取消發生在非第 0 個外掛 → 前面的照常、該外掛其餘 scope 不送、後面的外掛照常', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const plugins = [
+        enabledPlugin('alpha@mp', ['user', 'project']),
+        enabledPlugin('xcode@mp', ['user', 'project']),
+        enabledPlugin('gamma@mp', ['user']),
+      ];
+      cancelOn(['xcode@mp', 'user']);
+
+      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleUpdateAll();
+      });
+
+      expect(updateCalls()).toEqual([
+        { plugin: 'alpha@mp', scope: 'user' },
+        { plugin: 'alpha@mp', scope: 'project' },
+        { plugin: 'xcode@mp', scope: 'user' },
+        { plugin: 'gamma@mp', scope: 'user' },
+      ]);
+      expect(addToastMock).not.toHaveBeenCalledWith('All plugins updated');
+      expect(result.current.updateAllErrors).toEqual([]);
+    });
+
+    it('handleUpdateAll 取消與真正失敗並存 → 只有失敗列入錯誤，取消的不列入', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const plugins = [
+        enabledPlugin('xcode@mp', ['user']),
+        enabledPlugin('beta@mp', ['project']),
+      ];
+      mockSendRequest.mockImplementation(async (req: { plugin: string }) => {
+        if (req.plugin === 'beta@mp') throw new Error('network down');
+        return { cancelled: true };
+      });
+
+      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleUpdateAll();
+      });
+
+      expect(result.current.updateAllErrors).toEqual([
+        { pluginId: 'beta@mp', scope: 'project', message: 'network down' },
+      ]);
+      expect(addToastMock).not.toHaveBeenCalledWith('All plugins updated');
+    });
+
+    it('handleUpdateAll 全部一般外掛（cancelled:false）→ 顯示 All plugins updated，並用使用者確認逾時', async () => {
+      const fetchAll = vi.fn().mockResolvedValue(undefined);
+      const plugins = [enabledPlugin('alpha@mp'), enabledPlugin('beta@mp')];
+      cancelOn();
+
+      const { result } = renderHook(() => usePluginOperations(plugins, fetchAll, vi.fn()));
+
+      await act(async () => {
+        await result.current.handleUpdateAll();
+      });
+
+      expect(addToastMock).toHaveBeenCalledWith('All plugins updated');
+      for (const [, timeout] of mockSendRequest.mock.calls) {
+        expect(timeout).toBe(USER_CONFIRM_TIMEOUT);
+      }
+    });
   });
 });

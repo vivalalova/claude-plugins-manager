@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction, useCallback, useRef, useState } from 'react';
-import { sendRequest } from '../../../vscode';
-import type { MergedPlugin, PluginScope } from '../../../../shared/types';
+import { sendRequest, USER_CONFIRM_REQUEST_TIMEOUT_MS } from '../../../vscode';
+import type { ConsentOutcome, MergedPlugin, PluginScope } from '../../../../shared/types';
 import { toErrorMessage } from '../../../../shared/errorUtils';
 import {
   isPluginInstalled,
@@ -109,10 +109,15 @@ export function usePluginOperations(
           await sendRequest({ type: 'plugin.enable', plugin: pluginId, scope });
         } else {
           // 未安裝 → install（已含 enable）
-          await sendRequest(
+          const outcome = await sendRequest<ConsentOutcome>(
             { type: 'plugin.install', plugin: pluginId, scope },
-            120_000,
+            USER_CONFIRM_REQUEST_TIMEOUT_MS,
           );
+          if (outcome.cancelled) {
+            // 使用者在確認框取消：不是錯誤也沒安裝，重抓資料讓勾選框回到實際狀態
+            await fetchAll(false);
+            return;
+          }
         }
       } else {
         await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope });
@@ -135,11 +140,17 @@ export function usePluginOperations(
   const handleUpdate = useCallback(async (pluginId: string, scopes: PluginScope[]): Promise<void> => {
     setError(null);
     try {
+      let cancelled = false;
       for (const scope of scopes) {
-        await sendRequest({ type: 'plugin.update', plugin: pluginId, scope });
+        const outcome = await sendRequest<ConsentOutcome>(
+          { type: 'plugin.update', plugin: pluginId, scope },
+          USER_CONFIRM_REQUEST_TIMEOUT_MS,
+        );
+        // 使用者拒絕執行這個外掛的命令 → 其餘 scope 是同一條命令，不再問
+        if (outcome.cancelled) { cancelled = true; break; }
       }
       await fetchAll(false);
-      addToast(`Updated ${pluginId}`);
+      if (!cancelled) addToast(`Updated ${pluginId}`);
     } catch (e) {
       setError(toErrorMessage(e));
     }
@@ -158,13 +169,19 @@ export function usePluginOperations(
     setUpdateAllErrors([]);
     setUpdateAllProgress({ current: 0, total: updatable.length });
     const errors: UpdateAllError[] = [];
+    let anyCancelled = false;
 
     for (let i = 0; i < updatable.length; i++) {
       setUpdateAllProgress({ current: i + 1, total: updatable.length });
       const p = updatable[i];
       for (const scope of getInstalledScopes(p)) {
         try {
-          await sendRequest({ type: 'plugin.update', plugin: p.id, scope });
+          const outcome = await sendRequest<ConsentOutcome>(
+            { type: 'plugin.update', plugin: p.id, scope },
+            USER_CONFIRM_REQUEST_TIMEOUT_MS,
+          );
+          // 使用者拒絕執行這個外掛的命令 → 其餘 scope 是同一條命令，不再問；其他外掛照常
+          if (outcome.cancelled) { anyCancelled = true; break; }
         } catch (e) {
           errors.push({ pluginId: p.id, scope, message: toErrorMessage(e) });
         }
@@ -174,7 +191,7 @@ export function usePluginOperations(
     setUpdateAllProgress(null);
     if (errors.length > 0) {
       setUpdateAllErrors(errors);
-    } else {
+    } else if (!anyCancelled) {
       addToast('All plugins updated');
     }
     try { await fetchAll(false); } catch { /* refresh failure non-blocking */ }

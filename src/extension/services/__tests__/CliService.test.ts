@@ -67,6 +67,18 @@ function mockExitFailure(exitCode: number, stderr: string): void {
   });
 }
 
+function mockExitFailureWithStdout(exitCode: number, stdout: string, stderr: string): void {
+  mockSpawn.mockImplementation(() => {
+    const child = createMockChild();
+    queueMicrotask(() => {
+      child.stdout.emit('data', Buffer.from(stdout));
+      child.stderr.emit('data', Buffer.from(stderr));
+      child.emit('close', exitCode, null);
+    });
+    return child;
+  });
+}
+
 describe('CliService', () => {
   let cli: CliService;
   let sleepSpy: ReturnType<typeof vi.spyOn>;
@@ -101,6 +113,36 @@ describe('CliService', () => {
       expect(mockSpawn).toHaveBeenCalledTimes(1);
     });
 
+    it('非零 exit code → CliError.stdout 為 CLI 的 stdout（trim 後），message / stderr / exitCode 不變', async () => {
+      const stdout = 'human line\n{"failureCode":"command_source_refused"}\n';
+      mockExitFailureWithStdout(1, stdout, 'refused reason');
+
+      const error = await cli.exec(['plugin', 'install', 'x@mp', '--json']).catch((e: unknown) => e) as CliError;
+
+      expect(error).toBeInstanceOf(CliError);
+      expect(error.stdout).toBe('human line\n{"failureCode":"command_source_refused"}');
+      expect(error.message).toBe('refused reason');
+      expect(error.stderr).toBe('refused reason');
+      expect(error.exitCode).toBe(1);
+      expect(mockSpawn).toHaveBeenCalledTimes(1);
+    });
+
+    it('非零 exit code 且 stdout 為空 → CliError.stdout 為空字串', async () => {
+      mockExitFailure(1, 'boom');
+
+      const error = await cli.exec(['plugin', 'list']).catch((e: unknown) => e) as CliError;
+
+      expect(error.stdout).toBe('');
+    });
+
+    it('ENOENT → CliError.stdout 為空字串', async () => {
+      mockSpawnError({ code: 'ENOENT', message: 'spawn claude ENOENT', stderr: '' });
+
+      const error = await cli.exec(['mcp', 'list']).catch((e: unknown) => e) as CliError;
+
+      expect(error.stdout).toBe('');
+    });
+
     it('傳遞 cwd / stdio / env options', async () => {
       process.env.CLAUDECODE = 'nested-session';
       mockSuccess('ok');
@@ -118,6 +160,23 @@ describe('CliService', () => {
       const options = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
       expect(options.env.CLAUDECODE).toBeUndefined();
       delete process.env.CLAUDECODE;
+    });
+
+    it('子行程環境變數不含 CLAUDE_CODE_CHILD_SESSION，其餘照常保留且不改動 process.env', async () => {
+      const originalEnv = process.env;
+      process.env = { ...originalEnv, CLAUDE_CODE_CHILD_SESSION: '1', CLI_SERVICE_TEST_PLAIN_VAR: 'keep-me' };
+      try {
+        mockSuccess('ok');
+
+        await cli.exec(['plugin', 'install', 'x@mp']);
+
+        const options = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
+        expect(options.env.CLAUDE_CODE_CHILD_SESSION).toBeUndefined();
+        expect(options.env.CLI_SERVICE_TEST_PLAIN_VAR).toBe('keep-me');
+        expect(process.env.CLAUDE_CODE_CHILD_SESSION).toBe('1');
+      } finally {
+        process.env = originalEnv;
+      }
     });
   });
 

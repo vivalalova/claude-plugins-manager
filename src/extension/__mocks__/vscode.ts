@@ -92,6 +92,7 @@ export const window = {
   showSaveDialog: vi.fn(),
   showOpenDialog: vi.fn(),
   showInformationMessage: vi.fn(),
+  showWarningMessage: vi.fn(),
 };
 
 export const commands = {

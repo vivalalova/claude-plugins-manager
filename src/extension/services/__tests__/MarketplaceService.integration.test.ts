@@ -70,7 +70,7 @@ describe('MarketplaceService（integration / 真實 filesystem）', () => {
     } as unknown as { exec: ReturnType<typeof vi.fn>; execJson: ReturnType<typeof vi.fn> } & CliService;
 
     settings = new SettingsFileService();
-    svc = new MarketplaceService(cli, settings);
+    svc = new MarketplaceService(cli, settings, vi.fn().mockResolvedValue(true));
   });
 
   it('新增 marketplace 後，新 entry 預設 autoUpdate=true，既有 entry 保持原值', async () => {

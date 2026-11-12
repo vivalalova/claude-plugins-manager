@@ -59,6 +59,12 @@ window.addEventListener('message', (event: MessageEvent) => {
   }
 });
 
+/**
+ * 會等使用者在 VSCode 原生確認框做決定的 request（plugin.install／plugin.update／marketplace.reinstallAll）用的逾時：
+ * 要涵蓋人閱讀命令的時間，否則頁面先報逾時、之後按同意仍會安裝，畫面與實際結果不符。
+ */
+export const USER_CONFIRM_REQUEST_TIMEOUT_MS = 30 * 60_000;
+
 /** 發送 request 到 extension host，回傳 Promise（30 秒 timeout） */
 export function sendRequest<T>(
   message: Record<string, unknown>,

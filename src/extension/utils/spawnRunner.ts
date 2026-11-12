@@ -4,6 +4,8 @@ export interface SpawnError {
   code?: string | number;
   exitCode?: number | null;
   killed?: boolean;
+  /** 僅非零 exit code 時帶回（CLI 的 --json 結果行寫在 stdout） */
+  stdout?: string;
   stderr: string;
   message: string;
 }
@@ -114,6 +116,7 @@ export function spawnWithTimeout(options: SpawnOptions): Promise<SpawnResult> {
       }
       finishReject({
         exitCode: code ?? null,
+        stdout: stdout.trim(),
         stderr,
         message: stderr || `Command failed with exit code ${code ?? 'unknown'}`,
       });

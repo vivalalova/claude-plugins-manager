@@ -135,6 +135,34 @@ describe('MessageRouter', () => {
       expect(posted[0]).toMatchObject({ type: 'response', requestId: 'r3' });
     });
 
+    it('plugin.install 被使用者取消 → response.data 為 { cancelled: true }（webview 據此不報錯）', async () => {
+      services.plugin.install.mockResolvedValue({ cancelled: true });
+      await router.handle(
+        { type: 'plugin.install', requestId: 'r3c', plugin: 'xcode@mp', scope: 'user' } as RequestMessage,
+        post,
+      );
+      expect(posted).toEqual([{ type: 'response', requestId: 'r3c', data: { cancelled: true } }]);
+    });
+
+    it('plugin.update 的結果（含 cancelled）原樣回傳給 webview', async () => {
+      (services.plugin as Record<string, ReturnType<typeof vi.fn>>).update.mockResolvedValue({ cancelled: true });
+      await router.handle(
+        { type: 'plugin.update', requestId: 'r3u', plugin: 'xcode@mp', scope: 'user' } as RequestMessage,
+        post,
+      );
+      expect(posted).toEqual([{ type: 'response', requestId: 'r3u', data: { cancelled: true } }]);
+    });
+
+    it('marketplace.reinstallAll 的 cancelledPlugins 原樣回傳給 webview', async () => {
+      const result = { total: 1, succeeded: 1, failed: [], cancelledPlugins: ['xcode@mp (user)'] };
+      (services.marketplace as Record<string, unknown>).reinstallAll = vi.fn().mockResolvedValue(result);
+      await router.handle(
+        { type: 'marketplace.reinstallAll', requestId: 'r3m' } as RequestMessage,
+        post,
+      );
+      expect(posted).toEqual([{ type: 'response', requestId: 'r3m', data: result }]);
+    });
+
     it('plugin.disableAll → 呼叫 service', async () => {
       await router.handle(
         { type: 'plugin.disableAll', requestId: 'r4' } as RequestMessage,

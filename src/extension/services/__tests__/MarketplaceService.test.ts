@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { workspace } from 'vscode';
 import { MarketplaceService } from '../MarketplaceService';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
 import { NoWorkspaceError } from '../../utils/workspace';
 import { KNOWN_MARKETPLACES_PATH } from '../../paths';
 import type { CliService } from '../CliService';
+import type { ConfirmFn } from '../commandConsent';
+import { XCODE_SHA, createNotFoundError, createRefusedError } from './commandConsentFixtures';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
 
@@ -69,12 +72,15 @@ describe('MarketplaceService', () => {
   let cli: ReturnType<typeof createMockCli>;
   let settings: ReturnType<typeof createMockSettings>;
   let svc: MarketplaceService;
+  let confirm: ReturnType<typeof vi.fn<ConfirmFn>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    workspace.workspaceFolders = undefined;
     cli = createMockCli();
     settings = createMockSettings();
-    svc = new MarketplaceService(cli, settings);
+    confirm = vi.fn<ConfirmFn>().mockResolvedValue(true);
+    svc = new MarketplaceService(cli, settings, confirm);
     mockReadFile.mockResolvedValue(JSON.stringify(MOCK_CONFIG));
     mockWriteFile.mockResolvedValue(undefined);
     mockRename.mockResolvedValue(undefined);
@@ -322,13 +328,366 @@ describe('MarketplaceService', () => {
       await svc.reinstallAll();
 
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'looping@my-marketplace', '--scope', 'user'],
+        ['plugin', 'install', 'looping@my-marketplace', '--scope', 'user', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'stock@local-plugins', '--scope', 'project'],
+        ['plugin', 'install', 'stock@local-plugins', '--scope', 'project', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS, cwd: '/Users/test/.claude' },
       );
+    });
+  });
+
+  describe('reinstallAll() command-source 同意流程', () => {
+    const entry = (scope: 'user' | 'project' | 'local', projectPath?: string) => ({
+      scope,
+      installPath: '/cache/x',
+      version: '1.0.0',
+      installedAt: '2026-04-08T00:00:00.000Z',
+      lastUpdated: '2026-04-08T00:00:00.000Z',
+      ...(projectPath ? { projectPath } : {}),
+    });
+
+    const INSTALLED = {
+      version: 2,
+      plugins: {
+        'plain@my-marketplace': [entry('user')],
+        'xcode@my-marketplace': [entry('user')],
+        'later@my-marketplace': [entry('user')],
+      },
+    } satisfies InstalledPluginsFile;
+
+    const ENABLED = {
+      user: {
+        'plain@my-marketplace': true,
+        'xcode@my-marketplace': true,
+        'later@my-marketplace': true,
+      },
+      project: {},
+      local: {},
+    };
+
+    /** 某 scope 最後一次寫回的 enabledPlugins（最終狀態） */
+    function finalWrite(scope: string): Record<string, boolean> | undefined {
+      const calls = settings.replaceEnabledPlugins.mock.calls.filter((c) => c[0] === scope);
+      return calls[calls.length - 1]?.[1];
+    }
+
+    function installCalls(): string[][] {
+      return cli.exec.mock.calls
+        .map((c) => c[0] as string[])
+        .filter((a) => a[0] === 'plugin' && a[1] === 'install');
+    }
+
+    /** 對 xcode 的 install 依序回傳指定結果，其餘外掛成功 */
+    function xcodeBehaviour(handler: (args: string[]) => Promise<string>): void {
+      cli.exec.mockImplementation(async (args: string[]) => {
+        if (args[0] === 'plugin' && args[1] === 'install' && args[2] === 'xcode@my-marketplace') {
+          return handler(args);
+        }
+        return '';
+      });
+    }
+
+    it('同意後以 --accept-command 重裝、結果無失敗無取消，啟用狀態照快照還原', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(INSTALLED);
+      settings.readAllEnabledPlugins.mockResolvedValue(ENABLED);
+      let first = true;
+      xcodeBehaviour(async () => {
+        if (first) { first = false; throw createRefusedError({ pluginId: 'xcode@my-marketplace' }); }
+        return '';
+      });
+
+      const result = await svc.reinstallAll();
+
+      expect(result.failed).toEqual([]);
+      expect(result.cancelledPlugins).toEqual([]);
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(confirm.mock.calls[0][1]).toBe('install');
+      expect(installCalls()).toContainEqual([
+        'plugin', 'install', 'xcode@my-marketplace', '--scope', 'user', '--json', '--accept-command', XCODE_SHA,
+      ]);
+      expect(finalWrite('user')).toEqual(ENABLED.user);
+    });
+
+    it('使用者取消 → 不 throw、列入 cancelledPlugins、不算失敗，且寫回的 enabledPlugins 不含該外掛', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(INSTALLED);
+      settings.readAllEnabledPlugins.mockResolvedValue(ENABLED);
+      confirm.mockResolvedValue(false);
+      xcodeBehaviour(async () => { throw createRefusedError({ pluginId: 'xcode@my-marketplace' }); });
+
+      const result = await svc.reinstallAll();
+
+      expect(result.cancelledPlugins).toEqual(['xcode@my-marketplace (user)']);
+      expect(result.failed).toEqual([]);
+      expect(finalWrite('user')).toEqual({
+        'plain@my-marketplace': true,
+        'later@my-marketplace': true,
+      });
+    });
+
+    it('取消的外掛不中斷後續外掛：排在後面的外掛仍被重裝', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(INSTALLED);
+      settings.readAllEnabledPlugins.mockResolvedValue(ENABLED);
+      confirm.mockResolvedValue(false);
+      xcodeBehaviour(async () => { throw createRefusedError({ pluginId: 'xcode@my-marketplace' }); });
+
+      await svc.reinstallAll();
+
+      const ids = installCalls().map((a) => a[2]);
+      expect(ids).toContain('plain@my-marketplace');
+      expect(ids).toContain('later@my-marketplace');
+    });
+
+    it('一般失敗仍 throw 並列出外掛，且寫回的 enabledPlugins 保留失敗外掛的啟用、只拿掉取消的外掛', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'plain@my-marketplace': [entry('user')],
+          'xcode@my-marketplace': [entry('user')],
+          'broken@my-marketplace': [entry('user')],
+        },
+      } satisfies InstalledPluginsFile);
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: {
+          'plain@my-marketplace': true,
+          'xcode@my-marketplace': true,
+          'broken@my-marketplace': true,
+        },
+        project: {},
+        local: {},
+      });
+      confirm.mockResolvedValue(false);
+      cli.exec.mockImplementation(async (args: string[]) => {
+        if (args[1] === 'install' && args[2] === 'xcode@my-marketplace') {
+          throw createRefusedError({ pluginId: 'xcode@my-marketplace' });
+        }
+        if (args[1] === 'install' && args[2] === 'broken@my-marketplace') {
+          throw createNotFoundError();
+        }
+        return '';
+      });
+
+      await expect(svc.reinstallAll()).rejects.toThrow(/broken@my-marketplace \(user\)/);
+
+      expect(finalWrite('user')).toEqual({
+        'plain@my-marketplace': true,
+        'broken@my-marketplace': true,
+      });
+    });
+
+    it('只有重裝失敗（無取消）→ 仍 throw，寫回的 enabledPlugins 照原快照保留失敗外掛', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: { 'broken@my-marketplace': [entry('user')] },
+      } satisfies InstalledPluginsFile);
+      settings.readAllEnabledPlugins.mockResolvedValue({
+        user: { 'broken@my-marketplace': true },
+        project: {},
+        local: {},
+      });
+      cli.exec.mockImplementation(async (args: string[]) => {
+        if (args[1] === 'install') throw createNotFoundError();
+        return '';
+      });
+
+      await expect(svc.reinstallAll()).rejects.toThrow(/broken@my-marketplace \(user\)/);
+
+      expect(finalWrite('user')).toEqual({ 'broken@my-marketplace': true });
+    });
+
+    it('失敗與取消並存 → throw 的訊息同時含失敗原因與被取消的 "<pluginId> (<scope>)"', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'xcode@my-marketplace': [entry('user')],
+          'broken@my-marketplace': [entry('user')],
+        },
+      } satisfies InstalledPluginsFile);
+      confirm.mockResolvedValue(false);
+      cli.exec.mockImplementation(async (args: string[]) => {
+        if (args[1] === 'install' && args[2] === 'xcode@my-marketplace') {
+          throw createRefusedError({ pluginId: 'xcode@my-marketplace' });
+        }
+        if (args[1] === 'install' && args[2] === 'broken@my-marketplace') {
+          throw createNotFoundError();
+        }
+        return '';
+      });
+
+      const error = await svc.reinstallAll().then(
+        () => { throw new Error('expected reinstallAll to throw'); },
+        (e: unknown) => e as Error,
+      );
+
+      expect(error.message).toContain('broken@my-marketplace (user)');
+      expect(error.message).toContain('Plugin not found');
+      expect(error.message).toContain('xcode@my-marketplace (user)');
+    });
+
+    it('同一外掛多筆安裝：第一筆被取消後其餘筆不再詢問也不呼叫 install，全部列入 cancelledPlugins', async () => {
+      settings.readInstalledPlugins.mockResolvedValue({
+        version: 2,
+        plugins: {
+          'xcode@my-marketplace': [entry('user'), entry('project', '/proj'), entry('local', '/proj')],
+        },
+      } satisfies InstalledPluginsFile);
+      confirm.mockResolvedValue(false);
+      xcodeBehaviour(async () => { throw createRefusedError({ pluginId: 'xcode@my-marketplace' }); });
+
+      const result = await svc.reinstallAll();
+
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(installCalls().filter((a) => a[2] === 'xcode@my-marketplace')).toHaveLength(1);
+      expect(result.cancelledPlugins).toEqual([
+        'xcode@my-marketplace (user)',
+        'xcode@my-marketplace (project)',
+        'xcode@my-marketplace (local)',
+      ]);
+    });
+
+    describe('取消只影響目前工作區的 project／local 啟用設定', () => {
+      const ID = 'xcode@my-marketplace';
+
+      function cancelAll(): void {
+        confirm.mockResolvedValue(false);
+        xcodeBehaviour(async () => { throw createRefusedError({ pluginId: ID }); });
+      }
+
+      it.each(['project', 'local'] as const)(
+        '%s scope 的安裝紀錄 projectPath 不是目前工作區 → 被取消不拿掉目前工作區已啟用的同名外掛',
+        async (scope) => {
+          workspace.workspaceFolders = [{ uri: { fsPath: '/ws' } }] as any;
+          settings.readInstalledPlugins.mockResolvedValue({
+            version: 2,
+            plugins: { [ID]: [entry(scope, '/other')] },
+          } satisfies InstalledPluginsFile);
+          settings.readAllEnabledPlugins.mockResolvedValue({
+            user: {},
+            project: { [ID]: true },
+            local: { [ID]: true },
+          });
+          cancelAll();
+
+          const result = await svc.reinstallAll();
+
+          expect(result.cancelledPlugins).toEqual([`${ID} (${scope})`]);
+          expect(finalWrite('project')).toEqual({ [ID]: true });
+          expect(finalWrite('local')).toEqual({ [ID]: true });
+        },
+      );
+
+      it.each(['project', 'local'] as const)(
+        '%s scope 的安裝紀錄 projectPath 等於目前工作區 → 被取消時拿掉該 scope 的同名外掛、另一 scope 不動',
+        async (scope) => {
+          workspace.workspaceFolders = [{ uri: { fsPath: '/ws' } }] as any;
+          settings.readInstalledPlugins.mockResolvedValue({
+            version: 2,
+            plugins: { [ID]: [entry(scope, '/ws')] },
+          } satisfies InstalledPluginsFile);
+          settings.readAllEnabledPlugins.mockResolvedValue({
+            user: {},
+            project: { [ID]: true },
+            local: { [ID]: true },
+          });
+          cancelAll();
+
+          await svc.reinstallAll();
+
+          const other = scope === 'project' ? 'local' : 'project';
+          expect(finalWrite(scope)).toEqual({});
+          expect(finalWrite(other)).toEqual({ [ID]: true });
+        },
+      );
+
+      it('user scope 被取消一律拿掉 user 的同名外掛（不受工作區影響）', async () => {
+        workspace.workspaceFolders = [{ uri: { fsPath: '/ws' } }] as any;
+        settings.readInstalledPlugins.mockResolvedValue({
+          version: 2,
+          plugins: { [ID]: [entry('user')] },
+        } satisfies InstalledPluginsFile);
+        settings.readAllEnabledPlugins.mockResolvedValue({
+          user: { [ID]: true },
+          project: { [ID]: true },
+          local: {},
+        });
+        cancelAll();
+
+        await svc.reinstallAll();
+
+        expect(finalWrite('user')).toEqual({});
+        expect(finalWrite('project')).toEqual({ [ID]: true });
+      });
+
+      it('同外掛 user 與他專案 project 兩筆被取消 → 只拿掉 user，目前工作區的 project 啟用保留', async () => {
+        workspace.workspaceFolders = [{ uri: { fsPath: '/ws' } }] as any;
+        settings.readInstalledPlugins.mockResolvedValue({
+          version: 2,
+          plugins: { [ID]: [entry('user'), entry('project', '/other')] },
+        } satisfies InstalledPluginsFile);
+        settings.readAllEnabledPlugins.mockResolvedValue({
+          user: { [ID]: true },
+          project: { [ID]: true },
+          local: {},
+        });
+        cancelAll();
+
+        const result = await svc.reinstallAll();
+
+        expect(result.cancelledPlugins).toEqual([`${ID} (user)`, `${ID} (project)`]);
+        expect(finalWrite('user')).toEqual({});
+        expect(finalWrite('project')).toEqual({ [ID]: true });
+      });
+
+      it('沒有開啟工作區時，project 安裝紀錄被取消不拿掉任何 project 啟用設定', async () => {
+        settings.readInstalledPlugins.mockResolvedValue({
+          version: 2,
+          plugins: { [ID]: [entry('project', '/other')] },
+        } satisfies InstalledPluginsFile);
+        settings.readAllEnabledPlugins.mockResolvedValue({
+          user: {},
+          project: { [ID]: true },
+          local: {},
+        });
+        cancelAll();
+
+        await svc.reinstallAll();
+
+        expect(finalWrite('project')).toEqual({ [ID]: true });
+      });
+    });
+
+    it('一般外掛：confirm 從未被呼叫、cancelledPlugins 為空、所有 install 參數含 --json 且無 -y / --yes', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(INSTALLED);
+      settings.readAllEnabledPlugins.mockResolvedValue(ENABLED);
+
+      const result = await svc.reinstallAll();
+
+      expect(result.cancelledPlugins).toEqual([]);
+      expect(confirm).not.toHaveBeenCalled();
+      const installs = installCalls();
+      expect(installs).toHaveLength(3);
+      for (const args of installs) {
+        expect(args).toContain('--json');
+        expect(args).not.toContain('-y');
+        expect(args).not.toContain('--yes');
+      }
+    });
+
+    it('被拒 + 同意流程中也不出現 -y / --yes', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(INSTALLED);
+      settings.readAllEnabledPlugins.mockResolvedValue(ENABLED);
+      let first = true;
+      xcodeBehaviour(async () => {
+        if (first) { first = false; throw createRefusedError({ pluginId: 'xcode@my-marketplace' }); }
+        return '';
+      });
+
+      await svc.reinstallAll();
+
+      const args = cli.exec.mock.calls.flatMap((c) => c[0] as string[]);
+      expect(args).not.toContain('-y');
+      expect(args).not.toContain('--yes');
     });
   });
 

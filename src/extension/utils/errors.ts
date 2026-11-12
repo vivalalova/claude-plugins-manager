@@ -5,6 +5,7 @@ export class CommandError extends Error {
     public readonly command: string,
     public readonly exitCode: number | null,
     public readonly stderr: string,
+    public readonly stdout: string = '',
   ) {
     super(message);
     this.name = this.constructor.name;

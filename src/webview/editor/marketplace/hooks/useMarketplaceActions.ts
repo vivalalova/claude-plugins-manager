@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type KeyboardEvent, type MouseEvent, type SetStateAction } from 'react';
-import { sendRequest } from '../../../vscode';
+import { sendRequest, USER_CONFIRM_REQUEST_TIMEOUT_MS } from '../../../vscode';
 import { usePageAction } from '../../../hooks/usePageAction';
-import type { PreviewPlugin } from '../../../../shared/types';
+import type { PreviewPlugin, ReinstallAllResult } from '../../../../shared/types';
 
 type RetryAction = () => Promise<void>;
 
@@ -187,9 +187,9 @@ export function useMarketplaceActions({
   async function handleReinstallAll(): Promise<void> {
     setReinstalling(true);
     await runRetriableAction({
-      action: () => sendRequest<{ total: number; succeeded: number; failed: string[] }>(
+      action: () => sendRequest<ReinstallAllResult>(
         { type: 'marketplace.reinstallAll' },
-        120_000,
+        USER_CONFIRM_REQUEST_TIMEOUT_MS,
       ),
       retry: handleReinstallAll,
       onSuccess: async () => {
@@ -197,10 +197,13 @@ export function useMarketplaceActions({
       },
       onFinally: () => setReinstalling(false),
       successToast: (result) => {
+        const skipped = result.cancelledPlugins.length > 0
+          ? `; not installed (command not accepted): ${result.cancelledPlugins.join(', ')}`
+          : '';
         if (result.failed.length > 0) {
-          return `Reinstalled ${result.succeeded}/${result.total}, failed: ${result.failed.join(', ')}`;
+          return `Reinstalled ${result.succeeded}/${result.total}, failed: ${result.failed.join(', ')}${skipped}`;
         }
-        return `Reinstalled ${result.succeeded} marketplaces`;
+        return `Reinstalled ${result.succeeded} marketplaces${skipped}`;
       },
     });
   }

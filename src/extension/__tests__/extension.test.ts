@@ -117,6 +117,8 @@ vi.mock('../providers/SidebarViewProvider', () => {
 });
 
 import { activate } from '../extension';
+import { MarketplaceService } from '../services/MarketplaceService';
+import { PluginService } from '../services/PluginService';
 
 describe('activate', () => {
   beforeEach(() => {
@@ -166,6 +168,23 @@ describe('activate', () => {
     expect(state.settingsInvalidateScanCache).toHaveBeenCalledTimes(1);
     expect(state.mcpInvalidateMetadataCache).toHaveBeenCalledTimes(3);
     expect(state.mcpTriggerPoll).toHaveBeenCalledTimes(2);
+  });
+
+  it('PluginService 與 MarketplaceService 共用同一個 confirm 函式（install / update / 重新安裝全部同一套同意對話框）', async () => {
+    const context = {
+      extensionUri: { fsPath: '/extension' },
+      globalStorageUri: { fsPath: '/tmp/test-global-storage' },
+      globalState: { get: vi.fn(), update: vi.fn().mockResolvedValue(undefined), keys: vi.fn().mockReturnValue([]) },
+      extension: { packageJSON: { version: '0.0.0', displayName: 'Test', publisher: 'test' } },
+      subscriptions: [] as Array<{ dispose?: () => void }>,
+    };
+
+    await activate(context as never);
+
+    const pluginConfirm = vi.mocked(PluginService).mock.calls[0][2];
+    const marketplaceConfirm = vi.mocked(MarketplaceService).mock.calls[0][2];
+    expect(typeof pluginConfirm).toBe('function');
+    expect(marketplaceConfirm).toBe(pluginConfirm);
   });
 
   it('subscriptions 內的 cleanup disposable 會釋放 manager/provider/service/fileWatcher', async () => {

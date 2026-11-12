@@ -111,7 +111,7 @@ describe('Plugin scope toggle（E2E：MessageRouter → Service → Filesystem�
 
     settingsSvc = new SettingsFileService();
     const cli = createMockCli();
-    const pluginSvc = new PluginService(cli, settingsSvc);
+    const pluginSvc = new PluginService(cli, settingsSvc, vi.fn().mockResolvedValue(true));
     const stubs = createStubServices();
     router = new MessageRouter(stubs.marketplace, pluginSvc, stubs.mcp, stubs.translation, settingsSvc);
   });

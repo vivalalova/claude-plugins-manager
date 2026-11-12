@@ -14,6 +14,7 @@ const { mockSendRequest, mockOnPushMessage, mockViewState } = vi.hoisted(() => (
 }));
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
+  USER_CONFIRM_REQUEST_TIMEOUT_MS: 30 * 60_000,
   onPushMessage: mockOnPushMessage,
   getViewState: (key: string, fallback: unknown) => key in mockViewState ? mockViewState[key] : fallback,
   setViewState: (key: string, value: unknown) => { mockViewState[key] = value; },
@@ -851,6 +852,7 @@ describe('PluginPage — 核心流程', () => {
         if (req.type === 'plugin.listAvailable') {
           return makeResponse([], [makeAvailable('alpha', 'mp1')]);
         }
+        if (req.type === 'plugin.install' || req.type === 'plugin.update') return { cancelled: false };
         return undefined;
       });
 
@@ -972,7 +974,7 @@ describe('PluginPage — 核心流程', () => {
         if (req.type === 'plugin.update') {
           updateCallCount++;
           if (updateCallCount === 1) throw new Error('update timeout');
-          return undefined;
+          return { cancelled: false };
         }
         return undefined;
       });
@@ -1021,7 +1023,7 @@ describe('PluginPage — 核心流程', () => {
         if (req.type === 'plugin.install') {
           installCallCount++;
           if (installCallCount === 1) throw new Error('install failed');
-          return undefined;
+          return { cancelled: false };
         }
         return undefined;
       });
@@ -1650,6 +1652,74 @@ describe('PluginPage — 核心流程', () => {
       await waitFor(() => {
         const card = screen.getByText('alpha').closest('.card');
         expect(card?.classList.contains('card--hidden')).toBe(false);
+      });
+    });
+  });
+  describe('只安裝（Install without enabling）與 command-source 同意', () => {
+    const INSTALL_ONLY_LABEL = 'Install (without enabling)';
+
+    function setup(installResult: unknown): { requests: Array<{ type: string }> } {
+      const requests: Array<{ type: string }> = [];
+      mockSendRequest.mockImplementation(async (req: { type: string }) => {
+        requests.push(req);
+        if (req.type === 'workspace.getFolders') return [];
+        if (req.type === 'plugin.listAvailable') {
+          return makeResponse([], [makeAvailable('xcode', 'mp1', '', { sourceUrl: 'https://example.com/xcode' })]);
+        }
+        if (req.type === 'plugin.install') return installResult;
+        return undefined;
+      });
+      return { requests };
+    }
+
+    async function clickInstallOnly(): Promise<void> {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.queryByText('Loading plugins...')).toBeNull();
+      });
+      fireEvent.click(screen.getByText('mp1'));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: INSTALL_ONLY_LABEL }));
+      });
+    }
+
+    it('使用者取消 command-source 同意 → 不送 plugin.disable、無錯誤列、仍重新抓清單', async () => {
+      const { requests } = setup({ cancelled: true });
+
+      await clickInstallOnly();
+
+      await waitFor(() => {
+        expect(requests.filter((r) => r.type === 'plugin.install')).toHaveLength(1);
+      });
+      const listCountAfterInstall = () => requests.filter((r) => r.type === 'plugin.listAvailable').length;
+      await waitFor(() => {
+        expect(listCountAfterInstall()).toBeGreaterThanOrEqual(2);
+      });
+      expect(requests.map((r) => r.type)).not.toContain('plugin.disable');
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('一般外掛（cancelled:false）→ install 後照常送 plugin.disable、無錯誤列', async () => {
+      const { requests } = setup({ cancelled: false });
+
+      await clickInstallOnly();
+
+      await waitFor(() => {
+        expect(requests.map((r) => r.type)).toContain('plugin.disable');
+      });
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('install 以使用者確認逾時（30 分鐘）送出', async () => {
+      setup({ cancelled: false });
+
+      await clickInstallOnly();
+
+      await waitFor(() => {
+        expect(mockSendRequest).toHaveBeenCalledWith(
+          { type: 'plugin.install', plugin: 'xcode@mp1', scope: 'user' },
+          30 * 60_000,
+        );
       });
     });
   });

@@ -13,6 +13,7 @@ const { mockSendRequest, mockOnPushMessage } = vi.hoisted(() => ({
 }));
 vi.mock('../../../vscode', () => ({
   sendRequest: (...args: unknown[]) => mockSendRequest(...args),
+  USER_CONFIRM_REQUEST_TIMEOUT_MS: 30 * 60_000,
   onPushMessage: mockOnPushMessage,
   getViewState: (_key: string, fallback: unknown) => fallback,
   setViewState: () => {},

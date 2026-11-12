@@ -84,7 +84,7 @@ describe('PluginService（integration / 真實 SettingsFileService + filesystem�
 
     settings = new SettingsFileService();
     cli = createMockCli();
-    svc = new PluginService(cli, settings);
+    svc = new PluginService(cli, settings, vi.fn().mockResolvedValue(true));
   });
 
   /* ═══════ install (reuse 路徑) → listInstalled ═══════ */
@@ -224,7 +224,7 @@ describe('PluginService（integration / 真實 SettingsFileService + filesystem�
     await svc.install('brand-new@mp', 'project');
 
     expect((cli as any).exec).toHaveBeenCalledWith(
-      ['plugin', 'install', 'brand-new@mp', '--scope', 'project'],
+      ['plugin', 'install', 'brand-new@mp', '--scope', 'project', '--json'],
       expect.objectContaining({ cwd: workspaceDir }),
     );
   });

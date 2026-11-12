@@ -351,3 +351,16 @@ export interface TranslateResult {
   /** API quota 耗盡等警告訊息 */
   warning?: string;
 }
+
+/** 需使用者過目 marketplace 宣告命令的操作結果；cancelled＝使用者在確認框取消、未執行 */
+export interface ConsentOutcome {
+  cancelled: boolean;
+}
+
+/** 「重新安裝全部」的結果；cancelledPlugins＝使用者未同意執行命令而未安裝的 `<pluginId> (<scope>)` */
+export interface ReinstallAllResult {
+  total: number;
+  succeeded: number;
+  failed: string[];
+  cancelledPlugins: string[];
+}

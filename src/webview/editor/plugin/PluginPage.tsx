@@ -21,12 +21,13 @@ import { useTranslation } from './hooks/useTranslation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePluginPageViewState } from './hooks/usePluginPageViewState';
 import { useMarketplaceActions } from '../marketplace/hooks/useMarketplaceActions';
-import { onPushMessage, sendRequest } from '../../vscode';
+import { onPushMessage, sendRequest, USER_CONFIRM_REQUEST_TIMEOUT_MS } from '../../vscode';
 import type {
   MarketplaceReinstallPhase,
   MarketplaceReinstallProgress,
   PluginContentItem,
   PluginScope,
+  ConsentOutcome,
 } from '../../../shared/types';
 import type { ContentDetail } from '../../components/ContentDetailPanel';
 
@@ -237,7 +238,15 @@ export function PluginPage(): React.ReactElement {
   const handleInstallOnly = async (pluginId: string): Promise<void> => {
     setInstallOnlyId(pluginId);
     try {
-      await sendRequest({ type: 'plugin.install', plugin: pluginId, scope: 'user' });
+      const outcome = await sendRequest<ConsentOutcome>(
+        { type: 'plugin.install', plugin: pluginId, scope: 'user' },
+        USER_CONFIRM_REQUEST_TIMEOUT_MS,
+      );
+      if (outcome.cancelled) {
+        // 使用者在確認框取消：沒安裝，不需 disable
+        await fetchAll(false);
+        return;
+      }
       // install auto-enables → immediately disable（disable 失敗不阻斷，但仍 refresh）
       await sendRequest({ type: 'plugin.disable', plugin: pluginId, scope: 'user' }).catch(() => { /* CLI enable/disable exit 1 on duplicate ops */ });
       await fetchAll(false);

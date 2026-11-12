@@ -3,9 +3,18 @@ import { workspace } from 'vscode';
 import { PluginService } from '../PluginService';
 import { NoWorkspaceError } from '../../utils/workspace';
 import { CLI_LONG_TIMEOUT_MS } from '../../constants';
+import { CliError } from '../CliService';
 import type { CliService } from '../CliService';
+import type { ConfirmFn } from '../commandConsent';
 import type { SettingsFileService } from '../SettingsFileService';
 import type { InstalledPluginsFile } from '../../../shared/types';
+import {
+  OTHER_SHA,
+  XCODE_ID,
+  XCODE_SHA,
+  createNotFoundError,
+  createRefusedError,
+} from './commandConsentFixtures';
 
 /* ── fs/promises mock（readMcpServers + detectOrphaned + pruneStaleLocalEntries + pruneUnusedCache 內部使用） ── */
 const mockReadFile = vi.hoisted(() => vi.fn());
@@ -80,6 +89,7 @@ describe('PluginService', () => {
   let cli: ReturnType<typeof createMockCli>;
   let settings: ReturnType<typeof createMockSettings>;
   let svc: PluginService;
+  let confirm: ReturnType<typeof vi.fn<ConfirmFn>>;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -89,7 +99,8 @@ describe('PluginService', () => {
     mockRm.mockResolvedValue(undefined);
     cli = createMockCli();
     settings = createMockSettings();
-    svc = new PluginService(cli, settings);
+    confirm = vi.fn<ConfirmFn>().mockResolvedValue(true);
+    svc = new PluginService(cli, settings, confirm);
     workspace.workspaceFolders = undefined;
   });
 
@@ -410,7 +421,7 @@ describe('PluginService', () => {
       await svc.install('my-plugin@mp', 'user');
 
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
       expect(settings.addInstallEntry).not.toHaveBeenCalled();
@@ -424,7 +435,7 @@ describe('PluginService', () => {
       await svc.install('my-plugin@mp', 'project');
 
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'project'],
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'project', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS, cwd: '/my/project' },
       );
     });
@@ -481,7 +492,7 @@ describe('PluginService', () => {
       await svc.install('my-plugin@mp', 'user');
 
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
       expect(settings.addInstallEntry).not.toHaveBeenCalled();
@@ -604,7 +615,7 @@ describe('PluginService', () => {
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
       expect(cli.exec).toHaveBeenNthCalledWith(3,
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user'],
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'user', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
     });
@@ -638,9 +649,214 @@ describe('PluginService', () => {
       await svc.install('my-plugin@mp', 'project');
 
       expect(cli.exec).toHaveBeenNthCalledWith(3,
-        ['plugin', 'install', 'my-plugin@mp', '--scope', 'project'],
+        ['plugin', 'install', 'my-plugin@mp', '--scope', 'project', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS, cwd: '/my/project' },
       );
+    });
+  });
+
+  /* ═══════ command-source 同意流程 ═══════ */
+  describe('install() command-source 同意流程', () => {
+    const INSTALL_ARGS = ['plugin', 'install', XCODE_ID, '--scope', 'user', '--json'];
+
+    it('一般外掛安裝回 cancelled:false、confirm 從未被呼叫', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+
+      const result = await svc.install('my-plugin@mp', 'user');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('已有其他 scope 可複用（有 workspace）→ 回 { cancelled:false }', async () => {
+      workspace.workspaceFolders = [{ uri: { fsPath: '/my/project' } }] as any;
+      settings.readInstalledPlugins.mockResolvedValue(installedWithUser('my-plugin@mp'));
+
+      const result = await svc.install('my-plugin@mp', 'project');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(cli.exec).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('被拒且使用者同意 → 帶 --accept-command 重跑、回 cancelled:false、修正執行權限', async () => {
+      settings.readInstalledPlugins
+        .mockResolvedValueOnce(EMPTY_INSTALLED)
+        .mockResolvedValueOnce(installedWithUser(XCODE_ID));
+      cli.exec.mockRejectedValueOnce(createRefusedError()).mockResolvedValueOnce('');
+
+      const result = await svc.install(XCODE_ID, 'user');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(confirm.mock.calls[0][0]).toMatchObject({ pluginId: XCODE_ID, sha256: XCODE_SHA });
+      expect(confirm.mock.calls[0][1]).toBe('install');
+      expect(cli.exec).toHaveBeenNthCalledWith(1, INSTALL_ARGS, { timeout: CLI_LONG_TIMEOUT_MS });
+      expect(cli.exec).toHaveBeenNthCalledWith(
+        2,
+        [...INSTALL_ARGS, '--accept-command', XCODE_SHA],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+      expect(mockFixScriptPermissions).toHaveBeenCalledWith('/existing/path');
+    });
+
+    it('被拒且使用者取消 → 回 cancelled:true、不重跑、不修權限、不寫設定', async () => {
+      confirm.mockResolvedValue(false);
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec.mockRejectedValueOnce(createRefusedError());
+
+      const result = await svc.install(XCODE_ID, 'user');
+
+      expect(result).toEqual({ cancelled: true });
+      expect(cli.exec).toHaveBeenCalledTimes(1);
+      expect(mockFixScriptPermissions).not.toHaveBeenCalled();
+      expect(settings.readInstalledPlugins).toHaveBeenCalledTimes(1);
+      expect(settings.addInstallEntry).not.toHaveBeenCalled();
+      expect(settings.setPluginEnabled).not.toHaveBeenCalled();
+    });
+
+    it('同意後重跑被拒但命令內容變了（command 與 sha 都不同）→ 再問一次，使用新 sha 重跑', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec
+        .mockRejectedValueOnce(createRefusedError())
+        .mockRejectedValueOnce(createRefusedError({ sha256: OTHER_SHA, command: 'echo new-command' }))
+        .mockResolvedValueOnce('');
+
+      const result = await svc.install(XCODE_ID, 'user');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(confirm).toHaveBeenCalledTimes(2);
+      expect(confirm.mock.calls[1][0]).toMatchObject({ command: 'echo new-command', sha256: OTHER_SHA });
+      expect(cli.exec).toHaveBeenNthCalledWith(
+        3,
+        [...INSTALL_ARGS, '--accept-command', OTHER_SHA],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+    });
+
+    it('同意後重跑被拒、內容相同只有 sha 不同 → throw 該錯誤、confirm 只被呼叫一次', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      const second = createRefusedError({ sha256: OTHER_SHA });
+      cli.exec.mockRejectedValueOnce(createRefusedError()).mockRejectedValueOnce(second);
+
+      await expect(svc.install(XCODE_ID, 'user')).rejects.toBe(second);
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(cli.exec).toHaveBeenCalledTimes(2);
+    });
+
+    it('同意後重跑被拒、內容與 sha 都相同 → throw 該錯誤、不再問', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      const second = createRefusedError();
+      cli.exec.mockRejectedValueOnce(createRefusedError()).mockRejectedValueOnce(second);
+
+      await expect(svc.install(XCODE_ID, 'user')).rejects.toBe(second);
+      expect(confirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('not_found → 原樣 throw 同一個錯誤物件、不詢問、不修權限', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      const err = createNotFoundError();
+      cli.exec.mockRejectedValueOnce(err);
+
+      await expect(svc.install('nope@mp', 'user')).rejects.toBe(err);
+      expect(confirm).not.toHaveBeenCalled();
+      expect(mockFixScriptPermissions).not.toHaveBeenCalled();
+    });
+
+    it('source path missing 重試：marketplace update 後的 install 同樣經同意流程（可被拒後同意）', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec
+        .mockRejectedValueOnce(new Error('Source path does not exist: /p'))
+        .mockResolvedValueOnce('') // marketplace update
+        .mockRejectedValueOnce(createRefusedError())
+        .mockResolvedValueOnce('');
+
+      const result = await svc.install(XCODE_ID, 'user');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(cli.exec).toHaveBeenNthCalledWith(
+        4,
+        [...INSTALL_ARGS, '--accept-command', XCODE_SHA],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+    });
+
+    it('任何 CLI 呼叫都不含 -y / --yes', async () => {
+      settings.readInstalledPlugins.mockResolvedValue(EMPTY_INSTALLED);
+      cli.exec.mockRejectedValueOnce(createRefusedError()).mockResolvedValueOnce('');
+
+      await svc.install(XCODE_ID, 'user');
+
+      const args = cli.exec.mock.calls.flatMap((c) => c[0] as string[]);
+      expect(args).not.toContain('-y');
+      expect(args).not.toContain('--yes');
+    });
+  });
+
+  describe('update() command-source 同意流程', () => {
+    const UPDATE_ARGS = ['plugin', 'update', XCODE_ID, '--scope', 'user', '--json'];
+
+    it('一般外掛更新回 cancelled:false、更新 timestamp、不詢問', async () => {
+      const result = await svc.update('my-plugin', 'user');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(confirm).not.toHaveBeenCalled();
+      expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', 'user');
+    });
+
+    it('被拒且同意 → 帶 --accept-command 重跑、更新 timestamp、動作為 update', async () => {
+      cli.exec.mockRejectedValueOnce(createRefusedError()).mockResolvedValueOnce('');
+
+      const result = await svc.update(XCODE_ID, 'user');
+
+      expect(result).toEqual({ cancelled: false });
+      expect(confirm.mock.calls[0][1]).toBe('update');
+      expect(cli.exec).toHaveBeenNthCalledWith(
+        2,
+        [...UPDATE_ARGS, '--accept-command', XCODE_SHA],
+        { timeout: CLI_LONG_TIMEOUT_MS },
+      );
+      expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith(XCODE_ID, 'user');
+    });
+
+    it('被拒且取消 → 回 cancelled:true、不更新 timestamp、不修權限', async () => {
+      confirm.mockResolvedValue(false);
+      cli.exec.mockRejectedValueOnce(createRefusedError());
+
+      const result = await svc.update(XCODE_ID, 'user');
+
+      expect(result).toEqual({ cancelled: true });
+      expect(cli.exec).toHaveBeenCalledTimes(1);
+      expect(settings.updateInstallEntryTimestamp).not.toHaveBeenCalled();
+      expect(mockFixScriptPermissions).not.toHaveBeenCalled();
+    });
+
+    it('already up to date（stderr 為 message）→ 仍更新 timestamp 後 throw 原錯誤', async () => {
+      const err = new CliError('already up to date', 'claude plugin update', 1, 'already up to date', '');
+      cli.exec.mockRejectedValueOnce(err);
+
+      await expect(svc.update('my-plugin', 'user')).rejects.toBe(err);
+      expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', 'user');
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('not_found → 原樣 throw 同一物件、不更新 timestamp', async () => {
+      const err = createNotFoundError();
+      cli.exec.mockRejectedValueOnce(err);
+
+      await expect(svc.update('nope@mp', 'user')).rejects.toBe(err);
+      expect(settings.updateInstallEntryTimestamp).not.toHaveBeenCalled();
+    });
+
+    it('任何 CLI 呼叫都不含 -y / --yes', async () => {
+      cli.exec.mockRejectedValueOnce(createRefusedError()).mockResolvedValueOnce('');
+
+      await svc.update(XCODE_ID, 'user');
+
+      const args = cli.exec.mock.calls.flatMap((c) => c[0] as string[]);
+      expect(args).not.toContain('-y');
+      expect(args).not.toContain('--yes');
     });
   });
 
@@ -781,7 +997,7 @@ describe('PluginService', () => {
     it('帶 scope → CLI + 更新 timestamp', async () => {
       await svc.update('my-plugin', 'user');
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'update', 'my-plugin', '--scope', 'user'],
+        ['plugin', 'update', 'my-plugin', '--scope', 'user', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
       expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', 'user');
@@ -790,7 +1006,7 @@ describe('PluginService', () => {
     it('不帶 scope → CLI + 更新 timestamp', async () => {
       await svc.update('my-plugin');
       expect(cli.exec).toHaveBeenCalledWith(
-        ['plugin', 'update', 'my-plugin'],
+        ['plugin', 'update', 'my-plugin', '--json'],
         { timeout: CLI_LONG_TIMEOUT_MS },
       );
       expect(settings.updateInstallEntryTimestamp).toHaveBeenCalledWith('my-plugin', undefined);

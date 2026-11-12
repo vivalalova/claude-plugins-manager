@@ -14,6 +14,7 @@ import { HookExplanationService } from './services/HookExplanationService';
 import { ExtensionInfoService } from './services/ExtensionInfoService';
 import { SkillService } from './services/SkillService';
 import { PreferencesService } from './services/PreferencesService';
+import { createConfirm } from './services/commandConsentPrompt';
 import { MessageRouter } from './messaging/MessageRouter';
 import { SidebarViewProvider } from './providers/SidebarViewProvider';
 import { EditorPanelManager } from './providers/EditorPanelManager';
@@ -47,8 +48,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const cli = new CliService();
   const settingsFileService = new SettingsFileService();
-  const marketplaceService = new MarketplaceService(cli, settingsFileService);
-  const pluginService = new PluginService(cli, settingsFileService);
+  const confirmCommand = createConfirm(vscode.env.language);
+  const marketplaceService = new MarketplaceService(cli, settingsFileService, confirmCommand);
+  const pluginService = new PluginService(cli, settingsFileService, confirmCommand);
   const mcpService = new McpService(cli, settingsFileService);
   const translationService = new TranslationService(cacheDir);
   const fileWatcherService = new FileWatcherService();

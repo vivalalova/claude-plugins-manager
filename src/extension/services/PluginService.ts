@@ -10,9 +10,11 @@ import type {
   PluginListResponse,
   PluginScope,
   PluginInstallEntry,
+  ConsentOutcome,
 } from '../../shared/types';
 import type { CliService } from './CliService';
 import type { SettingsFileService } from './SettingsFileService';
+import { runWithCommandConsent, type ConfirmFn } from './commandConsent';
 import { getWorkspacePath, NoWorkspaceError } from '../utils/workspace';
 import { fixScriptPermissions } from '../utils/fixScriptPermissions';
 
@@ -25,6 +27,7 @@ export class PluginService {
   constructor(
     private readonly cli: CliService,
     private readonly settings: SettingsFileService,
+    private readonly confirm: ConfirmFn,
   ) {}
 
   private getScopedProjectPath(scope?: PluginScope): string | undefined {
@@ -138,7 +141,7 @@ export class PluginService {
   }
 
   /** 安裝 plugin（寫入 installed_plugins.json + enable） */
-  async install(plugin: string, scope: PluginScope): Promise<void> {
+  async install(plugin: string, scope: PluginScope): Promise<ConsentOutcome> {
     // 優先檢查是否已有其他 scope 安裝（可複用 installPath，不需 marketplace scan）
     const data = await this.settings.readInstalledPlugins();
     const existing = data.plugins[plugin];
@@ -153,11 +156,16 @@ export class PluginService {
     } else {
       // 尚未安裝：用 CLI 安裝（下載 cache + 寫 installed_plugins.json + enable）
       const cwd = this.getScopedProjectPath(scope);
+      const cliInstall = (): Promise<ConsentOutcome> => runWithCommandConsent(
+        this.cli,
+        ['plugin', 'install', plugin, '--scope', scope],
+        { timeout: CLI_LONG_TIMEOUT_MS, cwd },
+        'install',
+        this.confirm,
+      );
+      let outcome: ConsentOutcome;
       try {
-        await this.cli.exec(
-          ['plugin', 'install', plugin, '--scope', scope],
-          { timeout: CLI_LONG_TIMEOUT_MS, cwd },
-        );
+        outcome = await cliInstall();
       } catch (err) {
         // source path 不存在 → marketplace 可能未同步，先 update 再重試一次
         if (isSourcePathMissing(err)) {
@@ -168,10 +176,7 @@ export class PluginService {
               ['plugin', 'marketplace', 'update', marketplaceName],
               { timeout: CLI_LONG_TIMEOUT_MS },
             );
-            await this.cli.exec(
-              ['plugin', 'install', plugin, '--scope', scope],
-              { timeout: CLI_LONG_TIMEOUT_MS, cwd },
-            );
+            outcome = await cliInstall();
           } else {
             throw err;
           }
@@ -179,8 +184,9 @@ export class PluginService {
           throw err;
         }
       }
+      if (outcome.cancelled) return outcome;
       await this.fixPluginPermissions(plugin);
-      return;
+      return outcome;
     }
     const projectPath = this.getScopedProjectPath(scope);
     await this.removeStaleScopedInstallEntry(plugin, existing ?? [], scope, projectPath, installPath);
@@ -197,6 +203,7 @@ export class PluginService {
     await this.settings.addInstallEntry(plugin, entry);
     await this.settings.setPluginEnabled(plugin, scope, true);
     await this.fixPluginPermissions(plugin);
+    return { cancelled: false };
   }
 
   /** 移除 plugin（從 installed_plugins.json 移除 entry + disable） */
@@ -235,14 +242,15 @@ export class PluginService {
   }
 
   /** 更新 plugin（保留 CLI — 需 git pull + re-cache） */
-  async update(plugin: string, scope?: PluginScope): Promise<void> {
+  async update(plugin: string, scope?: PluginScope): Promise<ConsentOutcome> {
     const args = ['plugin', 'update', plugin];
     if (scope) {
       args.push('--scope', scope);
     }
     const cwd = this.getScopedProjectPath(scope);
+    let outcome: ConsentOutcome;
     try {
-      await this.cli.exec(args, { timeout: CLI_LONG_TIMEOUT_MS, cwd });
+      outcome = await runWithCommandConsent(this.cli, args, { timeout: CLI_LONG_TIMEOUT_MS, cwd }, 'update', this.confirm);
     } catch (error) {
       // 只有「already up to date」類錯誤才更新 timestamp，避免隱藏真正需要重試的失敗
       const msg = error instanceof Error ? error.message : '';
@@ -251,10 +259,12 @@ export class PluginService {
       }
       throw error;
     }
+    if (outcome.cancelled) return outcome;
     await Promise.all([
       this.fixPluginPermissions(plugin),
       this.settings.updateInstallEntryTimestamp(plugin, scope),
     ]);
+    return outcome;
   }
 
   /** 移除單一 orphaned entry（從 installed_plugins.json） */
